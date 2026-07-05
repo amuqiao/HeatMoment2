@@ -1,0 +1,13 @@
+# Xcode / XcodeGen —— 工程由 Project.yml 经 scripts/gen.sh 重建，不入库
+*.xcodeproj
+DerivedData/
+.build/
+*.xcuserstate
+xcuserdata/
+.swiftpm/
+
+# macOS
+.DS_Store
+
+# 工具产物
+*.log
