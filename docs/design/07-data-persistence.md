@@ -56,14 +56,21 @@ final class Moment {
     @Relationship(deleteRule: .cascade, inverse: \MomentImage.moment)
     var images: [MomentImage] = []
 
-    /// 软删除生命周期字段
-    var isDeleted: Bool = false
+    /// 软删除生命周期字段。
+    /// 存储列用 deletedFlag，对外以计算属性 isDeleted 暴露（同 moodRawValue→mood 模式）：
+    /// 规避 SwiftData 对 `is` 前缀 Bool 存储属性的 KVC 缺陷（save() 后会被静默重置为 false，已最小复现）。
+    /// **`#Predicate` 一律引用存储列 `deletedFlag`，不引用计算属性 isDeleted。**
+    var deletedFlag: Bool = false
+    var isDeleted: Bool {
+        get { deletedFlag }
+        set { deletedFlag = newValue }
+    }
     var deletedAt: Date? = nil
 }
 ```
 
 - 排序/分页均以 `occurredAt` 为主键（时间轴、热力图、统计都按发生时间而非创建时间组织，符合「补记」语义）`[观测确认]`。
-- 免费额度计数（10 篇）统计**所有尚未物理删除的记录（含垃圾箱内 `isDeleted==true` 的）**（已裁决，软删除与恢复的用户流程见 `03-user-flows.md`）：额度计数不按 `isDeleted` 过滤，只有在垃圾箱彻底删除后才从计数移除；而时间轴列表展示仍只查 `isDeleted==false` 的记录。二者是不同查询，勿混用同一 `FetchDescriptor`。限额数值以 `06-domain-model.md` 为唯一权威。
+- 免费额度计数（10 篇）统计**所有尚未物理删除的记录（含垃圾箱内 `isDeleted==true` 的）**（已裁决，软删除与恢复的用户流程见 `03-user-flows.md`）：额度计数不按 `isDeleted` 过滤，只有在垃圾箱彻底删除后才从计数移除；而时间轴列表展示仍只查未删除的记录。二者是不同查询，勿混用同一 `FetchDescriptor`（谓词层引用存储列 `deletedFlag`，见上方 `Moment` 注释）。限额数值以 `06-domain-model.md` 为唯一权威。
 
 ### 3.1 热力图 / 日期着色的聚合口径
 

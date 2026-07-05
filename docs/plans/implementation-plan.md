@@ -88,7 +88,7 @@ HeatMoment2/
 - **依赖**：无。
 - **验收**：`./scripts/bootstrap.sh` 装齐工具；`./scripts/gen.sh` 生成工程；`./scripts/verify.sh` 全绿（lint+build+空测试）；`./scripts/run.sh` 在 iPhone 17 模拟器起空壳。
 
-### 阶段 1 · 领域与数据契约 ⬜
+### 阶段 1 · 领域与数据契约 ✅
 - **目标**：可编译、可测的数据地基。
 - **交付**：`Mood`（8 情绪枚举，rawValue 契约）、`Moment`/`Tag`/`MomentImage`（`@Model`，CloudKit 兼容约束）、`ModelContainer+Config`（CloudKit 私有库装配）、`AppRouter` 骨架、`QuotaService` / `MomentRepository` / `TagRepository` 接口（`ModelActor` 后台写入）。
 - **依赖**：阶段 0。
@@ -162,7 +162,7 @@ HeatMoment2/
 | 阶段 | 状态 | 验收证据 |
 |---|---|---|
 | 0 脚手架与 scripts | ✅ 完成 | `gen`✓ · `build`✓(iPhone 17) · 单元+UI 测试✓ · `lint`✓ |
-| 1 领域与数据契约 | ⬜ | — |
+| 1 领域与数据契约 | ✅ 完成 | `verify` 绿：23 单元测试全过 · build ✓ · lint ✓；review 4 项已修（throw/排序/磁盘往返/补测） |
 | 2 时间轴首屏 | ⬜ | — |
 | 3 记录/编辑 | ⬜ | — |
 | 4 预览+删除生命周期 | ⬜ | — |
