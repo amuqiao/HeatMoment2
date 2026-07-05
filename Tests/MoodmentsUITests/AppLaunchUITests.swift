@@ -1,10 +1,11 @@
 import XCTest
 
-/// 阶段 0 UI 冒烟：App 能启动且显示占位标题「时刻」。
+/// App 启动冒烟：启动后进入时间轴首页（首页大标题「时刻」可见）。
+/// 空态 3 引导、标题折叠筛选等细化断言见 `TimelineEmptyStateUITests` / `TitleCollapseFilterUITests`。
 final class AppLaunchUITests: XCTestCase {
-    func testAppLaunchesAndShowsTitle() {
+    func testAppLaunchesIntoTimeline() {
         let app = XCUIApplication()
         app.launch()
-        XCTAssertTrue(app.staticTexts["时刻"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["时刻"].firstMatch.waitForExistence(timeout: 10))
     }
 }
