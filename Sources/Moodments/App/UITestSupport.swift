@@ -18,7 +18,14 @@ enum UITestSupport {
     @MainActor
     static func seedIfRequested(_ context: ModelContext) {
         guard ProcessInfo.processInfo.arguments.contains("-uiTestSeedMoments") else { return }
-        let existing = (try? context.fetchCount(FetchDescriptor<Moment>())) ?? 0
+        // 不吞错：预检查失败应显式暴露（与下方 save 的处理一致，见 CLAUDE.md 快速失败铁律）。
+        let existing: Int
+        do {
+            existing = try context.fetchCount(FetchDescriptor<Moment>())
+        } catch {
+            assertionFailure("UITest seed 预检查失败：\(error)")
+            return
+        }
         guard existing == 0 else { return }
         for index in 0..<15 {
             let moment = Moment()

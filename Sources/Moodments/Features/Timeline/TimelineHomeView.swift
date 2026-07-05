@@ -13,7 +13,9 @@ import SwiftUI
 /// 局部 `@State` 驱动、不进 `AppRouter`，见 08-architecture.md §2.2/§3）。
 struct TimelineHomeView: View {
     private static let scrollSpace = "TimelineHomeView.scroll"
-    private static let collapseThreshold: CGFloat = -8
+    // 折叠阈值取接近大标题实际高度：仅当展开态大标题大体滚出后才切收起态，
+    // 避免小阈值下「时刻 ⌄」与仍完整可见的大标题同屏并存（见 code review）。
+    private static let collapseThreshold: CGFloat = -44
 
     @Environment(AppRouter.self) private var router
     @Environment(ThemeManager.self) private var theme
@@ -90,6 +92,9 @@ struct TimelineHomeView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityIdentifier("timelineExpandedTitle")
             .accessibilityAddTraits(.isHeader)
+            // 折叠后展开态大标题虽仍在层级中（LazyVStack 顶部），对无障碍/自动化隐藏，
+            // 避免与收起态「时刻」并存造成 VoiceOver 重复播报页头（见 review）。
+            .accessibilityHidden(isTitleCollapsed)
     }
 
     /// 收起态：上滑折叠后固定栏中显示的「时刻 ⌄」，仅此状态可点、打开筛选就近浮窗。

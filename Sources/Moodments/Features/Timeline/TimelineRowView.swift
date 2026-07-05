@@ -80,8 +80,13 @@ struct TimelineRowView: View {
     }
 
     private var timeText: String {
+        Self.timeFormatter.string(from: entry.occurredAt)
+    }
+
+    /// 24 小时制时间格式化器缓存：DateFormatter 构造昂贵，避免逐行、逐次 body 求值重建。
+    private static let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm"
-        return formatter.string(from: entry.occurredAt)
-    }
+        return formatter
+    }()
 }

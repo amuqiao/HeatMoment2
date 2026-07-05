@@ -5,6 +5,7 @@ import XCTest
 final class EditorSheetPresentationUITests: XCTestCase {
     func testTapFABPresentsEditorSheet() {
         let app = XCUIApplication()
+        app.launchArguments = ["-uiTestReset"]   // 隔离内存容器，呈现机制验收不受磁盘数据影响
         app.launch()
 
         let fab = app.buttons["新建时刻"]
