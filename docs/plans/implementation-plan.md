@@ -94,7 +94,7 @@ HeatMoment2/
 - **依赖**：阶段 0。
 - **验收（单元测试）**：`MoodTests`（allCases=8、顺序、rawValue 稳定）；`QuotaServiceTests`（10 篇/3 图/3 标签边界：第 N 可、第 N+1 拒、Pro 不限）；`MomentLifecycleTests`（软删除置位、恢复、彻底删除、额度计数含垃圾箱与列表查询分离）；`verify.sh` 绿。
 
-### 阶段 2 · 时间轴首屏 ⬜
+### 阶段 2 · 时间轴首屏 ✅
 - **目标**：能 run 看到的第一屏。
 - **交付**：`TimelineHomeView`（气泡卡片、**每情绪心情色**节点、顶部三入口、**标题两态折叠**、FAB、空态 3 条预置引导）、`TimelineModel`（`heatmapFocusDate`/`activeFilter` 双状态源占位）、`DesignSystem`（Colors 含 8 心情色 + 6 主色双值、气泡/节点/FAB 组件）。
 - **依赖**：阶段 1。
@@ -163,7 +163,7 @@ HeatMoment2/
 |---|---|---|
 | 0 脚手架与 scripts | ✅ 完成 | `gen`✓ · `build`✓(iPhone 17) · 单元+UI 测试✓ · `lint`✓ |
 | 1 领域与数据契约 | ✅ 完成 | `verify` 绿：23 单元测试全过 · build ✓ · lint ✓；review 4 项已修（throw/排序/磁盘往返/补测） |
-| 2 时间轴首屏 | ⬜ | — |
+| 2 时间轴首屏 | ✅ 完成 | `verify` 绿：23 单元 + 5 UI 测试全过 · build ✓ · lint ✓；标题两态折叠 iOS18 `onScrollGeometryChange`/iOS17 PreferenceKey 双路径；review 两份（架构无违背 + 代码 1 必修已改）已修：错误暴露/测试隔离/formatter 缓存/折叠阈值+无障碍 |
 | 3 记录/编辑 | ⬜ | — |
 | 4 预览+删除生命周期 | ⬜ | — |
 | 5 回看 | ⬜ | — |
