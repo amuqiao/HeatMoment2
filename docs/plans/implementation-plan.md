@@ -106,7 +106,7 @@ HeatMoment2/
 - **依赖**：阶段 1、2。
 - **验收（UI + 单元）**：`CreateMomentFlowUITests`（选情绪→标签→日期→照片→保存→出现在时间轴）；`QuotaBlockUITests`（第 4 图/第 4 标签/第 11 篇拦截）；`occurredAt` 补记单元测试（排序按发生时间）。
 
-### 阶段 4 · 预览 + 删除生命周期 ⬜
+### 阶段 4 · 预览 + 删除生命周期 ✅
 - **目标**：阅读与安全删除闭环。
 - **交付**：`MomentPreviewView`（**弹出阅读卡片**，非 push）、`ImageViewerView`（fullScreenCover）、左滑删除→垃圾箱、`TrashView`（右滑恢复 / 左滑彻底删除+二次确认）。
 - **依赖**：阶段 2、3。
@@ -157,8 +157,11 @@ HeatMoment2/
 - 个别浅色组合 WCAG 复核（阶段 2/6 实现时用工具校）。
 - `.xcodeproj` 是否入库（本计划定：不入库，靠 `Project.yml` 重建；如团队偏好入库可调）。
 - **默认标签预置与 CloudKit 首次同步的重复风险**（阶段 6 前处理）：`DefaultTagSeeder` 以「Tag 表为空」为触发；接 iCloud 后新设备在下行同步完成前表仍为空，会先本地预置 工作/生活/健康 再同步下来一份、产生重复。阶段 6 接同步时需加去重/延迟预置策略。
-- **编辑器运行时错误的用户可见反馈**（阶段 3 已记，择机补）：`load()`/`save()`/照片导入失败当前 debug `assertionFailure`、release 静默（不改数据、不降级，但用户无反馈）。需一个面向用户的错误呈现通道（保持「失败即失败」前提下把失败暴露给用户），建议随阶段 6 打磨统一引入。
-- **编辑态保存重建图片的孤儿缩略图缓存**（阶段 4 处理）：`.edit` 恒重建 `MomentImage`（新 UUID），`ThumbnailCache` 旧键成孤儿、仅在 `purge` 清理；阶段 4 接缩略图时在重建处顺带失效旧键。
+- **运行时写/加载错误的用户可见反馈**（阶段 3/4 已记，阶段 6 统一做）：编辑器 `load()`/`save()`/照片导入，以及时间轴删除、垃圾箱恢复/彻底删除的写失败，当前均 debug `assertionFailure`、release 静默（不改数据、不降级，但用户无反馈）。需一个统一的面向用户错误呈现通道（保持「失败即失败」前提下把失败暴露给用户），随阶段 6 打磨统一引入。
+- **图片查看器缩放后无平移**（polish）：`ImageViewerView` 已支持捏合缩放（含上界钳制）与双击，但放大后不能平移查看其他区域；04 §4.10 只要求缩放、未强制平移。补平移需与 `TabView(.page)` 分页手势做仲裁，涉及时再做。
+- **时间轴末行竖线尾段悬垂**（细微视觉 polish）：贯穿式竖线覆盖每行「卡片 + 20pt 延伸段」，最后一条 Moment 节点下方仍有约 20pt 空线；需给末行传 `isLast` 收尾。
+- **ThumbnailCache 在途生成去重**（低优）：async 重载在 actor 重入下，同一 `imageID` 的并发未命中请求会各自重新生成（幂等、仅重复 IO/CPU）；可用 `[UUID: Task]` 记在途任务去重。
+- ~~编辑态保存重建图片的孤儿缩略图缓存~~（阶段 4 已处理：`save()`/`purge` 两处失效旧键）。
 
 ## 9. 进度追踪
 
@@ -168,7 +171,7 @@ HeatMoment2/
 | 1 领域与数据契约 | ✅ 完成 | `verify` 绿：23 单元测试全过 · build ✓ · lint ✓；review 4 项已修（throw/排序/磁盘往返/补测） |
 | 2 时间轴首屏 | ✅ 完成 | `verify` 绿：23 单元 + 5 UI 测试全过 · build ✓ · lint ✓；标题两态折叠 iOS18 `onScrollGeometryChange`/iOS17 PreferenceKey 双路径；review 两份（架构无违背 + 代码 1 必修已改）已修：错误暴露/测试隔离/formatter 缓存/折叠阈值+无障碍 |
 | 3 记录/编辑 | ✅ 完成 | `verify` 绿：38 单元 + UI（CreateMomentFlow/QuotaBlock/EditorSheet 等）全过 · build ✓ · lint ✓；编辑器 + 四就近浮窗 + 图片压缩管线 + 篇数/照片/标签额度闸门 + 首启预置默认标签 + 编辑态照片增删；review 两份（架构无违背；代码 1 必修：照片额度判定收敛 QuotaService + Pro latent bug）已修；延后项入 §8 |
-| 4 预览+删除生命周期 | ⬜ | — |
+| 4 预览+删除生命周期 | ✅ 完成 | `verify` 绿：47 单元 + 13 UI（7 套件，新增 DeleteRestorePurge）全过 · build ✓ · lint ✓；预览弹出阅读卡片（ADR-007）+ 图片查看器（fullScreenCover）+ 时间轴 `List`+`.swipeActions` 删除 + TrashView 恢复/彻底删除 + 缩略图缓存接线 + 两处缓存失效；顺带修正时间轴竖线断裂既有缺陷；review 两份均无必须修，低风险项（.isModal/缩放钳制/解码暴露/预留标注）已修；延后项入 §8 |
 | 5 回看 | ⬜ | — |
 | 6 设置+外观 | ⬜ | — |
 | 7 支撑能力(P1) | ⬜ | — |
