@@ -100,7 +100,7 @@ HeatMoment2/
 - **依赖**：阶段 1。
 - **验收（UI + 快照）**：`TimelineEmptyStateUITests`；`TitleCollapseFilterUITests`（上滑折叠后收起态标题可点、大标题态不可点）；节点按情绪着色的快照（深/浅）；`run.sh` 可见首屏。
 
-### 阶段 3 · 记录 / 编辑 ⬜
+### 阶段 3 · 记录 / 编辑 ✅
 - **目标**：能真正记一条 Moment 入库。
 - **交付**：`MomentEditorView`（任务卡片）、就近浮窗（`MoodPicker` / `TagPicker` / 日期 graphical / 时间 wheel，`popover`+`presentationCompactAdaptation(.popover)`）、添加照片（压缩入库 + 缩略图缓存）、保存写 SwiftData、限额拦截 → Paywall 占位。
 - **依赖**：阶段 1、2。
@@ -156,6 +156,9 @@ HeatMoment2/
 - 日期选中圆用主色/主文本色（阶段 3 真机实测确认）。
 - 个别浅色组合 WCAG 复核（阶段 2/6 实现时用工具校）。
 - `.xcodeproj` 是否入库（本计划定：不入库，靠 `Project.yml` 重建；如团队偏好入库可调）。
+- **默认标签预置与 CloudKit 首次同步的重复风险**（阶段 6 前处理）：`DefaultTagSeeder` 以「Tag 表为空」为触发；接 iCloud 后新设备在下行同步完成前表仍为空，会先本地预置 工作/生活/健康 再同步下来一份、产生重复。阶段 6 接同步时需加去重/延迟预置策略。
+- **编辑器运行时错误的用户可见反馈**（阶段 3 已记，择机补）：`load()`/`save()`/照片导入失败当前 debug `assertionFailure`、release 静默（不改数据、不降级，但用户无反馈）。需一个面向用户的错误呈现通道（保持「失败即失败」前提下把失败暴露给用户），建议随阶段 6 打磨统一引入。
+- **编辑态保存重建图片的孤儿缩略图缓存**（阶段 4 处理）：`.edit` 恒重建 `MomentImage`（新 UUID），`ThumbnailCache` 旧键成孤儿、仅在 `purge` 清理；阶段 4 接缩略图时在重建处顺带失效旧键。
 
 ## 9. 进度追踪
 
@@ -164,7 +167,7 @@ HeatMoment2/
 | 0 脚手架与 scripts | ✅ 完成 | `gen`✓ · `build`✓(iPhone 17) · 单元+UI 测试✓ · `lint`✓ |
 | 1 领域与数据契约 | ✅ 完成 | `verify` 绿：23 单元测试全过 · build ✓ · lint ✓；review 4 项已修（throw/排序/磁盘往返/补测） |
 | 2 时间轴首屏 | ✅ 完成 | `verify` 绿：23 单元 + 5 UI 测试全过 · build ✓ · lint ✓；标题两态折叠 iOS18 `onScrollGeometryChange`/iOS17 PreferenceKey 双路径；review 两份（架构无违背 + 代码 1 必修已改）已修：错误暴露/测试隔离/formatter 缓存/折叠阈值+无障碍 |
-| 3 记录/编辑 | ⬜ | — |
+| 3 记录/编辑 | ✅ 完成 | `verify` 绿：38 单元 + UI（CreateMomentFlow/QuotaBlock/EditorSheet 等）全过 · build ✓ · lint ✓；编辑器 + 四就近浮窗 + 图片压缩管线 + 篇数/照片/标签额度闸门 + 首启预置默认标签 + 编辑态照片增删；review 两份（架构无违背；代码 1 必修：照片额度判定收敛 QuotaService + Pro latent bug）已修；延后项入 §8 |
 | 4 预览+删除生命周期 | ⬜ | — |
 | 5 回看 | ⬜ | — |
 | 6 设置+外观 | ⬜ | — |
