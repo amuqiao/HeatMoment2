@@ -27,6 +27,16 @@ struct UserFacingError: Identifiable, Equatable {
 final class ErrorPresenter {
     private(set) var currentError: UserFacingError?
 
+    /// 呈现宿主栈（LIFO，见 `UserFacingErrorAlertModifier`）：任务卡片栈/就近浮窗可以**嵌套**在
+    /// 另一个已挂 `.userFacingErrorAlert` 的呈现上下文之内且**同时挂载**（如
+    /// `RootView` 呈现 `SettingsSheetView`、`SettingsSheetView` push 出的 `TagManageView` 再呈现
+    /// `TagCreateSheetView`——三层同时在场，而非互斥的兄弟关系）。若祖先与被其遮挡的后代同时
+    /// 绑定同一个 `currentError != nil` 各自呈现系统 `.alert`，会让 UIKit 对「该由谁呈现」产生
+    /// 冲突，真机/模拟器实测复现为**整条呈现链被强制折叠回根**（阶段6 review 修复3）——而非文档
+    /// 早先设想的「父级 alert 静默不弹、无副作用」。用「最后挂载 = 当前最上层」的栈语义：只让
+    /// 当前最上层的宿主真正呈现，其余仍挂载但被遮挡的祖先宿主保持沉默，直至重新成为最上层。
+    private var hostStack: [UUID] = []
+
     private static let logger = Logger(subsystem: "com.moodments.app", category: "ErrorPresenter")
 
     init() {}
@@ -37,11 +47,31 @@ final class ErrorPresenter {
     ///   - message: 面向用户的中文提示（各调用方按业务场景措辞）。
     ///   - underlying: 原始错误，只进日志、不展示给用户。
     func report(message: String, underlying: Error) {
-        Self.logger.error("\(message, privacy: .public)：\(String(describing: underlying), privacy: .public)")
+        // 隐私优先：固定中文 message 是本 App 自身文案、不含用户数据，保持 `.public` 可检索；
+        // `underlying` 可能带文件路径/SwiftData 描述等隐含用户数据，改 `.private`，避免明文
+        // 泄进系统日志（Console/sysdiagnose 均可见 `.public` 内容）。
+        Self.logger.error("\(message, privacy: .public)：\(String(describing: underlying), privacy: .private)")
         currentError = UserFacingError(title: "出错了", message: message)
     }
 
     func dismiss() {
         currentError = nil
+    }
+
+    /// 供 `UserFacingErrorAlertModifier` 在 `.onAppear` 登记本次挂载，入栈成为当前最上层宿主。
+    func registerAlertHost() -> UUID {
+        let id = UUID()
+        hostStack.append(id)
+        return id
+    }
+
+    /// 供 `UserFacingErrorAlertModifier` 在 `.onDisappear` 注销，退出呈现宿主栈。
+    func unregisterAlertHost(_ id: UUID) {
+        hostStack.removeAll { $0 == id }
+    }
+
+    /// 该宿主当前是否为最上层（栈顶）——只有最上层宿主的 `.alert` 才真正呈现。
+    func isTopmostAlertHost(_ id: UUID) -> Bool {
+        hostStack.last == id
     }
 }

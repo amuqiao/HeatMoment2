@@ -62,6 +62,11 @@ struct TagCreateSheetView: View {
         }
         .padding(24)
         .presentationDetents([.height(180)])
+        // 本视图是任务卡片栈第二层、可能的最前 sheet（从 `TagPickerView`/`TagManageView`
+        // 弹出）：`.alert` 不跨 sheet 边界，父级（`MomentEditorView`/`SettingsSheetView`）挂的
+        // `.userFacingErrorAlert` 弹不到本层之上，故本视图需自行挂一份，绑定同一份经
+        // `@Environment` 注入的共享 `ErrorPresenter`（见 `UserFacingErrorAlert.swift` 头部说明）。
+        .userFacingErrorAlert(errorPresenter)
     }
 
     private func save() async {

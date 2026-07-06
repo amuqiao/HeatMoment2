@@ -12,6 +12,7 @@ struct TagPickerView: View {
     let onRequestCreate: () -> Void
 
     @Environment(ThemeManager.self) private var theme
+    @Environment(ErrorPresenter.self) private var errorPresenter
     @State private var tags: [TagSnapshot] = []
 
     var body: some View {
@@ -65,11 +66,15 @@ struct TagPickerView: View {
         // 测算把动态行数内容压扁、导致行渲染在可见浮窗范围之外的问题。
         .fixedSize(horizontal: false, vertical: true)
         .background(theme.sheetBackground)
+        // 本视图是就近浮窗（`.popover`）内容，同 `TagCreateSheetView` 的遮挡问题：父级
+        // （`MomentEditorView`）挂的 `.userFacingErrorAlert` 未必能弹到浮窗之上，故本视图自行
+        // 挂一份，绑定同一份共享 `ErrorPresenter`。
+        .userFacingErrorAlert(errorPresenter)
         .task {
             do {
                 tags = try await TagRepository(modelContainer: modelContainer).fetchAll()
             } catch {
-                assertionFailure("标签列表加载失败：\(error)")
+                await errorPresenter.report(message: "标签列表加载失败，请稍后重试。", underlying: error)
             }
         }
     }

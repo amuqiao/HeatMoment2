@@ -100,7 +100,10 @@ struct TagManageView: View {
         .listRowBackground(Color.clear)
         .accessibilityIdentifier("tagManageRow-\(tag.id.uuidString)")
         .accessibilityLabel(Text("#\(tag.name)，双击重命名"))
-        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+        // 关闭整滑直接触发（`allowsFullSwipe: false`）：标签删除不可逆、无标签垃圾箱兜底
+        // （公理7「标签是归类不是所有权」不含标签自身生命周期恢复），需多一次点击红色删除按钮
+        // 的确认动作，降低误删概率。
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button(role: .destructive) {
                 handleDelete(tag)
             } label: {

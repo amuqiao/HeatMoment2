@@ -57,8 +57,10 @@ struct AppearanceStore {
     }
 
     /// 逐轴读取：缺失 key（如首次启动）直接用默认值，不计入「已修正」——那是正常的初始态，
-    /// 不是坏配置；只有「key 存在但 rawValue 无法解析」才视为坏配置，回落默认值并计数
-    /// （见 05 §5.3.7「已修正 N 项本地偏好配置」）。
+    /// 不是坏配置；只有「key 存在但 rawValue 无法解析」才视为坏配置，**立即回写该轴默认值**
+    /// （自愈，避免下次冷启动对同一份坏数据重复判定、重复计数、重复展示「已修正」提示）并计数
+    /// （见 05 §5.3.7「已修正 N 项本地偏好配置」）——`correctedCount` 如实反映**本次**修正数，
+    /// 不受自愈回写影响（回写发生在计数之后，且只影响下一次 `load()` 的判定结果）。
     func load() -> (preference: AppearancePreference, correctedCount: Int) {
         var correctedCount = 0
 
@@ -66,6 +68,7 @@ struct AppearanceStore {
             guard let raw = defaults.string(forKey: key) else { return defaultValue }
             guard let resolved = T(rawValue: raw) else {
                 correctedCount += 1
+                defaults.set(defaultValue.rawValue, forKey: key)
                 return defaultValue
             }
             return resolved

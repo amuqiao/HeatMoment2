@@ -149,6 +149,49 @@ final class TagManageUITests: XCTestCase {
         )
     }
 
+    /// 重命名撞已存在标签名 → 应用层查重命中 `tagNameConflict`，走统一 `ErrorPresenter` 呈现
+    /// 可见错误提示、不静默、不 dismiss（见 `TagCreateSheetView.save()`；本用例同时验证阶段6
+    /// review 修复项1：`TagCreateSheetView` 作为最前 sheet 自行挂 `.userFacingErrorAlert`，
+    /// 否则父级 `SettingsSheetView` 的 alert 弹不到它上面、用户界面会毫无反应）。
+    func testRenameTagToExistingNameShowsVisibleError() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTestReset"]
+        app.launch()
+
+        XCTAssertTrue(app.buttons["新建时刻"].waitForExistence(timeout: 10))
+        openTagManage(app)
+
+        let lifeRow = app.buttons
+            .matching(NSPredicate(format: "identifier BEGINSWITH %@ AND label CONTAINS %@", "tagManageRow-", "生活"))
+            .firstMatch
+        XCTAssertTrue(lifeRow.waitForExistence(timeout: 5))
+        lifeRow.tap()
+
+        let nameField = app.textFields["tagCreateNameField"]
+        XCTAssertTrue(nameField.waitForExistence(timeout: 5))
+        XCTAssertEqual(nameField.value as? String, "生活", "重命名态应预填原名")
+
+        // 「工作」是 `DefaultTagSeeder` 预置的既有标签名，撞名。
+        replaceText(in: nameField, with: "工作")
+        app.buttons["tagCreateSaveButton"].tap()
+
+        XCTAssertTrue(
+            app.staticTexts["出错了"].waitForExistence(timeout: 5),
+            "撞名应弹出可见错误提示，而不是界面毫无反应"
+        )
+        XCTAssertTrue(
+            app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "已存在")).firstMatch
+                .waitForExistence(timeout: 3),
+            "错误提示文案应说明标签名已存在"
+        )
+
+        app.buttons["好的"].tap()
+
+        // 撞名不 dismiss——输入内容保留在原地供用户重试。
+        XCTAssertTrue(nameField.waitForExistence(timeout: 5), "撞名保存失败后不应 dismiss，应留在原卡片供重试")
+        XCTAssertEqual(nameField.value as? String, "工作", "撞名失败后应保留用户已输入的内容，不清空/不回填原值")
+    }
+
     // MARK: - Helpers
 
     private func openTagManage(_ app: XCUIApplication) {

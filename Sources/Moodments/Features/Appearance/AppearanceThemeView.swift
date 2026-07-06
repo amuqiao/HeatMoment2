@@ -15,20 +15,31 @@ struct AppearanceThemeView: View {
         List {
             if theme.correctedPreferenceCount > 0 {
                 Section {
+                    // 良性信息态（自愈成功的告知），非错误——用主色而非危险红，与下方两条
+                    // 「保存失败」的危险提示做视觉区分。
                     inlineNotice(
                         text: "已修正 \(theme.correctedPreferenceCount) 项本地偏好配置",
-                        identifier: "appearanceCorrectedNotice"
+                        identifier: "appearanceCorrectedNotice",
+                        color: theme.accent
                     )
                 }
             }
             if theme.appearanceSaveFailed {
                 Section {
-                    inlineNotice(text: "外观设置保存失败，请稍后重试", identifier: "appearanceSaveFailedNotice")
+                    inlineNotice(
+                        text: "外观设置保存失败，请稍后重试",
+                        identifier: "appearanceSaveFailedNotice",
+                        color: theme.danger
+                    )
                 }
             }
             if theme.photoDisplaySaveFailed {
                 Section {
-                    inlineNotice(text: "照片显示设置保存失败，请稍后重试", identifier: "photoDisplaySaveFailedNotice")
+                    inlineNotice(
+                        text: "照片显示设置保存失败，请稍后重试",
+                        identifier: "photoDisplaySaveFailedNotice",
+                        color: theme.danger
+                    )
                 }
             }
 
@@ -60,10 +71,10 @@ struct AppearanceThemeView: View {
         .navigationTitle("主题颜色")
     }
 
-    private func inlineNotice(text: String, identifier: String) -> some View {
+    private func inlineNotice(text: String, identifier: String, color: Color) -> some View {
         Text(text)
             .font(AppTypography.caption)
-            .foregroundStyle(theme.danger)
+            .foregroundStyle(color)
             .accessibilityIdentifier(identifier)
     }
 
