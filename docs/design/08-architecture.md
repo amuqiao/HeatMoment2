@@ -56,7 +56,7 @@ App 采用「首页为根的单 `NavigationStack` + 两类浮层 + 沉浸全屏 
 | `SettingsSheetView` | 任务卡片栈（`.sheet` page sheet） | 内含独立 `NavigationStack`，子页在栈内 push |
 | `ProPaywallView` | 任务卡片栈（`.sheet` page sheet） | 三类触发来源共用；从编辑器/设置之上弹出时即形成第二层卡片层叠 |
 | `MomentPreviewView` | 任务卡片（弹出阅读卡片，入卡片栈） | 点卡片弹出阅读卡片，非 push；关闭回到时间轴原滚动位置 |
-| `YearHeatmapView` | `ZStack` overlay（覆盖层） | 顶部展开、背景半透明，非模态；X 收起并保留时间轴状态 |
+| `YearHeatmapView` | `ZStack` overlay（覆盖层） | 顶部锚定展开、**继承主画布配色（不加全屏遮罩，依公理4「覆盖层背景不下沉」，与 05 §5.4 一致）**，非模态；X 收起并保留时间轴状态 |
 | `FilterPanelView` | 就近浮窗（锚定、带尖角、不下沉背景、不入栈；跨设备保持浮窗，不降级半高 sheet） | 就地选择即时应用，无「确认」按钮 |
 | `MoodPickerView` | 就近浮窗（锚定、不下沉、不入栈；跨设备保持浮窗） | 从编辑器情绪行展开 |
 | `TagPickerView` | 就近浮窗（锚定、不下沉、不入栈；跨设备保持浮窗） | 从编辑器标签行展开，支持多选 |

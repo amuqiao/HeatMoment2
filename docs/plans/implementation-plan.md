@@ -112,7 +112,7 @@ HeatMoment2/
 - **依赖**：阶段 2、3。
 - **验收**：`DeleteRestorePurgeUITests`（删除→垃圾箱→恢复回原发生时间位置→彻底删除释放额度）；预览为卡片非跳转的断言。
 
-### 阶段 5 · 回看（热力图 + 统计） ⬜
+### 阶段 5 · 回看（热力图 + 统计） ✅
 - **目标**：把分散记录压成年度情绪图案 + 定位。
 - **交付**：`YearHeatmapView`（覆盖层，日期格=**当天最后一条心情色**）、`MoodStatsView`（心情日期分布 + 8 情绪条形）、定位与筛选双状态源接通、上下文标记（筛选标记 + 时间标记并存）。
 - **依赖**：阶段 2、（多标签筛选逻辑）。
@@ -161,6 +161,8 @@ HeatMoment2/
 - **图片查看器缩放后无平移**（polish）：`ImageViewerView` 已支持捏合缩放（含上界钳制）与双击，但放大后不能平移查看其他区域；04 §4.10 只要求缩放、未强制平移。补平移需与 `TabView(.page)` 分页手势做仲裁，涉及时再做。
 - **时间轴末行竖线尾段悬垂**（细微视觉 polish）：贯穿式竖线覆盖每行「卡片 + 20pt 延伸段」，最后一条 Moment 节点下方仍有约 20pt 空线；需给末行传 `isLast` 收尾。
 - **ThumbnailCache 在途生成去重**（低优）：async 重载在 actor 重入下，同一 `imageID` 的并发未命中请求会各自重新生成（幂等、仅重复 IO/CPU）；可用 `[UUID: Task]` 记在途任务去重。
+- **热力图「选月」定位 + 整列高亮**（阶段 5 延后，见 13-open-questions #21）：现只落地「点日期格」定位 + 单格描边；04 §4.3/05 §5.4 要求「选月/选日 → 整列高亮」，月份标签可点与整列主色 12–16% 叠加待补。
+- **筛选中标签被删除后的陈旧标记**（阶段 6 处理）：`activeFilter.tagIDs` 含已删除标签时，上下文标记渲染空白「#」且命中恒 0；标签管理（阶段 6）删除标签时需同步清理 `activeFilter` 中失效 id（或标记条过滤失效 id）。
 - ~~编辑态保存重建图片的孤儿缩略图缓存~~（阶段 4 已处理：`save()`/`purge` 两处失效旧键）。
 
 ## 9. 进度追踪
@@ -172,6 +174,6 @@ HeatMoment2/
 | 2 时间轴首屏 | ✅ 完成 | `verify` 绿：23 单元 + 5 UI 测试全过 · build ✓ · lint ✓；标题两态折叠 iOS18 `onScrollGeometryChange`/iOS17 PreferenceKey 双路径；review 两份（架构无违背 + 代码 1 必修已改）已修：错误暴露/测试隔离/formatter 缓存/折叠阈值+无障碍 |
 | 3 记录/编辑 | ✅ 完成 | `verify` 绿：38 单元 + UI（CreateMomentFlow/QuotaBlock/EditorSheet 等）全过 · build ✓ · lint ✓；编辑器 + 四就近浮窗 + 图片压缩管线 + 篇数/照片/标签额度闸门 + 首启预置默认标签 + 编辑态照片增删；review 两份（架构无违背；代码 1 必修：照片额度判定收敛 QuotaService + Pro latent bug）已修；延后项入 §8 |
 | 4 预览+删除生命周期 | ✅ 完成 | `verify` 绿：47 单元 + 13 UI（7 套件，新增 DeleteRestorePurge）全过 · build ✓ · lint ✓；预览弹出阅读卡片（ADR-007）+ 图片查看器（fullScreenCover）+ 时间轴 `List`+`.swipeActions` 删除 + TrashView 恢复/彻底删除 + 缩略图缓存接线 + 两处缓存失效；顺带修正时间轴竖线断裂既有缺陷；review 两份均无必须修，低风险项（.isModal/缩放钳制/解码暴露/预留标注）已修；延后项入 §8 |
-| 5 回看 | ⬜ | — |
+| 5 回看 | ✅ 完成 | `verify` 绿：63 单元（新增 LocateVsFilterTests/MultiTagFilterTests/HeatmapMoodColorTests 共16例）+ 15 UI（8 套件，回归全过，含新增 LocateFilterUITests）全过 · build ✓ · lint ✓；`TimelineModel` 上提到 `RootView` 注入（时间轴/热力图共享同一实例）；`TimelineListView`+`TimelineQuery` 落实定位/筛选正交（谓词无 Date 参数、`scrollTargetID` 纯函数）；多标签 AND 交集内存过滤（`FilterCondition.matches`）；`MomentRepository+Aggregation` 年度聚合（`ModelActor` 后台、回传 `[Int:Mood]`/`[Mood:Int]` 值类型）；`YearHeatmapView`/`MoodStatsView`/`FilterPanelView`/`TimelineContextMarkerBar` 落地真实内容；过程中修复一处真实缺陷：容器级 `.accessibilityIdentifier` 会覆盖子元素自身 identifier（已在 4 处新文件移除容器级 id 并登记教训注释）；review 两份（架构无违背、公理2 正交性评优；代码有铁律必修）已修：聚合/网格静默降级→快速失败、网格 O(1) 重构、年份区间解耦（动态含当前年）、补真正变动 focusDate 的正交断言 + 新增 `LocateFilterUITests` 集成测试；范围简化：热力图仅落地「点日期格」定位、未落地独立「点月份标签」+「整列高亮」（见 13-open-questions #21 与 §8）；延后项入 §8 |
 | 6 设置+外观 | ⬜ | — |
 | 7 支撑能力(P1) | ⬜ | — |
