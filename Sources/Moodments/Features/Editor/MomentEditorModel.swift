@@ -59,6 +59,12 @@ final class MomentEditorModel {
     /// 打开时的字段快照，供 `isDirty` 比较（见 03-user-flows.md §3.1：取消若脏需二次确认）。
     private var baseline: EditorSnapshot
 
+    /// `.edit` 态载入时既有的 `MomentImage.id` 列表（见 `save()`）：`updateMoment(imageDatas:)`
+    /// 会级联删除旧 `MomentImage` 并按新顺序重建全新 id（即便照片内容未改动，见仓库层注释），
+    /// 故保存成功后这些旧 id 对应的 `ThumbnailCache` 缓存必然是孤儿键，需逐个失效
+    /// （见阶段 4 计划 §8 延后项、`docs/design/07-data-persistence.md` §5 缩略图缓存清理）。
+    private var originalImageIDs: [UUID] = []
+
     init(
         mode: EditorMode,
         modelContainer: ModelContainer,
@@ -105,6 +111,7 @@ final class MomentEditorModel {
         selectedTagIDs = payload.snapshot.tagIDs
         tagNamesByID = payload.tagNames
         draftPhotos = payload.imageDatas.map { DraftPhoto(jpegData: $0) }
+        originalImageIDs = payload.snapshot.imageIDs
         baseline = currentSnapshot
         isLoaded = true
     }
@@ -201,6 +208,11 @@ final class MomentEditorModel {
                 id: id, title: title, bodyText: bodyText, occurredAt: occurredAt, mood: mood,
                 tagIDs: tagIDs, imageDatas: photoDatas
             )
+            // 旧 MomentImage 已被级联删除、按新顺序重建为全新 id（见 originalImageIDs 注释），
+            // 逐个失效对应的缩略图缓存键，避免孤儿缓存永久占用（07 §5）。
+            for imageID in originalImageIDs {
+                await ThumbnailCache.shared.removeThumbnail(for: imageID)
+            }
         }
     }
 }

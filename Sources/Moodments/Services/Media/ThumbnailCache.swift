@@ -51,11 +51,44 @@ actor ThumbnailCache {
         return thumbnailData
     }
 
+    /// `thumbnail(for:maxDimension:originalData:)` 的 `async` 版本：命中内存/磁盘缓存则直接
+    /// 返回，未命中才 `await` 调用 `provideOriginal` 现场拉原图——供调用方从跨 actor 的仓库
+    /// （如 `MomentRepository.imageData(imageID:)`，本身是 `@ModelActor` 方法、只能 `await` 调用）
+    /// 取原图时使用（同步闭包重载无法在其内部 `await`，见阶段 4 计划）。
+    func thumbnail(
+        for imageID: UUID,
+        maxDimension: CGFloat = 240,
+        provideOriginal: @Sendable () async throws -> Data
+    ) async throws -> Data {
+        if let cached = memoryCache[imageID] {
+            return cached
+        }
+        let fileURL = cacheDirectory.appendingPathComponent("\(imageID.uuidString).jpg")
+        if let cachedOnDisk = try? Data(contentsOf: fileURL) {
+            memoryCache[imageID] = cachedOnDisk
+            return cachedOnDisk
+        }
+        let original = try await provideOriginal()
+        let thumbnailData = try ImageCompressor.compressToJPEG(
+            original,
+            configuration: .init(maxDimension: maxDimension, jpegQuality: 0.7, maxByteSize: 150 * 1024)
+        )
+        memoryCache[imageID] = thumbnailData
+        persistBestEffort(thumbnailData, to: fileURL)
+        return thumbnailData
+    }
+
     /// Moment 彻底删除时同步清理其缩略图缓存（内存 + 磁盘，见 07 §5）。
     func removeThumbnail(for imageID: UUID) {
         memoryCache.removeValue(forKey: imageID)
         let fileURL = cacheDirectory.appendingPathComponent("\(imageID.uuidString).jpg")
         try? FileManager.default.removeItem(at: fileURL)
+    }
+
+    /// 仅供测试：只读查询内存缓存是否命中，不触发生成、不查磁盘（见
+    /// `ThumbnailCacheInvalidationTests`：验证 `removeThumbnail` 确已失效指定键）。
+    func hasMemoryCachedThumbnail(for imageID: UUID) -> Bool {
+        memoryCache[imageID] != nil
     }
 
     /// 磁盘写入是缓存优化的「尽力而为」：`Caches/` 目录本就可被系统随时回收、缩略图可随时从

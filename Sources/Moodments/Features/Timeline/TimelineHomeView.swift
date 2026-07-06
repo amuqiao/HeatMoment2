@@ -4,10 +4,17 @@ import SwiftUI
 /// 首页时间轴（见 04-screen-specs.md §4.1）：唯一一级页面，聊天气泡式时间轴 + 顶部三入口 +
 /// 底部悬浮新建按钮；空数据态展示 3 条预置引导 Moment（见 `GuidedMoment`）。
 ///
+/// **左滑删除用成熟方案 `List` + `.swipeActions`**（阶段 4 决策，用户裁定：禁止自定义
+/// `DragGesture` 手搓滑动删除）：容器由 `ScrollView { LazyVStack }` 迁移为 `List`，用
+/// `.listStyle(.plain)` + `.scrollContentBackground(.hidden)` + 逐行 `.listRowSeparator(.hidden)`
+/// / `.listRowBackground(.clear)` / `.listRowInsets(...)` 还原原有气泡时间轴视觉（不使用系统
+/// 分组列表外观），真实 Moment 行的删除动作见 `TimelineRowView.SwipeToDeleteModifier`。
+///
 /// **标题两态折叠的实现取舍**：未借助系统 large title 的折叠行为——系统折叠后的 inline 标题
 /// 是纯文本，无法只在收起态附加"可点、打开筛选"的语义，与裁决 B（展开态纯标识不可点 /
-/// 收起态才是筛选入口）冲突。改为：展开态大标题作为普通 `Text` 直接放在可滚动内容顶部
-/// （随内容自然滚出），用 `PreferenceKey` 追踪其相对滚动容器顶部的偏移量；顶部另有一条通过
+/// 收起态才是筛选入口）冲突。改为：展开态大标题作为 `List` 的首行（普通 `Text`，随内容自然
+/// 滚出），用 `PreferenceKey` 追踪其相对滚动容器顶部的偏移量（iOS 18+ 改用更可靠的
+/// `onScrollGeometryChange`，`List` 与 `ScrollView` 同样受支持）；顶部另有一条通过
 /// `.safeAreaInset(edge: .top)` 固定不滚动的三入口栏，仅当偏移量越过阈值（判定为"已折叠"）
 /// 才在其居中位置显示可点的收起态「时刻 ⌄」按钮，点击打开 `FilterPanelView`（就近浮窗，
 /// 局部 `@State` 驱动、不进 `AppRouter`，见 08-architecture.md §2.2/§3）。
@@ -40,38 +47,50 @@ struct TimelineHomeView: View {
         ZStack {
             theme.canvasBackground.ignoresSafeArea()
 
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 0) {
-                    expandedTitle
-                        .padding(.horizontal, 20)
-                        .padding(.top, 4)
-                        .padding(.bottom, 12)
+            List {
+                expandedTitle
+                    .padding(.top, 4)
+                    .padding(.bottom, 12)
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
+                    // iOS 17 兜底的偏移探针：随首行滚出，其顶部相对滚动容器的 minY 随上滑变负。
+                    // iOS 18+ 改用更可靠的 onScrollGeometryChange（见 TitleCollapseObserver）。
+                    .background(
+                        GeometryReader { proxy in
+                            Color.clear.preference(
+                                key: TimelineScrollOffsetKey.self,
+                                value: proxy.frame(in: .named(Self.scrollSpace)).minY
+                            )
+                        }
+                    )
 
-                    ForEach(entries) { entry in
-                        TimelineRowView(entry: entry) {
+                ForEach(entries) { entry in
+                    TimelineRowView(
+                        entry: entry,
+                        onTap: {
                             if case let .real(moment) = entry {
                                 router.rootSheet = .preview(moment.id)
                             }
-                        }
-                    }
-                    .padding(.horizontal, 20)
+                        },
+                        onDelete: entry.isGuided ? nil : { handleDelete(entry) }
+                    )
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: 0, leading: 20, bottom: 0, trailing: 20))
                 }
-                .padding(.bottom, 120)
-                // iOS 17 兜底的偏移探针：覆盖 LazyVStack 全高、始终参与布局，其顶部相对滚动容器的
-                // minY 随上滑变负。iOS 18+ 改用更可靠的 onScrollGeometryChange（见 TitleCollapseObserver）。
-                .background(
-                    GeometryReader { proxy in
-                        Color.clear.preference(
-                            key: TimelineScrollOffsetKey.self,
-                            value: proxy.frame(in: .named(Self.scrollSpace)).minY
-                        )
-                    }
-                )
             }
+            .listStyle(.plain)
+            .listRowSpacing(0)
+            .scrollContentBackground(.hidden)
             .coordinateSpace(name: Self.scrollSpace)
             .modifier(TitleCollapseObserver(threshold: Self.collapseThreshold, isCollapsed: $isTitleCollapsed))
             .safeAreaInset(edge: .top, spacing: 0) {
                 topBar
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                // 为悬浮新建按钮（FAB）预留空间，替代原 LazyVStack 尾部的 `.padding(.bottom, 120)`。
+                Color.clear.frame(height: 120)
             }
         }
         .overlay(alignment: .bottom) {
@@ -81,6 +100,20 @@ struct TimelineHomeView: View {
             .padding(.bottom, 24)
         }
         .environment(timelineModel)
+    }
+
+    /// 首页左滑删除 = 软删除进垃圾箱，无需二次确认（垃圾箱兜底，见公理3「删除是生命周期」）；
+    /// 不释放篇数额度（见 07-data-persistence.md §3）；缩略图缓存不动（原图仍在，仅移出主时间轴）。
+    private func handleDelete(_ entry: TimelineEntry) {
+        guard case let .real(moment) = entry else { return }
+        let momentID = moment.id
+        Task {
+            do {
+                try await MomentRepository(modelContainer: modelContext.container).softDelete(id: momentID)
+            } catch {
+                assertionFailure("时间轴左滑删除失败：\(error)")
+            }
+        }
     }
 
     /// 新建入口的篇数额度前置闸门（见 03-user-flows.md §3.1）：点击悬浮按钮时先用
@@ -114,7 +147,7 @@ struct TimelineHomeView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityIdentifier("timelineExpandedTitle")
             .accessibilityAddTraits(.isHeader)
-            // 折叠后展开态大标题虽仍在层级中（LazyVStack 顶部），对无障碍/自动化隐藏，
+            // 折叠后展开态大标题虽仍在层级中（List 首行），对无障碍/自动化隐藏，
             // 避免与收起态「时刻」并存造成 VoiceOver 重复播报页头（见 review）。
             .accessibilityHidden(isTitleCollapsed)
     }
@@ -176,7 +209,8 @@ private struct TimelineScrollOffsetKey: PreferenceKey {
 }
 
 /// 监听时间轴滚动、驱动标题两态折叠：
-/// - iOS 18+：用系统 `onScrollGeometryChange` 直接读取 contentOffset（可靠、为此而生）；
+/// - iOS 18+：用系统 `onScrollGeometryChange` 直接读取 contentOffset（可靠、为此而生，
+///   对 `List` 与 `ScrollView` 同样适用）；
 /// - iOS 17：回退到 `TimelineScrollOffsetKey` 偏移探针 + `onPreferenceChange`。
 ///
 /// 折叠判定：内容自顶部下滑超过 `|threshold|` 点即判定为收起态（`threshold` 为负，见调用处）。

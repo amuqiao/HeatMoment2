@@ -7,8 +7,11 @@ struct BubbleCardView: View {
     let title: String
     let bodyText: String
     let tagNames: [String]
-    /// 占位图片色块（仅供预置引导 Moment 模拟「图片」区，见 05 §5.7；真实照片渲染见阶段3）。
+    /// 占位图片色块（仅供预置引导 Moment 模拟「图片」区，见 05 §5.7）。
     let placeholderImageHexColors: [UInt32]
+    /// 真实 Moment 的图片 id（经 `ThumbnailStripView` 按需加载缩略图，见阶段 4 计划）；
+    /// 与 `placeholderImageHexColors` 互斥——真实 Moment 用此项，预置引导 Moment 用占位色块。
+    var imageIDs: [UUID] = []
 
     @Environment(ThemeManager.self) private var theme
 
@@ -35,6 +38,10 @@ struct BubbleCardView: View {
                             .frame(width: 72, height: 72)
                     }
                 }
+            } else if !imageIDs.isEmpty {
+                // 时间轴气泡整行已有独立点击语义（打开预览阅读卡片），故不传 `onTapImage`，
+                // 避免与行级 `onTapGesture` 冲突（见 `ThumbnailStripView` 头部说明）。
+                ThumbnailStripView(imageIDs: imageIDs)
             }
 
             if !tagNames.isEmpty {

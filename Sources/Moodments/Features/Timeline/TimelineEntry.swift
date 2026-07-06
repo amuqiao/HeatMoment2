@@ -52,12 +52,21 @@ enum TimelineEntry: Identifiable {
         }
     }
 
-    /// 阶段 2 真实 Moment 尚无图片渲染（编辑器/照片入库见阶段3），故恒为空；
-    /// 预置引导 Moment 用固定占位色块模拟图片区（见 `GuidedMoment`）。
+    /// 预置引导 Moment 用固定占位色块模拟图片区（见 `GuidedMoment`）；真实 Moment 恒为空
+    /// （真实照片改由 `imageIDs` 经 `ThumbnailStripView` 渲染，见阶段 4 计划）。
     var placeholderImageHexColors: [UInt32] {
         switch self {
         case .real: []
         case let .guided(guided): guided.placeholderImageHexColors
+        }
+    }
+
+    /// 真实 Moment 按 `sortIndex` 有序的图片 id 列表，供 `BubbleCardView` 渲染
+    /// `ThumbnailStripView`（见 07-data-persistence.md §5）；预置引导 Moment 恒为空。
+    var imageIDs: [UUID] {
+        switch self {
+        case let .real(moment): moment.images.sorted { $0.sortIndex < $1.sortIndex }.map(\.id)
+        case .guided: []
         }
     }
 

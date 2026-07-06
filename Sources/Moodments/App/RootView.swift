@@ -23,9 +23,8 @@ struct RootView: View {
             }
             .fullScreenCover(item: $router.fullScreenCover) { cover in
                 switch cover {
-                case .imageViewer:
-                    // 图片查看器在阶段 4 实现；此处占位保证 item 穷尽、可关闭。
-                    ImageViewerPlaceholder()
+                case let .imageViewer(momentID, index):
+                    ImageViewerView(momentID: momentID, startIndex: index)
                 }
             }
             .overlay {
@@ -50,23 +49,5 @@ struct RootView: View {
                 UITestSupport.seedMomentQuotaIfRequested(modelContext)
                 #endif
             }
-    }
-}
-
-/// 阶段 2 占位：图片查看器（`.fullScreenCover`）内容留阶段 4，先保证可关闭、item 穷尽。
-private struct ImageViewerPlaceholder: View {
-    @Environment(AppRouter.self) private var router
-
-    var body: some View {
-        ZStack {
-            Color.black.ignoresSafeArea()
-            VStack(spacing: 12) {
-                Text("图片查看器 · 阶段4")
-                    .font(.title2.bold())
-                    .foregroundStyle(.white)
-                Button("关闭") { router.fullScreenCover = nil }
-                    .foregroundStyle(.white)
-            }
-        }
     }
 }

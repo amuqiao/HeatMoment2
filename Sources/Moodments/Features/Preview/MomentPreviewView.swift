@@ -1,28 +1,148 @@
-import Foundation
+import SwiftData
 import SwiftUI
 
-/// 占位 stub：阶段 2 只验证「点击时间轴卡片 → 弹出阅读卡片（任务卡片栈，非 push）」的呈现机制
-/// 跑通（见 04-screen-specs.md §4.9、14-design-decisions.md ADR-007）。完整预览内容在阶段 4 实现。
+/// 单条时刻预览：弹出的阅读卡片（进任务卡片栈，非 push，见 `docs/design/04-screen-specs.md` §4.9、
+/// `14-design-decisions.md` ADR-007）。由 `AppRouter.rootSheet` 的 `.preview(Moment.ID)` 驱动
+/// （第一层）；编辑入口、图片查看器均为**本视图局部**的第二层浮层，不改 `router.rootSheet`
+/// （见 08-architecture.md §2.2 层叠协作说明）。
 struct MomentPreviewView: View {
     let momentID: UUID
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(ThemeManager.self) private var theme
+    @Environment(\.modelContext) private var modelContext
+
+    @Query private var moments: [Moment]
+    @State private var editorPresentation: EditorPresentation?
+    @State private var viewerContext: ViewerContext?
+    @AccessibilityFocusState private var isTitleFocused: Bool
+
+    init(momentID: UUID) {
+        self.momentID = momentID
+        _moments = Query(filter: #Predicate<Moment> { $0.id == momentID })
+    }
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 12) {
-                Text("预览 · 阶段4")
-                    .font(.title2.bold())
-                Text(momentID.uuidString)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+            Group {
+                if let moment = moments.first {
+                    content(for: moment)
+                } else {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(theme.sheetBackground.ignoresSafeArea())
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("关闭") { dismiss() }
+                        .accessibilityIdentifier("momentPreviewCloseButton")
+                }
+                if let moment = moments.first {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("编辑") {
+                            editorPresentation = EditorPresentation(mode: .edit(moment.id))
+                        }
+                        .accessibilityIdentifier("momentPreviewEditButton")
+                    }
                 }
             }
         }
+        .sheet(item: $editorPresentation) { presentation in
+            MomentEditorView(mode: presentation.mode, modelContainer: modelContext.container)
+        }
+        .fullScreenCover(item: $viewerContext) { context in
+            ImageViewerView(momentID: momentID, startIndex: context.startIndex)
+        }
     }
+
+    // MARK: - 内容（见 04-screen-specs.md §4.9：顶部心情/日期/编辑入口；正文区标题/标签/照片/正文）
+
+    private func content(for moment: Moment) -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                header(for: moment)
+
+                if !moment.title.isEmpty {
+                    Text(moment.title)
+                        .font(AppTypography.pageTitle)
+                        .foregroundStyle(theme.primaryText)
+                        .accessibilityAddTraits(.isHeader)
+                        .accessibilityFocused($isTitleFocused)
+                }
+
+                let tagNames = moment.tags.map(\.name)
+                if !tagNames.isEmpty {
+                    HStack(spacing: 6) {
+                        ForEach(tagNames, id: \.self) { name in
+                            TagChipView(name: name)
+                        }
+                    }
+                }
+
+                let imageIDs = imageIDs(for: moment)
+                if !imageIDs.isEmpty {
+                    ThumbnailStripView(imageIDs: imageIDs) { index in
+                        viewerContext = ViewerContext(startIndex: index)
+                    }
+                }
+
+                if !moment.bodyText.isEmpty {
+                    Text(moment.bodyText)
+                        .font(AppTypography.body)
+                        .foregroundStyle(theme.bubbleBodyText)
+                }
+            }
+            .padding(20)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .accessibilityIdentifier("momentPreviewCard")
+        // 阅读卡片弹出完成后，VoiceOver 焦点移到标题，避免停留在已下沉的时间轴卡片上
+        // （见 04 §4.9 无障碍要求）；若标题为空（无标题时刻）则不移动焦点，交由系统默认行为。
+        .onAppear {
+            if !moment.title.isEmpty {
+                isTitleFocused = true
+            }
+        }
+    }
+
+    private func header(for moment: Moment) -> some View {
+        HStack(spacing: 12) {
+            HStack(spacing: 6) {
+                MoodNodeView(mood: moment.mood, diameter: 14)
+                Text("\(moment.mood.emoji) \(moment.mood.displayName)")
+                    .font(AppTypography.body)
+                    .foregroundStyle(theme.primaryText)
+            }
+            Spacer()
+            Text(Self.dateFormatter.string(from: moment.occurredAt))
+                .font(AppTypography.caption)
+                .foregroundStyle(theme.bubbleBodyText)
+        }
+    }
+
+    /// 按 `sortIndex` 有序的图片 id 列表（见 07-data-persistence.md §5）。
+    private func imageIDs(for moment: Moment) -> [UUID] {
+        moment.images.sorted { $0.sortIndex < $1.sortIndex }.map(\.id)
+    }
+
+    private static let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "M月d日 HH:mm"
+        return formatter
+    }()
+}
+
+/// 预览内「编辑」的第二层任务卡片呈现上下文（`.sheet(item:)` 驱动，不进 `AppRouter`，
+/// 见 08-architecture.md §2.2 第二层）。
+private struct EditorPresentation: Identifiable {
+    let mode: EditorMode
+    var id: String { mode.id }
+}
+
+/// 预览内「点图片」的第二层沉浸全屏呈现上下文（`.fullScreenCover(item:)` 驱动，本视图局部持有，
+/// 不进 `router.fullScreenCover`——避免 sheet 之上从根 present 冲突，见阶段 4 计划决策B）。
+private struct ViewerContext: Identifiable {
+    let id = UUID()
+    let startIndex: Int
 }

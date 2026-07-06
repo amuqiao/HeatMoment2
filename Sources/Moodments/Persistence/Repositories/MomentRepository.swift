@@ -39,6 +39,13 @@ struct MomentEditingPayload: Sendable, Equatable {
     let imageDatas: [Data]
 }
 
+/// `MomentImage` 的只读快照（id + 原图 `Data`），供跨隔离域传递（不传 `@Model` 引用，
+/// 见阶段 4 计划：`ImageViewerView` 一次性取一个 Moment 的全部原图）。
+struct MomentImageData: Sendable, Equatable, Identifiable {
+    let id: UUID
+    let data: Data
+}
+
 /// `Moment` 的后台写入仓库（`ModelActor`）：增删改、软删除生命周期、分页取数、额度计数。
 /// 见 `docs/design/08-architecture.md` §6：Repository 层是业务规则唯一落点，写入在后台执行；
 /// 额度计数与列表展示是两个不同查询，不得混用同一 `FetchDescriptor`（见 07-data-persistence.md §3）。
@@ -157,11 +164,12 @@ actor MomentRepository {
         return try modelContext.fetch(descriptor).map(MomentSnapshot.init)
     }
 
-    /// 垃圾箱列表：按 `occurredAt` 倒序取**已软删除**的时刻。
+    /// 垃圾箱列表：按 `deletedAt`（移入垃圾箱时间）倒序取**已软删除**的时刻
+    /// （见 04-screen-specs.md §4.14：「按 deletedAt 倒序排列」，区别于时间轴/额度用的 `occurredAt`）。
     func fetchTrash() throws -> [MomentSnapshot] {
         let descriptor = FetchDescriptor<Moment>(
             predicate: #Predicate { $0.deletedFlag == true },
-            sortBy: [SortDescriptor(\.occurredAt, order: .reverse)]
+            sortBy: [SortDescriptor(\.deletedAt, order: .reverse)]
         )
         return try modelContext.fetch(descriptor).map(MomentSnapshot.init)
     }
@@ -175,6 +183,28 @@ actor MomentRepository {
     /// 单篇时刻的照片数（额度校验用，以 `images.count` 校验）。
     func imageCount(momentID: UUID) throws -> Int {
         try fetchModel(id: momentID)?.images.count ?? 0
+    }
+
+    /// 单张图片的原图 `Data`（`ThumbnailCache` 缩略图未命中时现场取原图生成用，见 07 §5）。
+    /// - Throws: `RepositoryError.momentImageNotFound` 若 `imageID` 不存在（不静默返回 `nil`，
+    ///   与本仓库其余按 id 操作的方法一致，见 CLAUDE.md「不擅自添加兜底策略」）。
+    func imageData(imageID: UUID) throws -> Data {
+        var descriptor = FetchDescriptor<MomentImage>(predicate: #Predicate { $0.id == imageID })
+        descriptor.fetchLimit = 1
+        guard let image = try modelContext.fetch(descriptor).first else {
+            throw RepositoryError.momentImageNotFound(imageID)
+        }
+        return image.imageData
+    }
+
+    /// 一个 Moment 的全部原图，按 `sortIndex` 有序（`ImageViewerView` 一次打开即取全量原图，
+    /// 与缩略图逐张按需现场生成的懒加载路径分离，见阶段 4 计划）。
+    /// - Throws: `RepositoryError.momentNotFound` 若 `momentID` 不存在。
+    func orderedImageData(momentID: UUID) throws -> [MomentImageData] {
+        guard let moment = try fetchModel(id: momentID) else { throw RepositoryError.momentNotFound(momentID) }
+        return moment.images
+            .sorted { $0.sortIndex < $1.sortIndex }
+            .map { MomentImageData(id: $0.id, data: $0.imageData) }
     }
 
     private func fetchModel(id: UUID) throws -> Moment? {

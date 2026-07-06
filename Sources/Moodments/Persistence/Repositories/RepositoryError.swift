@@ -5,4 +5,6 @@ import Foundation
 enum RepositoryError: Error, Equatable {
     case momentNotFound(UUID)
     case tagNotFound(UUID)
+    /// `MomentImage.id` 不存在（见 `MomentRepository.imageData(imageID:)`，阶段 4）。
+    case momentImageNotFound(UUID)
 }

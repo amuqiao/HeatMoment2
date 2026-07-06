@@ -29,10 +29,12 @@ final class TitleCollapseFilterUITests: XCTestCase {
             .firstMatch
         XCTAssertTrue(seededRow.waitForExistence(timeout: 10))
 
-        let scrollView = app.scrollViews.firstMatch
-        XCTAssertTrue(scrollView.waitForExistence(timeout: 5))
+        // 阶段 4 起时间轴容器由 `ScrollView` 迁移为 `List`（见 `TimelineHomeView`，左滑删除用
+        // 成熟方案 `.swipeActions`）：`List` 底层由 `UICollectionView` 承载，XCUITest 不再将其
+        // 归类到 `app.scrollViews`。直接对 `app` 派发滑动手势（作用于前台窗口可见区域），
+        // 不依赖某个具体元素类型查询，规避该分类差异。
         for _ in 0..<4 {
-            scrollView.swipeUp()
+            app.swipeUp()
         }
 
         let collapsedTitle = app.buttons["timelineCollapsedTitleButton"]
