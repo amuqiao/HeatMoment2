@@ -3,7 +3,36 @@
 set -euo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$DIR/lib/common.sh"
-[ "${1:-}" = "-h" ] && { echo "clean.sh — 删除 DerivedData 与生成的 ${PROJECT_NAME}.xcodeproj"; exit 0; }
+
+usage() {
+  cat <<'EOF'
+clean.sh — 清理构建产物：删除 DerivedData 与生成的 Moodments.xcodeproj
+
+用法:
+  ./scripts/clean.sh [-h|--help]
+
+参数:
+  无        删除 DerivedData/ 与 Moodments.xcodeproj/
+
+环境变量:
+  无
+
+副作用:
+  删除 DerivedData 与 Moodments.xcodeproj（二者均可重建：工程用 gen.sh、产物用
+  build/run 重新生成）。不动 Sources/Tests/Project.yml 等入库文件。
+
+不负责:
+  清理 SwiftData 本地库 / 模拟器已安装的 App（用 xcrun simctl 自行处理）。
+
+示例:
+  ./scripts/clean.sh && ./scripts/gen.sh
+
+exit code:
+  0     清理完成（目标不存在也视为成功）
+  非 0  删除失败（如权限，快速失败）
+EOF
+}
+case "${1:-}" in -h|--help) usage; exit 0 ;; esac
 
 cd "$REPO_ROOT"
 rm -rf DerivedData "${PROJECT_NAME}.xcodeproj"

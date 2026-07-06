@@ -6,13 +6,32 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/common.sh"
 
 usage() {
   cat <<'EOF'
-bootstrap.sh — 准备本地 iOS 开发工具链
-  用法:   ./scripts/bootstrap.sh
-  作用:   校验 Xcode；用 brew 安装 xcodegen、swiftlint、swift-format（已装跳过）。
-  不负责: 安装 Xcode 本体、生成工程（见 gen.sh）。
+bootstrap.sh — 准备本地 iOS 开发工具链（首次在新机器上运行一次）
+
+用法:
+  ./scripts/bootstrap.sh [-h|--help]
+
+参数:
+  无        校验 Xcode，并用 brew 安装缺失工具
+
+环境变量:
+  无
+
+副作用:
+  经 Homebrew 安装 xcodegen / swiftlint / swift-format（已装则跳过，幂等）。
+
+不负责:
+  安装 Xcode 本体、安装 Homebrew（缺失则报错退出）、生成工程（见 gen.sh）。
+
+示例:
+  ./scripts/bootstrap.sh
+
+exit code:
+  0     工具齐备（或本次安装成功）
+  非 0  缺 Xcode / Homebrew，或某工具安装失败（快速失败，详见 stderr）
 EOF
 }
-[ "${1:-}" = "-h" ] && { usage; exit 0; }
+case "${1:-}" in -h|--help) usage; exit 0 ;; esac
 
 require_cmd xcodebuild
 log "Xcode: $(xcodebuild -version | head -1)"

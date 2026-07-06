@@ -3,7 +3,38 @@
 set -euo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$DIR/lib/common.sh"
-[ "${1:-}" = "-h" ] && { echo "lint.sh [--fix]  swiftlint + swift-format（默认 check）"; exit 0; }
+
+usage() {
+  cat <<'EOF'
+lint.sh — 代码规范：swiftlint + swift-format 校验 Sources 与 Tests
+
+用法:
+  ./scripts/lint.sh [--fix] [-h|--help]
+
+参数:
+  （无）    check：只读校验，不改文件（默认）
+  --fix     就地修复可自动修的问题（swiftlint --fix + swift-format --in-place）
+
+环境变量:
+  无
+
+副作用:
+  默认只读；--fix 会就地改写 Sources/Tests 源文件。工具未安装时告警并跳过该项
+  （不静默失败整个流程），不阻断。
+
+不负责:
+  构建 / 测试（见 build.sh / test.sh）；安装工具链（见 bootstrap.sh）。
+
+示例:
+  ./scripts/lint.sh
+  ./scripts/lint.sh --fix
+
+exit code:
+  0     无 error（可能有非阻断 warning）
+  非 0  存在 lint error（快速失败，详见输出）
+EOF
+}
+case "${1:-}" in -h|--help) usage; exit 0 ;; esac
 
 cd "$REPO_ROOT"
 MODE="${1:-check}"

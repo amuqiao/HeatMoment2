@@ -4,7 +4,37 @@ set -euo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$DIR/lib/common.sh"
 source "$DIR/lib/sim.sh"
-[ "${1:-}" = "-h" ] && { echo "run.sh — 在模拟器（默认 ${SIM_NAME}）构建并启动 App（SIM_NAME 可覆盖）"; exit 0; }
+
+usage() {
+  cat <<'EOF'
+run.sh — 在模拟器构建并启动 App（boot → build → install → launch），本地看界面
+
+用法:
+  ./scripts/run.sh [-h|--help]
+
+参数:
+  无        构建 Debug 到模拟器并启动 com.moodments.app
+
+环境变量:
+  SIM_NAME  覆盖目标模拟器（默认 iPhone 17，见 lib/sim.sh）
+
+副作用:
+  启动模拟器（打开 Simulator.app）、写 DerivedData、把 App 安装并启动到模拟器；
+  工程不存在时先自动调 gen.sh。不改工作区源码。
+
+不负责:
+  运行测试（见 test.sh）；真机部署 / 签名分发。
+
+示例:
+  ./scripts/run.sh
+  SIM_NAME='iPhone 16 Pro' ./scripts/run.sh
+
+exit code:
+  0     已安装并启动
+  非 0  找不到目标模拟器 / 构建失败 / 无构建产物（快速失败，详见 stderr）
+EOF
+}
+case "${1:-}" in -h|--help) usage; exit 0 ;; esac
 
 require_cmd xcodebuild
 cd "$REPO_ROOT"
