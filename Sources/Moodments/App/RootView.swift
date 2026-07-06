@@ -15,7 +15,8 @@ struct RootView: View {
             .sheet(item: $router.rootSheet) { sheet in
                 switch sheet {
                 case let .preview(id): MomentPreviewView(momentID: id)
-                case let .editor(mode): MomentEditorView(mode: mode)
+                case let .editor(mode):
+                    MomentEditorView(mode: mode, modelContainer: modelContext.container)
                 case .settings: SettingsSheetView()
                 case let .paywall(trigger): ProPaywallView(trigger: trigger)
                 }
@@ -35,8 +36,16 @@ struct RootView: View {
             }
             .animation(.easeInOut(duration: 0.2), value: router.isHeatmapPresented)
             .task {
+                // 首启默认标签预置（见 07-data-persistence.md §4）：无条件运行（生产与 UI 测试
+                // 均需要），只在 `Tag` 表为空时插入，不依赖任何 `-uiTest*` 启动参数。
+                do {
+                    try DefaultTagSeeder.seedIfNeeded(modelContext)
+                } catch {
+                    assertionFailure("默认标签预置失败：\(error)")
+                }
                 #if DEBUG
                 UITestSupport.seedIfRequested(modelContext)
+                UITestSupport.seedMomentQuotaIfRequested(modelContext)
                 #endif
             }
     }

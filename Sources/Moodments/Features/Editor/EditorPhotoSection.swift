@@ -1,0 +1,172 @@
+import PhotosUI
+import SwiftUI
+
+/// 编辑器照片区（见 `docs/design/04-screen-specs.md` §4.4、05-design-system.md §5.7）：
+/// 未加时为主色实心大按钮「添加照片」；已加后为「日志图片 N 张」+ 横排缩略图（⊖ 删除角标，
+/// 提供 `accessibilityAction` 替代路径）+ ⊕ 追加。第 4 张触发 Paywall——额度判定完全在
+/// `MomentEditorModel.addPhoto` 内消费 `QuotaService` 结果（本视图不自行比较数值）。
+///
+/// **PhotosPicker 的 UI 测试限制**：系统 `PhotosPicker` 呈现的选择器不在 App 自身的无障碍树
+/// 内，`XCUITest` 无法可靠驱动其选图操作；DEBUG 构建下按 `-uiTestPhotoInjection` 启动参数
+/// 额外展示一个调试注入入口，直接把合成 JPEG 写入草稿以绕开该限制（见阶段 3 计划决策1）。
+struct EditorPhotoSection: View {
+    @Bindable var model: MomentEditorModel
+    @Binding var editorPaywallTrigger: PaywallTrigger?
+
+    @Environment(ThemeManager.self) private var theme
+    @State private var isPickerPresented = false
+    @State private var pickerSelection: [PhotosPickerItem] = []
+
+    private var remainingSlots: Int {
+        max(0, Quota.freePhotosPerMomentLimit - model.draftPhotos.count)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if model.draftPhotos.isEmpty {
+                addPhotoButton
+            } else {
+                Text("日志图片 \(model.draftPhotos.count) 张")
+                    .font(AppTypography.caption)
+                    .foregroundStyle(theme.bubbleBodyText)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(model.draftPhotos) { photo in
+                            thumbnail(for: photo)
+                        }
+                        appendButton
+                    }
+                }
+            }
+
+            #if DEBUG
+            if UITestSupport.wantsPhotoInjectionHook {
+                Button("注入测试照片") {
+                    let check = model.addPhoto(UITestSupport.makeSyntheticPhotoData())
+                    if case .exceeded = check {
+                        editorPaywallTrigger = .quotaPhoto
+                    }
+                }
+                .accessibilityIdentifier("editorInjectPhotoButton")
+            }
+            #endif
+        }
+        .photosPicker(
+            isPresented: $isPickerPresented,
+            selection: $pickerSelection,
+            maxSelectionCount: max(remainingSlots, 1),
+            matching: .images
+        )
+        .onChange(of: pickerSelection) { _, newItems in
+            guard !newItems.isEmpty else { return }
+            let itemsToLoad = newItems
+            Task {
+                await appendPickedPhotos(itemsToLoad)
+                pickerSelection = []
+            }
+        }
+    }
+
+    private var addPhotoButton: some View {
+        Button {
+            requestAddPhotos()
+        } label: {
+            Text("添加照片")
+                .font(AppTypography.button)
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 48)
+                .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(theme.accent))
+        }
+        .accessibilityIdentifier("editorAddPhotoButton")
+    }
+
+    private var appendButton: some View {
+        Button {
+            requestAddPhotos()
+        } label: {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(theme.accent, lineWidth: 1.5)
+                .frame(width: 72, height: 72)
+                .overlay(Image(systemName: "plus").foregroundStyle(theme.accent))
+        }
+        .accessibilityIdentifier("editorAppendPhotoButton")
+        .accessibilityLabel(Text("追加照片"))
+    }
+
+    private func thumbnail(for photo: DraftPhoto) -> some View {
+        ZStack(alignment: .topTrailing) {
+            if let uiImage = UIImage(data: photo.jpegData) {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 72, height: 72)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            } else {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(theme.chipFill)
+                    .frame(width: 72, height: 72)
+            }
+            Button {
+                model.removePhoto(id: photo.id)
+            } label: {
+                Image(systemName: "minus.circle.fill")
+                    .symbolRenderingMode(.palette)
+                    .foregroundStyle(.white, SemanticColor.danger)
+            }
+            .offset(x: 6, y: -6)
+            .accessibilityLabel(Text("删除该照片"))
+            .accessibilityAction(named: Text("删除该照片")) {
+                model.removePhoto(id: photo.id)
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("editorPhotoThumbnail-\(photo.id.uuidString)")
+    }
+
+    private func requestAddPhotos() {
+        guard remainingSlots > 0 else {
+            editorPaywallTrigger = .quotaPhoto
+            return
+        }
+        isPickerPresented = true
+    }
+
+    private func appendPickedPhotos(_ items: [PhotosPickerItem]) async {
+        for item in items {
+            guard let rawData = await loadData(from: item) else { continue }
+            guard let compressed = await compress(rawData) else { continue }
+            let check = model.addPhoto(compressed)
+            if case .exceeded = check {
+                editorPaywallTrigger = .quotaPhoto
+                break
+            }
+        }
+    }
+
+    private func loadData(from item: PhotosPickerItem) async -> Data? {
+        do {
+            guard let data = try await item.loadTransferable(type: Data.self) else {
+                assertionFailure("PhotosPickerItem 未返回可用 Data")
+                return nil
+            }
+            return data
+        } catch {
+            assertionFailure("读取所选照片失败：\(error)")
+            return nil
+        }
+    }
+
+    /// 压缩耗时工作显式切到后台执行（见 08-architecture.md §5：耗时工作切后台），
+    /// `ImageCompressor` 自身是不做隔离域切换的纯函数。
+    private func compress(_ data: Data) async -> Data? {
+        await Task.detached(priority: .userInitiated) {
+            do {
+                return try ImageCompressor.compressToJPEG(data)
+            } catch {
+                assertionFailure("图片压缩失败：\(error)")
+                return nil
+            }
+        }.value
+    }
+}

@@ -1,38 +1,329 @@
+import SwiftData
 import SwiftUI
 
-/// 占位 stub：阶段 2 只验证「点击悬浮新建按钮 → 以任务卡片栈（`.sheet`）打开编辑器」的呈现机制
-/// 跑通（见 08-architecture.md §2.2）。情绪/标签/日期/时间/照片/保存等真实内容在阶段 3 实现。
+/// `PaywallTrigger` 本身只用 `Hashable` 驱动 `AppRouter.rootSheet`（`RootSheet` 外层已是
+/// `Identifiable`，见 `Navigation/AppRouter.swift`）；编辑器内的第二层 Paywall 是局部
+/// `.sheet(item:)`，直接用 `PaywallTrigger` 做 item 需要其自身 `Identifiable`，故在此追加
+/// 该项目内的 retroactive 一致——`Self` 已 `Hashable`，用自身作为 `id` 即可。
+extension PaywallTrigger: Identifiable {
+    var id: Self { self }
+}
+
+/// 「上次选择情绪」持久化 key（见阶段 3 计划决策5：`@AppStorage` 本地持久化，
+/// 03-user-flows.md §3.1：有历史选择则用上次选择，否则回退 `Mood.normal`）。
+enum EditorMoodMemory {
+    static let storageKey = "com.moodments.lastUsedMood"
+}
+
+/// 新建标签任务卡片的呈现上下文（`.sheet(item:)` 驱动，见 08-architecture.md §2.2 第二层）。
+private struct TagCreateContext: Identifiable {
+    let id = UUID()
+}
+
+/// 新建/编辑一条时刻（任务卡片栈，见 `docs/design/04-screen-specs.md` §4.4、
+/// `docs/design/03-user-flows.md` §3.1、`docs/design/08-architecture.md` §2.2）。
+///
+/// 情绪/标签/日期/时间选择均为**就近浮窗**（局部 `@State` 驱动，不进 `AppRouter`，依 ADR-006）；
+/// 标签「+添加」→ 新建标签卡片、触达标签/照片额度 → Paywall，均为编辑器自身持有的**第二层**
+/// `.sheet(item:)`（不塞进 `AppRouter.rootSheet`，见 08 §2.2 层叠协作说明）。
 struct MomentEditorView: View {
     let mode: EditorMode
+    let modelContainer: ModelContainer
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(ThemeManager.self) private var theme
+    @AppStorage(EditorMoodMemory.storageKey) private var lastUsedMood: Mood = .normal
+
+    @State private var model: MomentEditorModel
+    @State private var isMoodPickerPresented = false
+    @State private var isTagPickerPresented = false
+    @State private var isDatePickerPresented = false
+    @State private var isTimePickerPresented = false
+    @State private var isDiscardAlertPresented = false
+    @State private var tagCreateContext: TagCreateContext?
+    @State private var editorPaywallTrigger: PaywallTrigger?
+
+    init(mode: EditorMode, modelContainer: ModelContainer) {
+        self.mode = mode
+        self.modelContainer = modelContainer
+        // 直接读 `UserDefaults` 而非 `_lastUsedMood` 的 wrapped value：属性包装器初始化顺序
+        // 不保证此刻可跨属性引用 `self`，故用同一 key 的原始读取规避该顺序陷阱；二者读写
+        // 同一 UserDefaults key，语义一致。缺省值 0 恰好等于 `Mood.normal.rawValue`，与
+        // 「无历史选择回退到 .normal」的产品规则天然吻合（见阶段 3 计划决策5）。
+        let seedMood = Mood(rawValue: UserDefaults.standard.integer(forKey: EditorMoodMemory.storageKey)) ?? .normal
+        _model = State(initialValue: MomentEditorModel(
+            mode: mode, modelContainer: modelContainer, lastUsedMood: seedMood
+        ))
+    }
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 12) {
-                Text("编辑器 · 阶段3")
-                    .font(.title2.bold())
-                Text(modeDescription)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") { dismiss() }
+            Group {
+                if model.isLoaded {
+                    content
+                } else {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
+            }
+            .background(theme.sheetBackground.ignoresSafeArea())
+            .toolbar { toolbarContent }
+            .alert("放弃编辑？", isPresented: $isDiscardAlertPresented) {
+                Button("放弃编辑", role: .destructive) { dismiss() }
+                Button("继续编辑", role: .cancel) {}
+            }
+            .sheet(item: $tagCreateContext) { _ in
+                TagCreateSheetView(modelContainer: modelContainer) { id, name in
+                    model.applyCreatedTag(id: id, name: name)
+                }
+            }
+            .sheet(item: $editorPaywallTrigger) { trigger in
+                ProPaywallView(trigger: trigger)
+            }
+        }
+        .task {
+            guard case .edit = mode else { return }
+            do {
+                try await model.load()
+            } catch {
+                assertionFailure("编辑态载入失败：\(error)")
             }
         }
     }
 
-    private var modeDescription: String {
-        switch mode {
-        case .create: "新建态"
-        case let .edit(id): "编辑态 · \(id)"
+    private var content: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                moodAndTagRow
+                Divider()
+                titleField
+                Divider()
+                bodyField
+                EditorPhotoSection(model: model, editorPaywallTrigger: $editorPaywallTrigger)
+            }
+            .padding(20)
+        }
+    }
+
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .cancellationAction) {
+            Button("取消") { handleCancel() }
+                .accessibilityIdentifier("editorCancelButton")
+        }
+        ToolbarItem(placement: .principal) {
+            HStack(spacing: 8) {
+                dateChip
+                timeChip
+            }
+        }
+        ToolbarItem(placement: .confirmationAction) {
+            Button("保存") { handleSave() }
+                .foregroundStyle(theme.accent)
+                .fontWeight(.semibold)
+                .disabled(!model.canSave)
+                .accessibilityIdentifier("editorSaveButton")
+        }
+    }
+
+    // MARK: - 情绪 + 标签行（同一行左右布局，见 05-design-system.md §5.7）
+
+    private var moodAndTagRow: some View {
+        HStack {
+            moodButton
+            Spacer()
+            tagButton
+        }
+    }
+
+    private var moodButton: some View {
+        Button {
+            isMoodPickerPresented = true
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "heart.fill").foregroundStyle(theme.accent)
+                Text("\(model.mood.emoji) \(model.mood.displayName)")
+                    .foregroundStyle(theme.primaryText)
+                Image(systemName: "chevron.down")
+                    .font(.caption)
+                    .foregroundStyle(SemanticColor.secondaryText)
+            }
+        }
+        .accessibilityIdentifier("editorMoodRow")
+        .accessibilityLabel(Text("情绪，\(model.mood.displayName)，双击更改"))
+        .popover(isPresented: $isMoodPickerPresented, arrowEdge: .top) {
+            MoodPickerView(selectedMood: model.mood) { mood in
+                model.mood = mood
+                isMoodPickerPresented = false
+            }
+            .presentationCompactAdaptation(.popover)
+        }
+    }
+
+    private var tagButton: some View {
+        Button {
+            isTagPickerPresented = true
+        } label: {
+            HStack(spacing: 4) {
+                Text("#").foregroundStyle(theme.accent)
+                Text(tagSummaryText).foregroundStyle(theme.primaryText)
+                Image(systemName: "chevron.down")
+                    .font(.caption)
+                    .foregroundStyle(SemanticColor.secondaryText)
+            }
+        }
+        .accessibilityIdentifier("editorTagRow")
+        .accessibilityLabel(Text("标签，\(tagSummaryText)，双击更改"))
+        .popover(isPresented: $isTagPickerPresented, arrowEdge: .top) {
+            TagPickerView(
+                modelContainer: modelContainer,
+                selectedTagIDs: model.selectedTagIDs,
+                onToggle: { tag in model.toggleTagSelection(tag) },
+                onRequestCreate: { handleRequestCreateTag() }
+            )
+            .presentationCompactAdaptation(.popover)
+        }
+    }
+
+    private var tagSummaryText: String {
+        guard !model.selectedTagIDs.isEmpty else { return "添加标签" }
+        return model.selectedTagIDs.compactMap { model.tagNamesByID[$0] }.joined(separator: " ")
+    }
+
+    // MARK: - 日期 / 时间 chip（见 04-screen-specs.md §4.4/§4.8）
+
+    private var dateChip: some View {
+        Button {
+            isDatePickerPresented = true
+        } label: {
+            Text(dateChipText)
+                .font(AppTypography.body)
+                .foregroundStyle(theme.primaryText)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(Capsule().fill(theme.chipFill))
+        }
+        .accessibilityIdentifier("editorDateChip")
+        .popover(isPresented: $isDatePickerPresented, arrowEdge: .top) {
+            DatePickerSheetView(occurredAt: Binding(get: { model.occurredAt }, set: { model.occurredAt = $0 }))
+                .presentationCompactAdaptation(.popover)
+        }
+    }
+
+    private var timeChip: some View {
+        Button {
+            isTimePickerPresented = true
+        } label: {
+            Text(timeChipText)
+                .font(AppTypography.body)
+                .foregroundStyle(theme.primaryText)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(Capsule().fill(theme.chipFill))
+        }
+        .accessibilityIdentifier("editorTimeChip")
+        .popover(isPresented: $isTimePickerPresented, arrowEdge: .top) {
+            TimePickerSheetView(occurredAt: Binding(get: { model.occurredAt }, set: { model.occurredAt = $0 }))
+                .presentationCompactAdaptation(.popover)
+        }
+    }
+
+    private var dateChipText: String { Self.dateFormatter.string(from: model.occurredAt) }
+    private var timeChipText: String { Self.timeFormatter.string(from: model.occurredAt) }
+
+    private static let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "M月d日"
+        return formatter
+    }()
+
+    private static let timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        return formatter
+    }()
+
+    // MARK: - 标题 / 正文
+
+    private var titleField: some View {
+        TextField("标题", text: titleBinding)
+            .font(AppTypography.cardTitle)
+            .foregroundStyle(theme.primaryText)
+            .accessibilityIdentifier("editorTitleField")
+    }
+
+    private var bodyField: some View {
+        TextField("正文", text: bodyBinding, axis: .vertical)
+            .font(AppTypography.body)
+            .foregroundStyle(theme.primaryText)
+            .lineLimit(5...12)
+            .accessibilityIdentifier("editorBodyField")
+    }
+
+    private var titleBinding: Binding<String> {
+        Binding(get: { model.title }, set: { model.title = $0 })
+    }
+
+    private var bodyBinding: Binding<String> {
+        Binding(get: { model.bodyText }, set: { model.bodyText = $0 })
+    }
+
+    // MARK: - 取消 / 保存（见 03-user-flows.md §3.1）
+
+    private func handleCancel() {
+        if model.isDirty {
+            isDiscardAlertPresented = true
+        } else {
+            dismiss()
+        }
+    }
+
+    private func handleSave() {
+        guard model.canSave else { return }
+        Task {
+            do {
+                try await model.save()
+                if case .create = mode {
+                    lastUsedMood = model.mood
+                }
+                dismiss()
+            } catch {
+                assertionFailure("保存时刻失败：\(error)")
+            }
+        }
+    }
+
+    // MARK: - 标签「+添加」→ 新建标签任务卡片（第二层，先收 popover 再弹 sheet）
+
+    /// 就近浮窗关闭与任务卡片二次呈现之间存在时序衔接（见阶段 3 计划决策8：先收 popover
+    /// 再弹 sheet，接受该衔接）：先关闭标签浮窗，短暂让步等待收起动画基本完成后再做额度
+    /// 校验并决定打开新建标签卡片还是 Paywall。若等待期间任务被取消（如视图已消失）则直接
+    /// 放弃，不吞真正的业务错误。
+    private func handleRequestCreateTag() {
+        isTagPickerPresented = false
+        Task {
+            do {
+                try await Task.sleep(for: .milliseconds(250))
+            } catch {
+                return
+            }
+            do {
+                switch try await model.requestCreateTag() {
+                case .allowed:
+                    tagCreateContext = TagCreateContext()
+                case .exceeded:
+                    editorPaywallTrigger = .quotaTag
+                }
+            } catch {
+                assertionFailure("标签额度校验失败：\(error)")
+            }
         }
     }
 }
 
 #Preview {
-    MomentEditorView(mode: .create)
+    // swiftlint:disable:next force_try
+    let container = try! ModelContainerConfig.makeInMemoryContainer()
+    return MomentEditorView(mode: .create, modelContainer: container)
+        .environment(ThemeManager())
 }

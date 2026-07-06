@@ -120,4 +120,10 @@ enum SemanticColor {
     static func neutralIconStroke(_ mode: ThemeMode) -> Color {
         mode == .dark ? Color(hex: 0xEBEBF5) : Color(hex: 0x3C3C43)
     }
+
+    /// Sheet 顶层背景（编辑器/设置等系统分组容器，见 §5.2.2：暗色 `#1C1C1E` / 亮色
+    /// 标准 iOS `systemGroupedBackground` 浅色值 `#F2F2F7`）。阶段 3 供 `MomentEditorView` 使用。
+    static func sheetBackground(_ mode: ThemeMode) -> Color {
+        mode == .dark ? Color(hex: 0x1C1C1E) : Color(hex: 0xF2F2F7)
+    }
 }

@@ -1,17 +1,44 @@
 #if DEBUG
 import Foundation
 import SwiftData
+import UIKit
 
 /// UI 测试支持（仅 DEBUG 编译）：通过 launch arguments 让 App 使用隔离的内存容器、
 /// 并按需预置一批记录，供依赖「可滚动/有数据」的 UI 测试使用。生产构建不含此代码。
 ///
 /// - `-uiTestReset`：使用内存容器（空态、与磁盘隔离）。
 /// - `-uiTestSeedMoments`：使用内存容器并预置 15 条 Moment（使时间轴可滚动，用于标题折叠等验收）。
+/// - `-uiTestSeedMomentQuota`：使用内存容器并预置 10 条 Moment（占满免费额度），
+///   供 `QuotaBlockUITests.testEleventhMomentBlocked` 验证第 11 篇创建被前置闸门拦截。
+/// - `-uiTestPhotoInjection`：编辑器照片区额外展示一个调试注入按钮，直接把合成 JPEG
+///   写入草稿（见阶段 3 计划决策1：系统 `PhotosPicker` 不在 App 无障碍树内、无法可靠自动化）。
 enum UITestSupport {
     /// 是否应改用内存容器（测试隔离，不落盘、不需 iCloud 能力）。
     static var wantsInMemoryContainer: Bool {
         let args = ProcessInfo.processInfo.arguments
-        return args.contains("-uiTestReset") || args.contains("-uiTestSeedMoments")
+        return args.contains("-uiTestReset")
+            || args.contains("-uiTestSeedMoments")
+            || args.contains("-uiTestSeedMomentQuota")
+    }
+
+    /// 是否展示编辑器照片区的调试注入入口（见类型头部说明）。
+    static var wantsPhotoInjectionHook: Bool {
+        ProcessInfo.processInfo.arguments.contains("-uiTestPhotoInjection")
+    }
+
+    /// 生成一张极小的合成 JPEG，供 UI 测试注入编辑器草稿照片，不依赖真机相册权限/内容、
+    /// 不经过 `PhotosPicker`（其系统 UI 不在 App 的无障碍树内，`XCUITest` 无法可靠驱动）。
+    static func makeSyntheticPhotoData() -> Data {
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: 4, height: 4))
+        let image = renderer.image { context in
+            UIColor.systemPurple.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 4, height: 4))
+        }
+        guard let data = image.jpegData(compressionQuality: 0.8) else {
+            assertionFailure("合成测试图片编码失败")
+            return Data()
+        }
+        return data
     }
 
     /// 若带 `-uiTestSeedMoments` 且当前为空，则预置 15 条 Moment。
@@ -38,6 +65,32 @@ enum UITestSupport {
             try context.save()
         } catch {
             assertionFailure("UITest seed 失败：\(error)")
+        }
+    }
+
+    /// 若带 `-uiTestSeedMomentQuota` 且当前为空，则预置 `Quota.freeMomentLimit` 条 Moment
+    /// （占满免费额度），供第 11 篇创建被前置闸门拦截的验收使用（见类型头部说明）。
+    @MainActor
+    static func seedMomentQuotaIfRequested(_ context: ModelContext) {
+        guard ProcessInfo.processInfo.arguments.contains("-uiTestSeedMomentQuota") else { return }
+        let existing: Int
+        do {
+            existing = try context.fetchCount(FetchDescriptor<Moment>())
+        } catch {
+            assertionFailure("UITest 配额预置检查失败：\(error)")
+            return
+        }
+        guard existing == 0 else { return }
+        for index in 0..<Quota.freeMomentLimit {
+            let moment = Moment()
+            moment.title = "配额测试 \(index + 1)"
+            moment.occurredAt = Date(timeIntervalSinceNow: Double(-index) * 3600)
+            context.insert(moment)
+        }
+        do {
+            try context.save()
+        } catch {
+            assertionFailure("UITest 配额预置失败：\(error)")
         }
     }
 }

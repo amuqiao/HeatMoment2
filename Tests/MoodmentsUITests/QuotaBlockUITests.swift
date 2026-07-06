@@ -1,0 +1,65 @@
+import XCTest
+
+/// 免费额度拦截验收（见 `docs/design/03-user-flows.md` §3.1、
+/// `docs/plans/implementation-plan.md` 阶段 3 验收：第 11 篇 / 第 4 标签 / 第 4 张照片）。
+final class QuotaBlockUITests: XCTestCase {
+    /// 篇数额度：预置 10 篇（占满免费额度）后点新建，应直接弹出 Paywall、编辑器不打开
+    /// （见 `TimelineHomeView` 的前置闸门：`MomentRepository.totalMomentCount()` + `QuotaService`）。
+    func testEleventhMomentBlocked() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTestSeedMomentQuota"]
+        app.launch()
+
+        let fab = app.buttons["新建时刻"]
+        XCTAssertTrue(fab.waitForExistence(timeout: 10))
+        fab.tap()
+
+        XCTAssertTrue(app.staticTexts["Pro 订阅 · 阶段7"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["editorSaveButton"].exists, "超额时编辑器不应被打开")
+    }
+
+    /// 标签额度：首启已默认预置 3 个标签（工作/生活/健康，占满免费额度，见 `DefaultTagSeeder`
+    /// 与阶段 3 计划决策4），编辑器标签浮窗点「+添加」应直接触发 Paywall，而非打开新建标签卡片。
+    func testFourthTagBlocked() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTestReset"]
+        app.launch()
+
+        let fab = app.buttons["新建时刻"]
+        XCTAssertTrue(fab.waitForExistence(timeout: 10))
+        fab.tap()
+
+        let tagRow = app.buttons["editorTagRow"]
+        XCTAssertTrue(tagRow.waitForExistence(timeout: 5))
+        tagRow.tap()
+
+        let addButton = app.buttons["tagCreateEntryButton"]
+        XCTAssertTrue(addButton.waitForExistence(timeout: 5))
+        addButton.tap()
+
+        XCTAssertTrue(app.staticTexts["Pro 订阅 · 阶段7"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.textFields["tagCreateNameField"].exists, "超额时不应打开新建标签卡片")
+    }
+
+    /// 照片额度：借助 DEBUG-only 调试注入入口（见 `EditorPhotoSection`/`UITestSupport`，
+    /// 系统 `PhotosPicker` 无法被 `XCUITest` 可靠驱动，见阶段 3 计划决策1）连续注入 4 张，
+    /// 第 4 张应触发 Paywall。
+    func testFourthPhotoBlocked() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTestReset", "-uiTestPhotoInjection"]
+        app.launch()
+
+        let fab = app.buttons["新建时刻"]
+        XCTAssertTrue(fab.waitForExistence(timeout: 10))
+        fab.tap()
+
+        let injectButton = app.buttons["editorInjectPhotoButton"]
+        XCTAssertTrue(injectButton.waitForExistence(timeout: 5))
+        injectButton.tap()
+        injectButton.tap()
+        injectButton.tap()
+        injectButton.tap()
+
+        XCTAssertTrue(app.staticTexts["Pro 订阅 · 阶段7"].waitForExistence(timeout: 5))
+    }
+}

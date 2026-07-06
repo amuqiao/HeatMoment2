@@ -79,4 +79,7 @@ final class ThemeManager {
 
     /// 顶部三入口图标的中性描边色（不跟随主色）。
     var neutralIconStroke: Color { SemanticColor.neutralIconStroke(mode) }
+
+    /// Sheet 顶层背景色（编辑器/设置等系统分组容器，见 §5.2.2）。
+    var sheetBackground: Color { SemanticColor.sheetBackground(mode) }
 }

@@ -31,6 +31,14 @@ struct MomentSnapshot: Sendable, Identifiable, Equatable {
     }
 }
 
+/// 编辑态载入所需的完整数据（见阶段 3 计划：`MomentEditorModel.load()` 消费本类型）。
+/// `tagNames` 供标签行回填文案；`imageDatas` 按 `sortIndex` 有序，即草稿照片的初始顺序。
+struct MomentEditingPayload: Sendable, Equatable {
+    let snapshot: MomentSnapshot
+    let tagNames: [UUID: String]
+    let imageDatas: [Data]
+}
+
 /// `Moment` 的后台写入仓库（`ModelActor`）：增删改、软删除生命周期、分页取数、额度计数。
 /// 见 `docs/design/08-architecture.md` §6：Repository 层是业务规则唯一落点，写入在后台执行；
 /// 额度计数与列表展示是两个不同查询，不得混用同一 `FetchDescriptor`（见 07-data-persistence.md §3）。
@@ -61,6 +69,9 @@ actor MomentRepository {
     }
 
     /// 更新一条时刻的字段；未传入的字段保持不变。`nil` 表示「不改」。
+    /// `imageDatas` 非 `nil` 时，级联删除该 Moment 现有的全部 `MomentImage`，再按传入顺序
+    /// 重建（`sortIndex` = 数组下标），供编辑态照片增删/重排使用（见阶段 3 计划）；
+    /// 传 `nil` 表示本次调用不涉及照片改动，保持既有照片不变。
     /// - Throws: `RepositoryError.momentNotFound` 若 `id` 不存在（不静默 no-op）。
     func updateMoment(
         id: UUID,
@@ -68,7 +79,8 @@ actor MomentRepository {
         bodyText: String? = nil,
         occurredAt: Date? = nil,
         mood: Mood? = nil,
-        tagIDs: [UUID]? = nil
+        tagIDs: [UUID]? = nil,
+        imageDatas: [Data]? = nil
     ) throws {
         guard let moment = try fetchModel(id: id) else { throw RepositoryError.momentNotFound(id) }
         if let title { moment.title = title }
@@ -76,8 +88,34 @@ actor MomentRepository {
         if let occurredAt { moment.occurredAt = occurredAt }
         if let mood { moment.mood = mood }
         if let tagIDs { moment.tags = try fetchTags(ids: tagIDs) }
+        if let imageDatas {
+            for image in moment.images {
+                modelContext.delete(image)
+            }
+            moment.images = []
+            for (index, data) in imageDatas.enumerated() {
+                let image = MomentImage(sortIndex: index, imageData: data, moment: moment)
+                moment.images.append(image)
+                modelContext.insert(image)
+            }
+        }
         moment.updatedAt = .now
         try modelContext.save()
+    }
+
+    /// 编辑态载入：返回快照 + 已选标签名（回填标签行文案）+ 按 `sortIndex` 有序的原图 `Data`
+    /// （供 `MomentEditorModel.load()` 使用，见阶段 3 计划）。
+    /// - Throws: `RepositoryError.momentNotFound` 若 `id` 不存在（不静默返回 `nil`，
+    ///   与本仓库其余按 id 操作的方法一致，见 CLAUDE.md「不擅自添加兜底策略」）。
+    func editingPayload(id: UUID) throws -> MomentEditingPayload {
+        guard let moment = try fetchModel(id: id) else { throw RepositoryError.momentNotFound(id) }
+        let snapshot = MomentSnapshot(moment)
+        var tagNames: [UUID: String] = [:]
+        for tag in moment.tags {
+            tagNames[tag.id] = tag.name
+        }
+        let imageDatas = moment.images.sorted { $0.sortIndex < $1.sortIndex }.map(\.imageData)
+        return MomentEditingPayload(snapshot: snapshot, tagNames: tagNames, imageDatas: imageDatas)
     }
 
     /// 软删除：移出主时间轴、进入垃圾箱，仍可恢复；不释放额度（见公理「删除是生命周期」）。

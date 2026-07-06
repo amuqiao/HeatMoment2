@@ -19,6 +19,7 @@ struct TimelineHomeView: View {
 
     @Environment(AppRouter.self) private var router
     @Environment(ThemeManager.self) private var theme
+    @Environment(\.modelContext) private var modelContext
     @State private var timelineModel = TimelineModel()
     @State private var isTitleCollapsed = false
     @State private var isFilterPresented = false
@@ -75,11 +76,32 @@ struct TimelineHomeView: View {
         }
         .overlay(alignment: .bottom) {
             FABButtonView {
-                router.rootSheet = .editor(.create)
+                handleNewMomentTapped()
             }
             .padding(.bottom, 24)
         }
         .environment(timelineModel)
+    }
+
+    /// 新建入口的篇数额度前置闸门（见 03-user-flows.md §3.1）：点击悬浮按钮时先用
+    /// `MomentRepository.totalMomentCount()`（含垃圾箱，见 07 §3）+ `QuotaService` 判定，
+    /// 允许才打开编辑器，超额直接改为弹出 Paywall（编辑器不会被打开），限额判定只消费
+    /// `QuotaService` 结果、不在 View 层自行比较数值（见 08-architecture.md §6）。
+    private func handleNewMomentTapped() {
+        Task {
+            do {
+                let repository = MomentRepository(modelContainer: modelContext.container)
+                let count = try await repository.totalMomentCount()
+                switch QuotaService().checkCanCreateMoment(currentMomentCount: count) {
+                case .allowed:
+                    router.rootSheet = .editor(.create)
+                case .exceeded:
+                    router.rootSheet = .paywall(.quotaMoment)
+                }
+            } catch {
+                assertionFailure("篇数额度前置校验失败：\(error)")
+            }
+        }
     }
 
     // MARK: - 标题两态（见 04-screen-specs.md §4.1）
