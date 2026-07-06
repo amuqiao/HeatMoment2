@@ -14,6 +14,7 @@ struct TimelineHomeView: View {
     @Environment(ThemeManager.self) private var theme
     @Environment(TimelineModel.self) private var timelineModel
     @Environment(\.modelContext) private var modelContext
+    @Environment(ErrorPresenter.self) private var errorPresenter
     @State private var isTitleCollapsed = false
     @State private var isFilterPresented = false
 
@@ -67,7 +68,7 @@ struct TimelineHomeView: View {
                     router.rootSheet = .paywall(.quotaMoment)
                 }
             } catch {
-                assertionFailure("篇数额度前置校验失败：\(error)")
+                await errorPresenter.report(message: "创建前检查失败，请稍后重试。", underlying: error)
             }
         }
     }
@@ -130,6 +131,7 @@ struct TimelineHomeView: View {
         .environment(AppRouter())
         .environment(ThemeManager())
         .environment(TimelineModel())
+        .environment(ErrorPresenter())
         // swiftlint:disable:next force_try
         .modelContainer(try! ModelContainerConfig.makeInMemoryContainer())
 }

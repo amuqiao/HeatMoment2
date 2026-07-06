@@ -32,6 +32,7 @@ struct MomentEditorView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(ThemeManager.self) private var theme
+    @Environment(ErrorPresenter.self) private var errorPresenter
     @AppStorage(EditorMoodMemory.storageKey) private var lastUsedMood: Mood = .normal
 
     @State private var model: MomentEditorModel
@@ -80,13 +81,14 @@ struct MomentEditorView: View {
             .sheet(item: $editorPaywallTrigger) { trigger in
                 ProPaywallView(trigger: trigger)
             }
+            .userFacingErrorAlert(errorPresenter)
         }
         .task {
             guard case .edit = mode else { return }
             do {
                 try await model.load()
             } catch {
-                assertionFailure("编辑态载入失败：\(error)")
+                await errorPresenter.report(message: "加载时刻失败，请稍后重试。", underlying: error)
             }
         }
     }
@@ -288,7 +290,9 @@ struct MomentEditorView: View {
                 }
                 dismiss()
             } catch {
-                assertionFailure("保存时刻失败：\(error)")
+                // 保存失败不 dismiss——草稿留在编辑器内供用户重试，不假装保存成功
+                // （见阶段6计划决策3：可恢复写失败改走统一错误通道，不伪造成功）。
+                await errorPresenter.report(message: "保存时刻失败，请稍后重试。", underlying: error)
             }
         }
     }
@@ -315,7 +319,7 @@ struct MomentEditorView: View {
                     editorPaywallTrigger = .quotaTag
                 }
             } catch {
-                assertionFailure("标签额度校验失败：\(error)")
+                await errorPresenter.report(message: "标签额度校验失败，请稍后重试。", underlying: error)
             }
         }
     }
@@ -326,4 +330,5 @@ struct MomentEditorView: View {
     let container = try! ModelContainerConfig.makeInMemoryContainer()
     return MomentEditorView(mode: .create, modelContainer: container)
         .environment(ThemeManager())
+        .environment(ErrorPresenter())
 }

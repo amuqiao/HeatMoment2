@@ -32,6 +32,7 @@ struct TimelineListView: View {
     @Environment(TimelineModel.self) private var timelineModel
     @Environment(ThemeManager.self) private var theme
     @Environment(\.modelContext) private var modelContext
+    @Environment(ErrorPresenter.self) private var errorPresenter
 
     @Query private var moments: [Moment]
 
@@ -152,7 +153,9 @@ struct TimelineListView: View {
             do {
                 try await MomentRepository(modelContainer: modelContext.container).softDelete(id: momentID)
             } catch {
-                assertionFailure("时间轴左滑删除失败：\(error)")
+                // `@Query` 是真相源：删除失败时它本就不会反映出该行已消失，不需要额外回滚
+                // 本地状态（见阶段6计划决策3：可恢复写失败改走统一错误通道）。
+                await errorPresenter.report(message: "删除失败，请稍后重试。", underlying: error)
             }
         }
     }
@@ -212,6 +215,7 @@ private struct TitleCollapseObserver: ViewModifier {
         .environment(AppRouter())
         .environment(ThemeManager())
         .environment(TimelineModel())
+        .environment(ErrorPresenter())
         // swiftlint:disable:next force_try
         .modelContainer(try! ModelContainerConfig.makeInMemoryContainer())
 }

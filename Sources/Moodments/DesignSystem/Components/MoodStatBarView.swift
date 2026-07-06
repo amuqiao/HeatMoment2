@@ -35,9 +35,9 @@ struct MoodStatBarView: View {
             GeometryReader { geometry in
                 ZStack(alignment: .leading) {
                     Capsule()
-                        .fill(MoodColorPalette.color(for: mood).opacity(0.15))
+                        .fill(theme.moodColor(mood).opacity(0.15))
                     Capsule()
-                        .fill(MoodColorPalette.color(for: mood))
+                        .fill(theme.moodColor(mood))
                         .frame(width: geometry.size.width * fraction)
                 }
             }

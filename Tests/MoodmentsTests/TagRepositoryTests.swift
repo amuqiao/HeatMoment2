@@ -57,6 +57,60 @@ final class TagRepositoryTests: XCTestCase {
         XCTAssertEqual(total, 3)
     }
 
+    /// 重命名成功：应用层查重通过（新名称未被其它标签占用）。
+    func testRenameTagSucceedsWhenNewNameIsUnused() async throws {
+        let id = try await repository.createTag(name: "工作")
+
+        try await repository.renameTag(id: id, newName: "副业")
+
+        let renamed = try await repository.findTag(named: "副业")
+        XCTAssertEqual(renamed?.id, id)
+        let oldNameLookup = try await repository.findTag(named: "工作")
+        XCTAssertNil(oldNameLookup, "旧名称不应再命中")
+    }
+
+    /// 重命名为「另一个」已存在标签的名称应抛 `tagNameConflict`，不静默、不覆盖。
+    func testRenameTagToExistingOtherNameThrowsConflict() async throws {
+        let workID = try await repository.createTag(name: "工作")
+        _ = try await repository.createTag(name: "生活")
+
+        do {
+            try await repository.renameTag(id: workID, newName: "生活")
+            XCTFail("期望抛出 RepositoryError.tagNameConflict，但没有抛出")
+        } catch RepositoryError.tagNameConflict(let name) {
+            XCTAssertEqual(name, "生活")
+        } catch {
+            XCTFail("期望 RepositoryError.tagNameConflict，实际抛出 \(error)")
+        }
+
+        let stillWork = try await repository.findTag(named: "工作")
+        XCTAssertEqual(stillWork?.id, workID, "冲突时不应改动原标签")
+    }
+
+    /// 重命名为自身原名不算冲突（无实际改动，允许通过）。
+    func testRenameTagToOwnCurrentNameIsNotConflict() async throws {
+        let id = try await repository.createTag(name: "工作")
+
+        try await repository.renameTag(id: id, newName: "工作")
+
+        let found = try await repository.findTag(named: "工作")
+        XCTAssertEqual(found?.id, id)
+    }
+
+    /// `id` 不存在应抛 `tagNotFound`，不静默 no-op。
+    func testRenameTagOnMissingIDThrows() async throws {
+        let missingID = UUID()
+
+        do {
+            try await repository.renameTag(id: missingID, newName: "任意名称")
+            XCTFail("期望抛出 RepositoryError.tagNotFound，但没有抛出")
+        } catch RepositoryError.tagNotFound(let id) {
+            XCTAssertEqual(id, missingID)
+        } catch {
+            XCTFail("期望 RepositoryError.tagNotFound，实际抛出 \(error)")
+        }
+    }
+
     func testDeleteTagOnMissingIDThrows() async throws {
         let missingID = UUID()
 

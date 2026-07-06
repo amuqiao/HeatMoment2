@@ -1,6 +1,12 @@
 import PhotosUI
 import SwiftUI
 
+/// `PhotosPickerItem.loadTransferable` 返回 `nil`（未抛错但也未给出数据）时的合成错误，
+/// 仅用于统一走 `ErrorPresenter.report(message:underlying:)` 的日志通道，不面向用户展示。
+private enum PhotoLoadError: Error {
+    case emptyData
+}
+
 /// 编辑器照片区（见 `docs/design/04-screen-specs.md` §4.4、05-design-system.md §5.7）：
 /// 未加时为主色实心大按钮「添加照片」；已加后为「日志图片 N 张」+ 横排缩略图（⊖ 删除角标，
 /// 提供 `accessibilityAction` 替代路径）+ ⊕ 追加。第 4 张触发 Paywall——额度判定完全经
@@ -15,6 +21,7 @@ struct EditorPhotoSection: View {
     @Binding var editorPaywallTrigger: PaywallTrigger?
 
     @Environment(ThemeManager.self) private var theme
+    @Environment(ErrorPresenter.self) private var errorPresenter
     @State private var isPickerPresented = false
     @State private var pickerSelection: [PhotosPickerItem] = []
 
@@ -145,26 +152,27 @@ struct EditorPhotoSection: View {
     private func loadData(from item: PhotosPickerItem) async -> Data? {
         do {
             guard let data = try await item.loadTransferable(type: Data.self) else {
-                assertionFailure("PhotosPickerItem 未返回可用 Data")
+                await errorPresenter.report(message: "读取所选照片失败，请重试。", underlying: PhotoLoadError.emptyData)
                 return nil
             }
             return data
         } catch {
-            assertionFailure("读取所选照片失败：\(error)")
+            await errorPresenter.report(message: "读取所选照片失败，请重试。", underlying: error)
             return nil
         }
     }
 
     /// 压缩耗时工作显式切到后台执行（见 08-architecture.md §5：耗时工作切后台），
-    /// `ImageCompressor` 自身是不做隔离域切换的纯函数。
+    /// `ImageCompressor` 自身是不做隔离域切换的纯函数；`Task.detached` 内不持有 `errorPresenter`
+    /// （`@MainActor` 隔离），错误改为在 `await` 恢复后于调用方所在上下文上报，不吞错。
     private func compress(_ data: Data) async -> Data? {
-        await Task.detached(priority: .userInitiated) {
-            do {
-                return try ImageCompressor.compressToJPEG(data)
-            } catch {
-                assertionFailure("图片压缩失败：\(error)")
-                return nil
-            }
-        }.value
+        do {
+            return try await Task.detached(priority: .userInitiated) {
+                try ImageCompressor.compressToJPEG(data)
+            }.value
+        } catch {
+            await errorPresenter.report(message: "图片压缩失败，请重试。", underlying: error)
+            return nil
+        }
     }
 }

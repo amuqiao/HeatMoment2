@@ -14,23 +14,40 @@ extension Color {
 
 // MARK: - 情绪 → 心情色（见 05-design-system.md §5.4）
 
-/// 心情色是跨时间轴节点、热力图、统计的独立数据语义色，不随主题模式/主色变化（依公理1，
+/// 心情色是跨时间轴节点、热力图、统计的独立数据语义色，**独立于主题主色**（依公理1，
 /// 见 `product-mental-model.md`）：一次记录选择某个情绪，这个颜色应在节点/热力图/统计三处
 /// 保持同一情绪身份，不得降为局部装饰、不得用统一色点替代。
 ///
-/// 阶段 2 按设计文档给出的**深色态**取值实现（§5.4 表格「推导满值强度色」列，「正常」用真机
-/// 实测色）；亮色态数值文档未给全 8 项，留待后续涉及亮色模式的页面按需补齐。
+/// **模式感知、绝不读主色**：`color(for:mode:)` 签名内没有 `AccentColorOption` 参数、函数体
+/// 也不读取任何全局主色状态——这是「切主色时心情色不变」（公理1核心不变量）的结构性保证，
+/// 而不是靠约定人工遵守。切**模式**（暗/亮）时心情色切到该情绪对应模式的取值（预期行为，
+/// 区别于「切主色不变」）。
 enum MoodColorPalette {
-    static func color(for mood: Mood) -> Color {
+    /// - Parameters:
+    ///   - mood: 情绪。
+    ///   - mode: 当前外观模式，决定解析暗/亮两态中的哪一值；**不接受、不读取 `AccentColorOption`**。
+    static func color(for mood: Mood, mode: ThemeMode) -> Color {
+        let values = hexValues(for: mood)
+        return Color(hex: mode == .dark ? values.dark : values.light)
+    }
+
+    /// (暗色态, 亮色态) 十六进制取值。
+    ///
+    /// 「正常」两态均为真机实测精确值（暗 `#15BEB4` / 亮 `#58BBB3`，见 05 §5.2.1/§5.4）。
+    /// 其余 7 个情绪，设计文档只给出「暗色态·推导满值强度色」（05 §5.4 表格），真机未采集
+    /// 这些情绪在亮色模式下的实际取值——**亮色态暂沿用同一数值** `[设计决策待确认]`，待后续
+    /// 真机复核后再按情绪逐一区分两态；此处「待确认」的只是「两态是否应有差异」，不影响
+    /// 公理1「独立于主色」这一结构性保证（该保证由签名不含主色参数决定，与本表取值无关）。
+    private static func hexValues(for mood: Mood) -> (dark: UInt32, light: UInt32) {
         switch mood {
-        case .normal: Color(hex: 0x15BEB4)
-        case .happy: Color(hex: 0x2C9749)
-        case .sad: Color(hex: 0x1F478F)
-        case .anxious: Color(hex: 0x830B63)
-        case .fearful: Color(hex: 0x403292)
-        case .angry: Color(hex: 0xB8332E)
-        case .disgusted: Color(hex: 0x475435)
-        case .motivated: Color(hex: 0xB17521)
+        case .normal: (0x15BEB4, 0x58BBB3)
+        case .happy: (0x2C9749, 0x2C9749)
+        case .sad: (0x1F478F, 0x1F478F)
+        case .anxious: (0x830B63, 0x830B63)
+        case .fearful: (0x403292, 0x403292)
+        case .angry: (0xB8332E, 0xB8332E)
+        case .disgusted: (0x475435, 0x475435)
+        case .motivated: (0xB17521, 0xB17521)
         }
     }
 }

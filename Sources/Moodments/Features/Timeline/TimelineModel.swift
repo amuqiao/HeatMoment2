@@ -32,4 +32,16 @@ final class TimelineModel {
 
     /// 派生只读：当前是否处于筛选态。只读取 `activeFilter`，不新增独立存储。
     var hasFilter: Bool { !(activeFilter?.isEmpty ?? true) }
+
+    /// 标签删除后清理 `activeFilter` 中的陈旧 id（阶段6计划决策5，见
+    /// `docs/plans/implementation-plan.md` 阶段6 §8「筛选中标签被删除后的陈旧标记」）：
+    /// 从 `tagIDs` 中移除该 id；移除后标签与心情两个维度都为空则把 `activeFilter` 置 `nil`
+    /// （回到「无筛选」态），**不触碰 `mood` 维度**——标签删除只影响标签维度（公理7「标签是
+    /// 归类不是所有权」在筛选状态上的延伸：删标签不应连带清空用户选的心情筛选）。
+    /// 若 `id` 不在当前筛选里（未筛选该标签、或已被清理过）则是无操作，不视为错误。
+    func discardFilterTag(_ id: UUID) {
+        guard var filter = activeFilter, filter.tagIDs.contains(id) else { return }
+        filter.tagIDs.remove(id)
+        activeFilter = filter.isEmpty ? nil : filter
+    }
 }

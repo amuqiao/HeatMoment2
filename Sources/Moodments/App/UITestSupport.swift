@@ -26,6 +26,34 @@ enum UITestSupport {
         ProcessInfo.processInfo.arguments.contains("-uiTestPhotoInjection")
     }
 
+    /// 外观偏好测试隔离套件名（见 `makeAppearanceStore()`）。
+    private static let appearanceTestSuiteName = "com.moodments.uiTestAppearance"
+
+    /// 是否任意 `-uiTest*` 启动参数在场：外观偏好测试隔离的判定口径比
+    /// `wantsInMemoryContainer` 更宽——照片注入 (`-uiTestPhotoInjection`)、外观保存失败
+    /// (`-uiTestFailAppearanceSave`) 等场景同样需要与生产 `UserDefaults.standard` 隔离，
+    /// 避免真实用户默认域被测试注入的坏值/失败态污染，也避免多次测试运行相互影响。
+    private static var isAnyUITestRun: Bool {
+        ProcessInfo.processInfo.arguments.contains { $0.hasPrefix("-uiTest") }
+    }
+
+    /// `-uiTestFailAppearanceSave`：外观偏好写入必失败，供 05 §5.3.7 异常反馈验收
+    /// （`AppearanceSaveFailureUITests`）——断言界面已乐观更新（不回滚）+ 出现对应失败提示。
+    static var wantsAppearanceSaveFailure: Bool {
+        ProcessInfo.processInfo.arguments.contains("-uiTestFailAppearanceSave")
+    }
+
+    /// 供 `MoodmentsApp` 构造 `ThemeManager` 时选择的外观存储：任意 UI 测试场景下用隔离套件
+    /// （每次启动清空，保证起点恒为默认外观），并按需注入必失败场景；生产路径用真实
+    /// `AppearanceStore()`（`UserDefaults.standard`）。
+    static func makeAppearanceStore() -> AppearanceStore {
+        guard isAnyUITestRun else { return AppearanceStore() }
+        let suiteName = appearanceTestSuiteName
+        let defaults = UserDefaults(suiteName: suiteName) ?? .standard
+        defaults.removePersistentDomain(forName: suiteName)
+        return AppearanceStore(defaults: defaults, simulateSaveFailure: wantsAppearanceSaveFailure)
+    }
+
     /// 生成一张极小的合成 JPEG，供 UI 测试注入编辑器草稿照片，不依赖真机相册权限/内容、
     /// 不经过 `PhotosPicker`（其系统 UI 不在 App 的无障碍树内，`XCUITest` 无法可靠驱动）。
     static func makeSyntheticPhotoData() -> Data {

@@ -11,9 +11,11 @@ struct MoodNodeView: View {
     let mood: Mood
     var diameter: CGFloat = 13
 
+    @Environment(ThemeManager.self) private var theme
+
     var body: some View {
         Circle()
-            .fill(MoodColorPalette.color(for: mood))
+            .fill(theme.moodColor(mood))
             .frame(width: diameter, height: diameter)
             .accessibilityHidden(true)
     }

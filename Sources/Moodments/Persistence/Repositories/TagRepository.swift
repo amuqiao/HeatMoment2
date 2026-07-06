@@ -34,6 +34,20 @@ actor TagRepository {
         return tag.id
     }
 
+    /// 重命名标签（见 04-screen-specs.md §4.13：`TagManageView` 列表项点击进入重命名）：
+    /// 应用层查重（与 `createTag` 前置查重同一约束，CloudKit 不支持 `.unique`）——若已存在
+    /// 「另一个」同名标签（`existing.id != id`，重命名为自身原名不算冲突）则抛
+    /// `RepositoryError.tagNameConflict`；`id` 不存在抛 `RepositoryError.tagNotFound`
+    /// （不静默 no-op，见 CLAUDE.md「不擅自添加兜底策略」）。
+    func renameTag(id: UUID, newName: String) throws {
+        guard let tag = try fetchModel(id: id) else { throw RepositoryError.tagNotFound(id) }
+        if let existing = try findTag(named: newName), existing.id != id {
+            throw RepositoryError.tagNameConflict(newName)
+        }
+        tag.name = newName
+        try modelContext.save()
+    }
+
     /// 删除标签：仅解除其与时刻的关联（`.nullify`），不影响任何 `Moment` 的内容或
     /// `isDeleted` 状态（标签删除与 Moment 软删除生命周期完全独立，见 07 §4）。
     /// - Throws: `RepositoryError.tagNotFound` 若 `id` 不存在（不静默 no-op）。

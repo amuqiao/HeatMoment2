@@ -1,19 +1,34 @@
 import SwiftData
 import SwiftUI
 
-/// 新建标签任务卡片（见 `docs/design/04-screen-specs.md` §4.7）：任务卡片栈的第二层
-/// （从 `TagPickerView` 打开，见 08-architecture.md §2.2），保存时应用层查重
-/// （`TagRepository.findTag(named:)`，CloudKit 不支持 `.unique`，见 07-data-persistence.md §2）——
-/// 命中已存在同名标签则直接复用回填，不重复创建；未命中才新建。空输入禁用保存。
+/// 新建/重命名标签任务卡片（见 `docs/design/04-screen-specs.md` §4.7/§4.13）：任务卡片栈的
+/// 第二层（从 `TagPickerView` 或 `TagManageView` 打开，见 08-architecture.md §2.2），供编辑器
+/// 与标签管理共用同一实现（阶段6：`editing` 非 `nil` 即重命名态，预填原名）。
+///
+/// **创建态**：保存时应用层查重（`TagRepository.findTag(named:)`，CloudKit 不支持 `.unique`，
+/// 见 07-data-persistence.md §2）——命中已存在同名标签则直接复用回填，不重复创建；未命中才新建。
+/// **重命名态**：保存分流到 `TagRepository.renameTag(id:newName:)`（应用层查重撞名抛
+/// `tagNameConflict`）。空输入禁用保存；写失败改走统一 `ErrorPresenter`（用户可见、不中止进程、
+/// 不 dismiss——保留输入内容供重试，见阶段6计划决策3）。
 struct TagCreateSheetView: View {
     let modelContainer: ModelContainer
-    /// 新建（或查重复用的既有）标签创建完成后的回填回调。
+    /// 非 `nil` 表示重命名既有标签（预填其原名）；`nil` 表示新建。
+    var editing: TagSnapshot?
+    /// 新建（或查重复用的既有）标签 / 重命名成功后的回填回调，统一传回 `(id, 最终名称)`。
     let onCreated: (UUID, String) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @Environment(ThemeManager.self) private var theme
-    @State private var name = ""
+    @Environment(ErrorPresenter.self) private var errorPresenter
+    @State private var name: String
     @State private var isSaving = false
+
+    init(modelContainer: ModelContainer, editing: TagSnapshot? = nil, onCreated: @escaping (UUID, String) -> Void) {
+        self.modelContainer = modelContainer
+        self.editing = editing
+        self.onCreated = onCreated
+        _name = State(initialValue: editing?.name ?? "")
+    }
 
     private var trimmedName: String {
         name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -21,7 +36,7 @@ struct TagCreateSheetView: View {
 
     var body: some View {
         VStack(spacing: 20) {
-            Text("# 标签名称")
+            Text(editing == nil ? "# 标签名称" : "重命名标签")
                 .font(.headline)
                 .foregroundStyle(theme.primaryText)
 
@@ -55,6 +70,12 @@ struct TagCreateSheetView: View {
         defer { isSaving = false }
         let repository = TagRepository(modelContainer: modelContainer)
         do {
+            if let editing {
+                try await repository.renameTag(id: editing.id, newName: trimmedName)
+                onCreated(editing.id, trimmedName)
+                dismiss()
+                return
+            }
             if let existing = try await repository.findTag(named: trimmedName) {
                 onCreated(existing.id, existing.name)
                 dismiss()
@@ -63,8 +84,14 @@ struct TagCreateSheetView: View {
             let id = try await repository.createTag(name: trimmedName)
             onCreated(id, trimmedName)
             dismiss()
+        } catch RepositoryError.tagNameConflict(let conflictingName) {
+            await errorPresenter.report(
+                message: "标签名「\(conflictingName)」已存在，请换一个名称。",
+                underlying: RepositoryError.tagNameConflict(conflictingName)
+            )
         } catch {
-            assertionFailure("创建标签失败：\(error)")
+            let message = editing == nil ? "创建标签失败，请稍后重试。" : "重命名标签失败，请稍后重试。"
+            await errorPresenter.report(message: message, underlying: error)
         }
     }
 }

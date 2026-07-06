@@ -26,14 +26,20 @@ struct TimelineContextMarkerBar: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 if let filter = timelineModel.activeFilter {
+                    // 防御性跳过陈旧 id（阶段6）：正常路径下标签删除会同步调用
+                    // `TimelineModel.discardFilterTag` 清理 `activeFilter`，此处的 `tagNamesByID`
+                    // 缺失只应在极端时序下出现（如清理动作与本视图重渲染之间的一帧），跳过渲染
+                    // 该标记，不展示「#」空壳、也不让它可点，避免中间态泄漏到用户界面。
                     ForEach(Array(filter.tagIDs).sorted(), id: \.self) { tagID in
-                        marker(
-                            text: "#\(tagNamesByID[tagID] ?? "")",
-                            identifier: "contextMarkerTag-\(tagID.uuidString)"
-                        ) {
-                            var updated = filter
-                            updated.tagIDs.remove(tagID)
-                            timelineModel.activeFilter = updated.isEmpty ? nil : updated
+                        if let tagName = tagNamesByID[tagID] {
+                            marker(
+                                text: "#\(tagName)",
+                                identifier: "contextMarkerTag-\(tagID.uuidString)"
+                            ) {
+                                var updated = filter
+                                updated.tagIDs.remove(tagID)
+                                timelineModel.activeFilter = updated.isEmpty ? nil : updated
+                            }
                         }
                     }
 

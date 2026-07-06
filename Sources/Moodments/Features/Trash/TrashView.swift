@@ -10,6 +10,7 @@ import SwiftUI
 struct TrashView: View {
     @Environment(ThemeManager.self) private var theme
     @Environment(\.modelContext) private var modelContext
+    @Environment(ErrorPresenter.self) private var errorPresenter
 
     @State private var items: [MomentSnapshot] = []
     @State private var isLoaded = false
@@ -95,24 +96,28 @@ struct TrashView: View {
         do {
             items = try await MomentRepository(modelContainer: modelContext.container).fetchTrash()
         } catch {
-            assertionFailure("垃圾箱列表加载失败：\(error)")
+            await errorPresenter.report(message: "垃圾箱列表加载失败，请稍后重试。", underlying: error)
         }
         isLoaded = true
     }
 
+    /// 恢复失败不在本地假装已恢复——从仓库真相源 `reload`，让列表反映实际持久化状态
+    /// （见阶段6计划决策3：可恢复写失败改走统一错误通道，失败不伪造成功）。
     private func handleRestore(_ item: MomentSnapshot) {
         Task {
             do {
                 try await MomentRepository(modelContainer: modelContext.container).restore(id: item.id)
                 await reload()
             } catch {
-                assertionFailure("恢复失败：\(error)")
+                await errorPresenter.report(message: "恢复失败，请稍后重试。", underlying: error)
+                await reload()
             }
         }
     }
 
     /// 彻底删除：物理移除 + 释放额度（仓库层）+ 失效该 Moment 全部图片的缩略图缓存
-    /// （见 07-data-persistence.md §5：Moment 彻底删除时同步清理其缩略图）。
+    /// （见 07-data-persistence.md §5：Moment 彻底删除时同步清理其缩略图）。失败同样从仓库
+    /// 真相源 `reload`，不假装已删除。
     private func handlePurge(_ item: MomentSnapshot) {
         Task {
             do {
@@ -122,7 +127,8 @@ struct TrashView: View {
                 }
                 await reload()
             } catch {
-                assertionFailure("彻底删除失败：\(error)")
+                await errorPresenter.report(message: "彻底删除失败，请稍后重试。", underlying: error)
+                await reload()
             }
         }
     }
