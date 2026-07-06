@@ -2,26 +2,27 @@
 
 ## Scope
 
-本文只描述**已落地的运行时行为与结构**（阶段 0–5）。设计契约见 `../design/`，未实现工作见 `../plans/`。数值/枚举/色值以 `../design/` 为单一事实源，本文不复制。
+本文只描述**已落地的运行时行为与结构**（阶段 0–6）。设计契约见 `../design/`，未实现工作见 `../plans/`。数值/枚举/色值以 `../design/` 为单一事实源，本文不复制。
 
 ## 模块结构（as-built）
 
 代码在 `Sources/Moodments/`，按职责分区：
 
 ```text
-App/            MoodmentsApp（装配 ModelContainer+AppRouter+ThemeManager）· RootView（浮层装配）· UITestSupport（DEBUG）
+App/            MoodmentsApp（装配 ModelContainer+AppRouter+ThemeManager+ErrorPresenter）· RootView（浮层装配）· UITestSupport（DEBUG）
 Navigation/     AppRouter（@MainActor @Observable 集中路由）
 Models/         Mood(+DisplayName) · Quota · FilterCondition   （值类型/契约常量）
 Persistence/    Moment · Tag · MomentImage · ModelContainer+Config
-Persistence/Repositories/   MomentRepository · TagRepository · RepositoryError   （@ModelActor 后台写入）
+Persistence/Repositories/   MomentRepository · TagRepository（阶段6新增 renameTag）· RepositoryError   （@ModelActor 后台写入）
 Services/Quota/ QuotaService（唯一限额判定）
 Services/Tag/   DefaultTagSeeder（首启预置，经 TagRepository）
 Services/Media/ ImageCompressor（纯函数）· ThumbnailCache（actor，阶段 4 接线：同步/异步两个 thumbnail 重载）
-DesignSystem/   Colors · Typography · ThemeManager · Components/*（含阶段 4 新增 ThumbnailStripView）
-Features/       Timeline/*（阶段5：TimelineModel 上提，List 本体下沉 TimelineListView，新增 TimelineQuery/TimelineContextMarkerBar）· Editor/*（已落地）· Preview/*（阶段 4 落地：MomentPreviewView/ImageViewerView）· Trash/*（阶段 4 新增 TrashView）· Heatmap/*（阶段5落地：YearHeatmapView+YearHeatmapModel）· Filter/*（阶段5落地：FilterPanelView）· Stats/*（阶段5新增：MoodStatsView+MoodStatsModel）· Settings（已加心情统计/垃圾箱两入口）· Paywall（占位 stub，阶段7）
+Support/        （阶段6新增）ErrorPresenter（统一错误通道，@MainActor @Observable）· UserFacingErrorAlert（.userFacingErrorAlert 修饰符）
+DesignSystem/   Colors · Typography · ThemeManager · AppearanceStore（阶段6新增，UserDefaults 逐轴持久化）· Components/*（含阶段 4 新增 ThumbnailStripView）
+Features/       Timeline/*（阶段5：TimelineModel 上提，List 本体下沉 TimelineListView，新增 TimelineQuery/TimelineContextMarkerBar；阶段6新增 TimelineModel.discardFilterTag）· Editor/*（已落地；阶段6 TagCreateSheetView 增重命名态）· Preview/*（阶段 4 落地：MomentPreviewView/ImageViewerView）· Trash/*（阶段 4 新增 TrashView）· Heatmap/*（阶段5落地：YearHeatmapView+YearHeatmapModel）· Filter/*（阶段5落地：FilterPanelView）· Stats/*（阶段5新增：MoodStatsView+MoodStatsModel）· Tags/*（阶段6新增：TagManageView）· Appearance/*（阶段6新增：AppearanceThemeView）· About/*（阶段6新增：AboutView）· Settings（阶段6补齐完整分组：Pro 横幅/标签管理/外观主题/关于/版本页脚）· Paywall（占位 stub，阶段7）
 ```
 
-**分层与并发边界**：UI / `AppRouter` / `ThemeManager` / `MomentEditorModel` / `TimelineModel` / `YearHeatmapModel` / `MoodStatsModel`（阶段5新增）均 `@MainActor`；数据写入走 `@ModelActor` 仓库（后台）；跨隔离域只传值类型（`UUID` / `Data` / `Mood` / `MomentSnapshot` / `TagSnapshot` / `DraftPhoto` / `MomentImageData` / `[Int: Mood]` / `[Mood: Int]`），**不传 `@Model` 引用**。`ThumbnailCache` 为 `actor`。
+**分层与并发边界**：UI / `AppRouter` / `ThemeManager` / `ErrorPresenter`（阶段6新增）/ `MomentEditorModel` / `TimelineModel` / `YearHeatmapModel` / `MoodStatsModel`（阶段5新增）均 `@MainActor`；数据写入走 `@ModelActor` 仓库（后台）；跨隔离域只传值类型（`UUID` / `Data` / `Mood` / `MomentSnapshot` / `TagSnapshot` / `DraftPhoto` / `MomentImageData` / `[Int: Mood]` / `[Mood: Int]`），**不传 `@Model` 引用**。`ThumbnailCache` 为 `actor`。跨 `@MainActor` 边界调用 `ErrorPresenter`/`TimelineModel` 的同步方法（如 `report(message:underlying:)`/`discardFilterTag(_:)`）时，从非隔离的 `Task {}` 闭包内一律显式 `await`（编译器要求的跨 actor 隐式异步跳转，非真正耗时操作）。
 
 ## 数据模型（as-built）
 
@@ -46,6 +47,10 @@ Features/       Timeline/*（阶段5：TimelineModel 上提，List 本体下沉 
 11. **热力图/统计聚合的并发边界（阶段5，此处为 canonical）**：`MomentRepository+Aggregation.swift` 的 `moodByDay`/`moodCounts` 运行在 `MomentRepository` 所在的后台 `ModelActor`；`YearHeatmapModel`/`MoodStatsModel`（均 `@MainActor @Observable`）用 `.task(id:)`（复合 key，年份 + 筛选条件）触发 `await` 调用，回传值类型 `[Int: Mood]`/`[Mood: Int]`，不传 `@Model` 引用。
 12. **热力图覆盖层呈现形态改为顶部锚定非模态展开（阶段5，此处为 canonical，替换阶段2占位的全屏黑遮罩）**：`RootView` 用 `.overlay(alignment: .top)` + `.move(edge: .top).combined(with: .opacity)` 转场呈现 `YearHeatmapView`；覆盖层自身内容（非全屏尺寸）继承 `theme.canvasBackground` 作为卡片背景，背景时间轴保持可见、不下沉、不变暗——区别于任务卡片栈的模态下沉语义（依公理4）。
 13. **容器级 `.accessibilityIdentifier` 覆盖子元素自身 identifier 的真实缺陷（阶段5 review 中定位并修复，此处为 canonical 教训登记）**：在 `FilterPanelView` 上同时给外层容器与内部各行 `Button` 设置 `.accessibilityIdentifier` 时，实测（`xcodebuild test` + `app.debugDescription` 打印无障碍树）外层容器的 identifier 会覆盖全部子行 `Button` 自己的 identifier（子行 label 正确、但 identifier 全部变成外层的值），导致 `XCUITest` 按子行 identifier 查找必然失败。修复：**不在包裹多个已自带 identifier 的交互子元素的容器上叠加容器级 `.accessibilityIdentifier`**，已在 `FilterPanelView`/`TimelineContextMarkerBar`/`YearHeatmapView`/`MoodStatsView` 的卡片容器上移除同类用法并加注释登记；此为通用 SwiftUI 无障碍树注意事项，非本 App 特例，供后续新增容器级 identifier 前先复核。
+14. **组合式主题的状态/持久化结构（阶段6，此处为 canonical）**：`ThemeManager` 四轴（`mode`/`accentColor`/`backgroundTexture`/`imageDisplayMode`）均声明为 `private(set) var`，外部只能经 4 个语义 setter（`setMode`/`setAccentColor`/`setBackgroundTexture`/`setImageDisplayMode`）修改——结构上保证「任何一次修改都会同步触发持久化」，不存在绕过 `AppearanceStore` 直接改视觉状态的路径。`init(store:)` 用 `AppearanceStore.load()` 一次性回填四轴 + `correctedPreferenceCount`（坏配置逐轴回落默认值的计数，只读、不可变，只在启动时算一次）。每个 setter 内部顺序固定为「先赋值内存态（立即生效）→ 再 `try store.save(...)`」，失败只置 `appearanceSaveFailed`/`photoDisplaySaveFailed`（图片显示单独一个标记，与主色/模式/纹理分开），**不回滚**已生效的内存态，落实 05 §5.3.7 乐观更新契约。`AppearanceStore`（`DesignSystem/AppearanceStore.swift`）用 4 个独立 `UserDefaults` key 逐轴持久化（而非编码单一 blob），使 `load()` 能按轴判断「key 存在但 rawValue 非法」才计入 `correctedCount`（缺失 key 是正常初始态，不计数）。
+15. **心情色独立于主色的结构性保证（阶段6，此处为 canonical，见 `docs/product-mental-model.md` 公理1）**：`MoodColorPalette.color(for mood:, mode:)` 签名内没有 `AccentColorOption` 参数、函数体也不读取任何全局主色状态——这不是靠约定人工遵守，而是类型签名层面杜绝了「心情色随主色变化」的可能。`ThemeManager.moodColor(_:)`/`danger`分别转发 `MoodColorPalette.color(for:mode:)`/`SemanticColor.danger`，View 层（`MoodNodeView`/`HeatmapGridView`/`MoodStatBarView`）统一经 `theme.moodColor(mood)` 消费、不直接调用 `MoodColorPalette`。「正常」情绪暗/亮两态取真机实测精确值（`#15BEB4`/`#58BBB3`）；其余 7 个情绪只有暗色态推导值（05 §5.4），亮色态暂沿用同一数值 `[设计决策待确认]`，标记于 `MoodColorPalette` 头部注释，待真机复核后再按情绪区分两态（不影响本条結构性保证）。`MoodColorPaletteTests` 用「遍历 6 个主色、心情色恒等」的方式在 `ThemeManager` 集成层面交叉验证。
+16. **统一错误通道 `ErrorPresenter`（阶段6新增，此处为 canonical，落位 `Support/ErrorPresenter.swift`）**：`@MainActor @Observable`，`currentError: UserFacingError?`（`Identifiable`，含 `title`/`message`）+ `report(message:underlying:)`（无条件写 `Logger`，debug/release 均上报）+ `dismiss()`。`.userFacingErrorAlert(_:)`（`Support/UserFacingErrorAlert.swift`）用**手写 `Binding`**（`get: presenter.currentError != nil`/`set: 非true时调用presenter.dismiss()`）驱动系统 `.alert`，不依赖 `@Bindable` 对 `private(set)` 属性生成的投影（跨文件不可写）。**接线位置**：`MoodmentsApp` 构造单例并 `.environment(errorPresenter)` 注入 `RootView`；因 `.alert` 不跨 sheet 边界，`RootView`/`MomentEditorView`（自身 `NavigationStack` 根）/`SettingsSheetView`（自身 `NavigationStack` 根）各挂一份 `.userFacingErrorAlert(errorPresenter)`——三处共享同一个经 `.environment()` 传递下来的实例，因为 `.sheet`/`NavigationLink` push 内容默认继承呈现它的视图当时的环境值（含多层嵌套：`.sheet` 内 push 再弹 `.sheet` 同样继承）。**接入范围**：编辑器 `load()`/`save()`/照片读取与压缩失败、标签额度校验失败；时间轴左滑删除失败；垃圾箱恢复/彻底删除/列表加载失败；标签新建/重命名/删除失败。**不吞错、不伪造成功**：编辑器保存失败的 `catch` 分支内没有 `dismiss()`（草稿保留供重试）；垃圾箱/标签管理失败分支在 `report` 之后额外 `await reload()`，从仓库真相源刷新列表而非在本地假装操作已生效。**例外**：外观（`AppearanceThemeView`）保存失败按 05 §5.3.7 走页内非模态提示（`ThemeManager.appearanceSaveFailed`/`photoDisplaySaveFailed`/`correctedPreferenceCount`），不接入本通道。**跨 actor 调用语法**：非 `@MainActor` 隔离的 `Task {}` 闭包内调用 `errorPresenter.report(...)`/`timelineModel.discardFilterTag(...)` 等 `@MainActor` 类型的同步方法，需显式 `await`（Swift 对跨 actor 同步方法调用的隐式异步跳转要求）。
+17. **`List` 行 Button 命中区域的真实缺陷（阶段6 review 中定位并修复，此处为 canonical 教训登记，与条目13 同类但触发条件不同）**：`TagManageView` 标签行最初把 `.padding`/`.background`/`.frame` 施加在 `Button` 外层而非其 `label`，且未加 `.contentShape(Rectangle())`——实测（`xcodebuild test` + 导出 `.xcresult` 内的屏幕录像逐帧比对）点击行内空白/背景色区域完全无响应，只有文字字形本身的绘制区域可点中，`XCUITest` 点击其 accessibility frame 中心点（通常落在空白区）因而永远无效，且**不报错、不崩溃**（只是行为上什么都不发生），排查耗时较长。修复：把 `padding`/`background` 移入 `label` 内部再整体 `.contentShape(Rectangle())`，与 `MoodPickerView`/`TagPickerView`/`FilterPanelView` 已有的同类写法及注释保持一致。教训：**任何整行可点的 `List`/`popover` 行都必须显式 `.contentShape(Rectangle())`**，否则命中区域会静默退化为文字字形本身，且此类缺陷不产生任何错误信息，只能通过实际点击验证（单元测试无法覆盖）。
 
 ## 导航与浮层（as-built）
 
@@ -54,6 +59,7 @@ Features/       Timeline/*（阶段5：TimelineModel 上提，List 本体下沉 
 - **就近浮窗不进 Router**：情绪/标签/日期/时间选择、筛选面板用 `.popover + presentationCompactAdaptation(.popover)`，由触发处**局部 `@State`** 驱动。`FilterPanelView`（阶段5落地真实内容）由 `TimelineHomeView` 局部 `@State private var isFilterPresented` 驱动，绑定 `timelineModel.activeFilter`（经 `@Bindable`），不进 Router。
 - **第二层浮层由 sheet 内容自身局部状态驱动**：编辑器内「新建标签」/「照片额度 Paywall」用编辑器局部 `.sheet(item:)`；预览内「编辑」/「图片查看器」用预览局部 `.sheet(item:)`/`.fullScreenCover(item:)`（阶段 4）——均不塞进 `rootSheet`/`fullScreenCover`（否则替换而非层叠）。
 - **垃圾箱 + 心情统计**（阶段 4 / 阶段5）：`SettingsSheetView` 的 `NavigationStack` 内两个 `NavigationLink` push `TrashView`（`accessibilityIdentifier: settingsTrashRow`）/ `MoodStatsView`（`accessibilityIdentifier: settingsMoodStatsRow`，阶段5新增），符合 08 §2.2「设置栈内子页」映射；`MoodStatsView` 独立全量、不接 `TimelineModel`（见 `MoodStatsModel` 头部注释）。
+- **标签管理 + 外观主题 + 关于**（阶段6新增）：同一 `NavigationStack` 内新增 `TagManageView`（`settingsTagManageRow`）/ `AppearanceThemeView`（`settingsAppearanceRow`）/ `AboutView`（`settingsAboutRow`）三个 push 子页；`TagManageView` 内「新建/重命名标签」用其自身局部 `.sheet(item:)` 呈现 `TagCreateSheetView`（任务卡片栈第三层：`rootSheet`(.settings) → push `TagManageView` → 局部 sheet，仍符合「就近浮窗/第二三层由内容自身局部状态驱动」的分层协作，见 08 §3）；`AboutView` 用 `.preferredColorScheme(.light)` + 固定红 `tint` 强制亮色外观，不随 `ThemeManager.mode`。Pro 横幅（`settingsProBanner`）用 `SettingsSheetView` 自身局部 `@State private var paywallTrigger` 驱动局部 `.sheet(item:)` 弹 `ProPaywallView`，**不改 `router.rootSheet`**（否则会替换掉 `.settings` 本身而非层叠）。
 
 ## 运行时流（as-built）
 
@@ -121,4 +127,4 @@ Pro 感知：`QuotaService` 对 Pro 短路 `.allowed`；剩余额度经 `remaini
 
 ## 验证基线
 
-见 `README.md` §验证基线（统一入口 `./scripts/verify.sh`；阶段5收口：单元 63 + UI 7 套件/13 用例全过、build ✓、lint ✓）。
+见 `README.md` §验证基线（统一入口 `./scripts/verify.sh`；阶段6收口：单元 87（22 套件）+ UI 24 用例（11 套件）全过、build ✓、lint ✓）。

@@ -118,11 +118,11 @@ HeatMoment2/
 - **依赖**：阶段 2、（多标签筛选逻辑）。
 - **验收**：`LocateVsFilterTests`（定位只改滚动、不改数据集；筛选只改数据集）；`MultiTagFilterTests`（多标签 AND 交集 + 心情单选）；热力图日期着色单元测试。
 
-### 阶段 6 · 设置 + 外观主题 ⬜
+### 阶段 6 · 设置 + 外观主题 ✅
 - **目标**：长期管理与个性化。
-- **交付**：`SettingsSheetView` + 子页（标签管理 / 垃圾箱入口 / 心情统计 / 外观主题 / 关于）、组合式主题（模式×主色×背景纹理×图片展示）、`ThemeManager`（Environment 注入 + 乐观更新 + 失败提示）。
+- **交付**：`SettingsSheetView` + 子页（标签管理 `TagManageView` / 垃圾箱 `TrashView` / 心情统计 `MoodStatsView` / 外观主题 `AppearanceThemeView` / 关于 `AboutView`）、组合式主题（模式×主色×背景纹理×图片展示，`AppearanceStore` 逐轴持久化 + `ThemeManager` 乐观更新 + 失败提示）、统一错误通道 `ErrorPresenter`/`.userFacingErrorAlert`。
 - **依赖**：阶段 2–5。
-- **验收**：`ThemeSwitchUITests`（切主色/模式即时生效、心情色/危险色不受影响）；乐观更新保存失败提示的测试。
+- **验收（措辞订正，见下）**：`ThemeSwitchUITests`（切**主色**时 FAB/强调随之变化，**心情色/危险色不受影响**——心情色独立于主色，这条不变量与「是否随模式切换」无关；切**模式**时画布切亮/暗、当前主色槽位不变但该主色解析出的具体色值随模式切到其亮/暗两态，**心情色也随模式切到该情绪的亮/暗态**，这是预期行为而非「切模式不变」）；`AppearanceSaveFailureUITests`（保存失败页内非模态提示 + 不回滚视觉）；`TagManageUITests`（删标签清理筛选陈旧 id、重命名、删标签不删时刻）；单元测试覆盖 `MoodColorPalette`/`AppearanceStore`/`TagRepository.renameTag`/`TimelineModel.discardFilterTag`/`ErrorPresenter`。
 
 ### 阶段 7 · 支撑能力（P1，排期后置） ⬜
 - **目标**：接入安全与边界能力（心智模型定位为支撑能力，不在核心成型前抢工）。
@@ -157,13 +157,16 @@ HeatMoment2/
 - 个别浅色组合 WCAG 复核（阶段 2/6 实现时用工具校）。
 - `.xcodeproj` 是否入库（本计划定：不入库，靠 `Project.yml` 重建；如团队偏好入库可调）。
 - **默认标签预置与 CloudKit 首次同步的重复风险**（阶段 6 前处理）：`DefaultTagSeeder` 以「Tag 表为空」为触发；接 iCloud 后新设备在下行同步完成前表仍为空，会先本地预置 工作/生活/健康 再同步下来一份、产生重复。阶段 6 接同步时需加去重/延迟预置策略。
-- **运行时写/加载错误的用户可见反馈**（阶段 3/4 已记，阶段 6 统一做）：编辑器 `load()`/`save()`/照片导入，以及时间轴删除、垃圾箱恢复/彻底删除的写失败，当前均 debug `assertionFailure`、release 静默（不改数据、不降级，但用户无反馈）。需一个统一的面向用户错误呈现通道（保持「失败即失败」前提下把失败暴露给用户），随阶段 6 打磨统一引入。
+- ~~运行时写/加载错误的用户可见反馈~~（阶段 3/4 已记，**阶段 6 已处理**）：新增统一错误通道 `Support/ErrorPresenter`（`@MainActor @Observable`，`currentError`/`report(message:underlying:)`）+ `.userFacingErrorAlert` 修饰符，在 `RootView`/`MomentEditorView` 根/`SettingsSheetView` 根各挂一份（`.alert` 不跨 sheet 边界）；编辑器 `load()`/`save()`/照片导入、时间轴删除、垃圾箱恢复/彻底删除、标签新建/重命名的写失败均已改走该通道——用户可见、debug/release 均上报（`Logger`）、不再 `assertionFailure` 中止进程、失败不伪造成功（编辑器保存失败不 dismiss、Trash/标签管理失败从仓库真相源 `reload`）。外观（`AppearanceThemeView`）保存失败按 05 §5.3.7 走页内非模态提示，不接入本通道（例外，见类型头部说明）。真正的不变量违反（如阶段5聚合 ordinality）仍 `assertionFailure`，未纳入本次改造范围。
 - **图片查看器缩放后无平移**（polish）：`ImageViewerView` 已支持捏合缩放（含上界钳制）与双击，但放大后不能平移查看其他区域；04 §4.10 只要求缩放、未强制平移。补平移需与 `TabView(.page)` 分页手势做仲裁，涉及时再做。
 - **时间轴末行竖线尾段悬垂**（细微视觉 polish）：贯穿式竖线覆盖每行「卡片 + 20pt 延伸段」，最后一条 Moment 节点下方仍有约 20pt 空线；需给末行传 `isLast` 收尾。
 - **ThumbnailCache 在途生成去重**（低优）：async 重载在 actor 重入下，同一 `imageID` 的并发未命中请求会各自重新生成（幂等、仅重复 IO/CPU）；可用 `[UUID: Task]` 记在途任务去重。
 - **热力图「选月」定位 + 整列高亮**（阶段 5 延后，见 13-open-questions #21）：现只落地「点日期格」定位 + 单格描边；04 §4.3/05 §5.4 要求「选月/选日 → 整列高亮」，月份标签可点与整列主色 12–16% 叠加待补。
-- **筛选中标签被删除后的陈旧标记**（阶段 6 处理）：`activeFilter.tagIDs` 含已删除标签时，上下文标记渲染空白「#」且命中恒 0；标签管理（阶段 6）删除标签时需同步清理 `activeFilter` 中失效 id（或标记条过滤失效 id）。
+- ~~筛选中标签被删除后的陈旧标记~~（**阶段 6 已处理**）：`TagManageView` 删除标签成功后调用新增的 `TimelineModel.discardFilterTag(_:)`（从 `activeFilter.tagIDs` 移除该 id，移除后两维度皆空则整体置 `nil`，不误触 `mood` 维度）；`TimelineContextMarkerBar` 同步加一层防御性跳过（`tagNamesByID` 缺失该 id 时不渲染该标记），双重保证不出现空白「#」标记。
 - ~~编辑态保存重建图片的孤儿缩略图缓存~~（阶段 4 已处理：`save()`/`purge` 两处失效旧键）。
+- **7 个非「正常」情绪的亮色态心情色**（阶段 6 起，待真机复核）：设计 §5.4 只采了暗态值，`MoodColorPalette` 亮态暂沿用暗态值并标 `[设计决策待确认]`；真机复核后按情绪区分两态（正常亮态 `#58BBB3` 已确认）。
+- **关于页备案号**（阶段 6 起，待产品）：`AboutView` 已放占位行（`aboutBeianPlaceholder`），需产品补真实备案号；外部链接 URL（创作者/隐私/条款）同待产品，阶段 7 接。
+- **`CreateMomentFlowUITests` 键盘聚焦偶发 flaky**（测试加固）：标题输入偶发「Neither element nor any descendant has keyboard focus」（模拟器键盘未及时聚焦），重跑即过；建议点输入框后显式等待键盘出现再 `typeText`，消除 CI 偶发。
 
 ## 9. 进度追踪
 
@@ -175,5 +178,5 @@ HeatMoment2/
 | 3 记录/编辑 | ✅ 完成 | `verify` 绿：38 单元 + UI（CreateMomentFlow/QuotaBlock/EditorSheet 等）全过 · build ✓ · lint ✓；编辑器 + 四就近浮窗 + 图片压缩管线 + 篇数/照片/标签额度闸门 + 首启预置默认标签 + 编辑态照片增删；review 两份（架构无违背；代码 1 必修：照片额度判定收敛 QuotaService + Pro latent bug）已修；延后项入 §8 |
 | 4 预览+删除生命周期 | ✅ 完成 | `verify` 绿：47 单元 + 13 UI（7 套件，新增 DeleteRestorePurge）全过 · build ✓ · lint ✓；预览弹出阅读卡片（ADR-007）+ 图片查看器（fullScreenCover）+ 时间轴 `List`+`.swipeActions` 删除 + TrashView 恢复/彻底删除 + 缩略图缓存接线 + 两处缓存失效；顺带修正时间轴竖线断裂既有缺陷；review 两份均无必须修，低风险项（.isModal/缩放钳制/解码暴露/预留标注）已修；延后项入 §8 |
 | 5 回看 | ✅ 完成 | `verify` 绿：63 单元（新增 LocateVsFilterTests/MultiTagFilterTests/HeatmapMoodColorTests 共16例）+ 15 UI（8 套件，回归全过，含新增 LocateFilterUITests）全过 · build ✓ · lint ✓；`TimelineModel` 上提到 `RootView` 注入（时间轴/热力图共享同一实例）；`TimelineListView`+`TimelineQuery` 落实定位/筛选正交（谓词无 Date 参数、`scrollTargetID` 纯函数）；多标签 AND 交集内存过滤（`FilterCondition.matches`）；`MomentRepository+Aggregation` 年度聚合（`ModelActor` 后台、回传 `[Int:Mood]`/`[Mood:Int]` 值类型）；`YearHeatmapView`/`MoodStatsView`/`FilterPanelView`/`TimelineContextMarkerBar` 落地真实内容；过程中修复一处真实缺陷：容器级 `.accessibilityIdentifier` 会覆盖子元素自身 identifier（已在 4 处新文件移除容器级 id 并登记教训注释）；review 两份（架构无违背、公理2 正交性评优；代码有铁律必修）已修：聚合/网格静默降级→快速失败、网格 O(1) 重构、年份区间解耦（动态含当前年）、补真正变动 focusDate 的正交断言 + 新增 `LocateFilterUITests` 集成测试；范围简化：热力图仅落地「点日期格」定位、未落地独立「点月份标签」+「整列高亮」（见 13-open-questions #21 与 §8）；延后项入 §8 |
-| 6 设置+外观 | ⬜ | — |
+| 6 设置+外观 | ✅ 完成 | `verify` 绿：87 单元（新增 `MoodColorPaletteTests`/`AppearanceStoreTests`/`ErrorPresenterTests`/`TimelineModelTests` 共 20 例 + `TagRepositoryTests` 补 4 例 renameTag）+ 25 UI（11 套件，回归全过，新增 `ThemeSwitchUITests`/`AppearanceSaveFailureUITests`/`TagManageUITests`）全过 · build ✓ · lint ✓；`SettingsSheetView` 补齐 Pro 横幅（局部 sheet）+ 分组A（心情统计/标签管理/垃圾箱）+ 分组B（外观主题 + iCloud/面容/语言禁用占位）+ 关于 + 版本页脚；`AppearanceStore` 逐轴 `UserDefaults` 持久化（坏值按轴回落默认 + 计数）、`ThemeManager` 四轴 `private(set)` + 语义 setter 乐观更新、`MoodColorPalette.color(for:mode:)` 签名不含主色参数（心情色独立于主色的结构性保证）；统一错误通道 `ErrorPresenter`/`.userFacingErrorAlert` 接入编辑器/垃圾箱/时间轴删除/标签新建重命名；`TagRepository.renameTag` + `TimelineModel.discardFilterTag` 落地标签重命名与筛选陈旧 id 清理；review 两份（架构无违背、公理1 心情色独立性结构性正确；代码 1 必修）已修：TagCreateSheetView 撞名错误对用户不可见 → 改 `ErrorPresenter` 呈现宿主栈（LIFO 仅栈顶宿主呈现，根治多层 `.alert` 同挂导致的呈现链折叠）+ 补撞名可见错误 UI 测试；TagPicker 加载失败改走通道；AboutView 去 `preferredColorScheme` 改 `.toolbarColorScheme` + 补备案号占位；日志 underlying 改 `.private`；「已修正」提示改中性色；`AppearanceStore` 坏配置回写自愈；标签删除关 full-swipe；延后项入 §8 |
 | 7 支撑能力(P1) | ⬜ | — |
