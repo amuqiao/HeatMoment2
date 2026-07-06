@@ -17,7 +17,9 @@ final class EditorSaveValidationTests: XCTestCase {
     }
 
     func testCanSaveRequiresAtLeastTitleBodyOrPhoto() {
-        let model = MomentEditorModel(mode: .create, modelContainer: container)
+        let model = MomentEditorModel(
+            mode: .create, modelContainer: container, subscriptionService: SubscriptionService()
+        )
 
         XCTAssertFalse(model.canSave, "标题/正文/照片均为空时不可保存")
 
@@ -36,28 +38,39 @@ final class EditorSaveValidationTests: XCTestCase {
     }
 
     func testDefaultMoodFallsBackToLastThenNormal() {
-        let withLastMood = MomentEditorModel(mode: .create, modelContainer: container, lastUsedMood: .happy)
+        let withLastMood = MomentEditorModel(
+            mode: .create, modelContainer: container, subscriptionService: SubscriptionService(),
+            lastUsedMood: .happy
+        )
         XCTAssertEqual(withLastMood.mood, .happy, "有历史选择应使用上次选择")
 
-        let withoutLastMood = MomentEditorModel(mode: .create, modelContainer: container)
+        let withoutLastMood = MomentEditorModel(
+            mode: .create, modelContainer: container, subscriptionService: SubscriptionService()
+        )
         XCTAssertEqual(withoutLastMood.mood, .normal, "无历史选择应回退到 .normal")
     }
 
     func testIsDirtyDetectsUnsavedChanges() {
-        let model = MomentEditorModel(mode: .create, modelContainer: container)
+        let model = MomentEditorModel(
+            mode: .create, modelContainer: container, subscriptionService: SubscriptionService()
+        )
         XCTAssertFalse(model.isDirty, "刚打开的新建态不应视为脏")
 
         model.title = "标题"
         XCTAssertTrue(model.isDirty, "改动标题后应视为脏")
     }
 
-    func testAddPhotoRespectsQuotaAndRemovePhotoWorks() {
-        let model = MomentEditorModel(mode: .create, modelContainer: container)
+    func testAddPhotoRespectsQuotaAndRemovePhotoWorks() async {
+        let model = MomentEditorModel(
+            mode: .create, modelContainer: container, subscriptionService: SubscriptionService()
+        )
 
         for _ in 0..<Quota.freePhotosPerMomentLimit {
-            XCTAssertEqual(model.addPhoto(Data([0x01])), .allowed)
+            let check = await model.addPhoto(Data([0x01]))
+            XCTAssertEqual(check, .allowed)
         }
-        XCTAssertEqual(model.addPhoto(Data([0x01])), .exceeded(.photosPerMoment))
+        let exceededCheck = await model.addPhoto(Data([0x01]))
+        XCTAssertEqual(exceededCheck, .exceeded(.photosPerMoment))
         XCTAssertEqual(model.draftPhotos.count, Quota.freePhotosPerMomentLimit)
 
         let firstID = model.draftPhotos[0].id
@@ -73,7 +86,9 @@ final class EditorSaveValidationTests: XCTestCase {
             title: "旧标题", bodyText: "旧正文", occurredAt: .now, mood: .sad
         )
 
-        let model = MomentEditorModel(mode: .edit(id), modelContainer: container)
+        let model = MomentEditorModel(
+            mode: .edit(id), modelContainer: container, subscriptionService: SubscriptionService()
+        )
         XCTAssertFalse(model.isLoaded)
 
         try await model.load()

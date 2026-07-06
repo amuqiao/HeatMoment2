@@ -26,6 +26,26 @@ enum UITestSupport {
         ProcessInfo.processInfo.arguments.contains("-uiTestPhotoInjection")
     }
 
+    /// 是否强制启用隐私锁（覆盖 `BiometricLockPreference` 默认关闭态，见该类型），供
+    /// `PrivacyLockUITests` 在不依赖设置页开关交互的前提下验证锁生命周期时序
+    /// （冷启动锁/回前台锁/后台遮罩/未验证前内容不可见）。
+    static var wantsForcePrivacyLockEnabled: Bool {
+        ProcessInfo.processInfo.arguments.contains("-uiTestForcePrivacyLockEnabled")
+    }
+
+    /// DEBUG 冒烟注入：伪造 `BiometricLockService` 验证结果，绕开真实 Face ID/密码系统交互
+    /// （系统级验证 UI 不在 App 无障碍树内，`XCUITest` 无法可靠驱动，见 `EditorPhotoSection`
+    /// 头部注释同类先例）。
+    /// - `-uiTestBiometricAlwaysSucceed`：验证恒成功。
+    /// - `-uiTestBiometricAlwaysFail`：验证恒失败（非抛错，供失败态重试冒烟）。
+    /// - 二者都不带：`nil`，`BiometricLockService` 走真实 `LAContext`。
+    static var forcedBiometricOutcome: Bool? {
+        let args = ProcessInfo.processInfo.arguments
+        if args.contains("-uiTestBiometricAlwaysSucceed") { return true }
+        if args.contains("-uiTestBiometricAlwaysFail") { return false }
+        return nil
+    }
+
     /// 外观偏好测试隔离套件名（见 `makeAppearanceStore()`）。
     private static let appearanceTestSuiteName = "com.moodments.uiTestAppearance"
 

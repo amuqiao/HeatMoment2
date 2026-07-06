@@ -46,9 +46,11 @@ struct EditorPhotoSection: View {
             #if DEBUG
             if UITestSupport.wantsPhotoInjectionHook {
                 Button("注入测试照片") {
-                    let check = model.addPhoto(UITestSupport.makeSyntheticPhotoData())
-                    if case .exceeded = check {
-                        editorPaywallTrigger = .quotaPhoto
+                    Task {
+                        let check = await model.addPhoto(UITestSupport.makeSyntheticPhotoData())
+                        if case .exceeded = check {
+                            editorPaywallTrigger = .quotaPhoto
+                        }
                     }
                 }
                 .accessibilityIdentifier("editorInjectPhotoButton")
@@ -129,19 +131,22 @@ struct EditorPhotoSection: View {
     }
 
     private func requestAddPhotos() {
-        // 额度判定只消费 QuotaService 结果（经 model），不在 View 层比较数值——对 Pro 权益有感知。
-        if case .exceeded = model.checkCanAddPhoto() {
-            editorPaywallTrigger = .quotaPhoto
-            return
+        // 额度判定只消费 QuotaService 结果（经 model 现场重查 Pro 权威判定），不在 View 层
+        // 比较数值——对 Pro 权益有感知（阶段7计划决策1）。
+        Task {
+            if case .exceeded = await model.checkCanAddPhoto() {
+                editorPaywallTrigger = .quotaPhoto
+                return
+            }
+            isPickerPresented = true
         }
-        isPickerPresented = true
     }
 
     private func appendPickedPhotos(_ items: [PhotosPickerItem]) async {
         for item in items {
             guard let rawData = await loadData(from: item) else { continue }
             guard let compressed = await compress(rawData) else { continue }
-            let check = model.addPhoto(compressed)
+            let check = await model.addPhoto(compressed)
             if case .exceeded = check {
                 editorPaywallTrigger = .quotaPhoto
                 break

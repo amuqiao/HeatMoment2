@@ -78,7 +78,9 @@ final class ThumbnailCacheInvalidationTests: XCTestCase {
         let hasCachedBeforeSave = await ThumbnailCache.shared.hasMemoryCachedThumbnail(for: originalImageID)
         XCTAssertTrue(hasCachedBeforeSave)
 
-        let model = MomentEditorModel(mode: .edit(momentID), modelContainer: container)
+        let model = MomentEditorModel(
+            mode: .edit(momentID), modelContainer: container, subscriptionService: SubscriptionService()
+        )
         try await model.load()
         try await model.save()
 

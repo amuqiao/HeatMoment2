@@ -15,6 +15,7 @@ struct TimelineHomeView: View {
     @Environment(TimelineModel.self) private var timelineModel
     @Environment(\.modelContext) private var modelContext
     @Environment(ErrorPresenter.self) private var errorPresenter
+    @Environment(SubscriptionService.self) private var subscriptionService
     @State private var isTitleCollapsed = false
     @State private var isFilterPresented = false
 
@@ -52,16 +53,20 @@ struct TimelineHomeView: View {
         }
     }
 
-    /// 新建入口的篇数额度前置闸门（见 03-user-flows.md §3.1）：点击悬浮按钮时先用
-    /// `MomentRepository.totalMomentCount()`（含垃圾箱，见 07 §3）+ `QuotaService` 判定，
-    /// 允许才打开编辑器，超额直接改为弹出 Paywall（编辑器不会被打开），限额判定只消费
-    /// `QuotaService` 结果、不在 View 层自行比较数值（见 08-architecture.md §6）。
+    /// 新建入口的篇数额度前置闸门（见 03-user-flows.md §3.1）：点击悬浮按钮时先
+    /// `await subscriptionService.currentEntitlementIsPro()` 现场重查 Pro 权威判定（11 §11.4，
+    /// 阶段7计划决策1——不用缓存 `isPro`），再用 `MomentRepository.totalMomentCount()`（含
+    /// 垃圾箱，见 07 §3）+ `QuotaService` 判定，允许才打开编辑器，超额直接改为弹出 Paywall
+    /// （编辑器不会被打开）。限额判定唯一落点仍是 `QuotaService`，本方法只负责把当次权威 Pro
+    /// 判定结果适配成 `EntitlementProviding` 传入，不在 View 层自行比较数值（08 §6）。
     private func handleNewMomentTapped() {
         Task {
             do {
+                let isPro = await subscriptionService.currentEntitlementIsPro()
                 let repository = MomentRepository(modelContainer: modelContext.container)
                 let count = try await repository.totalMomentCount()
-                switch QuotaService().checkCanCreateMoment(currentMomentCount: count) {
+                let quotaService = QuotaService(entitlementProvider: SubscriptionEntitlementProvider(isPro: isPro))
+                switch quotaService.checkCanCreateMoment(currentMomentCount: count) {
                 case .allowed:
                     router.rootSheet = .editor(.create)
                 case .exceeded:
@@ -132,6 +137,7 @@ struct TimelineHomeView: View {
         .environment(ThemeManager())
         .environment(TimelineModel())
         .environment(ErrorPresenter())
+        .environment(SubscriptionService())
         // swiftlint:disable:next force_try
         .modelContainer(try! ModelContainerConfig.makeInMemoryContainer())
 }

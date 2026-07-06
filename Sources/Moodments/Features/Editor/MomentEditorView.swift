@@ -44,7 +44,12 @@ struct MomentEditorView: View {
     @State private var tagCreateContext: TagCreateContext?
     @State private var editorPaywallTrigger: PaywallTrigger?
 
-    init(mode: EditorMode, modelContainer: ModelContainer) {
+    /// `subscriptionService` 由调用方（`RootView`）经 `@Environment(SubscriptionService.self)`
+    /// 读出后显式传入，而非在本视图内部再读一次 `@Environment`——`init()` 内需要立即构造
+    /// `MomentEditorModel`（草稿模型），而 `@Environment` 属性包装器只在视图挂载后才解析，
+    /// `init()` 阶段读取会拿到默认/未初始化状态（与 `lastUsedMood` 需要绕开
+    /// `@AppStorage` 初始化顺序陷阱同一原因，见下方注释）。
+    init(mode: EditorMode, modelContainer: ModelContainer, subscriptionService: SubscriptionService) {
         self.mode = mode
         self.modelContainer = modelContainer
         // 直接读 `UserDefaults` 而非 `_lastUsedMood` 的 wrapped value：属性包装器初始化顺序
@@ -53,7 +58,8 @@ struct MomentEditorView: View {
         // 「无历史选择回退到 .normal」的产品规则天然吻合（见阶段 3 计划决策5）。
         let seedMood = Mood(rawValue: UserDefaults.standard.integer(forKey: EditorMoodMemory.storageKey)) ?? .normal
         _model = State(initialValue: MomentEditorModel(
-            mode: mode, modelContainer: modelContainer, lastUsedMood: seedMood
+            mode: mode, modelContainer: modelContainer,
+            subscriptionService: subscriptionService, lastUsedMood: seedMood
         ))
     }
 
@@ -328,7 +334,7 @@ struct MomentEditorView: View {
 #Preview {
     // swiftlint:disable:next force_try
     let container = try! ModelContainerConfig.makeInMemoryContainer()
-    return MomentEditorView(mode: .create, modelContainer: container)
+    return MomentEditorView(mode: .create, modelContainer: container, subscriptionService: SubscriptionService())
         .environment(ThemeManager())
         .environment(ErrorPresenter())
 }

@@ -29,11 +29,26 @@ final class Moment {
         set { moodRawValue = newValue.rawValue }
     }
 
-    @Relationship(deleteRule: .nullify, inverse: \Tag.moments)
-    var tags: [Tag] = []
+    /// **CloudKit 兼容存储**（见 07 §2 第3条「关系必须是可选的」、阶段7实测登记）：
+    /// 到多关系在本 SwiftData/Xcode 版本下若声明为非 `Optional` 数组（`[Tag] = []`），
+    /// `NSPersistentCloudKitContainer` 加载时会拒绝该 schema（报「CloudKit integration
+    /// requires that all relationships be optional」），即便从未真正启用 CloudKit 也会在
+    /// `makeCloudKitContainer()` 尝试阶段命中。改为 `Optional` 存储列 + 非 `Optional`
+    /// 计算属性对外暴露（与 `deletedFlag`→`isDeleted`、`moodRawValue`→`mood` 同一模式），
+    /// 存储层满足 CloudKit 约束，调用方（仓库/View）继续用非 `Optional` 数组语义，零改动。
+    @Relationship(deleteRule: .nullify, inverse: \Tag.momentsStorage)
+    private var tagsStorage: [Tag]?
+    var tags: [Tag] {
+        get { tagsStorage ?? [] }
+        set { tagsStorage = newValue }
+    }
 
     @Relationship(deleteRule: .cascade, inverse: \MomentImage.moment)
-    var images: [MomentImage] = []
+    private var imagesStorage: [MomentImage]?
+    var images: [MomentImage] {
+        get { imagesStorage ?? [] }
+        set { imagesStorage = newValue }
+    }
 
     /// 软删除生命周期字段（见公理「删除是生命周期」与 07 §3）。
     ///
@@ -74,8 +89,11 @@ final class Moment {
         self.createdAt = createdAt
         self.updatedAt = updatedAt
         self.moodRawValue = mood.rawValue
-        self.tags = tags
-        self.images = images
+        // 直接写存储列（而非经 `tags`/`images` 计算属性 setter）：`@Model` 宏生成的初始化
+        // 顺序下，直接对存储属性赋值更明确，避免依赖「计算属性 setter 里的存储属性此刻
+        // 已可写」这一隐式前提（见 `tagsStorage`/`imagesStorage` 头部注释）。
+        self.tagsStorage = tags
+        self.imagesStorage = images
         self.deletedFlag = isDeleted
         self.deletedAt = deletedAt
     }

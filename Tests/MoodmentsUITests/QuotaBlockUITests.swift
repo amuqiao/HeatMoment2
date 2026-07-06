@@ -14,7 +14,7 @@ final class QuotaBlockUITests: XCTestCase {
         XCTAssertTrue(fab.waitForExistence(timeout: 10))
         fab.tap()
 
-        XCTAssertTrue(app.staticTexts["Pro 订阅 · 阶段7"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Pro 会员"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["editorSaveButton"].exists, "超额时编辑器不应被打开")
     }
 
@@ -37,7 +37,7 @@ final class QuotaBlockUITests: XCTestCase {
         XCTAssertTrue(addButton.waitForExistence(timeout: 5))
         addButton.tap()
 
-        XCTAssertTrue(app.staticTexts["Pro 订阅 · 阶段7"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Pro 会员"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.textFields["tagCreateNameField"].exists, "超额时不应打开新建标签卡片")
     }
 
@@ -64,6 +64,6 @@ final class QuotaBlockUITests: XCTestCase {
         XCTAssertTrue(appendButton.waitForExistence(timeout: 5))
         appendButton.tap()   // 已满额，前置闸门应直接弹 Paywall、不打开系统选择器
 
-        XCTAssertTrue(app.staticTexts["Pro 订阅 · 阶段7"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Pro 会员"].waitForExistence(timeout: 5))
     }
 }

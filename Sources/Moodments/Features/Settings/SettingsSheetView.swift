@@ -13,8 +13,12 @@ struct SettingsSheetView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(ThemeManager.self) private var theme
     @Environment(ErrorPresenter.self) private var errorPresenter
+    @Environment(SubscriptionService.self) private var subscriptionService
+    @Environment(SyncStatusService.self) private var syncStatusService
 
     @State private var paywallTrigger: PaywallTrigger?
+    @State private var isBiometricLockEnabled = BiometricLockPreference.isEnabled()
+    private let biometricService = BiometricLockService()
 
     var body: some View {
         NavigationStack {
@@ -43,8 +47,8 @@ struct SettingsSheetView: View {
                 }
 
                 Section {
-                    disabledPlaceholderRow(title: "iCloud 数据同步", identifier: "settingsICloudRow")
-                    disabledPlaceholderRow(title: "面容解锁", identifier: "settingsBiometricRow")
+                    iCloudSyncRow
+                    biometricLockRow
                     disabledPlaceholderRow(title: "语言", identifier: "settingsLanguageRow")
 
                     NavigationLink("外观主题") {
@@ -81,23 +85,30 @@ struct SettingsSheetView: View {
                 ProPaywallView(trigger: trigger)
             }
             .userFacingErrorAlert(errorPresenter)
+            .task {
+                syncStatusService.refresh()
+            }
         }
     }
 
-    /// Pro 会员态判定留阶段 7（`SubscriptionStateCache` 尚未接入，见 08-architecture.md §4.4）；
-    /// 本阶段先落地未订阅态的升级引导横幅（04 §4.11：Pro 会员态下横幅替换为「已是 Pro 会员」态，
-    /// 已裁决见 13-open-questions.md #11，接入订阅状态后再切换文案）。
+    /// Pro 会员态下横幅替换为「已是 Pro 会员」态（04 §4.11，已裁决见 13-open-questions.md #11）：
+    /// `subscriptionService.isPro` 是缓存快照，仅供本行显隐/文案这类**非放行** UI 使用
+    /// （权威放行判断见三处额度闸门对 `currentEntitlementIsPro()` 的现场重查，阶段7计划决策1）。
     private var proBanner: some View {
         Button {
             paywallTrigger = .banner
         } label: {
             VStack(alignment: .leading, spacing: 4) {
-                Text("立即升级成为 Pro 用户")
+                Text(subscriptionService.isPro ? "你已是 Pro 会员" : "立即升级成为 Pro 用户")
                     .font(AppTypography.cardTitle)
                     .foregroundStyle(.white)
-                Text("解锁无限日记、无限照片、无限标签")
-                    .font(AppTypography.caption)
-                    .foregroundStyle(.white.opacity(0.85))
+                Text(
+                    subscriptionService.isPro
+                        ? "已解锁无限日记、无限照片、无限标签"
+                        : "解锁无限日记、无限照片、无限标签"
+                )
+                .font(AppTypography.caption)
+                .foregroundStyle(.white.opacity(0.85))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(16)
@@ -107,7 +118,49 @@ struct SettingsSheetView: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("settingsProBanner")
-        .accessibilityLabel(Text("立即升级成为 Pro 用户，解锁无限日记、无限照片、无限标签"))
+        .accessibilityLabel(Text(
+            subscriptionService.isPro
+                ? "你已是 Pro 会员，已解锁无限日记、无限照片、无限标签"
+                : "立即升级成为 Pro 用户，解锁无限日记、无限照片、无限标签"
+        ))
+    }
+
+    /// iCloud 同步状态行内展示（见 `docs/design/09-icloud-sync.md` §9.2、阶段7计划「浮层归属」：
+    /// 行内展示、非 push 子页）。
+    private var iCloudSyncRow: some View {
+        HStack {
+            Text("iCloud 数据同步").foregroundStyle(theme.primaryText)
+            Spacer()
+            Text(syncStatusService.status.displayText)
+                .font(AppTypography.caption)
+                .foregroundStyle(SemanticColor.secondaryText)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("settingsICloudRow")
+        .accessibilityLabel(Text("iCloud 数据同步，\(syncStatusService.status.displayText)"))
+    }
+
+    /// 「面容解锁」行（见 10 §10.1.2）：Face ID 图标 + 系统开关。设备既无生物识别也未设置任何
+    /// 锁屏密码时禁用/隐藏（`biometricService.canEvaluate()` 为 `false`），避免「开了锁但永远
+    /// 验证不了」的死锁态。
+    @ViewBuilder
+    private var biometricLockRow: some View {
+        if biometricService.canEvaluate() {
+            Toggle(isOn: Binding(
+                get: { isBiometricLockEnabled },
+                set: { newValue in
+                    isBiometricLockEnabled = newValue
+                    BiometricLockPreference.setEnabled(newValue)
+                }
+            )) {
+                Label("面容解锁", systemImage: "faceid")
+                    .foregroundStyle(theme.primaryText)
+            }
+            .tint(theme.accent)
+            .accessibilityIdentifier("settingsBiometricRow")
+        } else {
+            disabledPlaceholderRow(title: "面容解锁", identifier: "settingsBiometricRow")
+        }
     }
 
     private func disabledPlaceholderRow(title: String, identifier: String) -> some View {
@@ -133,6 +186,8 @@ struct SettingsSheetView: View {
         .environment(ThemeManager())
         .environment(ErrorPresenter())
         .environment(TimelineModel())
+        .environment(SubscriptionService())
+        .environment(SyncStatusService(cloudKitEnabled: false))
         // swiftlint:disable:next force_try
         .modelContainer(try! ModelContainerConfig.makeInMemoryContainer())
 }

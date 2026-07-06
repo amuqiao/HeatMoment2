@@ -13,6 +13,8 @@ struct RootView: View {
     @Environment(AppRouter.self) private var router
     @Environment(\.modelContext) private var modelContext
     @Environment(ErrorPresenter.self) private var errorPresenter
+    @Environment(SubscriptionService.self) private var subscriptionService
+    @Environment(SyncStatusService.self) private var syncStatusService
     @State private var timelineModel = TimelineModel()
 
     var body: some View {
@@ -22,7 +24,10 @@ struct RootView: View {
                 switch sheet {
                 case let .preview(id): MomentPreviewView(momentID: id)
                 case let .editor(mode):
-                    MomentEditorView(mode: mode, modelContainer: modelContext.container)
+                    MomentEditorView(
+                        mode: mode, modelContainer: modelContext.container,
+                        subscriptionService: subscriptionService
+                    )
                 case .settings: SettingsSheetView()
                 case let .paywall(trigger): ProPaywallView(trigger: trigger)
                 }
@@ -49,10 +54,14 @@ struct RootView: View {
             .task {
                 // 首启默认标签预置（见 07-data-persistence.md §4）：无条件运行（生产与 UI 测试
                 // 均需要），只在 `Tag` 表为空时插入，不依赖任何 `-uiTest*` 启动参数。经后台
-                // TagRepository 写入（08 §5 分层契约）。
+                // TagRepository 写入（08 §5 分层契约）。`cloudKitEnabled` 决定是否需要「首同步
+                // 去重」的等待窗口（阶段7计划决策3）——本地/单测/UI 测试路径恒 `false`，行为
+                // 与阶段 1–6 完全等价、零额外延迟。
                 do {
                     let tagRepository = TagRepository(modelContainer: modelContext.container)
-                    try await DefaultTagSeeder.seedIfNeeded(using: tagRepository)
+                    try await DefaultTagSeeder.seedIfNeeded(
+                        using: tagRepository, cloudKitEnabled: syncStatusService.cloudKitEnabled
+                    )
                 } catch {
                     await errorPresenter.report(message: "初始化默认标签失败，请重启应用重试。", underlying: error)
                 }

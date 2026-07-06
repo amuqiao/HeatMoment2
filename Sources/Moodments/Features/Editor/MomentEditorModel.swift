@@ -36,6 +36,12 @@ private struct EditorSnapshot: Equatable {
 /// 限额判定只消费 `QuotaService` 结果（见 `docs/design/08-architecture.md` §6），本类型不
 /// 重复定义限额数值；照片额度校验直接用 `draftPhotos.count`（草稿即完整当前状态，编辑态
 /// 载入的既有照片也计入其中，无需另外查仓库）。
+///
+/// **Pro 放行判定**（见阶段7计划决策1、11-monetization.md §11.4）：照片/标签两处额度闸门
+/// （`checkCanAddPhoto`/`addPhoto`/`requestCreateTag`）均先
+/// `await subscriptionService.currentEntitlementIsPro()` 现场重查权威 Pro 状态，再据此构造
+/// `QuotaService` 判定——**不使用 `SubscriptionService.isPro` 缓存值做放行依据**。`cachedIsPro`
+/// 仅供 `remainingPhotoSlots` 这类非放行 UI 提示（如相册选择器 `maxSelectionCount`）使用。
 @MainActor
 @Observable
 final class MomentEditorModel {
@@ -43,10 +49,14 @@ final class MomentEditorModel {
 
     private let repository: MomentRepository
     private let tagRepository: TagRepository
-    private let quotaService: QuotaService
+    private let subscriptionService: SubscriptionService
 
     /// 编辑态是否已完成从仓库载入；新建态恒为 `true`（无需等待异步载入）。
     private(set) var isLoaded: Bool
+
+    /// 供非放行 UI 提示使用的 Pro 快照（见类型头部说明），启动时先取
+    /// `subscriptionService.isPro` 缓存值，每次真实闸门判定后据当次权威结果刷新。
+    private(set) var cachedIsPro: Bool
 
     var mood: Mood
     var title: String = ""
@@ -68,13 +78,14 @@ final class MomentEditorModel {
     init(
         mode: EditorMode,
         modelContainer: ModelContainer,
-        quotaService: QuotaService = QuotaService(),
+        subscriptionService: SubscriptionService,
         lastUsedMood: Mood = .normal
     ) {
         self.mode = mode
         self.repository = MomentRepository(modelContainer: modelContainer)
         self.tagRepository = TagRepository(modelContainer: modelContainer)
-        self.quotaService = quotaService
+        self.subscriptionService = subscriptionService
+        self.cachedIsPro = subscriptionService.isPro
 
         // 用局部变量而非 `self.mood`/`self.occurredAt` 组装 baseline：`@Observable` 宏生成的
         // 存储属性访问要求 `self` 已完全初始化，在此处（其余存储属性尚未全部赋值）直接读取
@@ -154,34 +165,50 @@ final class MomentEditorModel {
         tagNamesByID[id] = name
     }
 
-    /// 标签「+添加」的前置额度校验（见 03-user-flows.md §3.1）：UI 只消费结果——允许则打开
-    /// `TagCreateSheetView`，超额则改为打开 Paywall（`.quotaTag`）。
+    /// 标签「+添加」的前置额度校验（见 03-user-flows.md §3.1）：先现场重查 Pro 权威判定
+    /// （决策1），UI 只消费结果——允许则打开 `TagCreateSheetView`，超额则改为打开 Paywall
+    /// （`.quotaTag`）。
     func requestCreateTag() async throws -> QuotaCheck {
         let count = try await tagRepository.totalTagCount()
+        let quotaService = await makeQuotaService()
         return quotaService.checkCanCreateTag(currentTagCount: count)
     }
 
     // MARK: - 照片（见 04-screen-specs.md §4.4，压缩管线见 `ImageCompressor`）
 
-    /// 追加照片前的额度校验：UI 只消费该结果，不自行比较数值（见 08-architecture.md §6）。
-    func checkCanAddPhoto() -> QuotaCheck {
-        quotaService.checkCanAddPhoto(currentPhotoCount: draftPhotos.count)
+    /// 追加照片前的额度校验：先现场重查 Pro 权威判定（决策1），UI 只消费该结果，不自行比较
+    /// 数值（见 08-architecture.md §6）。
+    func checkCanAddPhoto() async -> QuotaCheck {
+        let quotaService = await makeQuotaService()
+        return quotaService.checkCanAddPhoto(currentPhotoCount: draftPhotos.count)
     }
 
-    /// 还可再添加的照片数（Pro 不限）：供选择器 `maxSelectionCount` 等 UI 派生，判定仍以
-    /// `checkCanAddPhoto` 为准。
+    /// 还可再添加的照片数（Pro 不限）：供选择器 `maxSelectionCount` 等**非放行** UI 派生，
+    /// 用 `cachedIsPro` 快照即可（判定权威仍以 `checkCanAddPhoto`/`addPhoto` 的现场重查为准，
+    /// 见类型头部说明）。
     var remainingPhotoSlots: Int {
-        quotaService.remainingPhotoSlots(currentPhotoCount: draftPhotos.count)
+        QuotaService(entitlementProvider: SubscriptionEntitlementProvider(isPro: cachedIsPro))
+            .remainingPhotoSlots(currentPhotoCount: draftPhotos.count)
     }
 
-    /// 追加一张已压缩的照片；额度校验用当前草稿照片数（草稿即完整当前状态，见类型头部）。
+    /// 追加一张已压缩的照片：先现场重查 Pro 权威判定（决策1），额度校验用当前草稿照片数
+    /// （草稿即完整当前状态，见类型头部）。
     @discardableResult
-    func addPhoto(_ jpegData: Data) -> QuotaCheck {
+    func addPhoto(_ jpegData: Data) async -> QuotaCheck {
+        let quotaService = await makeQuotaService()
         let check = quotaService.checkCanAddPhoto(currentPhotoCount: draftPhotos.count)
         if case .allowed = check {
             draftPhotos.append(DraftPhoto(jpegData: jpegData))
         }
         return check
+    }
+
+    /// 现场重查 Pro 权威判定并构造对应 `QuotaService`（决策1，见类型头部）：三处额度闸门中
+    /// 属于本类型的两处（照片/标签）共用本方法，避免重复；同时刷新 `cachedIsPro`。
+    private func makeQuotaService() async -> QuotaService {
+        let isPro = await subscriptionService.currentEntitlementIsPro()
+        cachedIsPro = isPro
+        return QuotaService(entitlementProvider: SubscriptionEntitlementProvider(isPro: isPro))
     }
 
     func removePhoto(id: UUID) {
