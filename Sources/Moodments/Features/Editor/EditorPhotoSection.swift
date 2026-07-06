@@ -3,8 +3,9 @@ import SwiftUI
 
 /// 编辑器照片区（见 `docs/design/04-screen-specs.md` §4.4、05-design-system.md §5.7）：
 /// 未加时为主色实心大按钮「添加照片」；已加后为「日志图片 N 张」+ 横排缩略图（⊖ 删除角标，
-/// 提供 `accessibilityAction` 替代路径）+ ⊕ 追加。第 4 张触发 Paywall——额度判定完全在
-/// `MomentEditorModel.addPhoto` 内消费 `QuotaService` 结果（本视图不自行比较数值）。
+/// 提供 `accessibilityAction` 替代路径）+ ⊕ 追加。第 4 张触发 Paywall——额度判定完全经
+/// `MomentEditorModel`（`checkCanAddPhoto`/`remainingPhotoSlots`）消费 `QuotaService` 结果，
+/// 本视图不用 `Quota` 常量自行比较数值、也不硬编码免费上限（对 Pro 权益有感知）。
 ///
 /// **PhotosPicker 的 UI 测试限制**：系统 `PhotosPicker` 呈现的选择器不在 App 自身的无障碍树
 /// 内，`XCUITest` 无法可靠驱动其选图操作；DEBUG 构建下按 `-uiTestPhotoInjection` 启动参数
@@ -16,10 +17,6 @@ struct EditorPhotoSection: View {
     @Environment(ThemeManager.self) private var theme
     @State private var isPickerPresented = false
     @State private var pickerSelection: [PhotosPickerItem] = []
-
-    private var remainingSlots: Int {
-        max(0, Quota.freePhotosPerMomentLimit - model.draftPhotos.count)
-    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -54,7 +51,7 @@ struct EditorPhotoSection: View {
         .photosPicker(
             isPresented: $isPickerPresented,
             selection: $pickerSelection,
-            maxSelectionCount: max(remainingSlots, 1),
+            maxSelectionCount: max(model.remainingPhotoSlots, 1),
             matching: .images
         )
         .onChange(of: pickerSelection) { _, newItems in
@@ -125,7 +122,8 @@ struct EditorPhotoSection: View {
     }
 
     private func requestAddPhotos() {
-        guard remainingSlots > 0 else {
+        // 额度判定只消费 QuotaService 结果（经 model），不在 View 层比较数值——对 Pro 权益有感知。
+        if case .exceeded = model.checkCanAddPhoto() {
             editorPaywallTrigger = .quotaPhoto
             return
         }

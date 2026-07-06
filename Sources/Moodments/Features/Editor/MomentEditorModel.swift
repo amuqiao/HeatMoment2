@@ -156,6 +156,17 @@ final class MomentEditorModel {
 
     // MARK: - 照片（见 04-screen-specs.md §4.4，压缩管线见 `ImageCompressor`）
 
+    /// 追加照片前的额度校验：UI 只消费该结果，不自行比较数值（见 08-architecture.md §6）。
+    func checkCanAddPhoto() -> QuotaCheck {
+        quotaService.checkCanAddPhoto(currentPhotoCount: draftPhotos.count)
+    }
+
+    /// 还可再添加的照片数（Pro 不限）：供选择器 `maxSelectionCount` 等 UI 派生，判定仍以
+    /// `checkCanAddPhoto` 为准。
+    var remainingPhotoSlots: Int {
+        quotaService.remainingPhotoSlots(currentPhotoCount: draftPhotos.count)
+    }
+
     /// 追加一张已压缩的照片；额度校验用当前草稿照片数（草稿即完整当前状态，见类型头部）。
     @discardableResult
     func addPhoto(_ jpegData: Data) -> QuotaCheck {

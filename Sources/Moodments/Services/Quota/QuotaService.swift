@@ -55,4 +55,12 @@ struct QuotaService: Sendable {
         guard !entitlementProvider.isPro else { return .allowed }
         return currentTagCount < Quota.freeTagLimit ? .allowed : .exceeded(.tags)
     }
+
+    /// 还可再添加的照片数（Pro 不限，返回 `Int.max`）：供选择器上限等 UI 派生使用，
+    /// 判定权威仍是 `checkCanAddPhoto`。集中在此以免 View 直接用 `Quota` 常量做减法、
+    /// 且对 `isPro` 无感知（见 08-architecture.md §6）。
+    func remainingPhotoSlots(currentPhotoCount: Int) -> Int {
+        guard !entitlementProvider.isPro else { return .max }
+        return max(0, Quota.freePhotosPerMomentLimit - currentPhotoCount)
+    }
 }

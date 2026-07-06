@@ -14,7 +14,13 @@ enum OccurredAtComposer {
         merged.hour = timeComponents.hour
         merged.minute = timeComponents.minute
         merged.second = timeComponents.second
-        return calendar.date(from: merged) ?? date
+        // 年/月/日 + 时/分/秒 组件几乎必然可合成；失败视为不可恢复的编程错误、debug 立即暴露，
+        // 不静默吞成默认值（见 CLAUDE.md 快速失败）。release 兜回原值仅为极端边界的最后保护。
+        guard let composed = calendar.date(from: merged) else {
+            assertionFailure("发生时间合成失败：\(merged)")
+            return date
+        }
+        return composed
     }
 
     /// 用 `dateSource` 的年/月/日 + `time` 的时/分/秒合成新的 `Date`。

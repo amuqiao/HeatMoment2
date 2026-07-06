@@ -42,8 +42,9 @@ final class QuotaBlockUITests: XCTestCase {
     }
 
     /// 照片额度：借助 DEBUG-only 调试注入入口（见 `EditorPhotoSection`/`UITestSupport`，
-    /// 系统 `PhotosPicker` 无法被 `XCUITest` 可靠驱动，见阶段 3 计划决策1）连续注入 4 张，
-    /// 第 4 张应触发 Paywall。
+    /// 系统 `PhotosPicker` 无法被 `XCUITest` 可靠驱动，见阶段 3 计划决策1）注入 3 张占满免费额度，
+    /// 再点**真实「追加照片」按钮**走前置闸门（不经系统 PhotosPicker），应触发 Paywall——
+    /// 覆盖 `EditorPhotoSection.requestAddPhotos → QuotaService` 这条真实用户路径的照片额度判定。
     func testFourthPhotoBlocked() {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTestReset", "-uiTestPhotoInjection"]
@@ -55,10 +56,13 @@ final class QuotaBlockUITests: XCTestCase {
 
         let injectButton = app.buttons["editorInjectPhotoButton"]
         XCTAssertTrue(injectButton.waitForExistence(timeout: 5))
+        injectButton.tap()   // 注入 3 张，占满免费额度（freePhotosPerMomentLimit == 3）
         injectButton.tap()
         injectButton.tap()
-        injectButton.tap()
-        injectButton.tap()
+
+        let appendButton = app.buttons["editorAppendPhotoButton"]
+        XCTAssertTrue(appendButton.waitForExistence(timeout: 5))
+        appendButton.tap()   // 已满额，前置闸门应直接弹 Paywall、不打开系统选择器
 
         XCTAssertTrue(app.staticTexts["Pro 订阅 · 阶段7"].waitForExistence(timeout: 5))
     }

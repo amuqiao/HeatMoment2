@@ -29,7 +29,7 @@ actor ThumbnailCache {
     func thumbnail(
         for imageID: UUID,
         maxDimension: CGFloat = 240,
-        originalData: () throws -> Data
+        originalData: @Sendable () throws -> Data
     ) throws -> Data {
         if let cached = memoryCache[imageID] {
             return cached

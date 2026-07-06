@@ -37,9 +37,11 @@ struct RootView: View {
             .animation(.easeInOut(duration: 0.2), value: router.isHeatmapPresented)
             .task {
                 // 首启默认标签预置（见 07-data-persistence.md §4）：无条件运行（生产与 UI 测试
-                // 均需要），只在 `Tag` 表为空时插入，不依赖任何 `-uiTest*` 启动参数。
+                // 均需要），只在 `Tag` 表为空时插入，不依赖任何 `-uiTest*` 启动参数。经后台
+                // TagRepository 写入（08 §5 分层契约）。
                 do {
-                    try DefaultTagSeeder.seedIfNeeded(modelContext)
+                    let tagRepository = TagRepository(modelContainer: modelContext.container)
+                    try await DefaultTagSeeder.seedIfNeeded(using: tagRepository)
                 } catch {
                     assertionFailure("默认标签预置失败：\(error)")
                 }
