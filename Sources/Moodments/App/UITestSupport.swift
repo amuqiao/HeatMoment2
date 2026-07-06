@@ -72,6 +72,18 @@ enum UITestSupport {
         UserDefaults.standard.removeObject(forKey: LanguagePreference.storageKey)
     }
 
+    /// UI 测试隔离：清掉上一次测试运行可能残留在 `UserDefaults.standard` 里的
+    /// `DefaultTagSeeder` 「首启已完成预置」标记（见该类型头部说明）——UI 测试用的内存容器
+    /// 每次冷启动 `Tag` 表都是全新的空表，但该 flag 存在真实的 `UserDefaults.standard` 域、
+    /// 会跨测试运行持久化；若不重置，第二次及之后的 UI 测试运行会因 flag 已置位而跳过预置，
+    /// 导致依赖「默认预置已占满额度」口径的用例（如 `QuotaBlockUITests`/`TagManageUITests`）
+    /// 失败。任意 `-uiTest*` 场景下都重置，与 `resetLanguagePreferenceIfUITestRun()` 同一模式，
+    /// 保证每次冷启动都从确定性的「真正首启」状态起步。
+    static func resetDefaultTagSeedFlagIfUITestRun() {
+        guard isAnyUITestRun else { return }
+        UserDefaults.standard.removeObject(forKey: DefaultTagSeeder.hasCompletedFirstSeedKey)
+    }
+
     /// 供 `MoodmentsApp` 构造 `ThemeManager` 时选择的外观存储：任意 UI 测试场景下用隔离套件
     /// （每次启动清空，保证起点恒为默认外观），并按需注入必失败场景；生产路径用真实
     /// `AppearanceStore()`（`UserDefaults.standard`）。

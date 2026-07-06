@@ -17,6 +17,13 @@ struct MoodmentsApp: App {
     /// 冷启动尚未完成过一次 `.active` 激活：用于区分「冷启动」与「后台恢复」两类均需锁定的
     /// 时机（10 §10.1.3），避免把 `.inactive` 间的瞬时切换（如下拉控制中心）误判为需要重新锁定。
     @State private var hasCompletedInitialActivation = false
+    /// 是否已经历过一次「真正进入后台」（`scenePhase == .background`），独立于 `oldPhase` 判定
+    /// （阶段7 review 修复）：真机从后台恢复常见路径是 `.background → .inactive → .active`，
+    /// 到 `.active` 时 `onChange` 收到的 `oldPhase` 是 `.inactive` 而非 `.background`，若仍用
+    /// `oldPhase == .background` 判定重锁条件会永不成立、隐私锁在真机上失效。改为独立状态
+    /// 跟踪：进入 `.background` 时置位，等到之后任意一次回到 `.active` 时消费并复位，规避
+    /// `.inactive` 中间态导致的判定失败。
+    @State private var didEnterBackground = false
     private let container: ModelContainer
 
     /// 语言偏好（见 `LanguagePreference`、阶段7计划决策4）：与 `LanguageSettingsView` 共享同一
@@ -35,6 +42,7 @@ struct MoodmentsApp: App {
         // 里的语言偏好（如 `LanguageSwitchUITests` 切换到 English 后未复位），保证每次 UI 测试
         // 冷启动都从确定性的默认 `.zhHans` 起步，不受同一模拟器上先前测试运行历史影响。
         UITestSupport.resetLanguagePreferenceIfUITestRun()
+        UITestSupport.resetDefaultTagSeedFlagIfUITestRun()
         #endif
         // 冷启动锁定用「初始值即锁」而非 `.task` 里异步 mutate：后者会遇 SwiftUI 首帧竞态
         // （body 已用 isLocked=false 求值后 .task 才改，自定义 Binding 的首次 fullScreenCover
@@ -108,15 +116,25 @@ struct MoodmentsApp: App {
                     subscriptionService.startObservingTransactionUpdates()
                     await subscriptionService.refreshEntitlements()
                 }
-                .onChange(of: scenePhase) { oldPhase, newPhase in
-                    guard newPhase == .active, hasCompletedInitialActivation else { return }
+                .onChange(of: scenePhase) { _, newPhase in
+                    // 独立状态跟踪「是否经历过真正的后台」（见 `didEnterBackground` 声明处
+                    // 说明），不依赖 `oldPhase == .background`——真机常见路径是
+                    // `.background → .inactive → .active`，到 `.active` 时 `oldPhase` 已是
+                    // `.inactive`，旧判定会永不成立。
+                    if newPhase == .background {
+                        didEnterBackground = true
+                        return
+                    }
                     // 「立即锁定」策略（10 §10.1.3）：只对「真正从后台恢复」触发，不对 `.inactive`
-                    // 之间的瞬时切换（如下拉控制中心、系统弹层）重复触发。
-                    if oldPhase == .background, BiometricLockPreference.isEnabled() {
+                    // 之间的瞬时切换（如下拉控制中心、系统弹层，从未真正进入 `.background`）
+                    // 重复触发。
+                    guard newPhase == .active, hasCompletedInitialActivation, didEnterBackground else { return }
+                    if BiometricLockPreference.isEnabled() {
                         router.isLocked = true
                     }
-                    if oldPhase == .background {
-                        Task { await subscriptionService.refreshEntitlements() }
+                    Task {
+                        await subscriptionService.refreshEntitlements()
+                        didEnterBackground = false
                     }
                 }
                 // Environment 注入放在最外层：包裹住上面的 `.fullScreenCover`/`.overlay`，

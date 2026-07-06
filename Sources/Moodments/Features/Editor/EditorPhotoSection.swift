@@ -142,11 +142,15 @@ struct EditorPhotoSection: View {
         }
     }
 
+    /// 批量追加：循环**前**只现场重查一次 Pro（`makeCurrentQuotaService()`），循环内复用同一份
+    /// `QuotaService` 判定（阶段7 review 修复：避免每张照片各自触发一次 Pro 查询 IO；正确性不变，
+    /// 额度判定仍完整落在 `QuotaService`，见该方法头部说明）。
     private func appendPickedPhotos(_ items: [PhotosPickerItem]) async {
+        let quotaService = await model.makeCurrentQuotaService()
         for item in items {
             guard let rawData = await loadData(from: item) else { continue }
             guard let compressed = await compress(rawData) else { continue }
-            let check = await model.addPhoto(compressed)
+            let check = await model.addPhoto(compressed, using: quotaService)
             if case .exceeded = check {
                 editorPaywallTrigger = .quotaPhoto
                 break

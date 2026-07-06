@@ -52,11 +52,13 @@ struct RootView: View {
             .environment(timelineModel)
             .userFacingErrorAlert(errorPresenter)
             .task {
-                // 首启默认标签预置（见 07-data-persistence.md §4）：无条件运行（生产与 UI 测试
-                // 均需要），只在 `Tag` 表为空时插入，不依赖任何 `-uiTest*` 启动参数。经后台
-                // TagRepository 写入（08 §5 分层契约）。`cloudKitEnabled` 决定是否需要「首同步
-                // 去重」的等待窗口（阶段7计划决策3）——本地/单测/UI 测试路径恒 `false`，行为
-                // 与阶段 1–6 完全等价、零额外延迟。
+                // 首启默认标签预置（见 07-data-persistence.md §4）：无条件调用（生产与 UI 测试
+                // 均需要），是否真正执行预置由 `DefaultTagSeeder` 内部的持久化「首启已完成」标记
+                // 判定（而非 `Tag` 表是否为空——用户删除默认标签后表可能变空/不完整，若仍按
+                // 表内容判定会导致已删除的默认标签复活，见该类型头部 review 修复说明）。经后台
+                // TagRepository 写入（08 §5 分层契约）。`cloudKitEnabled` 决定首启窗口内是否需要
+                // 「首同步去重」的等待（阶段7计划决策3）——本地/单测/UI 测试路径恒 `false`，行为
+                // 与阶段 1–6 完全等价、零额外延迟；非首启（flag 已置位）任何路径下都零延迟。
                 do {
                     let tagRepository = TagRepository(modelContainer: modelContext.container)
                     try await DefaultTagSeeder.seedIfNeeded(

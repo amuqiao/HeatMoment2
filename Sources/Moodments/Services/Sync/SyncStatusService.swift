@@ -22,31 +22,38 @@ enum SyncStatus: Sendable, Equatable {
 
 /// 网络可达性判定的注入点（供单测替身，避免真实 `NWPathMonitor` 在单测环境下的不确定性，
 /// 见 `SyncStatusServiceTests`）。
+///
+/// **异步（阶段7 review 修复）**：此前 `DefaultNetworkReachabilityChecker` 用
+/// `DispatchSemaphore.wait(timeout:)` 同步阻塞等待 `NWPathMonitor` 回调，在 `@MainActor` 的
+/// `SyncStatusService.refresh()` 内被同步调用时，会最长阻塞主线程 1 秒（打开设置页即卡顿）。
+/// 改为 `async` 后，等待改为 `Task` 挂起（不占用任何线程），`refresh()` 的调用方 `await` 挂起期间
+/// 主线程可继续处理其他事件，恢复后自动跳回 `@MainActor` 更新 `status`。
 protocol NetworkReachabilityChecking: Sendable {
-    var isReachable: Bool { get }
+    func isReachable() async -> Bool
 }
 
 /// 基于 `NWPathMonitor` 单次快照的默认实现（生产路径）。
 struct DefaultNetworkReachabilityChecker: NetworkReachabilityChecking {
-    /// 单次路径查询结果的线程安全容器：`NWPathMonitor.pathUpdateHandler` 在任意后台队列回调，
-    /// 用 `@unchecked Sendable` class 包装可变状态，配合 `DispatchSemaphore` 保证读取时已写入完成
-    /// （无并发读写重叠，`@unchecked` 是安全的，见下方使用方式）。
-    private final class ResultBox: @unchecked Sendable {
-        var isReachable = false
+    /// 单次查询的「已完成」标记：`NWPathMonitor.pathUpdateHandler` 固定在同一个私有串行队列
+    /// 上顺序回调（不存在并发写），首次回调后立即 `cancel()` 停止后续回调，标记只用于防御
+    /// `cancel()` 生效前紧随的重复回调导致 `continuation` 被 resume 两次（会触发运行时 crash）。
+    /// `@unchecked Sendable`：无并发读写重叠，见上述串行队列前提。
+    private final class ResumeGuard: @unchecked Sendable {
+        var hasResumed = false
     }
 
-    var isReachable: Bool {
-        let monitor = NWPathMonitor()
-        let box = ResultBox()
-        let semaphore = DispatchSemaphore(value: 0)
-        monitor.pathUpdateHandler = { path in
-            box.isReachable = path.status == .satisfied
-            semaphore.signal()
+    func isReachable() async -> Bool {
+        await withCheckedContinuation { continuation in
+            let monitor = NWPathMonitor()
+            let resumeGuard = ResumeGuard()
+            monitor.pathUpdateHandler = { path in
+                guard !resumeGuard.hasResumed else { return }
+                resumeGuard.hasResumed = true
+                continuation.resume(returning: path.status == .satisfied)
+                monitor.cancel()
+            }
+            monitor.start(queue: DispatchQueue(label: "com.moodments.sync.reachability"))
         }
-        monitor.start(queue: DispatchQueue(label: "com.moodments.sync.reachability"))
-        _ = semaphore.wait(timeout: .now() + 1)
-        monitor.cancel()
-        return box.isReachable
     }
 }
 
@@ -92,16 +99,20 @@ final class SyncStatusService {
 
     /// 供写入路径（仓库层完成一次保存后）通知「刚发生过一次本地写入」，驱动短暂的
     /// 「同步中」展示；未接入调用方时 `status` 只在 `refresh()` 被显式调用时才更新。
+    /// 内部以 `Task` 触发异步 `refresh(now:)`（fire-and-forget，不阻塞调用方）。
     func noteLocalWrite(at date: Date = .now) {
         lastLocalWriteAt = date
-        refresh(now: date)
+        Task { await refresh(now: date) }
     }
 
-    /// 重新计算当前状态（如设置页 iCloud 行每次展示时调用）。
-    func refresh(now: Date = .now) {
+    /// 重新计算当前状态（如设置页 iCloud 行每次展示时调用）：`async`（阶段7 review 修复，见
+    /// `NetworkReachabilityChecking` 类型头部说明）——挂起等待网络可达性查询期间不阻塞主线程，
+    /// 恢复后仍在 `@MainActor` 上更新 `status`。
+    func refresh(now: Date = .now) async {
+        let isNetworkReachable = await reachabilityChecker.isReachable()
         status = Self.evaluate(SyncStatusEvaluationInput(
             cloudKitEnabled: cloudKitEnabled,
-            isNetworkReachable: reachabilityChecker.isReachable,
+            isNetworkReachable: isNetworkReachable,
             lastLocalWriteAt: lastLocalWriteAt,
             now: now
         ))

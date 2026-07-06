@@ -90,7 +90,7 @@ enum ModelContainerConfig {
 
     /// 生产启动路径（`MoodmentsApp` 非 UI 测试场景使用，见阶段7计划决策2）：优先尝试启用
     /// CloudKit 同步的容器；若进程本身没有 iCloud entitlement（未签名/未开通 iCloud
-    /// capability，见 `hasICloudEntitlement`），**直接跳过 CloudKit 尝试**、不触碰任何
+    /// capability，见 `hasICloudCapability`），**直接跳过 CloudKit 尝试**、不触碰任何
     /// CloudKit API；若已具备 entitlement 但因未登录 iCloud 账户等原因初始化失败，
     /// **回退到纯本地容器**而非让 App 无法启动——「宁可不同步也要能起动」（09-icloud-sync.md
     /// §9.3「离线优先」：本地 SwiftData 存储永远是唯一可信读写路径，CloudKit 同步是不阻塞任何

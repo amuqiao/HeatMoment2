@@ -192,10 +192,27 @@ final class MomentEditorModel {
     }
 
     /// 追加一张已压缩的照片：先现场重查 Pro 权威判定（决策1），额度校验用当前草稿照片数
-    /// （草稿即完整当前状态，见类型头部）。
+    /// （草稿即完整当前状态，见类型头部）。单次追加场景使用（如 DEBUG 照片注入钩子）；
+    /// 同一批次追加多张照片请改用 `makeCurrentQuotaService()` + `addPhoto(_:using:)`
+    /// （见二者说明，阶段7 review 修复：避免批量追加时逐张重复查询 Pro）。
     @discardableResult
     func addPhoto(_ jpegData: Data) async -> QuotaCheck {
         let quotaService = await makeQuotaService()
+        return addPhoto(jpegData, using: quotaService)
+    }
+
+    /// 供批量追加照片场景（如相册一次选中多张，见 `EditorPhotoSection.appendPickedPhotos`）
+    /// 在循环开始前提前查询一次 Pro 权威判定并复用：额度判定仍完整落在 `QuotaService`
+    /// （决策1、08-architecture.md §6 不变），本方法只是把「查 Pro」这一步 IO 从循环体内提到
+    /// 循环外，避免每张照片都重复现场重查（阶段7 review 修复）。
+    func makeCurrentQuotaService() async -> QuotaService {
+        await makeQuotaService()
+    }
+
+    /// 追加一张已压缩的照片，使用调用方已持有的 `quotaService`（不再重新查询 Pro，见
+    /// `makeCurrentQuotaService()`）：额度校验用当前草稿照片数（草稿即完整当前状态）。
+    @discardableResult
+    func addPhoto(_ jpegData: Data, using quotaService: QuotaService) -> QuotaCheck {
         let check = quotaService.checkCanAddPhoto(currentPhotoCount: draftPhotos.count)
         if case .allowed = check {
             draftPhotos.append(DraftPhoto(jpegData: jpegData))

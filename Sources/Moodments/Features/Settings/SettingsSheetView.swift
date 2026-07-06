@@ -90,7 +90,7 @@ struct SettingsSheetView: View {
             }
             .userFacingErrorAlert(errorPresenter)
             .task {
-                syncStatusService.refresh()
+                await syncStatusService.refresh()
             }
         }
     }
