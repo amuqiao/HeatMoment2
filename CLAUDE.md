@@ -2,12 +2,15 @@
 
 iOS SwiftUI 复刻 App「时刻」(App Store 商店名「心绪日记」/ 关于页 Moodments):本地优先、无自建后端的个人情绪日记。iPhone + iPad,iOS/iPadOS 17+,Swift 6（严格并发）。
 
-## 文档三层（改动前先读；冲突时以公理层为准）
+## 文档四层（改动前先读；冲突时以公理层为准）
 
 - **公理层（产品是什么 · 唯一准绳）**：`docs/product-mental-model.md` —— 9 对象 / 8 公理。任一实现或设计与它冲突，是实现/设计错了。
-- **设计层（怎么做的契约）**：`docs/design/`（15 份，`README.md` 是文档地图；架构见 `08`，决策记录见 `14-design-decisions.md` ADR）。
+- **设计层 / 契约（应该怎么做的规格）**：`docs/design/`（15 份，`README.md` 是文档地图；架构见 `08`，决策记录见 `14-design-decisions.md` ADR）。前瞻规格与下游稳定契约，将来式。
+- **实现真相层 / current（现在实际怎么实现的）**：`docs/current/`（`README.md` 能力/状态矩阵 + 验证基线；`implementation-truth.md` as-built 架构/数据模型落地与偏离/运行时流）。**现在式、仅已落地**；对设计的偏离记这里，不写进设计层。
 - **计划层（还没做的分阶段计划）**：`docs/plans/implementation-plan.md` —— 阶段 0–7 与各阶段验收；每阶段完成后在其进度表标 ✅ 并填证据。
 - **一手资料归档（不被引用）**：`docs/_source/`（真机截图 + 产品观测）。设计体系独立自维护，勿反向依赖它。
+
+阶段完成闭环：验收通过后把该阶段 as-built 真相并入 `docs/current/`，plan 层对应阶段标 ✅ 只留验收证据（不再把已实现事实堆进设计层）。
 
 不要在 `CLAUDE.md` 或别处复制设计事实（限额、色值、枚举等）；引用上述文档，保持单一事实源。
 
