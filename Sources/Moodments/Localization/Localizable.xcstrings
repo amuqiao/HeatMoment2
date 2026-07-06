@@ -18,6 +18,74 @@
         }
       }
     },
+    "%@，心情%@，标题《%@》": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, mood %@, title “%@”"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@，心情%@，标题《%@》"
+          }
+        }
+      }
+    },
+    "%@，有记录，当日心情%@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, has entries, mood of the day %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@，有记录，当日心情%@"
+          }
+        }
+      }
+    },
+    "%@，有记录，当日心情%@，点击定位": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, has entries, mood of the day %@, tap to locate"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@，有记录，当日心情%@，点击定位"
+          }
+        }
+      }
+    },
+    "%@，没有记录": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, no entries"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@，没有记录"
+          }
+        }
+      }
+    },
     "English": {
       "extractionState": "manual",
       "localizations": {
@@ -414,6 +482,23 @@
         }
       }
     },
+    "保存时刻失败，请稍后重试。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed to save the moment. Please try again later."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存时刻失败，请稍后重试。"
+          }
+        }
+      }
+    },
     "免费日记数量已达上限": {
       "extractionState": "manual",
       "localizations": {
@@ -507,6 +592,29 @@
             "state": "translated",
             "value": "出错了"
           }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Something Went Wrong"
+          }
+        }
+      }
+    },
+    "创建前检查失败，请稍后重试。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pre-creation check failed. Please try again later."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "创建前检查失败，请稍后重试。"
+          }
         }
       }
     },
@@ -523,6 +631,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "创建无限个标签，普通用户最多 3 个标签"
+          }
+        }
+      }
+    },
+    "创建标签失败，请稍后重试。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed to create the tag. Please try again later."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "创建标签失败，请稍后重试。"
+          }
+        }
+      }
+    },
+    "初始化默认标签失败，请重启应用重试。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed to initialize default tags. Please restart the app to try again."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "初始化默认标签失败，请重启应用重试。"
           }
         }
       }
@@ -544,6 +686,23 @@
         }
       }
     },
+    "删除失败，请稍后重试。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed to delete. Please try again later."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除失败，请稍后重试。"
+          }
+        }
+      }
+    },
     "删除标签": {
       "extractionState": "manual",
       "localizations": {
@@ -561,6 +720,23 @@
         }
       }
     },
+    "删除标签失败，请稍后重试。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed to delete the tag. Please try again later."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除标签失败，请稍后重试。"
+          }
+        }
+      }
+    },
     "删除该照片": {
       "extractionState": "manual",
       "localizations": {
@@ -574,6 +750,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "删除该照片"
+          }
+        }
+      }
+    },
+    "加载 Pro 商品信息失败，请稍后重试。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed to load Pro product information. Please try again later."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "加载 Pro 商品信息失败，请稍后重试。"
+          }
+        }
+      }
+    },
+    "加载时刻失败，请稍后重试。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed to load the moment. Please try again later."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "加载时刻失败，请稍后重试。"
           }
         }
       }
@@ -731,6 +941,23 @@
         }
       }
     },
+    "图片压缩失败，请重试。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed to compress the image. Please try again."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "图片压缩失败，请重试。"
+          }
+        }
+      }
+    },
     "垃圾箱": {
       "extractionState": "manual",
       "localizations": {
@@ -744,6 +971,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "垃圾箱"
+          }
+        }
+      }
+    },
+    "垃圾箱列表加载失败，请稍后重试。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed to load the trash list. Please try again later."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "垃圾箱列表加载失败，请稍后重试。"
           }
         }
       }
@@ -929,6 +1173,23 @@
         }
       }
     },
+    "彻底删除失败，请稍后重试。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed to permanently delete. Please try again later."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "彻底删除失败，请稍后重试。"
+          }
+        }
+      }
+    },
     "彻底删除？": {
       "extractionState": "manual",
       "localizations": {
@@ -997,6 +1258,23 @@
         }
       }
     },
+    "恢复失败，请稍后重试。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed to restore. Please try again later."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "恢复失败，请稍后重试。"
+          }
+        }
+      }
+    },
     "恢复购买": {
       "extractionState": "manual",
       "localizations": {
@@ -1010,6 +1288,40 @@
           "stringUnit": {
             "state": "translated",
             "value": "恢复购买"
+          }
+        }
+      }
+    },
+    "恢复购买失败，请稍后重试。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed to restore purchases. Please try again later."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "恢复购买失败，请稍后重试。"
+          }
+        }
+      }
+    },
+    "打开兑换码入口失败，请稍后重试。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed to open the redeem code screen. Please try again later."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开兑换码入口失败，请稍后重试。"
           }
         }
       }
@@ -1206,6 +1518,40 @@
         }
       }
     },
+    "标签列表加载失败，请稍后重试。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed to load the tag list. Please try again later."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "标签列表加载失败，请稍后重试。"
+          }
+        }
+      }
+    },
+    "标签名「%@」已存在，请换一个名称。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The tag name “%@” already exists. Please choose another name."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "标签名「%@」已存在，请换一个名称。"
+          }
+        }
+      }
+    },
     "标签名称为空时不可保存": {
       "extractionState": "manual",
       "localizations": {
@@ -1270,6 +1616,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "标签管理"
+          }
+        }
+      }
+    },
+    "标签额度校验失败，请稍后重试。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed to verify the tag quota. Please try again later."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "标签额度校验失败，请稍后重试。"
           }
         }
       }
@@ -1730,6 +2093,40 @@
         }
       }
     },
+    "读取所选照片失败，请重试。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed to read the selected photo. Please try again."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "读取所选照片失败，请重试。"
+          }
+        }
+      }
+    },
+    "购买失败，请稍后重试。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Purchase failed. Please try again later."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "购买失败，请稍后重试。"
+          }
+        }
+      }
+    },
     "购买正在处理中，完成后将自动解锁 Pro 权益。": {
       "extractionState": "manual",
       "localizations": {
@@ -1873,6 +2270,23 @@
           "stringUnit": {
             "state": "translated",
             "value": "重命名标签"
+          }
+        }
+      }
+    },
+    "重命名标签失败，请稍后重试。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed to rename the tag. Please try again later."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重命名标签失败，请稍后重试。"
           }
         }
       }

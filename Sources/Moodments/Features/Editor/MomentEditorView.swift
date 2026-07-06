@@ -33,6 +33,7 @@ struct MomentEditorView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(ThemeManager.self) private var theme
     @Environment(ErrorPresenter.self) private var errorPresenter
+    @Environment(SyncStatusService.self) private var syncStatusService
     @AppStorage(EditorMoodMemory.storageKey) private var lastUsedMood: Mood = .normal
 
     @State private var model: MomentEditorModel
@@ -293,6 +294,9 @@ struct MomentEditorView: View {
         Task {
             do {
                 try await model.save()
+                // 保存成功即一次本地写入，驱动设置页 iCloud 行短暂展示「同步中」三态
+                // （见 `SyncStatusService.noteLocalWrite()` 头部说明，阶段7 review 建议9）。
+                syncStatusService.noteLocalWrite()
                 if case .create = mode {
                     lastUsedMood = model.mood
                 }
@@ -339,4 +343,5 @@ struct MomentEditorView: View {
     return MomentEditorView(mode: .create, modelContainer: container, subscriptionService: SubscriptionService())
         .environment(ThemeManager())
         .environment(ErrorPresenter())
+        .environment(SyncStatusService(cloudKitEnabled: false))
 }

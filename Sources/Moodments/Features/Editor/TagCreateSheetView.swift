@@ -95,7 +95,8 @@ struct TagCreateSheetView: View {
                 underlying: RepositoryError.tagNameConflict(conflictingName)
             )
         } catch {
-            let message = editing == nil ? "创建标签失败，请稍后重试。" : "重命名标签失败，请稍后重试。"
+            let message: String.LocalizationValue =
+                editing == nil ? "创建标签失败，请稍后重试。" : "重命名标签失败，请稍后重试。"
             await errorPresenter.report(message: message, underlying: error)
         }
     }

@@ -44,14 +44,20 @@ final class ErrorPresenter {
     /// 上报一次可恢复的写失败：写日志（无条件，debug/release 均上报）+ 置 `currentError`
     /// （驱动 `.userFacingErrorAlert`）。
     /// - Parameters:
-    ///   - message: 面向用户的中文提示（各调用方按业务场景措辞）。
+    ///   - message: 面向用户的提示，以中文源文案作为 `String.LocalizationValue` key（各调用方
+    ///     按业务场景措辞），经 `LanguagePreference.localizedString(_:)` 按当前语言偏好解析——
+    ///     与 `Mood.displayName`/`SyncStatus.displayText` 等纯值类型本地化同一真相源
+    ///     （见 `LanguagePreference` 头部说明），保证英文模式下也能正确呈现，而非固定中文。
     ///   - underlying: 原始错误，只进日志、不展示给用户。
-    func report(message: String, underlying: Error) {
-        // 隐私优先：固定中文 message 是本 App 自身文案、不含用户数据，保持 `.public` 可检索；
-        // `underlying` 可能带文件路径/SwiftData 描述等隐含用户数据，改 `.private`，避免明文
-        // 泄进系统日志（Console/sysdiagnose 均可见 `.public` 内容）。
-        Self.logger.error("\(message, privacy: .public)：\(String(describing: underlying), privacy: .private)")
-        currentError = UserFacingError(title: "出错了", message: message)
+    func report(message: String.LocalizationValue, underlying: Error) {
+        let resolvedMessage = LanguagePreference.localizedString(message)
+        // 隐私优先：本 App 自身文案（已解析为面向用户的提示串）不含用户数据，保持 `.public`
+        // 可检索；`underlying` 可能带文件路径/SwiftData 描述等隐含用户数据，改 `.private`，
+        // 避免明文泄进系统日志（Console/sysdiagnose 均可见 `.public` 内容）。
+        Self.logger.error("\(resolvedMessage, privacy: .public)：\(String(describing: underlying), privacy: .private)")
+        currentError = UserFacingError(
+            title: LanguagePreference.localizedString("出错了"), message: resolvedMessage
+        )
     }
 
     func dismiss() {

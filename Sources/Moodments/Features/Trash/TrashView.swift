@@ -11,6 +11,7 @@ struct TrashView: View {
     @Environment(ThemeManager.self) private var theme
     @Environment(\.modelContext) private var modelContext
     @Environment(ErrorPresenter.self) private var errorPresenter
+    @Environment(SyncStatusService.self) private var syncStatusService
 
     @State private var items: [MomentSnapshot] = []
     @State private var isLoaded = false
@@ -107,6 +108,9 @@ struct TrashView: View {
         Task {
             do {
                 try await MomentRepository(modelContainer: modelContext.container).restore(id: item.id)
+                // 恢复也是一次本地写入，驱动设置页 iCloud 行短暂展示「同步中」三态
+                // （见 `SyncStatusService.noteLocalWrite()` 头部说明，阶段7 review 建议9）。
+                syncStatusService.noteLocalWrite()
                 await reload()
             } catch {
                 await errorPresenter.report(message: "恢复失败，请稍后重试。", underlying: error)
@@ -125,6 +129,9 @@ struct TrashView: View {
                 for imageID in item.imageIDs {
                     await ThumbnailCache.shared.removeThumbnail(for: imageID)
                 }
+                // 彻底删除同样是一次本地写入，驱动设置页 iCloud 行短暂展示「同步中」三态
+                // （见 `SyncStatusService.noteLocalWrite()` 头部说明，阶段7 review 建议9）。
+                syncStatusService.noteLocalWrite()
                 await reload()
             } catch {
                 await errorPresenter.report(message: "彻底删除失败，请稍后重试。", underlying: error)

@@ -34,25 +34,51 @@ protocol NetworkReachabilityChecking: Sendable {
 
 /// 基于 `NWPathMonitor` 单次快照的默认实现（生产路径）。
 struct DefaultNetworkReachabilityChecker: NetworkReachabilityChecking {
-    /// 单次查询的「已完成」标记：`NWPathMonitor.pathUpdateHandler` 固定在同一个私有串行队列
-    /// 上顺序回调（不存在并发写），首次回调后立即 `cancel()` 停止后续回调，标记只用于防御
-    /// `cancel()` 生效前紧随的重复回调导致 `continuation` 被 resume 两次（会触发运行时 crash）。
-    /// `@unchecked Sendable`：无并发读写重叠，见上述串行队列前提。
+    /// 单次查询的「已完成」标记：`NWPathMonitor.pathUpdateHandler` 与下方超时兜底任务可能各自
+    /// 尝试 resume 同一个 `continuation`（正常回调 vs. 超时兜底二选一，谁先到谁生效），标记
+    /// 用一把锁防御二者的竞态重复 resume（会触发运行时 crash）——`pathUpdateHandler` 自身固定
+    /// 在同一个私有串行队列上顺序回调不存在并发写，但超时兜底运行在 `Task` 的另一执行上下文，
+    /// 与该串行队列之间不再有天然互斥，故改用锁而非早先纯标记位。
     private final class ResumeGuard: @unchecked Sendable {
-        var hasResumed = false
+        private let lock = NSLock()
+        private var hasResumed = false
+
+        /// 原子地「若尚未 resume 则占用」；返回 `true` 表示调用方拿到了唯一一次 resume 权限。
+        func tryClaim() -> Bool {
+            lock.lock()
+            defer { lock.unlock() }
+            guard !hasResumed else { return false }
+            hasResumed = true
+            return true
+        }
     }
+
+    /// 查询超时兜底：`NWPathMonitor` 极端情况下（如系统网络子系统异常）可能首次回调始终不来，
+    /// `withCheckedContinuation` 会永久挂起、`continuation` 永久不被 resume（资源泄漏，调用方
+    /// `await` 也会随之永久挂起）。这不是业务失败降级，而是**操作超时的资源安全兜底**
+    /// （见 CLAUDE.md「不擅自添加兜底策略」——本超时只负责让 continuation 一定被 resume 一次，
+    /// 不改变「查不到就当作不可达」之外的任何业务判断）：超时后按「不可达」处理（保守值，驱动
+    /// `.offline` 展示，不会误报「已同步」），并 `cancel()` monitor 停止其后续回调。
+    private static let queryTimeout: Duration = .seconds(2)
 
     func isReachable() async -> Bool {
         await withCheckedContinuation { continuation in
             let monitor = NWPathMonitor()
             let resumeGuard = ResumeGuard()
+
             monitor.pathUpdateHandler = { path in
-                guard !resumeGuard.hasResumed else { return }
-                resumeGuard.hasResumed = true
+                guard resumeGuard.tryClaim() else { return }
                 continuation.resume(returning: path.status == .satisfied)
                 monitor.cancel()
             }
             monitor.start(queue: DispatchQueue(label: "com.moodments.sync.reachability"))
+
+            Task {
+                try? await Task.sleep(for: Self.queryTimeout)
+                guard resumeGuard.tryClaim() else { return }
+                continuation.resume(returning: false)
+                monitor.cancel()
+            }
         }
     }
 }

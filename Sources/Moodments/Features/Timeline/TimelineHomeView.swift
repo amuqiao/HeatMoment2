@@ -138,6 +138,7 @@ struct TimelineHomeView: View {
         .environment(TimelineModel())
         .environment(ErrorPresenter())
         .environment(SubscriptionService())
+        .environment(SyncStatusService(cloudKitEnabled: false))
         // swiftlint:disable:next force_try
         .modelContainer(try! ModelContainerConfig.makeInMemoryContainer())
 }

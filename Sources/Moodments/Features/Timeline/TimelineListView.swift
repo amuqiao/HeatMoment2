@@ -33,6 +33,7 @@ struct TimelineListView: View {
     @Environment(ThemeManager.self) private var theme
     @Environment(\.modelContext) private var modelContext
     @Environment(ErrorPresenter.self) private var errorPresenter
+    @Environment(SyncStatusService.self) private var syncStatusService
 
     @Query private var moments: [Moment]
 
@@ -152,6 +153,9 @@ struct TimelineListView: View {
         Task {
             do {
                 try await MomentRepository(modelContainer: modelContext.container).softDelete(id: momentID)
+                // 软删除也是一次本地写入，驱动设置页 iCloud 行短暂展示「同步中」三态
+                // （见 `SyncStatusService.noteLocalWrite()` 头部说明，阶段7 review 建议9）。
+                syncStatusService.noteLocalWrite()
             } catch {
                 // `@Query` 是真相源：删除失败时它本就不会反映出该行已消失，不需要额外回滚
                 // 本地状态（见阶段6计划决策3：可恢复写失败改走统一错误通道）。
@@ -216,6 +220,7 @@ private struct TitleCollapseObserver: ViewModifier {
         .environment(ThemeManager())
         .environment(TimelineModel())
         .environment(ErrorPresenter())
+        .environment(SyncStatusService(cloudKitEnabled: false))
         // swiftlint:disable:next force_try
         .modelContainer(try! ModelContainerConfig.makeInMemoryContainer())
 }
