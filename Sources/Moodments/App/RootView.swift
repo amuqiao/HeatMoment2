@@ -21,6 +21,7 @@ struct RootView: View {
                 case let .paywall(trigger): ProPaywallView(trigger: trigger)
                 }
             }
+            // 预留路由入口（见 AppRouter.FullCover 说明）：当前无写入方，图片查看器由预览局部呈现。
             .fullScreenCover(item: $router.fullScreenCover) { cover in
                 switch cover {
                 case let .imageViewer(momentID, index):

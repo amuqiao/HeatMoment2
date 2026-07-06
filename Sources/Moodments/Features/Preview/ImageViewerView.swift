@@ -67,6 +67,8 @@ struct ImageViewerView: View {
             if let uiImage = UIImage(data: image.data) {
                 ZoomableImageView(uiImage: uiImage)
             } else {
+                // 原图数据来自自有存储（入库压缩的 JPEG），解码失败即数据损坏，debug 暴露。
+                let _ = assertionFailure("图片查看器原图解码失败 imageID=\(image.id)")
                 Color.clear
             }
         }
@@ -93,6 +95,9 @@ private struct ZoomableImageView: View {
     @State private var scale: CGFloat = 1
     @State private var lastScale: CGFloat = 1
 
+    /// 缩放上界：防止无界放大导致的性能/可用性问题（见 code review）。下界 1（贴合原图）。
+    private let maxScale: CGFloat = 4
+
     var body: some View {
         Image(uiImage: uiImage)
             .resizable()
@@ -100,7 +105,7 @@ private struct ZoomableImageView: View {
             .scaleEffect(scale)
             .gesture(
                 MagnificationGesture()
-                    .onChanged { value in scale = max(1, lastScale * value) }
+                    .onChanged { value in scale = min(maxScale, max(1, lastScale * value)) }
                     .onEnded { _ in lastScale = scale }
             )
             .onTapGesture(count: 2) {

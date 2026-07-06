@@ -75,6 +75,10 @@ enum PaywallTrigger: Hashable {
 }
 
 /// 无层叠语义的沉浸全屏覆盖层。
+///
+/// **预留路由能力**：当前图片查看器由 `MomentPreviewView` 局部 `.fullScreenCover` 就近呈现
+/// （sheet 之上无法从根 present，见阶段 4 计划决策 B），故本 Router 路径暂无写入方；
+/// 保留给后续「编辑器缩略图 → 查看器」等从非 sheet 场景发起的入口复用。
 enum FullCover: Identifiable {
     case imageViewer(momentID: UUID, index: Int)
 

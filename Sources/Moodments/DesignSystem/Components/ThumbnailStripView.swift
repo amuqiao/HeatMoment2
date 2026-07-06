@@ -32,17 +32,27 @@ struct ThumbnailStripView: View {
 
     @ViewBuilder
     private func thumbnail(for imageID: UUID) -> some View {
-        if let data = thumbnailsByID[imageID], let uiImage = UIImage(data: data) {
-            Image(uiImage: uiImage)
-                .resizable()
-                .scaledToFill()
-                .frame(width: 72, height: 72)
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        if let data = thumbnailsByID[imageID] {
+            if let uiImage = UIImage(data: data) {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 72, height: 72)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            } else {
+                // 数据已加载却解码失败：缩略图 JPEG 由本 App 生成，失败即数据损坏，debug 暴露。
+                let _ = assertionFailure("缩略图解码失败 imageID=\(imageID)")
+                placeholder
+            }
         } else {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color.gray.opacity(0.15))
-                .frame(width: 72, height: 72)
+            placeholder   // 尚未加载完成（正常态，非错误）
         }
+    }
+
+    private var placeholder: some View {
+        RoundedRectangle(cornerRadius: 12, style: .continuous)
+            .fill(Color.gray.opacity(0.15))
+            .frame(width: 72, height: 72)
     }
 
     /// 逐张经 `ThumbnailCache` 取图：命中缓存零 IO，未命中才 `await` 向仓库取原图现场生成

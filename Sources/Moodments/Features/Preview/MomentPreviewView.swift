@@ -48,6 +48,8 @@ struct MomentPreviewView: View {
                 }
             }
         }
+        // 阅读卡片对底层已下沉的时间轴做 VoiceOver 模态隔离，防焦点穿透（见 04 §4.9）。
+        .accessibilityAddTraits(.isModal)
         .sheet(item: $editorPresentation) { presentation in
             MomentEditorView(mode: presentation.mode, modelContainer: modelContext.container)
         }
