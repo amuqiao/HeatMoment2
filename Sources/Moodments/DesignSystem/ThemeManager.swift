@@ -82,4 +82,7 @@ final class ThemeManager {
 
     /// Sheet 顶层背景色（编辑器/设置等系统分组容器，见 §5.2.2）。
     var sheetBackground: Color { SemanticColor.sheetBackground(mode) }
+
+    /// 热力图/心情统计「无记录」日期格底色（见 §5.7）。
+    var heatmapEmptyCell: Color { SemanticColor.heatmapEmptyCell(mode) }
 }

@@ -3,6 +3,10 @@ import XCTest
 /// 标题两态验收（见 04-screen-specs.md §4.1、08-architecture.md §2.2 裁决 B）：
 /// 大标题态（滚到顶）纯场景标识、不可点、不触发筛选；上滑折叠后，收起态「时刻 ⌄」
 /// 才是筛选入口，点击以就近浮窗（popover）打开 `FilterPanelView`。
+///
+/// 阶段5起 `FilterPanelView` 落地真实内容（旧阶段2占位文案「筛选 · 阶段5」已随真实内容落地
+/// 失效，同 `EditorSheetPresentationUITests` 头部注释所述取舍），断言改为真实面板的
+/// 心情候选行（`filterMoodOption-<rawValue>`）。
 final class TitleCollapseFilterUITests: XCTestCase {
     func testExpandedTitleTapDoesNotOpenFilter() {
         let app = XCUIApplication()
@@ -14,7 +18,7 @@ final class TitleCollapseFilterUITests: XCTestCase {
         expandedTitle.tap()
 
         XCTAssertFalse(app.buttons["timelineCollapsedTitleButton"].exists)
-        XCTAssertFalse(app.staticTexts["筛选 · 阶段5"].exists)
+        XCTAssertFalse(app.buttons["filterMoodOption-0"].exists)
     }
 
     func testCollapsedTitleTapOpensFilterPopover() {
@@ -41,6 +45,7 @@ final class TitleCollapseFilterUITests: XCTestCase {
         XCTAssertTrue(collapsedTitle.waitForExistence(timeout: 5))
         collapsedTitle.tap()
 
-        XCTAssertTrue(app.staticTexts["筛选 · 阶段5"].waitForExistence(timeout: 5))
+        // 面板内应有 8 个心情候选行之一（如 rawValue 1「开心」）。
+        XCTAssertTrue(app.buttons["filterMoodOption-1"].waitForExistence(timeout: 5))
     }
 }

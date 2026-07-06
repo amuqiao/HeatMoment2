@@ -126,4 +126,11 @@ enum SemanticColor {
     static func sheetBackground(_ mode: ThemeMode) -> Color {
         mode == .dark ? Color(hex: 0x1C1C1E) : Color(hex: 0xF2F2F7)
     }
+
+    /// 热力图/心情统计「无记录」日期格底色（见 §5.7 MoodStatsView：「格子未命中为深灰
+    /// `#454547`」）；`YearHeatmapView` 与 `MoodStatsView` 卡片1 共用同一空态语义（`HeatmapGridView`）。
+    /// 亮色态数值文档未给出，按同类中性色语义近似取值 `[设计决策]`。
+    static func heatmapEmptyCell(_ mode: ThemeMode) -> Color {
+        mode == .dark ? Color(hex: 0x454547) : Color(hex: 0xD1D1D6)
+    }
 }
