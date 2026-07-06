@@ -17,7 +17,7 @@ extension MomentRepository {
     ///   标签 AND 交集用 `FilterCondition.matches` 在内存判定（谓词层只能可靠过滤到年份区间 +
     ///   未软删除，见 `TimelineQuery.predicate(for:)` 同类取舍）。
     func moodByDay(year: Int, filter: FilterCondition?) throws -> [Int: Mood] {
-        guard let interval = Self.yearInterval(year: year) else { return [:] }
+        let interval = Self.yearInterval(year: year)
         let start = interval.start
         let end = interval.end
         let descriptor = FetchDescriptor<Moment>(
@@ -34,6 +34,10 @@ extension MomentRepository {
                 continue
             }
             guard let dayOfYear = calendar.ordinality(of: .day, in: .year, for: moment.occurredAt) else {
+                // 记录已确定落在 `[start, end)` 年份区间内，`ordinality` 理论上不应返回 nil；
+                // 一旦出现即为不可预期的日历计算异常，快速暴露而非静默丢弃该记录
+                // （见 CLAUDE.md 快速失败铁律，不加兜底）。
+                assertionFailure("年内记录 dayOfYear 计算失败：\(moment.occurredAt)")
                 continue
             }
             // 正序遍历，同一天后写入的时刻 occurredAt 更晚，天然覆盖成「当天最后一条」。
@@ -45,7 +49,7 @@ extension MomentRepository {
     /// 年度「情绪 → 命中次数」聚合，供 `MoodStatsView` 8 情绪条形图使用；恒为全量、不接筛选
     /// （见 04-screen-specs.md §4.12：「卡片1不承担定位时间轴功能...仅视觉范式相似」）。
     func moodCounts(year: Int) throws -> [Mood: Int] {
-        guard let interval = Self.yearInterval(year: year) else { return [:] }
+        let interval = Self.yearInterval(year: year)
         let start = interval.start
         let end = interval.end
         let descriptor = FetchDescriptor<Moment>(
@@ -61,14 +65,21 @@ extension MomentRepository {
         return counts
     }
 
-    private static func yearInterval(year: Int) -> DateInterval? {
+    /// 年份区间合成——对任何合法 `Int` 年份，`Calendar.date(from:)`/`date(byAdding:)` 不应失败；
+    /// 一旦失败即为不可预期的日历计算异常，直接 `preconditionFailure` 崩溃暴露，不返回可选值
+    /// 让调用方靠 `guard ... else { return [:] }` 静默降级（见 CLAUDE.md 快速失败铁律）。
+    private static func yearInterval(year: Int) -> DateInterval {
         var components = DateComponents()
         components.year = year
         components.month = 1
         components.day = 1
         let calendar = Calendar.current
-        guard let start = calendar.date(from: components) else { return nil }
-        guard let end = calendar.date(byAdding: .year, value: 1, to: start) else { return nil }
+        guard let start = calendar.date(from: components) else {
+            preconditionFailure("年份起始日期合成失败：\(year)")
+        }
+        guard let end = calendar.date(byAdding: .year, value: 1, to: start) else {
+            preconditionFailure("年份结束日期合成失败：\(year)")
+        }
         return DateInterval(start: start, end: end)
     }
 }

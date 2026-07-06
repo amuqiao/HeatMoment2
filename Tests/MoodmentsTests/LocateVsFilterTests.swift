@@ -25,6 +25,12 @@ final class LocateVsFilterTests: XCTestCase {
 
     /// 同一 `filter` 下，反复用 `TimelineQuery.predicate(for:)` 取数应完全相等——因为该函数
     /// 根本不接受、也不可能读到任何「当前定位到哪一天」的信息，这是公理2在类型层的保证。
+    ///
+    /// 阶段5 review 修复：此前全程未真正变动 `TimelineModel.heatmapFocusDate`，是个重言式
+    /// （"不变的东西不变"）。改为在取数前后**真正把定位状态改到不同值**（`nil` → 某日期 →
+    /// 另一个远早于任何记录的日期），断言每次取数结果仍完全相等，才是名副其实地验证
+    /// 「改定位不影响筛选取数」。
+    @MainActor
     func testPredicateResultStableRegardlessOfLocateState() async throws {
         let now = Date.now
         let happyID = try await repository.createMoment(title: "a", bodyText: "", occurredAt: now, mood: .happy)
@@ -37,6 +43,7 @@ final class LocateVsFilterTests: XCTestCase {
 
         let filter = FilterCondition(mood: .happy)
         let context = ModelContext(container)
+        let timelineModel = TimelineModel()
 
         func fetchIDs() throws -> [UUID] {
             let descriptor = FetchDescriptor<Moment>(
@@ -46,11 +53,18 @@ final class LocateVsFilterTests: XCTestCase {
             return try context.fetch(descriptor).map(\.id)
         }
 
+        XCTAssertNil(timelineModel.heatmapFocusDate)
         let resultA = try fetchIDs()
+
+        timelineModel.heatmapFocusDate = now
         let resultB = try fetchIDs()
 
+        timelineModel.heatmapFocusDate = now.addingTimeInterval(-999_999)
+        let resultC = try fetchIDs()
+
         XCTAssertEqual(resultA, [happyID, happyID2])
-        XCTAssertEqual(resultA, resultB, "同一 filter 下取数集合必须稳定、与任何「定位」概念无关")
+        XCTAssertEqual(resultA, resultB, "定位状态从 nil 改为某日期，筛选取数结果必须不变")
+        XCTAssertEqual(resultA, resultC, "定位状态改到另一个日期，筛选取数结果仍必须不变")
     }
 
     /// `filter` 变化会改变数据集：心情不同则命中不同；`nil` 表示全量（未软删除）。

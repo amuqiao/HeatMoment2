@@ -80,7 +80,7 @@ struct YearHeatmapView: View {
 
     private var yearMenu: some View {
         Menu {
-            ForEach(MoodStatsView.availableYears.reversed(), id: \.self) { year in
+            ForEach(HeatmapYearRange.availableYears.reversed(), id: \.self) { year in
                 Button("\(year)") { handleSelectYear(year) }
             }
         } label: {
@@ -94,7 +94,7 @@ struct YearHeatmapView: View {
         .accessibilityIdentifier("heatmapYearMenu")
         .accessibilityLabel(Text("年份，\(heatmapModel.year)"))
         .accessibilityAdjustableAction { direction in
-            let years = MoodStatsView.availableYears
+            let years = HeatmapYearRange.availableYears
             guard let index = years.firstIndex(of: heatmapModel.year) else { return }
             switch direction {
             case .increment where index + 1 < years.count:

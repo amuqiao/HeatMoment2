@@ -6,8 +6,6 @@ import SwiftUI
 /// （见 08-architecture.md §2.2），**不定位时间轴、不接 `activeFilter`**（独立全量，见
 /// `MoodStatsModel` 头部注释）。
 struct MoodStatsView: View {
-    static let availableYears = Array(2021...2026)
-
     @Environment(ThemeManager.self) private var theme
     @State private var model: MoodStatsModel
 
@@ -41,7 +39,7 @@ struct MoodStatsView: View {
 
     private var yearPicker: some View {
         Menu {
-            ForEach(Self.availableYears.reversed(), id: \.self) { year in
+            ForEach(HeatmapYearRange.availableYears.reversed(), id: \.self) { year in
                 Button("\(year)") { model.year = year }
             }
         } label: {
@@ -54,12 +52,12 @@ struct MoodStatsView: View {
         .accessibilityIdentifier("moodStatsYearPicker")
         .accessibilityLabel(Text("年份，\(model.year)"))
         .accessibilityAdjustableAction { direction in
-            guard let index = Self.availableYears.firstIndex(of: model.year) else { return }
+            guard let index = HeatmapYearRange.availableYears.firstIndex(of: model.year) else { return }
             switch direction {
-            case .increment where index + 1 < Self.availableYears.count:
-                model.year = Self.availableYears[index + 1]
+            case .increment where index + 1 < HeatmapYearRange.availableYears.count:
+                model.year = HeatmapYearRange.availableYears[index + 1]
             case .decrement where index > 0:
-                model.year = Self.availableYears[index - 1]
+                model.year = HeatmapYearRange.availableYears[index - 1]
             default:
                 break
             }

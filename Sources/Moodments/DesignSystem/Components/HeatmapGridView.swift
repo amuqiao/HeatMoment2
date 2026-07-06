@@ -29,35 +29,71 @@ struct HeatmapGridView: View {
         let column: Int
     }
 
-    private var cells: [DayCell] {
-        guard
-            let startOfYear = Self.calendar.date(from: DateComponents(year: year, month: 1, day: 1)),
-            let range = Self.calendar.range(of: .day, in: .year, for: startOfYear)
-        else { return [] }
-        let startWeekday = Self.calendar.component(.weekday, from: startOfYear) // 1(周日)...7(周六)
-        return range.compactMap { dayOfYear -> DayCell? in
-            guard let date = Self.calendar.date(byAdding: .day, value: dayOfYear - 1, to: startOfYear) else {
-                return nil
-            }
-            let weekday = Self.calendar.component(.weekday, from: date)
-            let column = (dayOfYear - 1 + startWeekday - 1) / 7
-            return DayCell(dayOfYear: dayOfYear, date: date, row: weekday - 1, column: column)
-        }
+    /// 一次性预计算的网格布局（阶段5 review 修复：此前 `cells` 是计算属性，被
+    /// `grid`/`columnCount`/`monthColumnLabels` 三处各自重复触发重算，且 `grid` 内每格用
+    /// `allCells.first(where:)` 做 O(n) 线性扫描——年内约371个网格位 × 约180+条记录，
+    /// 改为 `init` 时算一次，按 `column*7+row` 建字典索引，三处复用同一份结果、格子命中 O(1)）。
+    private struct GridLayout {
+        let cellsByPosition: [Int: DayCell]
+        let columnCount: Int
+        let monthColumnLabels: [(month: Int, column: Int)]
     }
 
-    private var columnCount: Int { (cells.map(\.column).max() ?? 0) + 1 }
+    private let layout: GridLayout
 
-    private var monthColumnLabels: [(month: Int, column: Int)] {
-        var result: [(Int, Int)] = []
+    init(
+        year: Int, moodByDay: [Int: Mood], selectedDate: Date? = nil,
+        onSelectDay: ((Date) -> Void)? = nil
+    ) {
+        self.year = year
+        self.moodByDay = moodByDay
+        self.selectedDate = selectedDate
+        self.onSelectDay = onSelectDay
+        self.layout = Self.makeLayout(year: year)
+    }
+
+    /// 对任何合法年份，`year`1月1日的起始日期与年内天数区间不应合成失败；一旦失败即为不可预期的
+    /// 日历计算异常，`preconditionFailure` 崩溃暴露，不静默返回空网格（见 CLAUDE.md 快速失败铁律）。
+    /// 年内单日日期合成理论上同样不应失败——若真的出现，用 `assertionFailure` 暴露后跳过该日，
+    /// 不让个别日期异常拖垮整个网格渲染。
+    private static func makeLayout(year: Int) -> GridLayout {
+        guard let startOfYear = calendar.date(from: DateComponents(year: year, month: 1, day: 1))
+        else {
+            preconditionFailure("年度热力图起始日期合成失败，年份：\(year)")
+        }
+        guard let range = calendar.range(of: .day, in: .year, for: startOfYear) else {
+            preconditionFailure("年内天数区间计算失败，年份：\(year)")
+        }
+        let startWeekday = calendar.component(.weekday, from: startOfYear)  // 1(周日)...7(周六)
+
+        var cellsByPosition: [Int: DayCell] = [:]
+        var monthColumnLabels: [(month: Int, column: Int)] = []
         var seenMonths = Set<Int>()
-        for cell in cells.sorted(by: { $0.dayOfYear < $1.dayOfYear }) {
-            let month = Self.calendar.component(.month, from: cell.date)
+        var maxColumn = 0
+
+        for dayOfYear in range {
+            guard let date = calendar.date(byAdding: .day, value: dayOfYear - 1, to: startOfYear)
+            else {
+                assertionFailure("年内单日日期合成失败：年份=\(year)，dayOfYear=\(dayOfYear)")
+                continue
+            }
+            let weekday = calendar.component(.weekday, from: date)
+            let row = weekday - 1
+            let column = (dayOfYear - 1 + startWeekday - 1) / 7
+            cellsByPosition[column * 7 + row] = DayCell(
+                dayOfYear: dayOfYear, date: date, row: row, column: column)
+            maxColumn = max(maxColumn, column)
+
+            let month = calendar.component(.month, from: date)
             if !seenMonths.contains(month) {
                 seenMonths.insert(month)
-                result.append((month, cell.column))
+                monthColumnLabels.append((month, column))
             }
         }
-        return result
+
+        return GridLayout(
+            cellsByPosition: cellsByPosition, columnCount: maxColumn + 1,
+            monthColumnLabels: monthColumnLabels)
     }
 
     var body: some View {
@@ -71,12 +107,12 @@ struct HeatmapGridView: View {
     }
 
     private var grid: some View {
-        let allCells = cells
-        let rows = Array(repeating: GridItem(.fixed(Self.cellSize), spacing: Self.cellSpacing), count: 7)
+        let rows = Array(
+            repeating: GridItem(.fixed(Self.cellSize), spacing: Self.cellSpacing), count: 7)
         return LazyHGrid(rows: rows, spacing: Self.cellSpacing) {
-            ForEach(0..<columnCount, id: \.self) { column in
+            ForEach(0..<layout.columnCount, id: \.self) { column in
                 ForEach(0..<7, id: \.self) { row in
-                    if let cell = allCells.first(where: { $0.column == column && $0.row == row }) {
+                    if let cell = layout.cellsByPosition[column * 7 + row] {
                         dayCellView(cell)
                     } else {
                         Color.clear.frame(width: Self.cellSize, height: Self.cellSize)
@@ -88,7 +124,8 @@ struct HeatmapGridView: View {
 
     private func dayCellView(_ cell: DayCell) -> some View {
         let mood = moodByDay[cell.dayOfYear]
-        let isSelected = selectedDate.map { Self.calendar.isDate($0, inSameDayAs: cell.date) } ?? false
+        let isSelected =
+            selectedDate.map { Self.calendar.isDate($0, inSameDayAs: cell.date) } ?? false
         return RoundedRectangle(cornerRadius: 3, style: .continuous)
             .fill(mood.map { MoodColorPalette.color(for: $0) } ?? theme.heatmapEmptyCell)
             .frame(width: Self.cellSize, height: Self.cellSize)
@@ -116,7 +153,7 @@ struct HeatmapGridView: View {
     private var monthLabelsRow: some View {
         ZStack(alignment: .topLeading) {
             Color.clear.frame(height: 14)
-            ForEach(monthColumnLabels, id: \.column) { item in
+            ForEach(layout.monthColumnLabels, id: \.column) { item in
                 Text("\(item.month)月")
                     .font(.caption2)
                     .foregroundStyle(SemanticColor.secondaryText)
@@ -124,7 +161,7 @@ struct HeatmapGridView: View {
             }
         }
         .frame(
-            width: CGFloat(columnCount) * (Self.cellSize + Self.cellSpacing),
+            width: CGFloat(layout.columnCount) * (Self.cellSize + Self.cellSpacing),
             height: 14,
             alignment: .leading
         )
