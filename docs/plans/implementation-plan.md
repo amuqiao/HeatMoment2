@@ -124,7 +124,7 @@ HeatMoment2/
 - **依赖**：阶段 2–5。
 - **验收（措辞订正，见下）**：`ThemeSwitchUITests`（切**主色**时 FAB/强调随之变化，**心情色/危险色不受影响**——心情色独立于主色，这条不变量与「是否随模式切换」无关；切**模式**时画布切亮/暗、当前主色槽位不变但该主色解析出的具体色值随模式切到其亮/暗两态，**心情色也随模式切到该情绪的亮/暗态**，这是预期行为而非「切模式不变」）；`AppearanceSaveFailureUITests`（保存失败页内非模态提示 + 不回滚视觉）；`TagManageUITests`（删标签清理筛选陈旧 id、重命名、删标签不删时刻）；单元测试覆盖 `MoodColorPalette`/`AppearanceStore`/`TagRepository.renameTag`/`TimelineModel.discardFilterTag`/`ErrorPresenter`。
 
-### 阶段 7 · 支撑能力（P1，排期后置） ⬜
+### 阶段 7 · 支撑能力（P1，排期后置） ✅
 - **目标**：接入安全与边界能力（心智模型定位为支撑能力，不在核心成型前抢工）。
 - **交付**：CloudKit 同步接通 + 同步状态展示；`BiometricLockService`（Face ID/密码锁 + 多任务遮罩）；语言切换（zh-Hans/en/跟随系统）；StoreKit（月订阅 ¥6 + 终身买断 + 核销码 + 恢复购买）。
 - **依赖**：阶段 1–6。
@@ -167,6 +167,13 @@ HeatMoment2/
 - **7 个非「正常」情绪的亮色态心情色**（阶段 6 起，待真机复核）：设计 §5.4 只采了暗态值，`MoodColorPalette` 亮态暂沿用暗态值并标 `[设计决策待确认]`；真机复核后按情绪区分两态（正常亮态 `#58BBB3` 已确认）。
 - **关于页备案号**（阶段 6 起，待产品）：`AboutView` 已放占位行（`aboutBeianPlaceholder`），需产品补真实备案号；外部链接 URL（创作者/隐私/条款）同待产品，阶段 7 接。
 - **`CreateMomentFlowUITests` 键盘聚焦偶发 flaky**（测试加固）：标题输入偶发「Neither element nor any descendant has keyboard focus」（模拟器键盘未及时聚焦），重跑即过；建议点输入框后显式等待键盘出现再 `typeText`，消除 CI 偶发。
+- **StoreKit 购买主链路需完整环境跑一次留证**（阶段 7，环境限制）：`PurchaseTests` 的月订阅/终身买断/恢复/到期降级 4 例，因本机 `storekitagent` 握手失败（`SKInternalErrorDomain Code=3`）被 `XCTSkip`；代码逻辑已就位、不依赖 StoreKit 的「Pro→QuotaService 放行」纯逻辑单测已真跑。需在具备完整 StoreKit 测试环境的开发机跑一次留证。
+- **iCloud 双设备真实同步与冲突**（阶段 7，环境限制）：单设备起动/编译/entitlements/首同步去重逻辑已验；双设备/双 iCloud 沙盒的真实下行同步与 LWW 冲突（09 §9.5、12.3）本环境做不了，待真机 + 签名环境验。
+- **终身买断真实定价**（待产品）：`.storekit` 与代码用占位价 `6.00`，真实价 App Store Connect 上架时定，需回填 11-monetization / 06-domain-model / Paywall。
+- **英文翻译审校 + 日期 locale 化**（阶段 7 起，待完善）：xcstrings 英文为一次性意译、未经母语/产品审校；`AppearanceThemeView` 内部选项等 17 条仅 zh（英文降级中文源文，不崩）；日期格式化仍固定 `M月d日`（7 处 `DateFormatter`），英文模式日期仍显中文字样，设计 12.2 建议改 `Date.FormatStyle` locale 感知。
+- **`.navigationTitle` 语言切换滞后**（阶段 7 已知）：已挂载导航栏标题不随 `.environment(\.locale)` 即时重算，需重新呈现该任务卡片才刷新（不需重启进程）；普通 `Text`/`Button` 即时。系统级文案（`NSFaceIDUsageDescription`/`CFBundleDisplayName`）需重启生效。
+- **`CFBundleLocalizations` 未接入**（阶段 7）：XcodeGen `info.properties` 需同时给 `info.path` 否则 decode 失败，本轮未接；不影响 `.environment(\.locale)` 运行时机制，仅影响 App Store/系统语言列表元信息。
+- **`MomentEditorView` type_body_length**（阶段 7，非阻断）：259/250 行 swiftlint style warning，建议小幅拆分。
 
 ## 9. 进度追踪
 
@@ -179,4 +186,4 @@ HeatMoment2/
 | 4 预览+删除生命周期 | ✅ 完成 | `verify` 绿：47 单元 + 13 UI（7 套件，新增 DeleteRestorePurge）全过 · build ✓ · lint ✓；预览弹出阅读卡片（ADR-007）+ 图片查看器（fullScreenCover）+ 时间轴 `List`+`.swipeActions` 删除 + TrashView 恢复/彻底删除 + 缩略图缓存接线 + 两处缓存失效；顺带修正时间轴竖线断裂既有缺陷；review 两份均无必须修，低风险项（.isModal/缩放钳制/解码暴露/预留标注）已修；延后项入 §8 |
 | 5 回看 | ✅ 完成 | `verify` 绿：63 单元（新增 LocateVsFilterTests/MultiTagFilterTests/HeatmapMoodColorTests 共16例）+ 15 UI（8 套件，回归全过，含新增 LocateFilterUITests）全过 · build ✓ · lint ✓；`TimelineModel` 上提到 `RootView` 注入（时间轴/热力图共享同一实例）；`TimelineListView`+`TimelineQuery` 落实定位/筛选正交（谓词无 Date 参数、`scrollTargetID` 纯函数）；多标签 AND 交集内存过滤（`FilterCondition.matches`）；`MomentRepository+Aggregation` 年度聚合（`ModelActor` 后台、回传 `[Int:Mood]`/`[Mood:Int]` 值类型）；`YearHeatmapView`/`MoodStatsView`/`FilterPanelView`/`TimelineContextMarkerBar` 落地真实内容；过程中修复一处真实缺陷：容器级 `.accessibilityIdentifier` 会覆盖子元素自身 identifier（已在 4 处新文件移除容器级 id 并登记教训注释）；review 两份（架构无违背、公理2 正交性评优；代码有铁律必修）已修：聚合/网格静默降级→快速失败、网格 O(1) 重构、年份区间解耦（动态含当前年）、补真正变动 focusDate 的正交断言 + 新增 `LocateFilterUITests` 集成测试；范围简化：热力图仅落地「点日期格」定位、未落地独立「点月份标签」+「整列高亮」（见 13-open-questions #21 与 §8）；延后项入 §8 |
 | 6 设置+外观 | ✅ 完成 | `verify` 绿：87 单元（新增 `MoodColorPaletteTests`/`AppearanceStoreTests`/`ErrorPresenterTests`/`TimelineModelTests` 共 20 例 + `TagRepositoryTests` 补 4 例 renameTag）+ 25 UI（11 套件，回归全过，新增 `ThemeSwitchUITests`/`AppearanceSaveFailureUITests`/`TagManageUITests`）全过 · build ✓ · lint ✓；`SettingsSheetView` 补齐 Pro 横幅（局部 sheet）+ 分组A（心情统计/标签管理/垃圾箱）+ 分组B（外观主题 + iCloud/面容/语言禁用占位）+ 关于 + 版本页脚；`AppearanceStore` 逐轴 `UserDefaults` 持久化（坏值按轴回落默认 + 计数）、`ThemeManager` 四轴 `private(set)` + 语义 setter 乐观更新、`MoodColorPalette.color(for:mode:)` 签名不含主色参数（心情色独立于主色的结构性保证）；统一错误通道 `ErrorPresenter`/`.userFacingErrorAlert` 接入编辑器/垃圾箱/时间轴删除/标签新建重命名；`TagRepository.renameTag` + `TimelineModel.discardFilterTag` 落地标签重命名与筛选陈旧 id 清理；review 两份（架构无违背、公理1 心情色独立性结构性正确；代码 1 必修）已修：TagCreateSheetView 撞名错误对用户不可见 → 改 `ErrorPresenter` 呈现宿主栈（LIFO 仅栈顶宿主呈现，根治多层 `.alert` 同挂导致的呈现链折叠）+ 补撞名可见错误 UI 测试；TagPicker 加载失败改走通道；AboutView 去 `preferredColorScheme` 改 `.toolbarColorScheme` + 补备案号占位；日志 underlying 改 `.private`；「已修正」提示改中性色；`AppearanceStore` 坏配置回写自愈；标签删除关 full-swipe；延后项入 §8 |
-| 7 支撑能力(P1) | ⬜ | — |
+| 7 支撑能力(P1) | ✅ 完成 | `verify` 绿：单元 102（4 StoreKit 因本机 storekitagent 环境限制 skip）+ UI 31 全过 · build ✓ · lint ✓；StoreKit2 SubscriptionService（实时 currentEntitlements 判 Pro + 三处额度闸门经 QuotaService 解锁）+ ProPaywallView（月订阅/买断/恢复/核销码，占位价待产品）；iCloud makeCloudKitContainer（无签名回退本地不崩）+ SyncStatusService 三态 + 首同步 flag 去重；Face ID 隐私锁（fullScreenCover 最外层 + 初始值即锁 + didEnterBackground 重锁）+ 多任务遮罩；本地化 Localizable.xcstrings（zh 完整/en 核心+Paywall+错误提示，含 a11y 模板）+ 语言切换。**两轮实现 + 两批 review 修复**：代码 review 3 必须修（默认标签复活越额度/进设置主线程阻塞 1s/回前台重锁 .inactive 时序）+ 建议（照片查 Pro 去重/同步三态接入/可达性 continuation 超时/错误提示本地化）已修；架构维度由代码 review 覆盖（Pro 注入不破限额契约、隐私锁、CloudKit 回退均正面确认）。延后见 §8 |

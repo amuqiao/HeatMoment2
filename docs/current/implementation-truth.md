@@ -125,6 +125,22 @@ Pro 感知：`QuotaService` 对 Pro 短路 `.allowed`；剩余额度经 `remaini
   → 卡片1 HeatmapGridView（不可交互、不接 selectedDate）+ 卡片2 8×MoodStatBarView（emoji+名称+N次+占比条）
 ```
 
+## 支撑能力（阶段 7 as-built）
+
+新增模块：`Services/Store/`（`SubscriptionService` @MainActor @Observable + `SubscriptionStateCache` + `StoreProductID` + `SubscriptionEntitlementProvider`）、`Services/Sync/SyncStatusService`、`Services/Auth/`（`BiometricLockService` + `BiometricLockPreference`）、`Features/Lock/`（`PrivacyLockView` + `PrivacyMaskView`）、`Features/Paywall/ProPaywallView`（真实内容）、`Localization/`（`LanguagePreference` + `Localizable.xcstrings`）、`Features/Settings/LanguageSettingsView`。
+
+关键实现真相 / 偏离（本层为 canonical）：
+
+- **Pro 判定与额度解锁**：Pro = 月订阅未过期 **OR** 终身买断，权威是**实时** `Transaction.currentEntitlements`（`.verified` + `revocationDate == nil`）；三处额度闸门（`TimelineHomeView`/`MomentEditorModel`/`EditorPhotoSection`）先 `await currentEntitlementIsPro()` 再用 `SubscriptionEntitlementProvider(isPro:)` 快照构造 `QuotaService` 判定——**限额判定唯一落点仍是 `QuotaService`**（08 §6），缓存 `isPro` 仅供横幅/入口显隐。免费额度数值/计数口径（含垃圾箱）未动。
+- **CloudKit 容器**：`makeProductionContainer()` 有 iCloud capability 才建 CloudKit 私有库容器，`try/catch` 回退本地、仅本地也失败才 `fatalError`——**无签名/未授权不崩**；测试/UI/DEBUG `-uiTest*` 走 in-memory/local。
+- **隐私锁**：`PrivacyLockView` 挂 `MoodmentsApp` 最外层 `.fullScreenCover`（`.environment(...)` 注入置于其**外层**，否则锁屏读 `@Environment(ThemeManager)` 缺失会 crash）；冷启动锁定用 `router.isLocked` **初始值即锁**（规避 `.task` 异步 mutate 的首帧 present 竞态）；回前台重锁用独立 `didEnterBackground` 状态跟踪（不依赖 `oldPhase == .background`，规避真机 `.background→.inactive→.active` 中间态）。`LAContext` 不吞错、限服务内部。
+- **首同步去重**：`DefaultTagSeeder` 用 `UserDefaults`「首启已预置」持久 flag，只真正首启预置一次（删默认标签后冷启动不复活、不越免费额度）；CloudKit 等待/去重仅首启窗口内，非首启零延迟。
+- **本地化双真相源一致**：`.environment(\.locale)`（`Text`/`LocalizedStringKey`）与 `LanguagePreference.localizedString(_:)`（纯值类型 `Mood.displayName`/`GuidedMoment`/`SyncStatus`/a11y 模板/`ErrorPresenter`）共享同一 `UserDefaults` key，缺 key 优雅降级中文源文。已知即时性例外：`.navigationTitle` 需重新呈现该卡片才刷新、系统级文案（`NSFaceIDUsageDescription` 等）需重启。
+- **可达性查询**：`DefaultNetworkReachabilityChecker.isReachable()` async（`NWPathMonitor` + `withCheckedContinuation`），带 2s 竞速超时 resume(false) + `NSLock` 保护防重复 resume（防 continuation 泄漏的操作超时，非业务降级）。
+- **DEBUG-only hook**：隐私锁验证注入（`-uiTestForcePrivacyLockEnabled`/`-uiTestBiometricAlwaysSucceed`/`Fail`）、外观保存失败注入、首启 flag/语言偏好测试重置——均 `#if DEBUG` 门控，不入 release。
+
+环境约束（as-built 无法在本机验，见 `../plans` §8）：StoreKit 购买主链路（本机 `storekitagent` 握手失败 → 4 例 skip）、iCloud 双设备真实同步。
+
 ## 验证基线
 
-见 `README.md` §验证基线（统一入口 `./scripts/verify.sh`；阶段6收口：单元 87（22 套件）+ UI 24 用例（11 套件）全过、build ✓、lint ✓）。
+见 `README.md` §验证基线（统一入口 `./scripts/verify.sh`；**阶段 7 收口 · 项目 0→1 完成**：单元 102（4 StoreKit 环境 skip）+ UI 31 用例（13 套件）全过、build ✓、lint ✓）。
