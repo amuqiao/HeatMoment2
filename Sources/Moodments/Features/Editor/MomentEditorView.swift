@@ -194,7 +194,9 @@ struct MomentEditorView: View {
     }
 
     private var tagSummaryText: String {
-        guard !model.selectedTagIDs.isEmpty else { return "添加标签" }
+        guard !model.selectedTagIDs.isEmpty else {
+            return LanguagePreference.localizedString("添加标签")
+        }
         return model.selectedTagIDs.compactMap { model.tagNamesByID[$0] }.joined(separator: " ")
     }
 

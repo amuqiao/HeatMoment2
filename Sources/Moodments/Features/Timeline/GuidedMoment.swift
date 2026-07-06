@@ -7,33 +7,53 @@ import Foundation
 /// 第一条真实记录后不再展示（见 02 §「单页信息架构」）。
 struct GuidedMoment: Identifiable, Sendable {
     let id = UUID()
-    let title: String
-    let bodyText: String
+    /// i18n key（见 `Localizable.xcstrings`），非直接展示文案；展示时经 `title`/`bodyText`
+    /// 计算属性按当前语言偏好解析（阶段7 D 本地化：空态引导是首屏最高可见内容，与 Paywall
+    /// 同列为「译全」范围，见计划决策7）。
+    private let titleKey: String
+    private let bodyTextKey: String
     let mood: Mood
     let occurredAt: Date
     /// 模拟「图片」区的占位色块十六进制值（见 05-design-system.md §5.7：
     /// 「引导卡片内以主色/中性棕色块模拟'图片'占位」），空数组表示该条无图片区。
     let placeholderImageHexColors: [UInt32]
 
+    /// 展示文案：经 `LanguagePreference.localizedString(_:)` 按当前语言偏好解析（见该类型
+    /// 头部说明——`BubbleCardView`/`TimelineEntry` 均以 `String` 消费本属性，非 `Text`，故
+    /// 不能用依赖 View 环境传播的 `LocalizedStringKey`）。
+    var title: String { LanguagePreference.localizedString(String.LocalizationValue(titleKey)) }
+    var bodyText: String { LanguagePreference.localizedString(String.LocalizationValue(bodyTextKey)) }
+
+    private init(
+        titleKey: String, bodyTextKey: String, mood: Mood, occurredAt: Date,
+        placeholderImageHexColors: [UInt32]
+    ) {
+        self.titleKey = titleKey
+        self.bodyTextKey = bodyTextKey
+        self.mood = mood
+        self.occurredAt = occurredAt
+        self.placeholderImageHexColors = placeholderImageHexColors
+    }
+
     /// 3 条固定引导内容，数组顺序即时间轴展示顺序（倒序时间轴，最新在上）。
     static let all: [GuidedMoment] = [
         GuidedMoment(
-            title: "马上创建",
-            bodyText: "点击右下角的 + 按钮，记录你的第一个时刻吧。",
+            titleKey: "guided.createNow.title",
+            bodyTextKey: "guided.createNow.body",
             mood: .motivated,
             occurredAt: .now,
             placeholderImageHexColors: []
         ),
         GuidedMoment(
-            title: "什么是时刻?",
-            bodyText: "时刻是一条带情绪身份的生活记忆，挂在可回看、可筛选、可整理的个人时间轴上。",
+            titleKey: "guided.whatIsMoment.title",
+            bodyTextKey: "guided.whatIsMoment.body",
             mood: .normal,
             occurredAt: .now.addingTimeInterval(-60),
             placeholderImageHexColors: []
         ),
         GuidedMoment(
-            title: "欢迎来到时刻~",
-            bodyText: "这里是你的个人时间轴，每一条记录都带着当时的心情、标签与照片。",
+            titleKey: "guided.welcome.title",
+            bodyTextKey: "guided.welcome.body",
             mood: .happy,
             occurredAt: .now.addingTimeInterval(-120),
             placeholderImageHexColors: [0xB678F5, 0x8E7B6B]

@@ -19,7 +19,23 @@ struct MoodmentsApp: App {
     @State private var hasCompletedInitialActivation = false
     private let container: ModelContainer
 
+    /// 语言偏好（见 `LanguagePreference`、阶段7计划决策4）：与 `LanguageSettingsView` 共享同一
+    /// `UserDefaults.standard` key，切换后本 `@AppStorage` 立即失效重算、驱动下方
+    /// `.environment(\.locale, ...)` 即时刷新整棵树。
+    @AppStorage(LanguagePreference.storageKey) private var languagePreferenceRawValue =
+        LanguagePreference.zhHans.rawValue
+
+    private var effectiveLocale: Locale {
+        (LanguagePreference(rawValue: languagePreferenceRawValue) ?? .zhHans).effectiveLocale
+    }
+
     init() {
+        #if DEBUG
+        // UI 测试隔离（见 `UITestSupport`）：清掉上一次测试运行可能残留在 `UserDefaults.standard`
+        // 里的语言偏好（如 `LanguageSwitchUITests` 切换到 English 后未复位），保证每次 UI 测试
+        // 冷启动都从确定性的默认 `.zhHans` 起步，不受同一模拟器上先前测试运行历史影响。
+        UITestSupport.resetLanguagePreferenceIfUITestRun()
+        #endif
         // 冷启动锁定用「初始值即锁」而非 `.task` 里异步 mutate：后者会遇 SwiftUI 首帧竞态
         // （body 已用 isLocked=false 求值后 .task 才改，自定义 Binding 的首次 fullScreenCover
         // present 会被丢弃），导致隐私锁开启时冷启动锁不住（见 code review 修复）。
@@ -110,6 +126,23 @@ struct MoodmentsApp: App {
                 .environment(errorPresenter)
                 .environment(subscriptionService)
                 .environment(syncStatusService)
+                // 语言偏好注入（见 `LanguagePreference`、12-quality-assurance.md §12.2）：
+                // `.environment(\.locale, ...)` 随 `languagePreferenceRawValue` 变化自动重算，
+                // 驱动整棵树重渲染；`Mood.displayName` 等无法读取 View 环境的纯值类型改用
+                // `LanguagePreference.localizedString(_:)` 同步读取同一份偏好（见其头部说明），
+                // 二者共享同一份真相源、不会互相脱节。
+                //
+                // **即时性范围**（真机/模拟器实测确认）：普通 `Text`/`Button` 字面量在已挂载
+                // 页面上会随环境变化正确即时刷新（见 `LanguageSwitchUITests`）；但
+                // `.navigationTitle(_:)` 桥接到 UIKit `UINavigationItem.title` 存在已知的
+                // 「已挂载页面不随环境重算刷新」滞后——同屏按钮/正文已变为目标语言，导航栏标题
+                // 仍可能停留旧语言，需返回上一页再重新进入（或重新呈现该任务卡片）才会刷新为
+                // 新语言；这不要求杀掉/重启 App 进程，仍满足「无需重启」的契约，但不是
+                // 逐字面意义的「原地」即时（阶段7计划决策4已注明的已知例外之一）。
+                // 个别系统级文案（如 `NSFaceIDUsageDescription`、`CFBundleDisplayName`）由 iOS
+                // 在进程启动时按系统语言一次性解析，应用内切换语言不会让它们刷新，需重启生效
+                // （同决策4另一类已知例外）。
+                .environment(\.locale, effectiveLocale)
                 .preferredColorScheme(theme.mode == .dark ? .dark : .light)
         }
         .modelContainer(container)

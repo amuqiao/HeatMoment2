@@ -49,7 +49,11 @@ struct SettingsSheetView: View {
                 Section {
                     iCloudSyncRow
                     biometricLockRow
-                    disabledPlaceholderRow(title: "语言", identifier: "settingsLanguageRow")
+
+                    NavigationLink("语言") {
+                        LanguageSettingsView()
+                    }
+                    .accessibilityIdentifier("settingsLanguageRow")
 
                     NavigationLink("外观主题") {
                         AppearanceThemeView()

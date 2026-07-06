@@ -13,9 +13,9 @@ enum SyncStatus: Sendable, Equatable {
 
     var displayText: String {
         switch self {
-        case .synced: "已同步"
-        case .syncing: "同步中"
-        case .offline: "离线，将在联网后同步"
+        case .synced: LanguagePreference.localizedString("已同步")
+        case .syncing: LanguagePreference.localizedString("同步中")
+        case .offline: LanguagePreference.localizedString("离线，将在联网后同步")
         }
     }
 }

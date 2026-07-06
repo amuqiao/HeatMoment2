@@ -66,7 +66,12 @@ struct PrivacyLockView: View {
         isVerifying = true
         defer { isVerifying = false }
         do {
-            let success = try await service.evaluate(reason: "验证以解锁「时刻」")
+            // `LAContext` 的 `localizedReason` 由系统自身的 Face ID/密码交互 UI 展示，非本 App
+            // `Text`，读不到 `.environment(\.locale)`；改用 `LanguagePreference.localizedString(_:)`
+            // 同步按当前语言偏好解析（见阶段7 D 本地化）。
+            let success = try await service.evaluate(
+                reason: LanguagePreference.localizedString("验证以解锁「时刻」")
+            )
             lastAttemptFailed = !success
             if success {
                 onUnlock()

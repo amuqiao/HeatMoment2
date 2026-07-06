@@ -17,7 +17,7 @@ struct ProPaywallView: View {
 
     @State private var isPurchasing = false
     @State private var isRestoring = false
-    @State private var infoMessage: String?
+    @State private var infoMessage: LocalizedStringKey?
 
     var body: some View {
         NavigationStack {
@@ -107,7 +107,7 @@ struct ProPaywallView: View {
 
     /// 三类触发（设置横幅 / 篇数 / 照片 / 标签额度）内容一致，只有标题因触发来源不同措辞
     /// （11 §11.3：Paywall 页面内容/布局在两类触发下完全一致，只是关闭后的回退目标不同）。
-    private var triggerHeadline: String {
+    private var triggerHeadline: LocalizedStringKey {
         switch trigger {
         case .banner: "立即升级成为 Pro 用户"
         case .quotaMoment: "免费日记数量已达上限"
@@ -126,7 +126,7 @@ struct ProPaywallView: View {
         }
     }
 
-    private func benefitRow(text: String) -> some View {
+    private func benefitRow(text: LocalizedStringKey) -> some View {
         HStack(alignment: .top, spacing: 8) {
             Image(systemName: "checkmark.circle.fill").foregroundStyle(theme.accent)
             Text(text).foregroundStyle(theme.primaryText)
@@ -148,7 +148,7 @@ struct ProPaywallView: View {
     }
 
     /// 价格用 `Product.displayPrice` 动态渲染，不写死文本（见 11 §11.1）。
-    private func purchaseButton(product: Product?, title: String, identifier: String) -> some View {
+    private func purchaseButton(product: Product?, title: LocalizedStringKey, identifier: String) -> some View {
         Button {
             guard let product else { return }
             handlePurchase(product)

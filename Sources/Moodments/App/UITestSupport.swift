@@ -63,6 +63,15 @@ enum UITestSupport {
         ProcessInfo.processInfo.arguments.contains("-uiTestFailAppearanceSave")
     }
 
+    /// UI 测试隔离：清掉上一次测试运行可能残留在 `UserDefaults.standard` 里的语言偏好
+    /// （见 `LanguagePreference`）——该 key 与生产用户共用 `.standard`（未像外观偏好那样切独立
+    /// 套件，因为语言偏好不涉及「必失败场景注入」，只需保证起点确定性），任意 `-uiTest*`
+    /// 场景下都重置，保证每次冷启动都从确定性的默认 `.zhHans` 起步（见 `MoodmentsApp.init()`）。
+    static func resetLanguagePreferenceIfUITestRun() {
+        guard isAnyUITestRun else { return }
+        UserDefaults.standard.removeObject(forKey: LanguagePreference.storageKey)
+    }
+
     /// 供 `MoodmentsApp` 构造 `ThemeManager` 时选择的外观存储：任意 UI 测试场景下用隔离套件
     /// （每次启动清空，保证起点恒为默认外观），并按需注入必失败场景；生产路径用真实
     /// `AppearanceStore()`（`UserDefaults.standard`）。

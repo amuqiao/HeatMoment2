@@ -145,9 +145,13 @@ struct HeatmapGridView: View {
 
     private func accessibilityLabel(for cell: DayCell, mood: Mood?) -> String {
         let dateText = Self.dayFormatter.string(from: cell.date)
-        guard let mood else { return "\(dateText)，没有记录" }
-        guard onSelectDay != nil else { return "\(dateText)，有记录，当日心情\(mood.displayName)" }
-        return "\(dateText)，有记录，当日心情\(mood.displayName)，点击定位"
+        guard let mood else {
+            return LanguagePreference.localizedString("\(dateText)，没有记录")
+        }
+        guard onSelectDay != nil else {
+            return LanguagePreference.localizedString("\(dateText)，有记录，当日心情\(mood.displayName)")
+        }
+        return LanguagePreference.localizedString("\(dateText)，有记录，当日心情\(mood.displayName)，点击定位")
     }
 
     private var monthLabelsRow: some View {

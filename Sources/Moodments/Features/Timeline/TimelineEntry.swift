@@ -78,7 +78,7 @@ enum TimelineEntry: Identifiable {
     /// 无障碍朗读文案（见 04-screen-specs.md §4.1：「5月17日 17:06，心情开心，标题《XXX》」）。
     var accessibilityLabel: String {
         let dateText = Self.accessibilityDateFormatter.string(from: occurredAt)
-        return "\(dateText)，心情\(mood.displayName)，标题《\(title)》"
+        return LanguagePreference.localizedString("\(dateText)，心情\(mood.displayName)，标题《\(title)》")
     }
 
     /// 无障碍朗读日期格式化器缓存：避免逐行、逐次求值重建（DateFormatter 构造昂贵）。

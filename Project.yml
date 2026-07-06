@@ -7,6 +7,9 @@ options:
     iOS: "17.0"
   createIntermediateGroups: true
   minimumXcodeGenVersion: "2.38.0"
+  # 阶段 7 D 本地化（见 12-quality-assurance.md §12.2）：开发区域固定 zh-Hans（简中是本 App
+  # 的主文案源语言，`Localizable.xcstrings` 的 `sourceLanguage` 与此一致），`en` 为第二本地化。
+  developmentLanguage: zh-Hans
 
 settings:
   base:
