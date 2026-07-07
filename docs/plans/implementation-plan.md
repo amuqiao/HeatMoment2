@@ -46,7 +46,7 @@
 | P1a | 筛选控件验证 | 就地筛选 sheet 控件已补齐；剩余是截图/真机验证和必要参数微调，保持 half-sheet 心智模型不漂移。 |
 | P1b | 局部选择 / Sheet 层级 / 设置关闭按钮 | 收紧临时任务层级，确认编辑页局部选择、设置和二级 sheet 路径不增加页面感。 |
 | P2 | 外观页预览 / 亮色适配 / 背景纹理 / 图片展示闭环 | 让外观设置变成可感知的主题预览，而不是只有选项文本。 |
-| P3 | 文档漂移 / 测试补充 / 验收证据 | 在实现完成后回写 current，关闭计划项并补齐窄验证。 |
+| P3 | 文档漂移 / 测试补充 / 验收证据 | 在实现完成后回写 current；开发中可窄验证，关闭计划项必须以 `verify.sh` 作为最终证据。 |
 
 ## Pre-Implementation Gate
 
@@ -109,7 +109,9 @@ HeatMoment2 是对 `/Users/admin/Downloads/Code/HeatMoment` 中 Flutter 项目�
    - 每个优化项落地后，先更新 `docs/current/` 中的 as-built 事实。
    - 对应计划项只保留验收证据或标记为已关闭。
    - 每次关闭筛选相关项前，重新检查 `docs/product-mental-model.md`、`docs/design/`、`docs/current/` 与本计划，确认没有把首页筛选误写回“就近 popover”或“任务卡片 sheet”。
-   - 最小验证优先使用现有脚本和相关 UI/单元测试。
+   - 开发中定位问题优先使用现有脚本和相关 UI/单元测试做窄验证；计划项关闭与阶段验收必须运行 `./scripts/verify.sh`。
+   - 后续测试架构整理可新增 `Tests/MoodmentsTests/Support/` 和 UI 测试薄 helper / Robot 层，但只能在重复 setup 或跨文件交互明显增加时引入；Robot 只封装操作路径，业务断言仍留在测试用例内。
+   - 若新增 UI 测试 launch argument，必须同步 App 侧 `UITestSupport`、current 测试架构文档和对应测试入口用例，避免脚本层承载 fixture 语义。
 
 ## Acceptance
 

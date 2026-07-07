@@ -136,7 +136,7 @@ TimelineHomeView.timelineFilterSheet
 ./scripts/test.sh --ui
 ```
 
-结果：`./scripts/test.sh --unit` 通过。`MoodmentsTests` 执行 108 个测试，4 个 StoreKit 环境相关测试按既有策略跳过，0 失败。`./scripts/test.sh --ui` 通过。`MoodmentsUITests` 执行 33 个 UI 测试，0 失败。UI 覆盖包括创建、预览、左滑软删除、垃圾箱恢复、彻底删除确认、热力图日/月定位、筛选标记、标题折叠筛选入口、空态、主题/外观设置、语言、隐私锁和额度闸门。
+结果：`./scripts/test.sh --unit` 通过。`MoodmentsTests` 执行 110 个测试，4 个 StoreKit 环境相关测试按既有策略跳过，0 失败。`./scripts/test.sh --ui` 通过。`MoodmentsUITests` 执行 34 个 UI 测试，0 失败。UI 覆盖包括创建、预览、左滑软删除、垃圾箱恢复、彻底删除确认、热力图日/月定位、筛选标记、标题折叠筛选入口、空态、主题/外观设置、语言、隐私锁、标签管理和额度闸门。
 
 仍未由自动化证明的 P0 / 架构稳定视觉项：
 

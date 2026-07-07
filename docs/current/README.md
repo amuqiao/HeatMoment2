@@ -9,6 +9,7 @@
 | 文件 | 职责 |
 | --- | --- |
 | [`implementation-truth.md`](implementation-truth.md) | SwiftUI 版当前 as-built 架构、界面流、主题/时间轴/设置等落地事实与偏离 |
+| [`testing-architecture.md`](testing-architecture.md) | 当前 XCTest/XCUITest 入口、数据隔离、UI 测试 launch arguments 与维护边界 |
 | 本文 | current 层阅读入口、能力矩阵和验证基线 |
 
 ## 能力矩阵
@@ -30,6 +31,8 @@
 ## 当前验证基线
 
 本次 current 基线来自 P0 实现后的代码审计和单元测试验证。
+
+脚本与测试入口已收口到 [`../../scripts/README.md`](../../scripts/README.md) 描述的三层模型：`dev.sh` 是日常门面，`test.sh` 是 XCTest/XCUITest 统一入口，`verify.sh` 是本地与 CI 共用的一条龙验证入口。测试数据隔离和 UI launch arguments 的 current 契约见 [`testing-architecture.md`](testing-architecture.md)。
 
 与本 current 相关的已有测试面包括：
 
@@ -59,4 +62,4 @@ P0 代码验证命令：
 ./scripts/test.sh --ui
 ```
 
-结果：2026-07-07，`./scripts/test.sh --unit` 通过，108 个测试、4 个 StoreKit 环境相关 skip、0 失败。`./scripts/test.sh --ui` 通过，33 个 UI 测试、0 失败。UI 覆盖包括创建、预览、左滑软删除、垃圾箱恢复、彻底删除确认、热力图日/月定位、筛选标记、标题折叠筛选入口、空态、主题/外观设置、语言、隐私锁和额度闸门。真机截图层面的时间轴视觉对齐、左滑过程中轨道与阅读单元的像素级连续感仍需人工复核。
+结果：2026-07-07，`./scripts/test.sh --unit` 通过，110 个测试、4 个 StoreKit 环境相关 skip、0 失败。`./scripts/test.sh --ui` 通过，34 个 UI 测试、0 失败。UI 覆盖包括创建、预览、左滑软删除、垃圾箱恢复、彻底删除确认、热力图日/月定位、筛选标记、标题折叠筛选入口、空态、主题/外观设置、语言、隐私锁、标签管理和额度闸门。真机截图层面的时间轴视觉对齐、左滑过程中轨道与阅读单元的像素级连续感仍需人工复核。

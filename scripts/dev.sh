@@ -24,7 +24,7 @@ dev.sh — 本地开发统一入口：路由构建、运行、测试、清理与
   stop         只停止模拟器里的 App，不关闭 Simulator.app
   restart      停止 App 后重新 run
   build        只构建（转发 build.sh）
-  test         跑测试（转发 test.sh，支持 --unit|--ui|--all）
+  test         跑测试（转发 test.sh，支持 --unit|--ui|--all 与 --only）
   lint         跑代码规范检查（转发 lint.sh，支持 --fix）
   verify       一条龙验证（转发 verify.sh）
   gen          生成 Xcode 工程（转发 gen.sh）
@@ -45,6 +45,7 @@ dev.sh — 本地开发统一入口：路由构建、运行、测试、清理与
   ./scripts/dev.sh status
   ./scripts/dev.sh run
   ./scripts/dev.sh test --unit
+  ./scripts/dev.sh test --only MoodmentsTests/MultiTagFilterTests
   SIM_NAME='iPhone 16 Pro' ./scripts/dev.sh restart
 
 exit code:
