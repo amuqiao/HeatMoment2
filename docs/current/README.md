@@ -17,8 +17,8 @@
 | --- | --- | --- |
 | 单根首页 | 已落地。`TimelineHomeView` 是根体验，根级任务卡片由 `RootView` 的 `.sheet(item:)` 承载。 | `Sources/Moodments/App/RootView.swift`、`Sources/Moodments/Features/Timeline/TimelineHomeView.swift` |
 | 时间轴阅读单元 | 已落地。每行由日期列、心情节点、气泡内容组成，真实记录支持点开预览和左滑软删除。 | `TimelineListView.swift`、`TimelineRowView.swift`、`MoodNodeView.swift`、`BubbleCardView.swift` |
-| 时间轴连续性 | 代码路径已改为行背景贯穿绘制竖线；真机视觉对齐仍以计划层审计为准。 | `TimelineRowView.swift` |
-| 热力图定位 | 已落地。热力图是顶部 overlay；点日期只写 `heatmapFocusDate` 并滚动定位，不改筛选条件。 | `RootView.swift`、`YearHeatmapView.swift`、`TimelineListView.swift` |
+| 时间轴连续性 | 代码路径已改为行背景贯穿绘制竖线；真机视觉对齐尚未在 current 层形成验收证据。 | `TimelineRowView.swift` |
+| 热力图定位 | 已落地。热力图是顶部 overlay；点日期只写 `heatmapFocusDate` 并滚动定位，不改筛选条件。当前没有月份点选入口。 | `RootView.swift`、`YearHeatmapView.swift`、`TimelineListView.swift` |
 | 筛选 | 已落地。当前是首页局部半屏/大屏 `FilterPanelView` sheet，不进 `AppRouter.rootSheet`，点选即时生效且选择后不自动关闭。 | `TimelineHomeView.swift`、`FilterPanelView.swift` |
 | 上下文标记 | 已落地。筛选标记和时间定位标记可并存、可分别移除。 | `TimelineContextMarkerBar.swift`、`TimelineModel.swift` |
 | 编辑页日期/时间选择 | 代码已落地。日期和时间由局部 `.popover` 打开系统 `DatePicker`，即时回写 `occurredAt`；时间 popover 与即时回写仍缺窄测试覆盖。 | `MomentEditorView.swift`、`DateTimePopovers.swift` |

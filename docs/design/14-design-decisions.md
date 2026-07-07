@@ -21,7 +21,7 @@
 ## ADR-002 导航：集中式 `AppRouter` 路由 model
 
 - **状态**：已采纳
-- **决策**：跨页导航意图（首页 push 栈、根级 sheet、覆盖层、应用锁）集中到一个 `@MainActor @Observable` 的 `AppRouter`，Environment 注入；页面局部状态（首页定位/筛选）不进 Router。
+- **决策**：跨页导航意图（首页 push 栈、根级 sheet、应用锁）集中到一个 `@MainActor @Observable` 的 `AppRouter`，Environment 注入；页面局部状态（首页定位/筛选/热力图展开）不进 Router。
 - **背景**：单页 + 多模态层的 App，需要可深链、可状态恢复、导航意图集中可推理。
 - **备选与否决**：
   - **分散 `.sheet(item:)` / `@State`（就近驱动）**：最简；否决理由——深链、"返回到指定层级"、状态恢复难实现，导航状态散落难追踪。（注：叶子级弹层仍可局部驱动，见 ADR-003 的层叠协作说明。）
@@ -37,7 +37,7 @@
 - **决策**：**两种本质不同的浮层层级不可混用**——
   1. **任务卡片栈（承接完整任务）**：用系统 `.sheet`（page sheet），**背景下沉、上一层缩小、进入层级栈**，由 Router 的 `.sheet(item:)` 驱动；**卡片层叠下沉是系统默认行为**（sheet 上再 present sheet 即自动层叠），不手写动画、不引第三方库。成员：新建/编辑、**单条预览（弹出阅读卡片，见 ADR-007）**、设置及其子页、Pro 权益、新建标签。
   2. **就地选择层（承接条件/字段调整，不入任务卡片栈）**：`FilterPanelView` 是首页就地筛选 half-sheet；`MoodPickerView`、`TagPickerView`、`DatePickerSheetView`、`TimePickerSheetView` 是编辑字段就近浮窗。筛选 half-sheet 不 push、不进 `AppRouter.rootSheet`，选择即时生效且不自动关闭；字段 popover 锚定触发元素、带指向尖角、尺寸自适应，跨设备保持浮窗形态（见 ADR-006）。
-  - `.fullScreenCover` 仅用于图片查看器与隐私锁（无层叠语义）；覆盖层仅用于年度热力图。
+  - `.fullScreenCover` 仅用于图片查看器与隐私锁（无层叠语义）；年度热力图属于首页顶部上下文区，不入任务卡片栈，也不作为独立漂浮层。
   - **层叠与集中 Router 协作**：任务卡片栈第一层绑 `router.rootSheet`；第二/三层（编辑器→Paywall、设置子页→新建标签）由该 sheet 的局部子状态驱动其 `.sheet(item:)`，呈现层叠由系统完成。**就地选择层不进路由栈、不由 `rootSheet` 驱动**，由触发处的局部状态驱动。
 - **备选与否决**：
   - **第三方 sheet 库（类 `wolt_modal_sheet` 的 Swift 实现 / FittedSheets）**：否决理由——只有"同一 sheet 内多步骤切换 + 高度过渡动画"才需要，本 App 用不上，徒增依赖。

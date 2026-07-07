@@ -8,7 +8,7 @@
 
 ```text
 Home Timeline（唯一一级页面）
-├── 顶部左：日历方块图标 → 年度心情热力图（覆盖层，非独立一级页）
+├── 顶部左：日历方块图标 → 年度心情热力图（导航栏下方主页上下文区，非独立一级页）
 ├── 顶部中：标题「时刻」→ 滚到顶为大标题(纯场景标识,不可点)；上滑折叠为收起态「时刻 ⌄」，收起态才是标签/心情筛选入口
 ├── 顶部右：六边形图标 → 设置 sheet
 │     ├── Pro 订阅（含核销码 / 恢复购买）
@@ -32,7 +32,7 @@ Home Timeline（唯一一级页面）
 flowchart TD
     Root[TimelineHomeView 根页面] -->|点击悬浮新建按钮| Editor[MomentEditorView 任务卡片sheet]
     Root -->|点击时间轴卡片| Preview[MomentPreviewView 弹出阅读卡片·任务卡片]
-    Root -->|点击顶部左侧日历图标| Heatmap[YearHeatmapView 覆盖层]
+    Root -->|点击顶部左侧日历图标| Heatmap[YearHeatmapView 主页顶部上下文区]
     Root -->|点击收起态标题 时刻⌄（大标题态不可点）| Filter[FilterPanelView 就地筛选半屏sheet·不入任务卡片栈]
     Root -->|点击顶部右侧六边形图标| Settings[SettingsSheetView]
 
@@ -66,7 +66,7 @@ flowchart TD
 - **两类本质不同的浮层层级（公理 4）**：**任务卡片栈**（承接完整任务：新建/编辑、单条预览、设置及子页、Pro 权益、新建标签）用系统 `.sheet`（page sheet），**背景下沉、上一层缩小、进入层级栈**，由集中 `AppRouter` 的 `.sheet(item:)` 驱动；`MomentEditorView`、`SettingsSheetView`、`ProPaywallView` 各自内含独立 `NavigationStack` 承载「取消/保存」「‹设置返回」顶栏 `[真机确认交互 + 设计决策呈现]`。
 - **卡片层叠下沉是系统默认行为**：sheet 之上再 present sheet（如 编辑器→Paywall、设置子页→新建标签），系统自动令底层卡片下沉缩小变暗、逐层关闭逐层浮回，不手写动画、不引第三方库（业界称 Stacked Sheets / Cascading Page Sheets）`[设计决策]`。
 - `MomentPreviewView` = **弹出的阅读卡片（任务卡片，进卡片栈），不是 push 页面跳转**；关闭回到时间轴原滚动位置 `[观测确认]`（无独立截图，据公理产品逻辑推导，见 ADR-007）。`TrashView` 已定：挂设置「分组卡片 A」，与「标签」同级。
-- `YearHeatmapView` 是 `TimelineHomeView` 之上的覆盖层（ZStack overlay，非模态、非 sheet），背景半透明，X 收起并保留时间轴状态 `[真机确认 + 设计决策呈现机制]`。
+- `YearHeatmapView` 是 `TimelineHomeView` 导航栏下方的主页顶部上下文区（非模态、非 sheet、不入任务卡片栈），展开/收起不自动改变时间轴位置；点月/点日才写入时间定位 anchor，X 收起并保留时间轴状态 `[真机确认 + 设计决策呈现机制]`。
 - `FilterPanelView` 是首页上的**就地筛选半屏 sheet**：从收起态标题/筛选入口打开，覆盖在主页之上但不进入任务卡片栈，不 push、不进 `AppRouter.rootSheet`；点选条件即时作用于首页时间轴、上下文标记和热力图口径，sheet 不因单次选择自动关闭，用户通过「完成」或系统下滑手势关闭 `[交互模型 v2 修订，见 14-design-decisions.md ADR-006]`。
 - `MoodPickerView`、`TagPickerView`、`DatePickerSheetView`、`TimePickerSheetView` 这类编辑页字段选择：统一为**就近浮窗**——**锚定触发元素、带指向尖角、尺寸自适应、背景不下沉、不缩小、不进层级栈**；**跨设备都保持锚定浮窗形态，iPhone 不降级为下沉的半高 sheet** `[真机确认交互 + 观测确认 + 设计决策呈现，见 14-design-decisions.md ADR-006]`。
 - `ImageViewerView` 用 `.fullScreenCover`（沉浸全屏、无层叠语义）；`PrivacyLockView` 是应用级全屏遮罩，无法手势关闭，详见《10-security-privacy.md》。
