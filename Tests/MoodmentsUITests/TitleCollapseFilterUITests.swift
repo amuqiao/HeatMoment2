@@ -6,11 +6,11 @@ import XCTest
 /// `docs/design/14-design-decisions.md` ADR-006 `[AMENDED v2]`）打开 `FilterPanelView`。
 ///
 /// `FilterPanelView` 落地真实内容（旧占位文案「筛选 · 阶段5」已失效），断言用真实面板的
-/// 心情候选行（`filterMoodOption-<rawValue>`）与标签「新增标签」入口（`filterAddTagButton`）。
+/// 心情候选 chip（`filterMoodOption-<rawValue>`）与标签 chip（`filterTagOption-*`）。
 final class TitleCollapseFilterUITests: XCTestCase {
     func testExpandedTitleTapDoesNotOpenFilter() {
         let app = XCUIApplication()
-        app.launchArguments = ["-uiTestReset"]   // 隔离内存容器，空态展开态可复现
+        app.launchArguments = ["-uiTestReset"]  // 隔离内存容器，空态展开态可复现
         app.launch()
 
         let expandedTitle = app.staticTexts["timelineExpandedTitle"]
@@ -23,7 +23,7 @@ final class TitleCollapseFilterUITests: XCTestCase {
 
     func testCollapsedTitleTapOpensFilterSheet() {
         let app = XCUIApplication()
-        app.launchArguments = ["-uiTestSeedMoments"]   // 预置足量记录，使列表可滚动、标题可折叠
+        app.launchArguments = ["-uiTestSeedMoments"]  // 预置足量记录，使列表可滚动、标题可折叠
         app.launch()
 
         collapseTitleAndOpenFilter(app)
@@ -32,55 +32,40 @@ final class TitleCollapseFilterUITests: XCTestCase {
         XCTAssertTrue(app.buttons["filterMoodOption-1"].waitForExistence(timeout: 5))
     }
 
-    /// 「新增标签子级 sheet」建完自动选中可筛（见 04 §4.2「新增标签子级 sheet」——本次交互模型 v2
-    /// 新增的核心行为；多标签 AND 组合语义本身不变、由单元测试 `MultiTagFilterTests` 覆盖）：
-    /// 在筛选 sheet 内点「+ 新增标签」→ 第二层 `TagCreateSheetView` 建一个种子里不存在的新标签
-    /// →「旅行」自动并入 `activeFilter.tagIDs` 并**即时生效**（时间轴出现 `#旅行` 筛选上下文标记
-    /// + 命中 0 条进入筛选空态）。
-    ///
-    /// 说明：新标签自动加入筛选后列表变空、标题去折叠 → 承载筛选 sheet 的收起态入口卸载，sheet
-    /// 随之自动收起（与旧就近浮窗遇列表大改自动收起同理）；`dismissFilterSheet` 做「仍在则显式
-    /// 收起」的兼容，之后断言 sheet 之下（此前被模态遮挡）的时间轴结果，稳定不依赖某一种收起时序。
-    func testAddTagFromFilterSheetAutoSelectsForFiltering() {
+    /// 筛选 sheet 只负责选择已有条件，不提供标签新增入口；已有标签点选仍即时写入筛选条件。
+    func testFilterSheetHidesTagCreateEntryAndExistingTagStillFilters() {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTestSeedMoments"]
         app.launch()
 
         collapseTitleAndOpenFilter(app)
 
-        // 「+ 新增标签」→ 第二层新建标签 sheet。
-        let addTagButton = app.buttons["filterAddTagButton"]
-        XCTAssertTrue(addTagButton.waitForExistence(timeout: 5))
-        addTagButton.tap()
+        XCTAssertFalse(app.buttons["filterAddTagButton"].exists, "筛选 sheet 不应暴露标签新增入口")
 
-        let nameField = app.textFields["tagCreateNameField"]
-        XCTAssertTrue(nameField.waitForExistence(timeout: 5))
-        nameField.tap()
-        nameField.typeText("旅行")   // 预置标签为 工作/生活/健康，不撞名；种子记录均未挂标签
-        app.buttons["tagCreateSaveButton"].tap()
+        let workTagOption = app.buttons["filterTagOption-工作"]
+        XCTAssertTrue(workTagOption.waitForExistence(timeout: 5))
+        workTagOption.tap()
 
         dismissFilterSheet(app)
 
-        // 出现「#旅行」筛选上下文标记 == 新标签已自动加入筛选条件；进入筛选空态 == 已即时生效可筛。
-        let travelMarker = app.buttons
-            .matching(NSPredicate(format: "label CONTAINS %@", "#旅行"))
+        let workMarker = app.buttons
+            .matching(NSPredicate(format: "label CONTAINS %@", "#工作"))
             .firstMatch
         XCTAssertTrue(
-            travelMarker.waitForExistence(timeout: 5),
-            "新建标签应自动加入筛选条件（出现 #旅行 上下文标记）"
+            workMarker.waitForExistence(timeout: 5),
+            "选择已有标签应立即写入筛选条件（出现 #工作 上下文标记）"
         )
         XCTAssertTrue(
             app.staticTexts["timelineFilteredEmptyState"].waitForExistence(timeout: 5),
-            "筛选新建标签（种子无该标签）应命中 0 条、进入筛选空态（即时生效可筛）"
+            "种子记录均未挂标签，筛选工作标签应命中 0 条、进入筛选空态"
         )
     }
 
-    /// 收起筛选半屏 sheet：点「完成」（`filterDoneButton`）；若已自动收起（如筛选致列表变空、
-    /// 标题去折叠使入口卸载）则直接跳过，不视为失败。sheet 是模态，收起后其下的时间轴才重新
-    /// 进入无障碍树可被断言。
+    /// 收起筛选半屏 sheet：点「完成」（`filterDoneButton`）。点选条件后 sheet 必须仍保持打开，
+    /// 这里找不到完成按钮即视为“点选后自动关闭”的回归。
     private func dismissFilterSheet(_ app: XCUIApplication) {
         let doneButton = app.buttons["filterDoneButton"]
-        guard doneButton.waitForExistence(timeout: 5) else { return }
+        XCTAssertTrue(doneButton.waitForExistence(timeout: 5), "筛选 sheet 点选条件后不应自动关闭")
         doneButton.tap()
     }
 

@@ -4,87 +4,116 @@ import SwiftUI
 /// 标签/心情筛选面板（见 `docs/design/04-screen-specs.md` §4.2）：从首页收起态标题
 /// 「时刻 ⌄」升起的**半屏 bottom sheet**（交互模型 v2 修订，见 ADR-006 `[AMENDED v2]`——
 /// 筛选从就近浮窗 popover 解耦为 `.presentationDetents([.medium, .large])` 的 sheet，因其
-/// 要同时承载心情单选 + 标签多选 + 新增标签入口，条目多、popover 里会拥挤）。呈现容器改变，
-/// 但筛选其余性质不变：**不进 `AppRouter`**、由触发处局部 `@State` 驱动、就地即时生效。
+/// 要同时承载心情单选 + 标签多选，popover 里会拥挤）。呈现容器改变，但筛选其余性质不变：
+/// **不进 `AppRouter`**、由触发处局部 `@State` 驱动、就地即时生效。
 ///
 /// **筛选组合逻辑**（已裁决，见 04 §4.2、`docs/design/13-open-questions.md` #19）：标签
 /// **多选**、彼此 **AND**（交集）；心情**单选**；标签维度与心情维度之间也是 AND。
 /// 每次点选**即时更新** `activeFilter`（就地生效，无「确认」按钮）；「完成」仅收起 sheet、
-/// 不做提交。标签区末尾「+ 新增标签」唤起 `TagCreateSheetView` 第二层 sheet，创建成功后把
-/// 新标签 id 自动并入 `activeFilter.tagIDs`（立即可筛）。
+/// 不做提交。筛选面板只选择已有标签；新增、重命名、删除标签归属设置页 `TagManageView`。
 ///
-/// **布局取舍（标签区在前）**：把「标签」区放在「心情」区之前——半屏 `.medium` detent 下
-/// `List` 是惰性渲染，靠后的行未滚入视口时不入无障碍树。既有 UI 验收会在半高 sheet 内直接点
-/// `filterTagOption-工作`（TagManage）与 `filterMoodOption-1`（LocateFilter/TitleCollapse），
-/// 标签区（默认 3 个预置标签）在前可让二者都落在首屏可见/可命中范围内，避免依赖 sheet 展开。
+/// **布局取舍（网格 chips）**：标签区改为 `LazyVGrid` 自适应网格，避免 bottom sheet 被
+/// 单行 `List` 撑得过长；心情同样用网格，并显式提供「全部心情」入口，半屏下仍能直接完成
+/// 常用筛选。
 struct FilterPanelView: View {
     @Binding var activeFilter: FilterCondition?
 
     @Environment(ThemeManager.self) private var theme
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
     @Query(sort: \Tag.createdAt) private var tags: [Tag]
-
-    @State private var isAddTagPresented = false
 
     private var selectedTagIDs: Set<UUID> { activeFilter?.tagIDs ?? [] }
     private var selectedMood: Mood? { activeFilter?.mood }
 
     var body: some View {
         NavigationStack {
-            List {
-                Section("标签") {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 22) {
+                    filterSectionTitle("标签")
+
                     if tags.isEmpty {
-                        Text("还没有标签，点下方「新增标签」创建一个吧")
+                        Text("还没有标签")
                             .font(AppTypography.caption)
                             .foregroundStyle(theme.bubbleBodyText)
                             .accessibilityIdentifier("filterNoTagsHint")
                     } else {
-                        ForEach(tags) { tag in
-                            tagRow(tag)
+                        LazyVGrid(columns: tagGridColumns, alignment: .leading, spacing: 10) {
+                            ForEach(tags) { tag in
+                                tagChip(tag)
+                            }
                         }
                     }
-                    addTagButton
-                }
 
-                Section("心情") {
-                    ForEach(Mood.allCases) { mood in
-                        moodRow(mood)
+                    filterSectionTitle("心情")
+
+                    LazyVGrid(columns: moodGridColumns, alignment: .leading, spacing: 10) {
+                        allMoodChip
+                        ForEach(Mood.allCases) { mood in
+                            moodChip(mood)
+                        }
                     }
                 }
+                .padding(.horizontal, 20)
+                .padding(.top, 18)
+                .padding(.bottom, 28)
             }
-            .listStyle(.insetGrouped)
+            .scrollContentBackground(.hidden)
+            .background(theme.sheetBackground.ignoresSafeArea())
             .navigationTitle("筛选")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("清除全部") {
+                        activeFilter = nil
+                    }
+                    .disabled(activeFilter?.isEmpty ?? true)
+                    .accessibilityIdentifier("filterClearButton")
+                }
+
                 ToolbarItem(placement: .confirmationAction) {
                     Button("完成") { dismiss() }
                         .accessibilityIdentifier("filterDoneButton")
                 }
             }
-            .sheet(isPresented: $isAddTagPresented) {
-                // 第二层 sheet：新建标签任务卡片，复用编辑器/标签管理同一实现。创建成功回填
-                // `(id, _)` 后把新标签 id 并入筛选条件（立即可筛，无需再手动勾选）。
-                TagCreateSheetView(modelContainer: modelContext.container) { id, _ in
-                    addTagToFilter(id)
-                }
-            }
         }
     }
 
-    private func tagRow(_ tag: Tag) -> some View {
+    private var tagGridColumns: [GridItem] {
+        [GridItem(.adaptive(minimum: 116), spacing: 10, alignment: .leading)]
+    }
+
+    private var moodGridColumns: [GridItem] {
+        [GridItem(.adaptive(minimum: 112), spacing: 10, alignment: .leading)]
+    }
+
+    private func filterSectionTitle(_ title: String) -> some View {
+        Text(title)
+            .font(AppTypography.cardTitle)
+            .foregroundStyle(theme.primaryText)
+    }
+
+    private func tagChip(_ tag: Tag) -> some View {
         let isSelected = selectedTagIDs.contains(tag.id)
         return Button {
             toggleTag(tag.id)
         } label: {
-            HStack {
+            HStack(spacing: 6) {
                 Text("#\(tag.name)")
-                    .foregroundStyle(theme.primaryText)
-                Spacer()
+                    .font(AppTypography.caption)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.9)
+
                 if isSelected {
                     Image(systemName: "checkmark")
-                        .foregroundStyle(theme.accent)
+                        .font(.caption.weight(.semibold))
                 }
+            }
+            .foregroundStyle(isSelected ? theme.sheetBackground : theme.primaryText)
+            .frame(maxWidth: .infinity, minHeight: 44)
+            .padding(.horizontal, 10)
+            .background {
+                Capsule()
+                    .fill(isSelected ? theme.accent : theme.chipFill)
             }
             .contentShape(Rectangle())
         }
@@ -94,33 +123,60 @@ struct FilterPanelView: View {
         .accessibilityValue(Text(isSelected ? "已选中" : ""))
     }
 
-    private var addTagButton: some View {
-        Button {
-            isAddTagPresented = true
+    private var allMoodChip: some View {
+        let isSelected = selectedMood == nil
+        return Button {
+            clearMoodFilter()
         } label: {
-            Label("新增标签", systemImage: "plus")
-                .foregroundStyle(theme.accent)
-                .contentShape(Rectangle())
+            HStack(spacing: 6) {
+                Text("全部心情")
+                    .font(AppTypography.caption)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.9)
+
+                if isSelected {
+                    Image(systemName: "checkmark")
+                        .font(.caption.weight(.semibold))
+                }
+            }
+            .foregroundStyle(isSelected ? theme.sheetBackground : theme.primaryText)
+            .frame(maxWidth: .infinity, minHeight: 44)
+            .padding(.horizontal, 10)
+            .background {
+                Capsule()
+                    .fill(isSelected ? theme.accent : theme.chipFill)
+            }
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityIdentifier("filterAddTagButton")
+        .accessibilityIdentifier("filterMoodOption-all")
         .accessibilityAddTraits(.isButton)
+        .accessibilityValue(Text(isSelected ? "已选中" : ""))
     }
 
-    private func moodRow(_ mood: Mood) -> some View {
+    private func moodChip(_ mood: Mood) -> some View {
         let isSelected = selectedMood == mood
         return Button {
             toggleMood(mood)
         } label: {
-            HStack {
+            HStack(spacing: 6) {
                 Text(mood.emoji)
                 Text(mood.displayName)
-                    .foregroundStyle(theme.primaryText)
-                Spacer()
+                    .font(AppTypography.caption)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.9)
+
                 if isSelected {
                     Image(systemName: "checkmark")
-                        .foregroundStyle(theme.accent)
+                        .font(.caption.weight(.semibold))
                 }
+            }
+            .foregroundStyle(isSelected ? theme.sheetBackground : theme.primaryText)
+            .frame(maxWidth: .infinity, minHeight: 44)
+            .padding(.horizontal, 10)
+            .background {
+                Capsule()
+                    .fill(isSelected ? theme.accent : theme.chipFill)
             }
             .contentShape(Rectangle())
         }
@@ -141,17 +197,17 @@ struct FilterPanelView: View {
         activeFilter = updated.isEmpty ? nil : updated
     }
 
+    /// 显式回到「全部心情」：只清除心情维度，保留已选标签。
+    private func clearMoodFilter() {
+        guard var updated = activeFilter else { return }
+        updated.mood = nil
+        activeFilter = updated.isEmpty ? nil : updated
+    }
+
     /// 心情单选：点已选项取消（回到未选心情），点其它项切换选中（同一时间至多一个）。
     private func toggleMood(_ mood: Mood) {
         var updated = activeFilter ?? FilterCondition()
         updated.mood = (updated.mood == mood) ? nil : mood
-        activeFilter = updated.isEmpty ? nil : updated
-    }
-
-    /// 新建标签成功回填：把新标签 id 并入当前筛选条件，立即可筛（见 04 §4.2「新增标签子级 sheet」）。
-    private func addTagToFilter(_ tagID: UUID) {
-        var updated = activeFilter ?? FilterCondition()
-        updated.tagIDs.insert(tagID)
         activeFilter = updated.isEmpty ? nil : updated
     }
 }

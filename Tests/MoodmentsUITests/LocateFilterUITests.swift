@@ -17,7 +17,8 @@ final class LocateFilterUITests: XCTestCase {
         app.launchArguments = ["-uiTestSeedMoments"]
         app.launch()
 
-        let seededRowQuery = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "测试时刻 1"))
+        let seededRowQuery = app.buttons.matching(
+            NSPredicate(format: "label CONTAINS %@", "测试时刻 1"))
         XCTAssertTrue(seededRowQuery.firstMatch.waitForExistence(timeout: 10))
 
         // 与 `TitleCollapseFilterUITests` 同法：先滑动折叠标题，收起态「时刻 ⌄」才是筛选入口。
@@ -42,7 +43,8 @@ final class LocateFilterUITests: XCTestCase {
             app.staticTexts["timelineFilteredEmptyState"].waitForExistence(timeout: 5),
             "筛选到种子里不存在的心情应展示筛选空态"
         )
-        let moodMarker = app.descendants(matching: .any).matching(identifier: "contextMarkerMood").firstMatch
+        let moodMarker = app.descendants(matching: .any).matching(identifier: "contextMarkerMood")
+            .firstMatch
         XCTAssertTrue(moodMarker.waitForExistence(timeout: 5), "筛选生效后应出现心情筛选上下文标记")
 
         // `contextMarkerMood` 由 `.accessibilityElement(children: .combine)` 合并文案与移除按钮，
@@ -69,7 +71,8 @@ final class LocateFilterUITests: XCTestCase {
         app.launchArguments = ["-uiTestSeedMoments"]
         app.launch()
 
-        let seededRow = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "测试时刻 1")).firstMatch
+        let seededRow = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "测试时刻 1"))
+            .firstMatch
         XCTAssertTrue(seededRow.waitForExistence(timeout: 10))
 
         let heatmapButton = app.buttons["年度心情热力图"]
@@ -87,7 +90,8 @@ final class LocateFilterUITests: XCTestCase {
 
         app.buttons["heatmapCloseButton"].tap()
 
-        let timeMarker = app.descendants(matching: .any).matching(identifier: "contextMarkerTime").firstMatch
+        let timeMarker = app.descendants(matching: .any).matching(identifier: "contextMarkerTime")
+            .firstMatch
         XCTAssertTrue(timeMarker.waitForExistence(timeout: 5), "点选有记录的日期格后应出现时间上下文标记")
     }
 
@@ -97,7 +101,8 @@ final class LocateFilterUITests: XCTestCase {
         app.launchArguments = ["-uiTestSeedMoments"]
         app.launch()
 
-        let seededRow = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "测试时刻 1")).firstMatch
+        let seededRow = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "测试时刻 1"))
+            .firstMatch
         XCTAssertTrue(seededRow.waitForExistence(timeout: 10))
 
         let heatmapButton = app.buttons["年度心情热力图"]
@@ -114,7 +119,8 @@ final class LocateFilterUITests: XCTestCase {
             "无记录月份不应提供可点击月份定位入口"
         )
         XCTAssertTrue(
-            app.buttons["heatmapMonthLabel-\(currentYear)-\(currentMonth)"].waitForExistence(timeout: 5),
+            app.buttons["heatmapMonthLabel-\(currentYear)-\(currentMonth)"].waitForExistence(
+                timeout: 5),
             "有记录月份应提供可点击月份定位入口"
         )
 
@@ -126,7 +132,8 @@ final class LocateFilterUITests: XCTestCase {
 
         app.buttons["heatmapCloseButton"].tap()
 
-        let timeMarker = app.descendants(matching: .any).matching(identifier: "contextMarkerTime").firstMatch
+        let timeMarker = app.descendants(matching: .any).matching(identifier: "contextMarkerTime")
+            .firstMatch
         XCTAssertTrue(timeMarker.waitForExistence(timeout: 5), "点选月份后应出现时间上下文标记")
         XCTAssertTrue(
             timeMarker.label.contains("月"),
@@ -140,7 +147,7 @@ final class LocateFilterUITests: XCTestCase {
     /// 其下的时间轴才重新进入无障碍树可被断言（见调用处说明）。
     private func dismissFilterSheet(_ app: XCUIApplication) {
         let doneButton = app.buttons["filterDoneButton"]
-        guard doneButton.waitForExistence(timeout: 5) else { return }
+        XCTAssertTrue(doneButton.waitForExistence(timeout: 5), "筛选 sheet 点选条件后不应自动关闭")
         doneButton.tap()
     }
 

@@ -36,10 +36,9 @@ flowchart TD
     Root -->|点击收起态标题 时刻⌄（大标题态不可点）| Filter[FilterPanelView 就地筛选半屏sheet·不入任务卡片栈]
     Root -->|点击顶部右侧六边形图标| Settings[SettingsSheetView]
 
-    Filter -->|+新增标签| TagCreate
     Editor -->|情绪行| MoodPicker[MoodPickerView 就近浮窗·锚定不下沉]
     Editor -->|标签行| TagPicker[TagPickerView 就近浮窗·锚定不下沉]
-    TagPicker -->|+添加| TagCreate[TagCreateSheetView .sheet自适应高度detent，居中卡片仅为视觉外观]
+    TagManage -->|新建标签 +| TagCreate[TagCreateSheetView .sheet自适应高度detent，居中卡片仅为视觉外观]
     Editor -->|日期chip| DatePicker[DatePickerSheetView 就近浮窗·锚定不下沉]
     Editor -->|时间chip| TimePicker[TimePickerSheetView 就近浮窗·锚定不下沉]
     Editor -->|保存/达到免费上限| Paywall[ProPaywallView sheet]
@@ -52,7 +51,6 @@ flowchart TD
     Settings -->|标签 行| TagManage[TagManageView push-in-sheet]
     Settings -->|关于心绪日记| About[AboutView push-in-sheet]
     Settings -->|外观主题 行| Appearance[AppearanceThemeView push-in-sheet]
-    TagManage -->|新建标签 +| TagCreate
     Paywall -->|核销码| SystemRedeem[系统兑换码弹层]
     Paywall -->|恢复购买| Paywall
 
@@ -67,7 +65,7 @@ flowchart TD
 - **卡片层叠下沉是系统默认行为**：sheet 之上再 present sheet（如 编辑器→Paywall、设置子页→新建标签），系统自动令底层卡片下沉缩小变暗、逐层关闭逐层浮回，不手写动画、不引第三方库（业界称 Stacked Sheets / Cascading Page Sheets）`[设计决策]`。
 - `MomentPreviewView` = **弹出的阅读卡片（任务卡片，进卡片栈），不是 push 页面跳转**；关闭回到时间轴原滚动位置 `[观测确认]`（无独立截图，据公理产品逻辑推导，见 ADR-007）。`TrashView` 已定：挂设置「分组卡片 A」，与「标签」同级。
 - `YearHeatmapView` 是 `TimelineHomeView` 导航栏下方的主页顶部上下文区（非模态、非 sheet、不入任务卡片栈），展开/收起不自动改变时间轴位置；点月/点日才写入时间定位 anchor，X 收起并保留时间轴状态 `[真机确认 + 设计决策呈现机制]`。
-- `FilterPanelView` 是首页上的**就地筛选半屏 sheet**：从收起态标题/筛选入口打开，覆盖在主页之上但不进入任务卡片栈，不 push、不进 `AppRouter.rootSheet`；点选条件即时作用于首页时间轴、上下文标记和热力图口径，sheet 不因单次选择自动关闭，用户通过「完成」或系统下滑手势关闭 `[交互模型 v2 修订，见 14-design-decisions.md ADR-006]`。
+- `FilterPanelView` 是首页上的**就地筛选半屏 sheet**：从收起态标题/筛选入口打开，覆盖在主页之上但不进入任务卡片栈，不 push、不进 `AppRouter.rootSheet`；点选条件即时作用于首页时间轴、上下文标记和热力图口径，sheet 不因单次选择自动关闭，用户通过「完成」或系统下滑手势关闭。筛选面板只选择已有标签，不提供新增、重命名、删除入口；标签生命周期管理归属设置页 `TagManageView` `[交互模型 v2 修订，见 14-design-decisions.md ADR-006]`。
 - `MoodPickerView`、`TagPickerView`、`DatePickerSheetView`、`TimePickerSheetView` 这类编辑页字段选择：统一为**就近浮窗**——**锚定触发元素、带指向尖角、尺寸自适应、背景不下沉、不缩小、不进层级栈**；**跨设备都保持锚定浮窗形态，iPhone 不降级为下沉的半高 sheet** `[真机确认交互 + 观测确认 + 设计决策呈现，见 14-design-decisions.md ADR-006]`。
 - `ImageViewerView` 用 `.fullScreenCover`（沉浸全屏、无层叠语义）；`PrivacyLockView` 是应用级全屏遮罩，无法手势关闭，详见《10-security-privacy.md》。
 

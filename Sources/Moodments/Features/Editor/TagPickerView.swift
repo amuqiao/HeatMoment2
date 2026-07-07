@@ -1,15 +1,13 @@
 import SwiftData
 import SwiftUI
 
-/// 标签选择就近浮窗（见 `docs/design/04-screen-specs.md` §4.6）：已有标签列表 + 末尾
-/// 「+添加」入口；点已有标签**多选**（点选切换、不关闭浮窗，由调用方保持 `isPresented`）；
-/// 点「+添加」交由调用方处理（额度校验 + 打开 `TagCreateSheetView`，属任务卡片栈的第二层，
-/// 见 08-architecture.md §2.2）。
+/// 标签选择就近浮窗（见 `docs/design/04-screen-specs.md` §4.6）：只展示已有标签；
+/// 点已有标签**多选**（点选切换、不关闭浮窗，由调用方保持 `isPresented`）。
+/// 标签新增、重命名、删除归属设置页 `TagManageView`，本浮窗只消费既有标签。
 struct TagPickerView: View {
     let modelContainer: ModelContainer
     let selectedTagIDs: [UUID]
     let onToggle: (TagSnapshot) -> Void
-    let onRequestCreate: () -> Void
 
     @Environment(ThemeManager.self) private var theme
     @Environment(ErrorPresenter.self) private var errorPresenter
@@ -44,21 +42,14 @@ struct TagPickerView: View {
                 .accessibilityValue(Text(isSelected ? "已选中" : ""))
             }
 
-            if !tags.isEmpty {
-                Divider()
-            }
-
-            Button {
-                onRequestCreate()
-            } label: {
-                Label("添加", systemImage: "plus")
-                    .foregroundStyle(theme.accent)
+            if tags.isEmpty {
+                Text("还没有标签")
+                    .font(AppTypography.caption)
+                    .foregroundStyle(theme.bubbleBodyText)
                     .padding(.horizontal, 16)
                     .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                    .contentShape(Rectangle())
+                    .accessibilityIdentifier("tagPickerEmptyState")
             }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("tagCreateEntryButton")
         }
         // 用固定 `width` 而非 `minWidth`：见 `MoodPickerView` 同类注释。
         .frame(width: 240)

@@ -68,12 +68,9 @@ TimelineDateColumn
 TimelineHomeView.timelineFilterSheet
   -> .sheet(isPresented:)
       -> FilterPanelView(activeFilter:)
-          -> optional TagCreateSheetView
 ```
 
-`FilterPanelView` 使用 `NavigationStack + List`。标签支持多选 AND，心情单选，点选即时写入 `activeFilter`；“完成”只负责收起 sheet，选择条件不会自动关闭 sheet。标签区末尾有“新增标签”入口，打开 `TagCreateSheetView` 第二层 sheet；创建成功后把新标签 id 并入当前筛选条件。
-
-当前筛选 sheet 内没有显式“全部心情”行，也没有显式“清除全部”按钮。用户可以点已选心情取消心情条件、点已选标签取消单个标签条件，或通过首页上下文标记移除条件。
+`FilterPanelView` 使用 `NavigationStack + ScrollView + LazyVGrid`。标签支持多选 AND，心情单选，显式提供“全部心情”；点选即时写入 `activeFilter`；“完成”只负责收起 sheet，选择条件不会自动关闭 sheet；“清除全部”会一次性移除心情和标签筛选。筛选 sheet 只选择已有标签，不提供新增、重命名、删除入口，也不会打开 `TagCreateSheetView` 第二层 sheet。
 
 `TimelineContextMarkerBar` 同时显示筛选标记和时间定位标记。移除筛选标记改变 `activeFilter`，移除时间标记清空 `heatmapFocusDate` 与 `heatmapAnchorGranularity`。日 anchor 显示为 `M月d日`，月 anchor 显示为 `M月`。
 
@@ -82,7 +79,7 @@ TimelineHomeView.timelineFilterSheet
 `MomentEditorView` 是任务卡片栈第一层。情绪、标签、日期和时间选择当前由 SwiftUI 代码实现为局部选择：
 
 - 情绪行打开 `MoodPickerView`。
-- 标签行打开 `TagPickerView`。
+- 标签行打开 `TagPickerView`，只选择已有标签，不提供新增入口。
 - 顶栏日期 chip 打开 `DatePickerSheetView`。
 - 顶栏时间 chip 打开 `TimePickerSheetView`。
 - 这些选择器都由局部 `.popover` 呈现，不进入 `AppRouter`。
@@ -96,6 +93,8 @@ TimelineHomeView.timelineFilterSheet
 ## 设置与外观
 
 `SettingsSheetView` 是根级第一层 sheet，内部使用 `NavigationStack + insetGrouped List`。设置子页包括统计、标签、垃圾箱、语言、外观、关于，均在设置栈内 push；Pro 横幅使用设置内部局部 `.sheet(item:)` 打开 `ProPaywallView`。
+
+`TagManageView` 是当前标签新增、重命名、删除的唯一管理入口。右上“+”在打开 `TagCreateSheetView` 前经 `QuotaService` 做标签额度闸门，超额时打开 `ProPaywallView`；`TagCreateSheetView` 在真正创建新标签前再次复核标签额度，避免表单打开后数量变化造成越额写入。列表行点击进入重命名，左滑使用统一的系统 `.swipeActions(allowsFullSwipe: true)` 展示删除按钮并支持 full swipe。删除成功后调用 `TimelineModel.discardFilterTag` 清理当前筛选中可能残留的标签 id。
 
 当前设置页仍有左上角“关闭”按钮。由于它本身是系统 sheet，用户也可通过系统下滑关闭；这个按钮是当前实现事实。
 
@@ -122,7 +121,6 @@ TimelineHomeView.timelineFilterSheet
 
 | 漂移 | 当前事实 | 当前影响 |
 | --- | --- | --- |
-| 筛选 sheet 控件 | 当前 sheet 内没有显式“全部心情”和“清除全部”控件。 | 仍可通过点已选项或上下文标记移除条件，但筛选面板自身的重置语义不够直接。 |
 | 设置关闭按钮 | 代码当前显式提供“关闭”。 | 除系统下滑关闭外，还额外显示一个关闭路径，界面 chrome 更多。 |
 | 外观页预览 | 代码当前是 `List` 行 + 勾选。 | 主题效果主要通过文字行表达，缺少真实预览。 |
 | 背景纹理 | 已有设置轴，未驱动首页纹理渲染。 | UI 选项和实际效果不闭环。 |

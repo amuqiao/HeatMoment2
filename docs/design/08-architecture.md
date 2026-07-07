@@ -59,10 +59,10 @@ App 采用「首页为根的单 `NavigationStack` + 两类浮层 + 沉浸全屏 
 | `ProPaywallView` | 任务卡片栈（`.sheet` page sheet） | 三类触发来源共用；从编辑器/设置之上弹出时即形成第二层卡片层叠 |
 | `MomentPreviewView` | 任务卡片（弹出阅读卡片，入卡片栈） | 点卡片弹出阅读卡片，非 push；关闭回到时间轴原滚动位置 |
 | `YearHeatmapView` | 首页顶部上下文展开区（局部状态驱动，不入 Router sheet） | 导航栏下方原位展开、参与主页布局、继承主画布配色，不加全屏遮罩，非模态；展开/收起不自动改变滚动位置，点月/点日才写入时间 anchor；X 收起并保留时间轴状态 |
-| `FilterPanelView` | 首页就地筛选半屏 sheet（局部 `.sheet` + detent；不 push、不进 `AppRouter.rootSheet`、不入任务卡片栈） | 心情单选、标签多选 AND，点选即时应用，无「确认」按钮；选择后不自动关闭 |
+| `FilterPanelView` | 首页就地筛选半屏 sheet（局部 `.sheet` + detent；不 push、不进 `AppRouter.rootSheet`、不入任务卡片栈） | 心情单选、标签多选 AND，点选即时应用，无「确认」按钮；选择后不自动关闭；只选择已有标签，不承担标签 CRUD |
 | `MoodPickerView` | 就近浮窗（锚定、不下沉、不入栈；跨设备保持浮窗） | 从编辑器情绪行展开 |
-| `TagPickerView` | 就近浮窗（锚定、不下沉、不入栈；跨设备保持浮窗） | 从编辑器标签行展开，支持多选 |
-| `TagCreateSheetView` | 任务卡片栈（`.sheet` 自适应高度 detent，视觉居中卡片） | 从 `FilterPanelView`、`TagPickerView` 或 `TagManageView` 打开；筛选内打开时是首页筛选 sheet 之上的第二层 |
+| `TagPickerView` | 就近浮窗（锚定、不下沉、不入栈；跨设备保持浮窗） | 从编辑器标签行展开，支持多选；只选择已有标签，不承担标签新增 |
+| `TagCreateSheetView` | 任务卡片栈（`.sheet` 自适应高度 detent，视觉居中卡片） | 从 `TagManageView` 打开；不从首页筛选 sheet 或编辑器标签选择浮窗打开 |
 | `DatePickerSheetView` / `TimePickerSheetView` | 就近浮窗（锚定、不下沉、不入栈；跨设备保持浮窗，不降级半高 sheet） | 从编辑器顶栏 chip 打开，选后立即回填 |
 | `ImageViewerView` | `.fullScreenCover`（全屏） | 无层叠语义，沉浸浏览 + 缩放/翻页 |
 | `MoodStatsView` / `TagManageView` / `TrashView` / `AppearanceThemeView` / `AboutView` | 设置栈内 `NavigationLink` push | 设置 sheet 内部的二级页 |
@@ -70,8 +70,7 @@ App 采用「首页为根的单 `NavigationStack` + 两类浮层 + 沉浸全屏 
 
 导航拓扑（触发关系）：
 - 首页 → 编辑器（悬浮按钮 / 限额未超）、预览（点卡片）、热力图（左侧日历图标）、筛选（收起态标题「时刻 ⌄」，大标题态不可点）、设置（右侧六边形图标）。
-- 筛选面板 → 新建标签弹窗；新建成功后新标签自动加入当前筛选条件。
-- 编辑器 → 情绪/标签/日期/时间各弹层；标签选择 → 新建标签弹窗；保存或触达免费上限 → Paywall（第二层卡片层叠）。
+- 编辑器 → 情绪/标签/日期/时间各弹层；保存或触达免费上限 → Paywall（第二层卡片层叠）。
 - 预览 → 编辑器（编辑入口）、图片查看器（点图片）。
 - 设置 → Pro 横幅（Paywall）、心情统计、标签管理、垃圾箱、外观主题、关于。
 - App 生命周期：冷启动 / 回前台且面容解锁开启 → `PrivacyLockView`，验证通过后进入首页。
@@ -181,7 +180,7 @@ SwiftData（@Model 持久化 + CloudKit）/ StoreKit / LocalAuthentication
 
 **限额校验落点**：免费额度与 Pro 判定统一由 `QuotaService` / `SubscriptionService` 承担，UI 只消费「是否允许该操作」结果：
 
-- 新建第 11 篇 Moment / 添加第 4 张照片 / 新建第 4 个标签时，Service 返回「超额」→ Router 弹出 `ProPaywallView` 拦截；购买成功后放行原操作，取消则回退到操作前状态（不产生半成品数据）。
+- 新建第 11 篇 Moment / 添加第 4 张照片 / 新建第 4 个标签时，Service 返回「超额」→ Router 或当前任务卡片弹出 `ProPaywallView` 拦截；购买成功后放行原操作，取消则回退到操作前状态（不产生半成品数据）。标签新建在打开表单前校验一次，并在保存创建前复核一次，避免表单打开后标签数量变化造成越额写入。
 - 额度计数口径（含垃圾箱软删除记录计入 Moment 上限）由 `MomentRepository` 保证，与时间轴展示查询分离。
 - 限额数值唯一权威在 `06-domain-model.md`，Service 层引用而非各自硬编码。
 

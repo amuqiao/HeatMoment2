@@ -20,10 +20,10 @@
 | 时间轴阅读单元 | 已落地。每行由日期列、心情节点、气泡内容组成；三者是可分别调样式的对象，但左滑删除的视觉目标是这一整条阅读单元。位置、节点锚点和气泡尾巴几何由 `TimelineGeometry` 集中定义，方便后续移动时间轴、锚定节点和调整气泡尾巴。 | `TimelineGeometry.swift`、`TimelineViewportView.swift`、`TimelineRowView.swift`、`MoodNodeView.swift`、`BubbleCardView.swift` |
 | 时间轴连续性 | 结构归属已调整。连续轨道由 `TimelineViewportView` 的独立 `TimelineRailLayer` 绘制，不属于任何 `TimelineRowView`，也不进入可滑动阅读单元。轨道 x/top 直接来自 `TimelineGeometry`；轨道 y 下拉时保持初始顶点，上滑时随时间轴场景向上移动，底部通过 overshoot 延伸到屏幕外。滚动宿主使用 SwiftUI `List`，删除使用系统 `.swipeActions(allowsFullSwipe: true)`，支持轻扫露出按钮和继续滑动触发删除；真实 Moment 的 VoiceOver 默认动作打开预览，删除作为命名动作保留。真机视觉对齐与滑动删除位移边界仍需截图/录屏验收。 | `TimelineGeometry.swift`、`TimelineRailLayer.swift`、`TimelineViewportView.swift`、`TimelineRowView.swift`、`BubbleCardView.swift` |
 | 热力图定位 | 已落地。热力图由首页局部状态在导航栏下方原位展开，作为顶部上下文区参与主页布局；点日/点有记录的月份只写时间 anchor，不改筛选条件。选中月份用主色低透明蒙层标记。 | `TimelineHomeView.swift`、`YearHeatmapView.swift`、`HeatmapGridView.swift`、`TimelineViewportView.swift` |
-| 筛选 | 已落地。当前是首页局部半屏/大屏 `FilterPanelView` sheet，不进 `AppRouter.rootSheet`，点选即时生效且选择后不自动关闭。 | `TimelineHomeView.swift`、`FilterPanelView.swift` |
+| 筛选 | 已落地。当前是首页局部半屏/大屏 `FilterPanelView` sheet，不进 `AppRouter.rootSheet`，标签/心情以紧凑网格选择，提供“全部心情”和“清除全部”，点选即时生效且选择后不自动关闭；筛选 sheet 只选择已有标签，不提供标签新增入口。 | `TimelineHomeView.swift`、`FilterPanelView.swift` |
 | 上下文标记 | 已落地。筛选标记和时间定位标记可并存、可分别移除。 | `TimelineContextMarkerBar.swift`、`TimelineModel.swift` |
 | 编辑页日期/时间选择 | 代码已落地。日期和时间由局部 `.popover` 打开系统 `DatePicker`，即时回写 `occurredAt`；时间 popover 与即时回写仍缺窄测试覆盖。 | `MomentEditorView.swift`、`DateTimePopovers.swift` |
-| 设置流 | 已落地。设置页是第一层 sheet，子页在设置内 `NavigationStack` push；Pro 可作为设置内第二层 sheet。 | `SettingsSheetView.swift` |
+| 设置流 | 已落地。设置页是第一层 sheet，子页在设置内 `NavigationStack` push；Pro 可作为设置内第二层 sheet。标签新增、重命名、删除归属 `TagManageView`，新增入口和保存创建前都做标签额度闸门，删除使用系统 `.swipeActions(allowsFullSwipe: true)`。 | `SettingsSheetView.swift`、`TagManageView.swift` |
 | 外观设置 | 部分落地。模式、主色、背景纹理、图片展示已有 UI、内存态和持久化；`backgroundTexture` 尚未接入首页背景绘制，`imageDisplayMode` 尚未接入气泡图片展示路径。 | `AppearanceThemeView.swift`、`ThemeManager.swift`、`TimelineHomeView.swift`、`BubbleCardView.swift` |
 | 主题语义 | 已落地。主色、心情色、危险色由不同语义入口暴露，心情色和危险色不跟随主色。 | `ThemeManager.swift`、`Colors.swift` |
 

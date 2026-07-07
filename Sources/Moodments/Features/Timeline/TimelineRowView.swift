@@ -32,7 +32,7 @@ struct TimelineRowView: View {
                 onActivate: onTap
             )
         )
-        .modifier(TimelineSwipeActionsModifier(onDelete: deleteAction))
+        .modifier(TimelineDeleteSwipeActionModifier(onDelete: deleteAction))
     }
 }
 
@@ -133,21 +133,17 @@ private struct TimelineRowActivateAccessibilityModifier: ViewModifier {
 
 /// 左滑删除动作 + 无障碍替代路径（见 04-screen-specs.md §4.1：首页删除无需二次确认，
 /// 有垃圾箱兜底，见公理3）。`onDelete == nil` 时不挂行操作（引导 Moment 不可删）。
-private struct TimelineSwipeActionsModifier: ViewModifier {
+private struct TimelineDeleteSwipeActionModifier: ViewModifier {
     let onDelete: (() -> Void)?
 
     func body(content: Content) -> some View {
         if let onDelete {
             content
-                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                    Button(role: .destructive) {
-                        onDelete()
-                    } label: {
-                        Label("删除", systemImage: "trash")
-                    }
-                    .accessibilityIdentifier("timelineSwipeDeleteButton")
-                }
-                .accessibilityAction(named: Text("删除")) { onDelete() }
+                .destructiveSwipeAction(
+                    title: "删除",
+                    accessibilityIdentifier: "timelineSwipeDeleteButton",
+                    action: onDelete
+                )
         } else {
             content
         }

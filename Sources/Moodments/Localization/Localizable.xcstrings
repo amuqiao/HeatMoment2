@@ -1784,6 +1784,23 @@
         }
       }
     },
+    "选择标签": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose Tags"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择标签"
+          }
+        }
+      }
+    },
     "添加照片": {
       "extractionState": "manual",
       "localizations": {

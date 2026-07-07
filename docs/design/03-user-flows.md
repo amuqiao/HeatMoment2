@@ -10,10 +10,7 @@ flowchart TD
     B -->|是且非Pro| P1[弹出 ProPaywallView] --> Z[返回原上下文，不打开编辑器]
     B -->|否或已是Pro| C[打开 MomentEditorView<br/>默认发生时间=当前日期时间]
     C --> D[选择情绪 MoodPickerView<br/>默认 8 项，必选]
-    C --> E[选择/新建标签 TagPickerView]
-    E -->|+添加| E1{当前标签数<br/>是否已达免费上限 3 个?}
-    E1 -->|是且非Pro| P2[弹出 ProPaywallView]
-    E1 -->|否或已是Pro| E2[TagCreateSheetView 输入名称保存]
+    C --> E[选择已有标签 TagPickerView]
     C --> F[填写标题/正文]
     C --> G[添加照片]
     G --> G1{当前 Moment 照片数<br/>是否已达免费上限 3 张?}
@@ -38,6 +35,7 @@ flowchart TD
 - 关闭未保存表单需二次确认，形式为系统 `Alert`，两个按钮「放弃编辑 / 继续编辑」（《13-open-questions.md》已裁决） `[观测确认 + 设计决策]`。
 - 保存后不在当前筛选结果内的反馈用非阻断式 Toast/Banner，不打断用户返回时间轴的路径 `[观测确认]`。
 - 发生时间 `occurredAt` 完全独立于系统写入时间，编辑器默认预填「现在」，但用户可任意改成过去或未来日期以支持补记 `[观测确认]`。
+- 标签新增、重命名、删除归属设置页 `TagManageView`；编辑器 `TagPickerView` 只消费已有标签，不在记录编辑路径中创建标签。
 
 ## 3.2 时间轴浏览
 

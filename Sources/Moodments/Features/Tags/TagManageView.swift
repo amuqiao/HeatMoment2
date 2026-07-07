@@ -14,10 +14,13 @@ struct TagManageView: View {
     @Environment(ThemeManager.self) private var theme
     @Environment(ErrorPresenter.self) private var errorPresenter
     @Environment(TimelineModel.self) private var timelineModel
+    @Environment(SubscriptionService.self) private var subscriptionService
 
     @State private var tags: [TagSnapshot] = []
     @State private var isLoaded = false
     @State private var editContext: TagEditContext?
+    @State private var paywallTrigger: PaywallTrigger?
+    @State private var isCheckingCreateQuota = false
 
     private enum TagEditContext: Identifiable {
         case create
@@ -50,10 +53,11 @@ struct TagManageView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
-                    editContext = .create
+                    handleRequestCreateTag()
                 } label: {
                     Image(systemName: "plus")
                 }
+                .disabled(isCheckingCreateQuota)
                 .accessibilityIdentifier("tagManageAddButton")
                 .accessibilityLabel(Text("新建标签"))
             }
@@ -70,6 +74,9 @@ struct TagManageView: View {
                     Task { await reload() }
                 }
             }
+        }
+        .sheet(item: $paywallTrigger) { trigger in
+            ProPaywallView(trigger: trigger)
         }
     }
 
@@ -89,7 +96,10 @@ struct TagManageView: View {
                 .foregroundStyle(theme.bubbleTitleText)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(16)
-                .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(theme.bubbleBackground))
+                .background(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous).fill(
+                        theme.bubbleBackground)
+                )
                 // 见 `MoodPickerView`/`TagPickerView`/`FilterPanelView` 同类注释：不加
                 // `contentShape` 时命中区域会退化为文字字形本身的绘制区域，padding/背景色的
                 // 空白部分点不中——这里整行都要可点（双击重命名），必须显式声明整个矩形可命中。
@@ -100,18 +110,13 @@ struct TagManageView: View {
         .listRowBackground(Color.clear)
         .accessibilityIdentifier("tagManageRow-\(tag.id.uuidString)")
         .accessibilityLabel(Text("#\(tag.name)，双击重命名"))
-        // 关闭整滑直接触发（`allowsFullSwipe: false`）：标签删除不可逆、无标签垃圾箱兜底
-        // （公理7「标签是归类不是所有权」不含标签自身生命周期恢复），需多一次点击红色删除按钮
-        // 的确认动作，降低误删概率。
-        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-            Button(role: .destructive) {
-                handleDelete(tag)
-            } label: {
-                Label("删除", systemImage: "trash")
-            }
-            .accessibilityIdentifier("tagManageDeleteButton-\(tag.id.uuidString)")
+        .destructiveSwipeAction(
+            title: "删除",
+            accessibilityIdentifier: "tagManageDeleteButton-\(tag.id.uuidString)",
+            accessibilityActionName: "删除标签"
+        ) {
+            handleDelete(tag)
         }
-        .accessibilityAction(named: Text("删除标签")) { handleDelete(tag) }
     }
 
     private func reload() async {
@@ -121,6 +126,36 @@ struct TagManageView: View {
             await errorPresenter.report(message: "标签列表加载失败，请稍后重试。", underlying: error)
         }
         isLoaded = true
+    }
+
+    /// 新增标签入口统一归属设置页。打开新建卡片前现场重查 Pro 权威状态并经
+    /// `QuotaService` 判定；超额时打开 Paywall，不进入新建标签表单。
+    private func handleRequestCreateTag() {
+        guard !isCheckingCreateQuota, editContext == nil, paywallTrigger == nil else { return }
+        isCheckingCreateQuota = true
+        Task {
+            defer { isCheckingCreateQuota = false }
+            do {
+                let repository = TagRepository(modelContainer: modelContainer)
+                let count = try await repository.totalTagCount()
+                let isPro = await subscriptionService.currentEntitlementIsPro()
+                let quotaService = QuotaService(
+                    entitlementProvider: SubscriptionEntitlementProvider(isPro: isPro)
+                )
+                switch quotaService.checkCanCreateTag(currentTagCount: count) {
+                case .allowed:
+                    if editContext == nil, paywallTrigger == nil {
+                        editContext = .create
+                    }
+                case .exceeded:
+                    if editContext == nil, paywallTrigger == nil {
+                        paywallTrigger = .quotaTag
+                    }
+                }
+            } catch {
+                await errorPresenter.report(message: "标签额度校验失败，请稍后重试。", underlying: error)
+            }
+        }
     }
 
     /// 删除只解除该标签与全部时刻的关联（`.nullify`），时刻本身的标题/正文/照片/时间/心情

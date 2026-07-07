@@ -19,21 +19,24 @@ final class QuotaBlockUITests: XCTestCase {
     }
 
     /// 标签额度：首启已默认预置 3 个标签（工作/生活/健康，占满免费额度，见 `DefaultTagSeeder`
-    /// 与阶段 3 计划决策4），编辑器标签浮窗点「+添加」应直接触发 Paywall，而非打开新建标签卡片。
+    /// 与阶段 3 计划决策4）。标签新增只归设置页标签管理；点右上「+」应直接触发 Paywall，
+    /// 而非打开新建标签卡片。
     func testFourthTagBlocked() {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTestReset"]
         app.launch()
 
-        let fab = app.buttons["新建时刻"]
-        XCTAssertTrue(fab.waitForExistence(timeout: 10))
-        fab.tap()
+        XCTAssertTrue(app.buttons["新建时刻"].waitForExistence(timeout: 10))
 
-        let tagRow = app.buttons["editorTagRow"]
-        XCTAssertTrue(tagRow.waitForExistence(timeout: 5))
-        tagRow.tap()
+        let settingsButton = app.buttons["设置"]
+        XCTAssertTrue(settingsButton.waitForExistence(timeout: 5))
+        settingsButton.tap()
 
-        let addButton = app.buttons["tagCreateEntryButton"]
+        let tagManageRow = app.buttons["settingsTagManageRow"]
+        XCTAssertTrue(tagManageRow.waitForExistence(timeout: 5))
+        tagManageRow.tap()
+
+        let addButton = app.buttons["tagManageAddButton"]
         XCTAssertTrue(addButton.waitForExistence(timeout: 5))
         addButton.tap()
 
@@ -56,13 +59,13 @@ final class QuotaBlockUITests: XCTestCase {
 
         let injectButton = app.buttons["editorInjectPhotoButton"]
         XCTAssertTrue(injectButton.waitForExistence(timeout: 5))
-        injectButton.tap()   // 注入 3 张，占满免费额度（freePhotosPerMomentLimit == 3）
+        injectButton.tap()  // 注入 3 张，占满免费额度（freePhotosPerMomentLimit == 3）
         injectButton.tap()
         injectButton.tap()
 
         let appendButton = app.buttons["editorAppendPhotoButton"]
         XCTAssertTrue(appendButton.waitForExistence(timeout: 5))
-        appendButton.tap()   // 已满额，前置闸门应直接弹 Paywall、不打开系统选择器
+        appendButton.tap()  // 已满额，前置闸门应直接弹 Paywall、不打开系统选择器
 
         XCTAssertTrue(app.navigationBars["Pro 会员"].waitForExistence(timeout: 5))
     }

@@ -37,18 +37,17 @@ private struct EditorSnapshot: Equatable {
 /// 重复定义限额数值；照片额度校验直接用 `draftPhotos.count`（草稿即完整当前状态，编辑态
 /// 载入的既有照片也计入其中，无需另外查仓库）。
 ///
-/// **Pro 放行判定**（见阶段7计划决策1、11-monetization.md §11.4）：照片/标签两处额度闸门
-/// （`checkCanAddPhoto`/`addPhoto`/`requestCreateTag`）均先
-/// `await subscriptionService.currentEntitlementIsPro()` 现场重查权威 Pro 状态，再据此构造
-/// `QuotaService` 判定——**不使用 `SubscriptionService.isPro` 缓存值做放行依据**。`cachedIsPro`
-/// 仅供 `remainingPhotoSlots` 这类非放行 UI 提示（如相册选择器 `maxSelectionCount`）使用。
+/// **Pro 放行判定**（见阶段7计划决策1、11-monetization.md §11.4）：照片额度闸门
+/// （`checkCanAddPhoto`/`addPhoto`）均先 `await subscriptionService.currentEntitlementIsPro()`
+/// 现场重查权威 Pro 状态，再据此构造 `QuotaService` 判定——**不使用 `SubscriptionService.isPro`
+/// 缓存值做放行依据**。`cachedIsPro` 仅供 `remainingPhotoSlots` 这类非放行 UI 提示
+/// （如相册选择器 `maxSelectionCount`）使用。
 @MainActor
 @Observable
 final class MomentEditorModel {
     let mode: EditorMode
 
     private let repository: MomentRepository
-    private let tagRepository: TagRepository
     private let subscriptionService: SubscriptionService
 
     /// 编辑态是否已完成从仓库载入；新建态恒为 `true`（无需等待异步载入）。
@@ -83,7 +82,6 @@ final class MomentEditorModel {
     ) {
         self.mode = mode
         self.repository = MomentRepository(modelContainer: modelContainer)
-        self.tagRepository = TagRepository(modelContainer: modelContainer)
         self.subscriptionService = subscriptionService
         self.cachedIsPro = subscriptionService.isPro
 
@@ -106,7 +104,8 @@ final class MomentEditorModel {
         self.occurredAt = initialOccurredAt
         self.isLoaded = initialIsLoaded
         self.baseline = EditorSnapshot(
-            mood: initialMood, title: "", bodyText: "", occurredAt: initialOccurredAt, tagIDs: [], photos: []
+            mood: initialMood, title: "", bodyText: "", occurredAt: initialOccurredAt, tagIDs: [],
+            photos: []
         )
     }
 
@@ -155,23 +154,6 @@ final class MomentEditorModel {
             selectedTagIDs.append(tag.id)
             tagNamesByID[tag.id] = tag.name
         }
-    }
-
-    /// `TagCreateSheetView` 新建/复用完成后回填选中（若已选中则不重复添加）。
-    func applyCreatedTag(id: UUID, name: String) {
-        if !selectedTagIDs.contains(id) {
-            selectedTagIDs.append(id)
-        }
-        tagNamesByID[id] = name
-    }
-
-    /// 标签「+添加」的前置额度校验（见 03-user-flows.md §3.1）：先现场重查 Pro 权威判定
-    /// （决策1），UI 只消费结果——允许则打开 `TagCreateSheetView`，超额则改为打开 Paywall
-    /// （`.quotaTag`）。
-    func requestCreateTag() async throws -> QuotaCheck {
-        let count = try await tagRepository.totalTagCount()
-        let quotaService = await makeQuotaService()
-        return quotaService.checkCanCreateTag(currentTagCount: count)
     }
 
     // MARK: - 照片（见 04-screen-specs.md §4.4，压缩管线见 `ImageCompressor`）

@@ -50,16 +50,23 @@ struct RootView: View {
                 // 「首同步去重」的等待（阶段7计划决策3）——本地/单测/UI 测试路径恒 `false`，行为
                 // 与阶段 1–6 完全等价、零额外延迟；非首启（flag 已置位）任何路径下都零延迟。
                 do {
-                    let tagRepository = TagRepository(modelContainer: modelContext.container)
-                    try await DefaultTagSeeder.seedIfNeeded(
-                        using: tagRepository, cloudKitEnabled: syncStatusService.cloudKitEnabled
-                    )
+                    #if DEBUG
+                        let shouldSeedDefaultTags = !UITestSupport.wantsSkipDefaultTags
+                    #else
+                        let shouldSeedDefaultTags = true
+                    #endif
+                    if shouldSeedDefaultTags {
+                        let tagRepository = TagRepository(modelContainer: modelContext.container)
+                        try await DefaultTagSeeder.seedIfNeeded(
+                            using: tagRepository, cloudKitEnabled: syncStatusService.cloudKitEnabled
+                        )
+                    }
                 } catch {
                     await errorPresenter.report(message: "初始化默认标签失败，请重启应用重试。", underlying: error)
                 }
                 #if DEBUG
-                UITestSupport.seedIfRequested(modelContext)
-                UITestSupport.seedMomentQuotaIfRequested(modelContext)
+                    UITestSupport.seedIfRequested(modelContext)
+                    UITestSupport.seedMomentQuotaIfRequested(modelContext)
                 #endif
             }
     }

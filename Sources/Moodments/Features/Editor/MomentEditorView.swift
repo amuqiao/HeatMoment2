@@ -1,31 +1,17 @@
 import SwiftData
 import SwiftUI
 
-/// `PaywallTrigger` 本身只用 `Hashable` 驱动 `AppRouter.rootSheet`（`RootSheet` 外层已是
-/// `Identifiable`，见 `Navigation/AppRouter.swift`）；编辑器内的第二层 Paywall 是局部
-/// `.sheet(item:)`，直接用 `PaywallTrigger` 做 item 需要其自身 `Identifiable`，故在此追加
-/// 该项目内的 retroactive 一致——`Self` 已 `Hashable`，用自身作为 `id` 即可。
-extension PaywallTrigger: Identifiable {
-    var id: Self { self }
-}
-
 /// 「上次选择情绪」持久化 key（见阶段 3 计划决策5：`@AppStorage` 本地持久化，
 /// 03-user-flows.md §3.1：有历史选择则用上次选择，否则回退 `Mood.normal`）。
 enum EditorMoodMemory {
     static let storageKey = "com.moodments.lastUsedMood"
 }
 
-/// 新建标签任务卡片的呈现上下文（`.sheet(item:)` 驱动，见 08-architecture.md §2.2 第二层）。
-private struct TagCreateContext: Identifiable {
-    let id = UUID()
-}
-
 /// 新建/编辑一条时刻（任务卡片栈，见 `docs/design/04-screen-specs.md` §4.4、
 /// `docs/design/03-user-flows.md` §3.1、`docs/design/08-architecture.md` §2.2）。
 ///
 /// 情绪/标签/日期/时间选择均为**就近浮窗**（局部 `@State` 驱动，不进 `AppRouter`，依 ADR-006）；
-/// 标签「+添加」→ 新建标签卡片、触达标签/照片额度 → Paywall，均为编辑器自身持有的**第二层**
-/// `.sheet(item:)`（不塞进 `AppRouter.rootSheet`，见 08 §2.2 层叠协作说明）。
+/// 标签选择只消费已有标签。标签新增、重命名、删除归属设置页 `TagManageView`。
 struct MomentEditorView: View {
     let mode: EditorMode
     let modelContainer: ModelContainer
@@ -42,7 +28,6 @@ struct MomentEditorView: View {
     @State private var isDatePickerPresented = false
     @State private var isTimePickerPresented = false
     @State private var isDiscardAlertPresented = false
-    @State private var tagCreateContext: TagCreateContext?
     @State private var editorPaywallTrigger: PaywallTrigger?
 
     /// `subscriptionService` 由调用方（`RootView`）经 `@Environment(SubscriptionService.self)`
@@ -50,18 +35,22 @@ struct MomentEditorView: View {
     /// `MomentEditorModel`（草稿模型），而 `@Environment` 属性包装器只在视图挂载后才解析，
     /// `init()` 阶段读取会拿到默认/未初始化状态（与 `lastUsedMood` 需要绕开
     /// `@AppStorage` 初始化顺序陷阱同一原因，见下方注释）。
-    init(mode: EditorMode, modelContainer: ModelContainer, subscriptionService: SubscriptionService) {
+    init(mode: EditorMode, modelContainer: ModelContainer, subscriptionService: SubscriptionService)
+    {
         self.mode = mode
         self.modelContainer = modelContainer
         // 直接读 `UserDefaults` 而非 `_lastUsedMood` 的 wrapped value：属性包装器初始化顺序
         // 不保证此刻可跨属性引用 `self`，故用同一 key 的原始读取规避该顺序陷阱；二者读写
         // 同一 UserDefaults key，语义一致。缺省值 0 恰好等于 `Mood.normal.rawValue`，与
         // 「无历史选择回退到 .normal」的产品规则天然吻合（见阶段 3 计划决策5）。
-        let seedMood = Mood(rawValue: UserDefaults.standard.integer(forKey: EditorMoodMemory.storageKey)) ?? .normal
-        _model = State(initialValue: MomentEditorModel(
-            mode: mode, modelContainer: modelContainer,
-            subscriptionService: subscriptionService, lastUsedMood: seedMood
-        ))
+        let seedMood =
+            Mood(rawValue: UserDefaults.standard.integer(forKey: EditorMoodMemory.storageKey))
+            ?? .normal
+        _model = State(
+            initialValue: MomentEditorModel(
+                mode: mode, modelContainer: modelContainer,
+                subscriptionService: subscriptionService, lastUsedMood: seedMood
+            ))
     }
 
     var body: some View {
@@ -79,11 +68,6 @@ struct MomentEditorView: View {
             .alert("放弃编辑？", isPresented: $isDiscardAlertPresented) {
                 Button("放弃编辑", role: .destructive) { dismiss() }
                 Button("继续编辑", role: .cancel) {}
-            }
-            .sheet(item: $tagCreateContext) { _ in
-                TagCreateSheetView(modelContainer: modelContainer) { id, name in
-                    model.applyCreatedTag(id: id, name: name)
-                }
             }
             .sheet(item: $editorPaywallTrigger) { trigger in
                 ProPaywallView(trigger: trigger)
@@ -187,8 +171,7 @@ struct MomentEditorView: View {
             TagPickerView(
                 modelContainer: modelContainer,
                 selectedTagIDs: model.selectedTagIDs,
-                onToggle: { tag in model.toggleTagSelection(tag) },
-                onRequestCreate: { handleRequestCreateTag() }
+                onToggle: { tag in model.toggleTagSelection(tag) }
             )
             .presentationCompactAdaptation(.popover)
         }
@@ -196,7 +179,7 @@ struct MomentEditorView: View {
 
     private var tagSummaryText: String {
         guard !model.selectedTagIDs.isEmpty else {
-            return LanguagePreference.localizedString("添加标签")
+            return LanguagePreference.localizedString("选择标签")
         }
         return model.selectedTagIDs.compactMap { model.tagNamesByID[$0] }.joined(separator: " ")
     }
@@ -216,8 +199,10 @@ struct MomentEditorView: View {
         }
         .accessibilityIdentifier("editorDateChip")
         .popover(isPresented: $isDatePickerPresented, arrowEdge: .top) {
-            DatePickerSheetView(occurredAt: Binding(get: { model.occurredAt }, set: { model.occurredAt = $0 }))
-                .presentationCompactAdaptation(.popover)
+            DatePickerSheetView(
+                occurredAt: Binding(get: { model.occurredAt }, set: { model.occurredAt = $0 })
+            )
+            .presentationCompactAdaptation(.popover)
         }
     }
 
@@ -234,8 +219,10 @@ struct MomentEditorView: View {
         }
         .accessibilityIdentifier("editorTimeChip")
         .popover(isPresented: $isTimePickerPresented, arrowEdge: .top) {
-            TimePickerSheetView(occurredAt: Binding(get: { model.occurredAt }, set: { model.occurredAt = $0 }))
-                .presentationCompactAdaptation(.popover)
+            TimePickerSheetView(
+                occurredAt: Binding(get: { model.occurredAt }, set: { model.occurredAt = $0 })
+            )
+            .presentationCompactAdaptation(.popover)
         }
     }
 
@@ -309,39 +296,15 @@ struct MomentEditorView: View {
         }
     }
 
-    // MARK: - 标签「+添加」→ 新建标签任务卡片（第二层，先收 popover 再弹 sheet）
-
-    /// 就近浮窗关闭与任务卡片二次呈现之间存在时序衔接（见阶段 3 计划决策8：先收 popover
-    /// 再弹 sheet，接受该衔接）：先关闭标签浮窗，短暂让步等待收起动画基本完成后再做额度
-    /// 校验并决定打开新建标签卡片还是 Paywall。若等待期间任务被取消（如视图已消失）则直接
-    /// 放弃，不吞真正的业务错误。
-    private func handleRequestCreateTag() {
-        isTagPickerPresented = false
-        Task {
-            do {
-                try await Task.sleep(for: .milliseconds(250))
-            } catch {
-                return
-            }
-            do {
-                switch try await model.requestCreateTag() {
-                case .allowed:
-                    tagCreateContext = TagCreateContext()
-                case .exceeded:
-                    editorPaywallTrigger = .quotaTag
-                }
-            } catch {
-                await errorPresenter.report(message: "标签额度校验失败，请稍后重试。", underlying: error)
-            }
-        }
-    }
 }
 
 #Preview {
     // swiftlint:disable:next force_try
     let container = try! ModelContainerConfig.makeInMemoryContainer()
-    return MomentEditorView(mode: .create, modelContainer: container, subscriptionService: SubscriptionService())
-        .environment(ThemeManager())
-        .environment(ErrorPresenter())
-        .environment(SyncStatusService(cloudKitEnabled: false))
+    return MomentEditorView(
+        mode: .create, modelContainer: container, subscriptionService: SubscriptionService()
+    )
+    .environment(ThemeManager())
+    .environment(ErrorPresenter())
+    .environment(SyncStatusService(cloudKitEnabled: false))
 }

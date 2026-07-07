@@ -70,6 +70,10 @@ enum PaywallTrigger: Hashable {
     case restore
 }
 
+extension PaywallTrigger: Identifiable {
+    var id: Self { self }
+}
+
 /// 无层叠语义的沉浸全屏覆盖层。
 ///
 /// **预留路由能力**：当前图片查看器由 `MomentPreviewView` 局部 `.fullScreenCover` 就近呈现

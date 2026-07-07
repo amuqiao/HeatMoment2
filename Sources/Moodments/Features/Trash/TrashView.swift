@@ -36,16 +36,13 @@ struct TrashView: View {
                                 .tint(theme.accent)
                                 .accessibilityIdentifier("trashRestoreButton-\(item.id.uuidString)")
                             }
-                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                Button(role: .destructive) {
-                                    purgeTarget = item
-                                } label: {
-                                    Label("彻底删除", systemImage: "trash")
-                                }
-                                .accessibilityIdentifier("trashPurgeButton-\(item.id.uuidString)")
+                            .destructiveSwipeAction(
+                                title: "彻底删除",
+                                accessibilityIdentifier: "trashPurgeButton-\(item.id.uuidString)"
+                            ) {
+                                purgeTarget = item
                             }
                             .accessibilityAction(named: Text("恢复")) { handleRestore(item) }
-                            .accessibilityAction(named: Text("彻底删除")) { purgeTarget = item }
                     }
                 }
                 .listStyle(.plain)
@@ -88,7 +85,9 @@ struct TrashView: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(theme.bubbleBackground))
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous).fill(theme.bubbleBackground)
+        )
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("trashRow-\(item.id.uuidString)")
     }
@@ -107,7 +106,8 @@ struct TrashView: View {
     private func handleRestore(_ item: MomentSnapshot) {
         Task {
             do {
-                try await MomentRepository(modelContainer: modelContext.container).restore(id: item.id)
+                try await MomentRepository(modelContainer: modelContext.container).restore(
+                    id: item.id)
                 // 恢复也是一次本地写入，驱动设置页 iCloud 行短暂展示「同步中」三态
                 // （见 `SyncStatusService.noteLocalWrite()` 头部说明，阶段7 review 建议9）。
                 syncStatusService.noteLocalWrite()
@@ -125,7 +125,8 @@ struct TrashView: View {
     private func handlePurge(_ item: MomentSnapshot) {
         Task {
             do {
-                try await MomentRepository(modelContainer: modelContext.container).purge(id: item.id)
+                try await MomentRepository(modelContainer: modelContext.container).purge(
+                    id: item.id)
                 for imageID in item.imageIDs {
                     await ThumbnailCache.shared.removeThumbnail(for: imageID)
                 }

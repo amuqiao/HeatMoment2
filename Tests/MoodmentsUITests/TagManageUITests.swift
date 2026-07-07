@@ -9,6 +9,36 @@ import XCTest
 /// 首启」，见 `docs/design/07-data-persistence.md` §4、`App/RootView.swift`），本文件全程依赖
 /// 该预置、不需要额外的 `UITestSupport` 标签种子钩子。
 final class TagManageUITests: XCTestCase {
+    /// 标签新增归属设置页标签管理：免费额度未满时，右上「+」打开新建标签卡片，保存后回到列表。
+    func testCreateTagFromTagManageAddsRow() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTestSkipDefaultTags"]
+        app.launch()
+
+        XCTAssertTrue(app.buttons["新建时刻"].waitForExistence(timeout: 10))
+        openTagManage(app)
+
+        XCTAssertTrue(app.staticTexts["tagManageEmptyState"].waitForExistence(timeout: 5))
+
+        let addButton = app.buttons["tagManageAddButton"]
+        XCTAssertTrue(addButton.waitForExistence(timeout: 5))
+        addButton.tap()
+
+        let nameField = app.textFields["tagCreateNameField"]
+        XCTAssertTrue(nameField.waitForExistence(timeout: 5))
+        nameField.tap()
+        nameField.typeText("旅行")
+
+        app.buttons["tagCreateSaveButton"].tap()
+
+        XCTAssertTrue(
+            app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "旅行")).firstMatch
+                .waitForExistence(timeout: 5),
+            "标签管理保存后应展示新建标签"
+        )
+        XCTAssertFalse(app.textFields["tagCreateNameField"].exists, "保存成功后新建标签卡片应关闭")
+    }
+
     /// 筛选态下删除正在被筛选的标签 → 上下文标记消失、筛选态清空、记录重新可见
     /// （阶段6计划决策5：`TimelineModel.discardFilterTag`）。种子记录（`-uiTestSeedMoments`）
     /// 均未挂任何标签，筛选「工作」必命中 0 条（不依赖脆弱的具体计数假设，与
@@ -18,7 +48,8 @@ final class TagManageUITests: XCTestCase {
         app.launchArguments = ["-uiTestSeedMoments"]
         app.launch()
 
-        let seededRow = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "测试时刻 1")).firstMatch
+        let seededRow = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "测试时刻 1"))
+            .firstMatch
         XCTAssertTrue(seededRow.waitForExistence(timeout: 10))
 
         for _ in 0..<4 { app.swipeUp() }
@@ -48,7 +79,10 @@ final class TagManageUITests: XCTestCase {
         // 仍存在于无障碍树里的同名筛选标记 chip（`contextMarkerTag-...`，label 同为「#工作」），
         // 导致 swipe/tap 打到错误元素（曾实测复现）。
         let workRow = app.buttons
-            .matching(NSPredicate(format: "identifier BEGINSWITH %@ AND label CONTAINS %@", "tagManageRow-", "工作"))
+            .matching(
+                NSPredicate(
+                    format: "identifier BEGINSWITH %@ AND label CONTAINS %@", "tagManageRow-", "工作")
+            )
             .firstMatch
         XCTAssertTrue(workRow.waitForExistence(timeout: 5))
         workRow.swipeLeft()
@@ -80,7 +114,10 @@ final class TagManageUITests: XCTestCase {
         openTagManage(app)
 
         let lifeRow = app.buttons
-            .matching(NSPredicate(format: "identifier BEGINSWITH %@ AND label CONTAINS %@", "tagManageRow-", "生活"))
+            .matching(
+                NSPredicate(
+                    format: "identifier BEGINSWITH %@ AND label CONTAINS %@", "tagManageRow-", "生活")
+            )
             .firstMatch
         XCTAssertTrue(lifeRow.waitForExistence(timeout: 5))
         lifeRow.tap()
@@ -93,11 +130,13 @@ final class TagManageUITests: XCTestCase {
         app.buttons["tagCreateSaveButton"].tap()
 
         XCTAssertTrue(
-            app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "兴趣")).firstMatch.waitForExistence(timeout: 5),
+            app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "兴趣")).firstMatch
+                .waitForExistence(timeout: 5),
             "重命名后列表应展示新名称"
         )
         XCTAssertFalse(
-            app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "生活")).firstMatch.waitForExistence(timeout: 3),
+            app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "生活")).firstMatch
+                .waitForExistence(timeout: 3),
             "重命名后不应再展示旧名称"
         )
     }
@@ -129,13 +168,17 @@ final class TagManageUITests: XCTestCase {
 
         app.buttons["editorSaveButton"].tap()
 
-        let momentRow = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "带标签的时刻")).firstMatch
+        let momentRow = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "带标签的时刻"))
+            .firstMatch
         XCTAssertTrue(momentRow.waitForExistence(timeout: 5), "保存后该时刻应出现在时间轴")
 
         openTagManage(app)
 
         let workRow = app.buttons
-            .matching(NSPredicate(format: "identifier BEGINSWITH %@ AND label CONTAINS %@", "tagManageRow-", "工作"))
+            .matching(
+                NSPredicate(
+                    format: "identifier BEGINSWITH %@ AND label CONTAINS %@", "tagManageRow-", "工作")
+            )
             .firstMatch
         XCTAssertTrue(workRow.waitForExistence(timeout: 5))
         workRow.swipeLeft()
@@ -165,7 +208,10 @@ final class TagManageUITests: XCTestCase {
         openTagManage(app)
 
         let lifeRow = app.buttons
-            .matching(NSPredicate(format: "identifier BEGINSWITH %@ AND label CONTAINS %@", "tagManageRow-", "生活"))
+            .matching(
+                NSPredicate(
+                    format: "identifier BEGINSWITH %@ AND label CONTAINS %@", "tagManageRow-", "生活")
+            )
             .firstMatch
         XCTAssertTrue(lifeRow.waitForExistence(timeout: 5))
         lifeRow.tap()
@@ -221,7 +267,8 @@ final class TagManageUITests: XCTestCase {
     private func replaceText(in field: XCUIElement, with newValue: String) {
         field.tap()
         if let currentValue = field.value as? String, !currentValue.isEmpty {
-            let deleteString = String(repeating: XCUIKeyboardKey.delete.rawValue, count: currentValue.count)
+            let deleteString = String(
+                repeating: XCUIKeyboardKey.delete.rawValue, count: currentValue.count)
             field.typeText(deleteString)
         }
         field.typeText(newValue)
@@ -240,7 +287,7 @@ final class TagManageUITests: XCTestCase {
     /// 才重新进入无障碍树可被断言（交互模型 v2 筛选呈现变更，见 `TitleCollapseFilterUITests`）。
     private func dismissFilterSheet(_ app: XCUIApplication) {
         let doneButton = app.buttons["filterDoneButton"]
-        guard doneButton.waitForExistence(timeout: 5) else { return }
+        XCTAssertTrue(doneButton.waitForExistence(timeout: 5), "筛选 sheet 点选条件后不应自动关闭")
         doneButton.tap()
     }
 
