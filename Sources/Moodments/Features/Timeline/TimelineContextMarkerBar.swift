@@ -6,7 +6,7 @@ import SwiftUI
 /// 告诉用户「现在看的是完整记录，还是某个筛选/某个时间位置」——筛选标记（`#标签`/情绪）
 /// 与时间标记（年/月/日）**可同时存在但含义不同**：移除筛选标记改变「看哪些记录」
 /// （清 `TimelineModel.activeFilter` 某一维度）；移除时间标记改变「是否停在某个时间位置」
-/// （清 `TimelineModel.heatmapFocusDate`，二者互不影响，见公理2）。
+/// （清 `TimelineModel.heatmapFocusDate`，二者互不影响，见公理2）。时间标记可表达日锚点或月锚点。
 ///
 /// 固定在 topBar 之下常驻（由 `TimelineHomeView` 通过 `.safeAreaInset(edge: .top)` 与
 /// topBar 一起放入同一个不随列表滚走的容器）。
@@ -57,10 +57,10 @@ struct TimelineContextMarkerBar: View {
 
                 if let focusDate = timelineModel.heatmapFocusDate {
                     marker(
-                        text: Self.timeMarkerFormatter.string(from: focusDate),
+                        text: timeMarkerText(for: focusDate),
                         identifier: "contextMarkerTime"
                     ) {
-                        timelineModel.heatmapFocusDate = nil
+                        timelineModel.clearHeatmapAnchor()
                     }
                 }
             }
@@ -90,9 +90,24 @@ struct TimelineContextMarkerBar: View {
         .accessibilityIdentifier(identifier)
     }
 
-    private static let timeMarkerFormatter: DateFormatter = {
+    private func timeMarkerText(for date: Date) -> String {
+        switch timelineModel.heatmapAnchorGranularity {
+        case .month:
+            Self.monthMarkerFormatter.string(from: date)
+        case .day, .none:
+            Self.dayMarkerFormatter.string(from: date)
+        }
+    }
+
+    private static let dayMarkerFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "M月d日"
+        return formatter
+    }()
+
+    private static let monthMarkerFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "M月"
         return formatter
     }()
 }
@@ -100,7 +115,7 @@ struct TimelineContextMarkerBar: View {
 #Preview {
     let model = TimelineModel()
     model.activeFilter = FilterCondition(mood: .happy)
-    model.heatmapFocusDate = .now
+    model.setHeatmapAnchor(.now, granularity: .month)
     return TimelineContextMarkerBar()
         .environment(ThemeManager())
         .environment(model)

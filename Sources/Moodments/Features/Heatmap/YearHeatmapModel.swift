@@ -2,7 +2,7 @@ import Foundation
 import Observation
 import SwiftData
 
-/// 首页热力图覆盖层局部状态（见 `docs/design/04-screen-specs.md` §4.3）：年份选择 + 当前年度
+/// 首页热力图顶部上下文区局部状态（见 `docs/design/04-screen-specs.md` §4.3）：年份选择 + 当前年度
 /// 的日期→心情聚合数据。
 ///
 /// **接 `TimelineModel.activeFilter` 口径**（见 `docs/plans/implementation-plan.md` 阶段5决策1：

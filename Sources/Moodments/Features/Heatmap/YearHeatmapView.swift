@@ -1,26 +1,25 @@
 import SwiftData
 import SwiftUI
 
-/// 年度心情热力图覆盖层（见 `docs/design/04-screen-specs.md` §4.3、
-/// `docs/design/08-architecture.md` §2.2：`ZStack` overlay、非模态、顶部展开）。
+/// 年度心情热力图主页顶部上下文区（见 `docs/design/04-screen-specs.md` §4.3、
+/// `docs/design/08-architecture.md` §2.2：导航栏下方原位展开、非模态、不入 Router）。
 ///
-/// **呈现形态（阶段5落地）**：由 `RootView` 以 `alignment: .top` 的 overlay 呈现、
-/// `.move(edge: .top) + opacity` 转场、继承 `theme.canvasBackground`——不是全屏黑遮罩模态，
-/// 背景时间轴不下沉不变暗，只在顶部展开一张卡片，符合「覆盖层≠任务卡片」的层级区分
-/// （见 product-mental-model.md 公理4）。
+/// **呈现形态（P0 落地）**：由 `TimelineHomeView` 的顶部 `safeAreaInset` 原位呈现，继承
+/// `theme.canvasBackground`，不是全屏黑遮罩模态，也不是漂浮卡片。
 ///
-/// **与筛选正交**（公理2）：`onSelectDay` 只写 `TimelineModel.heatmapFocusDate`（驱动滚动），
+/// **与筛选正交**（公理2）：点月/点日只写 `TimelineModel.heatmapFocusDate`（驱动滚动），
 /// 从不读写 `activeFilter`；年度聚合虽然**读** `activeFilter` 作为聚合口径（阶段5决策1），
 /// 但这只影响「热力图展示哪些数据」，与「点格改变滚动位置」这条定位语义完全分离，
 /// 两条链路（`YearHeatmapModel.load(filter:)` 的聚合 vs `handleSelectDay` 的定位）互不引用。
 struct YearHeatmapView: View {
-    @Environment(AppRouter.self) private var router
     @Environment(TimelineModel.self) private var timelineModel
     @Environment(ThemeManager.self) private var theme
     @State private var heatmapModel: YearHeatmapModel
+    let onClose: () -> Void
 
-    init(modelContainer: ModelContainer) {
+    init(modelContainer: ModelContainer, onClose: @escaping () -> Void = {}) {
         _heatmapModel = State(initialValue: YearHeatmapModel(modelContainer: modelContainer))
+        self.onClose = onClose
     }
 
     /// `.task(id:)` 的复合 key：年份或筛选条件任一变化都应重新聚合。
@@ -39,17 +38,22 @@ struct YearHeatmapView: View {
                     year: heatmapModel.year,
                     moodByDay: heatmapModel.moodByDay,
                     selectedDate: timelineModel.heatmapFocusDate,
-                    onSelectDay: handleSelectDay
+                    selectedGranularity: timelineModel.heatmapAnchorGranularity,
+                    onSelectDay: handleSelectDay,
+                    onSelectMonth: handleSelectMonth
                 )
             }
         }
-        .padding(20)
+        .padding(.horizontal, 20)
+        .padding(.top, 12)
+        .padding(.bottom, 14)
         .frame(maxWidth: .infinity)
-        .background(theme.canvasBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .shadow(color: .black.opacity(0.25), radius: 20, y: 8)
-        .padding(.horizontal, 12)
-        .padding(.top, 8)
+        .background(theme.canvasBackground.opacity(0.98))
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(theme.timelineRail.opacity(0.55))
+                .frame(height: 0.5)
+        }
         .task(id: LoadKey(year: heatmapModel.year, filter: timelineModel.activeFilter)) {
             do {
                 try await heatmapModel.load(filter: timelineModel.activeFilter)
@@ -67,7 +71,7 @@ struct YearHeatmapView: View {
             yearMenu
             Spacer()
             Button {
-                router.isHeatmapPresented = false
+                onClose()
             } label: {
                 Image(systemName: "xmark.circle.fill")
                     .font(.title2)
@@ -123,7 +127,7 @@ struct YearHeatmapView: View {
     /// 切换年份：换整年回看范围、清除时间锚点（见 04-screen-specs.md §4.3）。
     private func handleSelectYear(_ year: Int) {
         heatmapModel.year = year
-        timelineModel.heatmapFocusDate = nil
+        timelineModel.clearHeatmapAnchor()
     }
 
     /// 点格定位：日锚点取当天最新一条——传入当天 23:59:59，`TimelineQuery.scrollTargetID`
@@ -132,22 +136,43 @@ struct YearHeatmapView: View {
     /// （不主动滚动、不撤销已发生的滚动位置，只清高亮，见 04 §4.3）。
     private func handleSelectDay(_ date: Date) {
         let calendar = Calendar.current
-        if let current = timelineModel.heatmapFocusDate, calendar.isDate(current, inSameDayAs: date) {
-            timelineModel.heatmapFocusDate = nil
+        if timelineModel.heatmapAnchorGranularity == .day,
+           let current = timelineModel.heatmapFocusDate,
+           calendar.isDate(current, inSameDayAs: date) {
+            timelineModel.clearHeatmapAnchor()
             return
         }
         guard let endOfDay = calendar.date(bySettingHour: 23, minute: 59, second: 59, of: date) else {
             assertionFailure("日期锚点合成失败：\(date)")
             return
         }
-        timelineModel.heatmapFocusDate = endOfDay
+        timelineModel.setHeatmapAnchor(endOfDay, granularity: .day)
+    }
+
+    /// 点月定位：月锚点取该月最后一刻，`TimelineQuery.scrollTargetID` 会在当前可见集里挑出
+    /// 同月且 `occurredAt <= 月末` 的最新真实记录；再次点击同一月取消定位。
+    private func handleSelectMonth(_ date: Date) {
+        let calendar = Calendar.current
+        if timelineModel.heatmapAnchorGranularity == .month,
+           let current = timelineModel.heatmapFocusDate,
+           calendar.isDate(current, equalTo: date, toGranularity: .month) {
+            timelineModel.clearHeatmapAnchor()
+            return
+        }
+        guard
+            let monthInterval = calendar.dateInterval(of: .month, for: date),
+            let monthEnd = calendar.date(byAdding: .second, value: -1, to: monthInterval.end)
+        else {
+            assertionFailure("月份锚点合成失败：\(date)")
+            return
+        }
+        timelineModel.setHeatmapAnchor(monthEnd, granularity: .month)
     }
 }
 
 #Preview {
     // swiftlint:disable:next force_try
     YearHeatmapView(modelContainer: try! ModelContainerConfig.makeInMemoryContainer())
-        .environment(AppRouter())
         .environment(TimelineModel())
         .environment(ThemeManager())
 }

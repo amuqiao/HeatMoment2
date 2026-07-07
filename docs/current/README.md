@@ -16,9 +16,10 @@
 | 能力 | 当前状态 | 事实源 |
 | --- | --- | --- |
 | 单根首页 | 已落地。`TimelineHomeView` 是根体验，根级任务卡片由 `RootView` 的 `.sheet(item:)` 承载。 | `Sources/Moodments/App/RootView.swift`、`Sources/Moodments/Features/Timeline/TimelineHomeView.swift` |
-| 时间轴阅读单元 | 已落地。每行由日期列、心情节点、气泡内容组成，真实记录支持点开预览和左滑软删除。 | `TimelineListView.swift`、`TimelineRowView.swift`、`MoodNodeView.swift`、`BubbleCardView.swift` |
-| 时间轴连续性 | 代码路径已改为行背景贯穿绘制竖线；真机视觉对齐尚未在 current 层形成验收证据。 | `TimelineRowView.swift` |
-| 热力图定位 | 已落地。热力图是顶部 overlay；点日期只写 `heatmapFocusDate` 并滚动定位，不改筛选条件。当前没有月份点选入口。 | `RootView.swift`、`YearHeatmapView.swift`、`TimelineListView.swift` |
+| 首页场景壳 | 已落地。顶部 chrome、热力图上下文槽位、筛选 half-sheet presenter、时间轴列表和 FAB 已拆成独立组合点。 | `TimelineHomeView.swift`、`TimelineHomeChromeView.swift`、`TimelineHomePresentation.swift` |
+| 时间轴阅读单元 | 已落地。每行由日期列、心情节点、气泡内容组成；三者是可分别调样式的对象，但左滑删除的视觉目标是这一整条阅读单元。位置、节点锚点和气泡尾巴几何由 `TimelineGeometry` 集中定义，方便后续移动时间轴、锚定节点和调整气泡尾巴。 | `TimelineGeometry.swift`、`TimelineListView.swift`、`TimelineRowView.swift`、`MoodNodeView.swift`、`BubbleCardView.swift` |
+| 时间轴连续性 | 结构归属已调整。连续轨道由 `TimelineListView` 的独立 `TimelineRailLayer` 绘制，不属于任何 `TimelineRowView`，也不进入可滑动阅读单元。轨道 x/top 由 `TimelineSceneRailProbe` 读取 `List` 内容区真实起点后叠加 `TimelineGeometry` 得出；轨道 y 下拉时保持初始顶点，上滑时随时间轴场景向上移动，底部通过 overshoot 延伸到屏幕外。iOS 18+ 使用 `onScrollGeometryChange` 读取滚动 offset，iOS 17 使用挂在 `List` 自身的零尺寸 `TimelineScrollOffsetReader`，不依赖可回收行探针。删除仍使用系统 `.swipeActions`，支持轻扫露出按钮和继续滑动 full swipe；真实 Moment 的 VoiceOver 默认动作打开预览，删除作为命名动作保留。真机视觉对齐与 swipe 位移边界仍需截图/录屏验收。 | `TimelineGeometry.swift`、`TimelineRailLayer.swift`、`TimelineListView.swift`、`TimelineRowView.swift`、`BubbleCardView.swift` |
+| 热力图定位 | 已落地。热力图由首页局部状态在导航栏下方原位展开，作为顶部上下文区参与主页布局；点日/点有记录的月份只写时间 anchor，不改筛选条件。选中月份用主色低透明蒙层标记。 | `TimelineHomeView.swift`、`YearHeatmapView.swift`、`HeatmapGridView.swift`、`TimelineListView.swift` |
 | 筛选 | 已落地。当前是首页局部半屏/大屏 `FilterPanelView` sheet，不进 `AppRouter.rootSheet`，点选即时生效且选择后不自动关闭。 | `TimelineHomeView.swift`、`FilterPanelView.swift` |
 | 上下文标记 | 已落地。筛选标记和时间定位标记可并存、可分别移除。 | `TimelineContextMarkerBar.swift`、`TimelineModel.swift` |
 | 编辑页日期/时间选择 | 代码已落地。日期和时间由局部 `.popover` 打开系统 `DatePicker`，即时回写 `occurredAt`；时间 popover 与即时回写仍缺窄测试覆盖。 | `MomentEditorView.swift`、`DateTimePopovers.swift` |
@@ -28,7 +29,7 @@
 
 ## 当前验证基线
 
-本次文档基线来自静态代码审计、现有测试文件梳理和原 Flutter 项目语义对照；没有改动 Swift 代码。
+本次 current 基线来自 P0 实现后的代码审计和单元测试验证。
 
 与本 current 相关的已有测试面包括：
 
@@ -40,6 +41,7 @@
 - `Tests/MoodmentsUITests/CreateMomentFlowUITests.swift`
 - `Tests/MoodmentsUITests/TitleCollapseFilterUITests.swift`
 - `Tests/MoodmentsUITests/LocateFilterUITests.swift`
+- `Tests/MoodmentsUITests/DeleteRestorePurgeUITests.swift`
 - `Tests/MoodmentsUITests/EditorSheetPresentationUITests.swift`
 - `Tests/MoodmentsUITests/ThemeSwitchUITests.swift`
 - `Tests/MoodmentsUITests/AppearanceSaveFailureUITests.swift`
@@ -49,3 +51,12 @@
 ```sh
 rg -n "docs/current|docs/plans|implementation-truth|implementation-plan" CLAUDE.md docs
 ```
+
+P0 代码验证命令：
+
+```sh
+./scripts/test.sh --unit
+./scripts/test.sh --ui
+```
+
+结果：2026-07-07，`./scripts/test.sh --unit` 通过，108 个测试、4 个 StoreKit 环境相关 skip、0 失败。`./scripts/test.sh --ui` 通过，33 个 UI 测试、0 失败。UI 覆盖包括创建、预览、左滑软删除、垃圾箱恢复、彻底删除确认、热力图日/月定位、筛选标记、标题折叠筛选入口、空态、主题/外观设置、语言、隐私锁和额度闸门。真机截图层面的时间轴视觉对齐、左滑过程中轨道与阅读单元的像素级连续感仍需人工复核。

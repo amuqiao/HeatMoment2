@@ -84,10 +84,10 @@ struct MoodmentsApp: App {
     var body: some Scene {
         WindowGroup {
             RootView()
-                // 隐私锁挂在比 `rootSheet`/覆盖层更外层的位置（见 10 §10.1.3、08 §2.2、
-                // 阶段7计划必守约束「隐私锁挂最外层盖住 rootSheet/overlay」）：`.fullScreenCover`
+                // 隐私锁挂在比 `rootSheet`/应用内上下文层更外层的位置（见 10 §10.1.3、08 §2.2、
+                // 阶段7计划必守约束「隐私锁挂最外层盖住 rootSheet/应用内遮罩」）：`.fullScreenCover`
                 // 直接挂在 `RootView()` 之上（而非其内部），结构上包裹住 `RootView` 内部自己的
-                // `.sheet`/`.overlay`，解锁只置 `router.isLocked = false`，不触碰 `rootSheet`。
+                // `.sheet` 和页面内容，解锁只置 `router.isLocked = false`，不触碰 `rootSheet`。
                 //
                 // **注意 modifier 顺序**：`.fullScreenCover`/`.overlay` 必须在下方 `.environment(...)`
                 // 注入之前（更内层）声明，才能让锁屏/遮罩内容继承到 `theme` 等环境值——否则

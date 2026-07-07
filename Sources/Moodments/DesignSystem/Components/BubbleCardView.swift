@@ -12,6 +12,11 @@ struct BubbleCardView: View {
     /// 真实 Moment 的图片 id（经 `ThumbnailStripView` 按需加载缩略图，见阶段 4 计划）；
     /// 与 `placeholderImageHexColors` 互斥——真实 Moment 用此项，预置引导 Moment 用占位色块。
     var imageIDs: [UUID] = []
+    /// 气泡尾巴中心相对卡片顶部的 y 坐标；由时间轴行传入，用来和心情节点中心建立几何绑定。
+    var tailCenterY: CGFloat = 30
+    /// 气泡尾巴自身的几何参数。时间轴阅读单元会从 `TimelineGeometry` 传入，避免尾巴
+    /// 尺寸/偏移和节点/轨道坐标分散维护。
+    var tailGeometry: BubbleTailGeometry = .timelineDefault
 
     @Environment(ThemeManager.self) private var theme
 
@@ -57,13 +62,31 @@ struct BubbleCardView: View {
         .background(
             RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .fill(theme.bubbleBackground)
-                .overlay(alignment: .leading) {
+                .overlay(alignment: .topLeading) {
                     BubbleTailShape()
                         .fill(theme.bubbleBackground)
-                        .frame(width: 8, height: 14)
-                        .offset(x: -6)
+                        .frame(width: tailGeometry.size.width, height: tailGeometry.size.height)
+                        .offset(
+                            x: tailGeometry.horizontalOffset,
+                            y: tailCenterY + tailGeometry.centerYOffset
+                        )
                 }
         )
+    }
+}
+
+/// 气泡尾巴几何值。默认值只服务时间轴气泡；其他场景如需不同尾巴，应显式传入。
+struct BubbleTailGeometry: Equatable {
+    let size: CGSize
+    let horizontalOffset: CGFloat
+
+    static let timelineDefault = BubbleTailGeometry(
+        size: CGSize(width: 8, height: 14),
+        horizontalOffset: -6
+    )
+
+    var centerYOffset: CGFloat {
+        -size.height / 2
     }
 }
 

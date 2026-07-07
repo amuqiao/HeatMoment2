@@ -91,6 +91,49 @@ final class LocateFilterUITests: XCTestCase {
         XCTAssertTrue(timeMarker.waitForExistence(timeout: 5), "点选有记录的日期格后应出现时间上下文标记")
     }
 
+    /// 打开热力图 → 点一个月份标签 → 出现月份粒度的时间上下文标记。
+    func testLocateHeatmapMonthLabelShowsMonthContextMarker() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTestSeedMoments"]
+        app.launch()
+
+        let seededRow = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "测试时刻 1")).firstMatch
+        XCTAssertTrue(seededRow.waitForExistence(timeout: 10))
+
+        let heatmapButton = app.buttons["年度心情热力图"]
+        XCTAssertTrue(heatmapButton.waitForExistence(timeout: 5))
+        heatmapButton.tap()
+
+        XCTAssertTrue(app.buttons["heatmapCloseButton"].waitForExistence(timeout: 5))
+
+        let currentYear = Calendar.current.component(.year, from: Date())
+        let currentMonth = Calendar.current.component(.month, from: Date())
+        let monthWithoutSeedRecords = currentMonth == 1 ? 2 : 1
+        XCTAssertFalse(
+            app.buttons["heatmapMonthLabel-\(currentYear)-\(monthWithoutSeedRecords)"].exists,
+            "无记录月份不应提供可点击月份定位入口"
+        )
+        XCTAssertTrue(
+            app.buttons["heatmapMonthLabel-\(currentYear)-\(currentMonth)"].waitForExistence(timeout: 5),
+            "有记录月份应提供可点击月份定位入口"
+        )
+
+        let monthLabel = app.buttons
+            .matching(NSPredicate(format: "identifier BEGINSWITH %@", "heatmapMonthLabel-"))
+            .firstMatch
+        XCTAssertTrue(monthLabel.waitForExistence(timeout: 5), "热力图应提供可点击月份标签")
+        monthLabel.tap()
+
+        app.buttons["heatmapCloseButton"].tap()
+
+        let timeMarker = app.descendants(matching: .any).matching(identifier: "contextMarkerTime").firstMatch
+        XCTAssertTrue(timeMarker.waitForExistence(timeout: 5), "点选月份后应出现时间上下文标记")
+        XCTAssertTrue(
+            timeMarker.label.contains("月"),
+            "月份定位标记应表达月份上下文"
+        )
+    }
+
     // MARK: - Helpers
 
     /// 收起筛选半屏 sheet：点 sheet 右上「完成」（`filterDoneButton`）。sheet 是模态，收起后

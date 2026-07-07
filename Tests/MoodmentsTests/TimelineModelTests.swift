@@ -68,10 +68,29 @@ final class TimelineModelTests: XCTestCase {
         let tagID = UUID()
         let focusDate = Date.now
         model.activeFilter = FilterCondition(tagIDs: [tagID])
-        model.heatmapFocusDate = focusDate
+        model.setHeatmapAnchor(focusDate, granularity: .month)
 
         model.discardFilterTag(tagID)
 
         XCTAssertEqual(model.heatmapFocusDate, focusDate)
+        XCTAssertEqual(model.heatmapAnchorGranularity, .month)
+    }
+
+    func testDirectHeatmapFocusDateWriteDefaultsToDayGranularity() {
+        let model = TimelineModel()
+
+        model.heatmapFocusDate = Date.now
+
+        XCTAssertEqual(model.heatmapAnchorGranularity, .day)
+    }
+
+    func testClearHeatmapAnchorClearsDateAndGranularity() {
+        let model = TimelineModel()
+        model.setHeatmapAnchor(Date.now, granularity: .month)
+
+        model.clearHeatmapAnchor()
+
+        XCTAssertNil(model.heatmapFocusDate)
+        XCTAssertNil(model.heatmapAnchorGranularity)
     }
 }

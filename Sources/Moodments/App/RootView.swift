@@ -3,11 +3,11 @@ import SwiftUI
 
 /// 根视图：装载时间轴首页，并把 `AppRouter` 的跨页导航意图呈现为对应浮层——
 /// 任务卡片栈用 `.sheet(item:)`（page sheet，多层叠加的下沉由系统负责，见 14 ADR-003）、
-/// 沉浸全屏用 `.fullScreenCover(item:)`、年度热力图用 `ZStack` 覆盖层（08-architecture.md §2）。
-/// 就近浮窗（筛选/日期/时间）不在此处——由触发处局部状态就近驱动、不进 Router。
+/// 沉浸全屏用 `.fullScreenCover(item:)`。年度热力图、筛选、日期/时间等首页/字段局部层
+/// 不在此处——由触发处局部状态就近驱动、不进 Router。
 ///
 /// **`TimelineModel` 上提**（阶段5必要重构，见该类型头部注释）：在此创建并通过 `.environment()`
-/// 注入整棵树（含 `TimelineHomeView` 与热力图覆盖层 `YearHeatmapView`），使时间轴与热力图
+/// 注入整棵树（含 `TimelineHomeView` 与 `YearHeatmapView`），使时间轴与热力图
 /// 共享同一份「定位/筛选」状态，而不是两份互不相干的拷贝。
 struct RootView: View {
     @Environment(AppRouter.self) private var router
@@ -39,16 +39,6 @@ struct RootView: View {
                     ImageViewerView(momentID: momentID, startIndex: index)
                 }
             }
-            // 顶部锚定非模态展开（依公理4「覆盖层≠任务卡片」）：`alignment: .top` 只让 overlay
-            // 占据其内容自身尺寸（一张顶部卡片），不铺满全屏、不用全屏黑遮罩；`.move(edge: .top)
-            // + opacity` 转场配合卡片自身继承的 `theme.canvasBackground`，背景时间轴保持可见、不下沉。
-            .overlay(alignment: .top) {
-                if router.isHeatmapPresented {
-                    YearHeatmapView(modelContainer: modelContext.container)
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                }
-            }
-            .animation(.easeInOut(duration: 0.2), value: router.isHeatmapPresented)
             .environment(timelineModel)
             .userFacingErrorAlert(errorPresenter)
             .task {

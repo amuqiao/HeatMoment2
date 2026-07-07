@@ -5,7 +5,7 @@ import SwiftUI
 /// 底部月份标签；有记录的日期格用**当天最后一条时刻的心情色**着色（依公理1），无记录为空态格。
 ///
 /// 复用于两处（05 §5.7「卡片1不承担定位时间轴功能...仅视觉范式相似」）：
-/// - `YearHeatmapView`：`onSelectDay` 非 `nil`，点格驱动 `TimelineModel.heatmapFocusDate`；
+/// - `YearHeatmapView`：`onSelectDay` / `onSelectMonth` 非 `nil`，点格/点月驱动时间 anchor；
 /// - `MoodStatsView`：`onSelectDay` 为 `nil`，纯展示、不可交互、不接 `selectedDate`。
 struct HeatmapGridView: View {
     let year: Int
@@ -13,8 +13,11 @@ struct HeatmapGridView: View {
     let moodByDay: [Int: Mood]
     /// 当前定位选中的日期（仅首页热力图使用，供选中格描边高亮）。
     var selectedDate: Date?
+    var selectedGranularity: HeatmapAnchorGranularity?
     /// 点选「有记录」日期格的回调；`nil` 表示不可交互（`MoodStatsView` 用途）。
     var onSelectDay: ((Date) -> Void)?
+    /// 点选月份标签的回调；`nil` 表示月份标签仅展示。
+    var onSelectMonth: ((Date) -> Void)?
 
     @Environment(ThemeManager.self) private var theme
 
@@ -29,6 +32,12 @@ struct HeatmapGridView: View {
         let column: Int
     }
 
+    private struct MonthColumnRange {
+        let month: Int
+        let startColumn: Int
+        let endColumn: Int
+    }
+
     /// 一次性预计算的网格布局（阶段5 review 修复：此前 `cells` 是计算属性，被
     /// `grid`/`columnCount`/`monthColumnLabels` 三处各自重复触发重算，且 `grid` 内每格用
     /// `allCells.first(where:)` 做 O(n) 线性扫描——年内约371个网格位 × 约180+条记录，
@@ -37,19 +46,27 @@ struct HeatmapGridView: View {
         let cellsByPosition: [Int: DayCell]
         let columnCount: Int
         let monthColumnLabels: [(month: Int, column: Int)]
+        let monthColumnRanges: [MonthColumnRange]
     }
 
     private let layout: GridLayout
+    private let monthsWithRecords: Set<Int>
 
     init(
         year: Int, moodByDay: [Int: Mood], selectedDate: Date? = nil,
-        onSelectDay: ((Date) -> Void)? = nil
+        selectedGranularity: HeatmapAnchorGranularity? = nil,
+        onSelectDay: ((Date) -> Void)? = nil,
+        onSelectMonth: ((Date) -> Void)? = nil
     ) {
         self.year = year
         self.moodByDay = moodByDay
         self.selectedDate = selectedDate
+        self.selectedGranularity = selectedGranularity
         self.onSelectDay = onSelectDay
-        self.layout = Self.makeLayout(year: year)
+        self.onSelectMonth = onSelectMonth
+        let layout = Self.makeLayout(year: year)
+        self.layout = layout
+        self.monthsWithRecords = Self.monthsWithRecords(in: layout, moodByDay: moodByDay)
     }
 
     /// 对任何合法年份，`year`1月1日的起始日期与年内天数区间不应合成失败；一旦失败即为不可预期的
@@ -91,19 +108,41 @@ struct HeatmapGridView: View {
             }
         }
 
+        let monthColumnRanges = monthColumnLabels.enumerated().map { index, item in
+            let endColumn =
+                index + 1 < monthColumnLabels.count
+                ? monthColumnLabels[index + 1].column - 1
+                : maxColumn
+            return MonthColumnRange(month: item.month, startColumn: item.column, endColumn: endColumn)
+        }
+
         return GridLayout(
             cellsByPosition: cellsByPosition, columnCount: maxColumn + 1,
-            monthColumnLabels: monthColumnLabels)
+            monthColumnLabels: monthColumnLabels,
+            monthColumnRanges: monthColumnRanges)
     }
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             VStack(alignment: .leading, spacing: 4) {
-                grid
+                gridWithMonthSelection
                 monthLabelsRow
             }
             .padding(.horizontal, 4)
         }
+    }
+
+    private var gridWithMonthSelection: some View {
+        ZStack(alignment: .topLeading) {
+            grid
+            selectedMonthOverlay
+                .allowsHitTesting(false)
+        }
+        .frame(
+            width: CGFloat(layout.columnCount) * Self.columnStride - Self.cellSpacing,
+            height: Self.gridHeight,
+            alignment: .topLeading
+        )
     }
 
     private var grid: some View {
@@ -125,7 +164,8 @@ struct HeatmapGridView: View {
     private func dayCellView(_ cell: DayCell) -> some View {
         let mood = moodByDay[cell.dayOfYear]
         let isSelected =
-            selectedDate.map { Self.calendar.isDate($0, inSameDayAs: cell.date) } ?? false
+            selectedGranularity == .day
+            && (selectedDate.map { Self.calendar.isDate($0, inSameDayAs: cell.date) } ?? false)
         return RoundedRectangle(cornerRadius: 3, style: .continuous)
             .fill(mood.map { theme.moodColor($0) } ?? theme.heatmapEmptyCell)
             .frame(width: Self.cellSize, height: Self.cellSize)
@@ -156,18 +196,75 @@ struct HeatmapGridView: View {
 
     private var monthLabelsRow: some View {
         ZStack(alignment: .topLeading) {
-            Color.clear.frame(height: 14)
+            Color.clear.frame(height: 32)
             ForEach(layout.monthColumnLabels, id: \.column) { item in
-                Text("\(item.month)月")
-                    .font(.caption2)
-                    .foregroundStyle(SemanticColor.secondaryText)
-                    .offset(x: CGFloat(item.column) * (Self.cellSize + Self.cellSpacing))
+                monthLabel(item)
+                    .offset(x: CGFloat(item.column) * Self.columnStride)
             }
         }
         .frame(
-            width: CGFloat(layout.columnCount) * (Self.cellSize + Self.cellSpacing),
-            height: 14,
+            width: CGFloat(layout.columnCount) * Self.columnStride,
+            height: 32,
             alignment: .leading
+        )
+    }
+
+    @ViewBuilder
+    private func monthLabel(_ item: (month: Int, column: Int)) -> some View {
+        let label = Text("\(item.month)月")
+            .font(.caption2)
+            .foregroundStyle(SemanticColor.secondaryText)
+
+        if monthsWithRecords.contains(item.month),
+           let onSelectMonth,
+           let monthDate = Self.monthDate(year: year, month: item.month) {
+            Button {
+                onSelectMonth(monthDate)
+            } label: {
+                label
+                    .frame(minWidth: 44, minHeight: 32, alignment: .leading)
+            }
+            .buttonStyle(.plain)
+            .contentShape(Rectangle())
+            .accessibilityLabel(Text("\(item.month)月，点击定位"))
+            .accessibilityIdentifier("heatmapMonthLabel-\(year)-\(item.month)")
+        } else {
+            label
+        }
+    }
+
+    @ViewBuilder
+    private var selectedMonthOverlay: some View {
+        if selectedGranularity == .month,
+           let selectedDate,
+           Self.calendar.component(.year, from: selectedDate) == year {
+            let selectedMonth = Self.calendar.component(.month, from: selectedDate)
+            if let range = layout.monthColumnRanges.first(where: { $0.month == selectedMonth }) {
+                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                    .fill(theme.accent.opacity(0.14))
+                    .frame(
+                        width: CGFloat(range.endColumn - range.startColumn + 1) * Self.columnStride - Self.cellSpacing,
+                        height: Self.gridHeight
+                    )
+                    .offset(x: CGFloat(range.startColumn) * Self.columnStride)
+                    .accessibilityHidden(true)
+            }
+        }
+    }
+
+    private static var columnStride: CGFloat { cellSize + cellSpacing }
+    private static var gridHeight: CGFloat { cellSize * 7 + cellSpacing * 6 }
+
+    private static func monthDate(year: Int, month: Int) -> Date? {
+        calendar.date(from: DateComponents(year: year, month: month, day: 1))
+    }
+
+    private static func monthsWithRecords(in layout: GridLayout, moodByDay: [Int: Mood]) -> Set<Int> {
+        Set(
+            layout.cellsByPosition.values.compactMap { cell in
+                guard moodByDay[cell.dayOfYear] != nil else { return nil }
+                return calendar.component(.month, from: cell.date)
+            }
         )
     }
 

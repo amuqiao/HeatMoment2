@@ -2,14 +2,13 @@ import Foundation
 import Observation
 
 /// 集中式导航路由（见 `docs/design/08-architecture.md` §3）：全局导航意图（根级任务卡片栈、
-/// push 栈、覆盖层、应用锁）集中到一个可观察路由 model，通过 `@Environment` 注入全树。
+/// push 栈、应用锁）集中到一个可观察路由 model，通过 `@Environment` 注入全树。
 ///
-/// 页面局部数据状态（如首页的热力图定位 `heatmapFocusDate` / 筛选 `activeFilter`）**不进 Router**，
-/// 由对应 feature 的 view model 持有（见 08 §4）。
+/// 页面局部状态（如首页的热力图展开、定位 `heatmapFocusDate` / 筛选 `activeFilter`）**不进 Router**，
+/// 由对应 feature view / view model 持有（见 08 §3/§4）。
 ///
-/// **就近浮窗（标签/心情筛选、日期/时间选择）不进 Router**：它们是锚定触发元素的局部同层浮层
-/// （popover 语义，背景不下沉、不缩小、不入层级栈，依公理 4），由触发处自身持有的局部锚定状态
-/// 就近驱动，不是「跨页级」导航意图，因此不纳入集中路由。
+/// **首页顶部上下文区 / 就地选择层不进 Router**：年度热力图、首页筛选 half-sheet、
+/// 编辑字段 popover 都由触发处自身持有局部状态，不是「跨页级」导航意图。
 @MainActor
 @Observable
 final class AppRouter {
@@ -19,9 +18,6 @@ final class AppRouter {
     /// 根级模态第一层（任务卡片栈，由首页发起），用 `item` 驱动 `.sheet(item:)`。
     /// 预览是「弹出阅读卡片」而非 push，故归入任务卡片栈（`rootSheet`），不进 `homePath`。
     var rootSheet: RootSheet?
-
-    /// 年度热力图覆盖层（`ZStack` overlay，非模态）。
-    var isHeatmapPresented = false
 
     /// 应用级/无层叠语义的沉浸全屏（图片查看器等）。
     var fullScreenCover: FullCover?

@@ -33,9 +33,7 @@ final class DeleteRestorePurgeUITests: XCTestCase {
         swipeDeleteTargetRow(app)
         openTrash(app)
 
-        let trashRow = app.descendants(matching: .any)
-            .matching(NSPredicate(format: "label CONTAINS %@", "测试时刻 1"))
-            .firstMatch
+        let trashRow = trashMomentRow(app)
         XCTAssertTrue(trashRow.waitForExistence(timeout: 5))
         trashRow.swipeRight()
 
@@ -69,9 +67,7 @@ final class DeleteRestorePurgeUITests: XCTestCase {
         swipeDeleteTargetRow(app)
         openTrash(app)
 
-        let trashRow = app.descendants(matching: .any)
-            .matching(NSPredicate(format: "label CONTAINS %@", "测试时刻 1"))
-            .firstMatch
+        let trashRow = trashMomentRow(app)
         XCTAssertTrue(trashRow.waitForExistence(timeout: 5))
         trashRow.swipeLeft()
 
@@ -84,8 +80,12 @@ final class DeleteRestorePurgeUITests: XCTestCase {
         XCTAssertTrue(alert.waitForExistence(timeout: 5))
         alert.buttons["彻底删除"].tap()
 
+        XCTAssertTrue(
+            app.staticTexts["trashEmptyState"].waitForExistence(timeout: 5),
+            "确认彻底删除后垃圾箱应转入空态"
+        )
         XCTAssertFalse(
-            app.staticTexts["测试时刻 1"].waitForExistence(timeout: 5),
+            trashMomentRow(app).exists,
             "确认彻底删除后该记录不应再出现在垃圾箱"
         )
     }
@@ -141,6 +141,18 @@ final class DeleteRestorePurgeUITests: XCTestCase {
         let trashRow = app.buttons["settingsTrashRow"]
         XCTAssertTrue(trashRow.waitForExistence(timeout: 5))
         trashRow.tap()
+    }
+
+    private func trashMomentRow(_ app: XCUIApplication) -> XCUIElement {
+        app.descendants(matching: .any)
+            .matching(
+                NSPredicate(
+                    format: "identifier BEGINSWITH %@ AND label CONTAINS %@",
+                    "trashRow-",
+                    "测试时刻 1"
+                )
+            )
+            .firstMatch
     }
 
     private func closeSettings(_ app: XCUIApplication) {

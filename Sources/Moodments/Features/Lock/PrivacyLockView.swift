@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// 隐私锁（见 `docs/design/10-security-privacy.md` §10.1、08-architecture.md §2.2）：应用级
-/// `.fullScreenCover`，挂载于比 `AppRouter.rootSheet`/覆盖层更外层的位置（见
+/// `.fullScreenCover`，挂载于比 `AppRouter.rootSheet`/应用内内容层更外层的位置（见
 /// `MoodmentsApp.body`），验证通过前不渲染任何 Moment 内容、无手势关闭。出现即自动发起一次
 /// 验证（`.task`），失败/取消展示重试按钮，不吞错（见 `BiometricLockService`）。
 struct PrivacyLockView: View {
