@@ -8,6 +8,9 @@ xcuserdata/
 
 # macOS
 .DS_Store
+.data/
+
+
 
 # 工具产物
 *.log
