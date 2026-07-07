@@ -5,9 +5,9 @@
 - 当前 SwiftUI as-built 基线见 [`../current/`](../current/README.md)。
 - 产品语义和交互契约见 [`../product-mental-model.md`](../product-mental-model.md) 与 [`../design/`](../design/README.md)。
 - P0 / P1a 的视觉与交互基线以 Flutter 当前实现为体验参考：复用其“主页不下沉、半屏筛选、即时生效、选择后不关闭、手动下滑关闭、时间轴连续、节点与气泡绑定”的体验语义；不照搬 Flutter 内部实现、widget 结构或像素数值。
-- SwiftUI 实现策略优先使用成熟系统组件和少量参数调整：`sheet` / `presentationDetents` / `popover` / `NavigationStack` / `List` / `Section` / `Button` / `LazyVGrid` / `ScrollView` / `swipeActions` / `DatePicker`。只在时间轴气泡、心情节点、热力图、主题预览这类产品语义无法由系统组件表达处做小范围自定义。
+- SwiftUI 实现策略优先使用成熟系统组件和少量参数调整：`sheet` / `presentationDetents` / `popover` / `NavigationStack` / `List` / `Section` / `Button` / `LazyVGrid` / `ScrollView` / `DatePicker`。当系统组件的内部容器语义会破坏产品骨架时，不为兼容旧实现保留错误结构；只在时间轴气泡、心情节点、热力图、主题预览、时间轴阅读单元操作层这类产品语义无法由系统组件稳定表达处做小范围自定义。
 - P0 当前实现事实已移入 [`../current/`](../current/README.md)；本计划只保留 P0 剩余视觉验收与后续 P1/P2/P3 缺口。
-- 2026-07-07 已补一轮架构稳定化：顶部 chrome、热力图上下文槽位、筛选 half-sheet presenter 已拆分；时间轴轨道已调整为 `TimelineListView` 的独立 `TimelineRailLayer` 结构层，阅读单元和系统 `.swipeActions` 删除修饰符留在 `TimelineRowView`；as-built 事实见 [`../current/implementation-truth.md`](../current/implementation-truth.md)。
+- 2026-07-07 已补一轮架构稳定化：顶部 chrome、热力图上下文槽位、筛选 half-sheet presenter 已拆分；时间轴轨道已调整为 `TimelineViewportView` 的独立 `TimelineRailLayer` 结构层，阅读单元由 `TimelineRowView` 承载，删除操作回到 SwiftUI `List` 行级 `.swipeActions(allowsFullSwipe: true)` 的成熟语义；as-built 事实见 [`../current/implementation-truth.md`](../current/implementation-truth.md)。
 
 ## P0 开工裁决记录
 
@@ -18,8 +18,8 @@
 | 热力图位置 | 展开后成为导航栏下方的稳定主页上下文区域，参与主页布局，不作为独立漂浮卡片。 | 优先用现有首页布局、`safeAreaInset` / 顶部容器 / transition 参数解决；不复刻 Flutter `SliverPersistentHeader`。 |
 | 热力图语义 | 点月 / 点日都是时间定位 `anchor`，不是筛选；只改变时间轴定位和时间上下文标记，不改写 `activeFilter`。 | 保持 `heatmapFocusDate` / `activeFilter` 双状态源。月份锚点落到该月在当前口径下的真实记录，而不是伪造月份节点。 |
 | 月份选择 | 月份选择需要落地，但入口隐藏在热力图月份标记中，不额外做强按钮。点月后，用当前设置页主色一致的轻微透明蒙层覆盖对应月份的热力图区域。 | 月份标记可用 `Button` 语义实现；选中蒙层在现有热力图自定义组件内小范围绘制，颜色消费 `ThemeManager` 主色，透明度后续真机调参。 |
-| 左滑删除 | 首页 Moment 左滑软删除进垃圾箱，无确认。交互参考 iOS 闹钟列表：轻扫露出删除按钮，继续滑动按钮拉长；恢复是反向生命周期动作。 | 优先覆盖 SwiftUI 成熟 `.swipeActions` 行为，不为复刻 Flutter `SwipeActionCard` 自定义完整滑动系统。 |
-| 左滑时的时间轴 | 左滑操作态中，日期、心情节点、moment 气泡作为一个记录整体左移；不能出现气泡移动但轨道断裂或节点脱离的割裂感。 | 组件设计要解耦“连续阅读态的轨道”和“单条操作态的整体位移”。若系统 `List` 行背景导致断裂，再小范围调整 rail 绘制归属。 |
+| 左滑删除 | 首页 Moment 左滑软删除进垃圾箱，无确认。交互参考 iOS 闹钟列表：轻扫露出删除按钮，继续滑动按钮拉长；恢复是反向生命周期动作。 | 当前时间轴使用 `List` 作为成熟 swipe action 宿主，但 `List` 不参与轨道定位。删除交互集中在行级 `.swipeActions`，轨道坐标由 `TimelineViewportView` / `TimelineGeometry` 独立管理，不牵动查询、路由和数据层。 |
+| 左滑时的时间轴 | 左滑操作态中，日期、心情节点、moment 气泡作为一个记录整体左移；不能出现气泡移动但轨道断裂或节点脱离的割裂感。 | 组件设计已解耦“连续阅读态的轨道”和“单条操作态的整体位移”。轨道由 viewport 结构层绘制，阅读单元操作层只负责横向位移。 |
 | 节点与气泡 | 心情节点和气泡尾巴必须建立几何绑定，尖角应指向或贴近节点中心。 | 先通过行布局常量和尾巴参数调优；截图验证失败时再做小范围 Shape/Layout 调整。 |
 | 上下文标记 | 顶部 context chips 正式表达 tag / mood / time 三类上下文，筛选与定位可并存、可独立清除。 | 优先保留现有 `TimelineContextMarkerBar`，只补必要的聚合清除入口和视觉关系。 |
 | 文档漂移 | “筛选就近浮窗”旧表述作废；首页筛选统一为就地半屏 sheet。编辑页字段选择仍保持就近 popover。 | 同步 `docs/design/`，current 只在代码落地后回写。 |
@@ -28,7 +28,7 @@
 
 | 主题 | 当前缺口 | 审计重点 |
 | --- | --- | --- |
-| 主页 P0 视觉验收 | P0 代码已实现，且首页/时间轴骨架已拆分为独立轨道结构层、阅读单元层和系统 `.swipeActions` 删除修饰符；节点/气泡/竖线绑定、热力图顶部上下文感、左滑过程连续性仍需真机截图或录屏审计。 | 优先确认主页是否仍表达“时间流 + 心情节点 + 内容气泡”，而不是普通记录列表；时间轴按主页局部坐标轴理解，时间轴 x、轨道顶部 lead-in、节点中心、气泡尾巴和日期列优先通过 `TimelineGeometry` 统一调整；轨道不属于任何 row，下拉时保持初始顶点，上滑时与时间轴场景同向移动，并通过透明/毛玻璃顶部 chrome 维持视觉稳定感；iOS 17/18 滚动 offset 已分别有稳定读取路径，但仍需真机滚动观察；心情节点静止态必须压在轨道 y 轴上；左滑时应表现为日期、节点、气泡这一阅读单元从轨道移走，若系统 `.swipeActions` 仍造成 cell 层遮挡或错位，替换点应限制在 `SwipeToDeleteModifier`。 |
+| 主页 P0 视觉验收 | P0 代码已实现，且首页/时间轴骨架已拆分为独立轨道结构层、阅读单元层和系统行级删除操作层；节点/气泡/竖线绑定、热力图顶部上下文感、左滑过程连续性仍需真机截图或录屏审计。 | 优先确认主页是否仍表达“时间流 + 心情节点 + 内容气泡”，而不是普通记录列表；时间轴按主页局部坐标轴理解，时间轴 x、轨道顶部 lead-in、节点中心、气泡尾巴和日期列优先通过 `TimelineGeometry` 统一调整；轨道不属于任何 row，下拉时保持初始顶点，上滑时与时间轴场景同向移动，并通过透明/毛玻璃顶部 chrome 维持视觉稳定感；滚动 offset 只驱动标题折叠和轨道纵向相位；心情节点静止态必须压在轨道 y 轴上；左滑时优先接受 SwiftUI `List` 行级 `.swipeActions` 的系统行为，若视觉不通过，先调整 viewport / row 结构边界，不回到手写 swipe 阈值。 |
 | 筛选 sheet 控件 | 筛选呈现已裁决为首页就地半屏 sheet；当前 sheet 内仍缺显式“全部心情”和“清除全部”。 | 保持当前 half-sheet 心智模型，同时补齐 Flutter 筛选体验里的直接重置能力。 |
 | 设置 sheet chrome | 设置页当前有显式“关闭”按钮。 | 判断是否应依赖系统下滑关闭，减少临时 sheet 的页面感。 |
 | Sheet 深度 | 当前主要路径保持两层，但设置子页、Pro、标签创建、筛选创建标签仍需按完整用户路径审计。 | 保持“入口 sheet + 一个详情层”为上限；超过两层要改 IA 或呈现方式。 |
@@ -86,8 +86,8 @@ HeatMoment2 是对 `/Users/admin/Downloads/Code/HeatMoment` 中 Flutter 项目�
    - 后续移动时间轴位置或调整对象比例时，按“时间轴是主页局部坐标轴”的方式处理：优先改 `TimelineGeometry` 这类命名几何锚点，不把 x/y/padding 散落到日期、节点、气泡对象内部。
    - 检查热力图顶部上下文区在明暗主题、不同屏宽、标题折叠状态下是否仍属于主页上下文，而不是漂浮卡片。
    - 检查月选中蒙层、日选中描边、筛选标记和时间定位标记在热力图展开/标题折叠/空态下的关系。
-   - 检查 `SwipeToDeleteModifier` 内的系统 `.swipeActions` 是否能满足“阅读单元整体移走、轨道保持连续”的边界；若不能，不重写时间轴列表和数据层，只在该操作层评估更小范围的交互替代。
-   - 若截图或录屏不通过，只做小范围参数或布局归属调整，继续优先使用 SwiftUI 成熟组件。
+   - 检查 SwiftUI `List` 行级 `.swipeActions(allowsFullSwipe: true)` 是否满足“轻扫露出删除按钮、继续左滑按钮拉长并触发删除”的成熟系统语义；若视觉不通过，不重写时间轴查询、路由和数据层，也不手写 swipe 阈值，先调整 viewport / row 的结构边界。
+   - 若截图或录屏不通过，优先调整 `TimelineGeometry` 或 viewport / row 边界；`List` 只作为成熟滚动和行级操作宿主，不作为轨道坐标来源。
 
 4. Sheet 层级审计（P1b）
    - 判断设置根 sheet 是否移除左上关闭按钮。
@@ -129,7 +129,7 @@ HeatMoment2 是对 `/Users/admin/Downloads/Code/HeatMoment` 中 Flutter 项目�
   - 外观页能让用户直接感知亮/暗、主色、纹理和图片展示的真实差异。
 
 - 工程层：
-  - 优先使用 SwiftUI 成熟组件：`sheet`、`popover`、`NavigationStack`、`DatePicker`、`List`/`ScrollView`、`swipeActions`、`Menu`。
+  - 优先使用 SwiftUI 成熟组件：`sheet`、`popover`、`NavigationStack`、`DatePicker`、`List`/`ScrollView`、`Menu`、`swipeActions`；当成熟组件的内部结构破坏时间轴骨架时，先重构骨架边界，让系统组件只承担它擅长的滚动、选择和行级操作语义；只有在用户裁决系统组件无法满足产品语义后，才允许小范围专用实现。
   - Flutter 只作为体验语义参考，不作为实现结构、像素数值或自定义组件数量的约束。
   - 只在时间轴气泡、热力图、上下文标记、主题预览等产品语义必须表达处自定义。
   - 不为复刻 Flutter 的内部实现而重写系统导航、系统 sheet 动画或基础输入控件。
@@ -139,7 +139,7 @@ HeatMoment2 是对 `/Users/admin/Downloads/Code/HeatMoment` 中 Flutter 项目�
   - 每个后续代码优化项至少运行对应的窄测试或 UI 测试；无法运行时在 current 或计划验收证据中说明原因。
   - 主页截图中，节点中心、气泡尖角和时间轴能形成明确绑定；最上方可见心情节点也必须压在轨道上。
   - 上下滚动时，轨道和阅读单元处于同一滚动时间轴场景；初始态轨道顶点略低于导航栏/时刻标题下方，第一条 Moment 与轨道顶点之间有呼吸空间，折叠后顶部 chrome 以毛玻璃承接内容上滑。
-  - 左滑记录时，日期、心情节点和气泡作为同一阅读单元整体左移，视觉上像从时间轴轨道移走；轨道背景不被阅读单元横向拖走。若系统 `.swipeActions` 让轨道跟随或断裂，后续修正集中在 `SwipeToDeleteModifier`，不牵动 `TimelineModel`、`TimelineQuery` 或 `AppRouter`。
+  - 左滑记录时，日期、心情节点和气泡作为同一阅读单元整体左移，视觉上像从时间轴轨道移走；轨道背景不被阅读单元横向拖走。若滑动观感仍不通过，后续修正集中在 viewport / row 结构边界或 `TimelineGeometry`，不牵动 `TimelineModel`、`TimelineQuery` 或 `AppRouter`，也不默认改成手写 swipe。
   - 热力图展开时，视觉上仍属于主页顶部上下文，而不是漂浮在内容上的独立卡片；点月后当前月份区域有主色低透明选中蒙层。
   - 外观页截图能直接看出亮/暗、背景、主文字、副文字、强调色和节点色差异。
   - 外观页预览与实际主题消费路径一致；切换外观项后，预览和已接入的真实界面元素使用同一套主题语义。

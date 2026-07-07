@@ -12,7 +12,7 @@ enum HeatmapAnchorGranularity: Equatable {
 /// 依 `product-mental-model.md` 公理2「定位 ≠ 筛选」：定位只改变滚动位置（不改变可见数据集合），
 /// 筛选只改变可见数据集合（不改变滚动逻辑），二者正交、可同时存在。
 ///
-/// 阶段5起接真实交互：`TimelineListView` 的 `@Query` 谓词消费 `activeFilter`
+/// 阶段5起接真实交互：`TimelineViewportView` 的 `@Query` 谓词消费 `activeFilter`
 /// （见 `TimelineQuery.predicate(for:)`），`heatmapFocusDate` 驱动 `ScrollViewReader` 滚动
 /// （见 `TimelineQuery.scrollTargetID(for:granularity:in:)`）；两者互不引用、互不覆盖。
 ///

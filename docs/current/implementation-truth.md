@@ -11,7 +11,7 @@ RootView
   -> TimelineHomeView
       -> TimelineHomeChromeView
       -> HomeContextPanel(YearHeatmapView)
-      -> TimelineListView
+      -> TimelineViewportView
       -> TimelineContextMarkerBar
       -> TimelineFilterSheetPresenter(FilterPanelView)
       -> FAB
@@ -25,9 +25,9 @@ RootView
 
 `TimelineHomeView` 负责首页场景壳层：主画布背景、列表、顶部上下文槽位、底部 FAB 和创建额度闸门。顶部入口已拆到 `TimelineHomeChromeView`；热力图插槽由 `HomeContextPanel` 包住；筛选 half-sheet 的 `.sheet` 修饰符集中在 `TimelineFilterSheetPresenter`，仍由首页局部 `isFilterPresented` 驱动，不进入 `AppRouter`。
 
-`TimelineListView` 负责数据列表、标题折叠、筛选谓词、定位滚动和删除副作用；它不持有热力图展开、筛选 sheet 展开或设置 sheet 呈现状态。
+`TimelineViewportView` 负责时间轴 viewport、标题折叠、筛选谓词、定位滚动和删除副作用；它不持有热力图展开、筛选 sheet 展开或设置 sheet 呈现状态。
 
-当前时间轴使用 SwiftUI `List`，不是自定义拖拽列表。每条 `TimelineRowView` 由三部分组成：
+当前时间轴使用 SwiftUI `ScrollViewReader + List`：`List` 只作为成熟滚动和行级 swipe action 宿主，不作为时间轴轨道坐标来源。每条 `TimelineRowView` 由三部分组成：
 
 ```text
 TimelineDateColumn
@@ -35,15 +35,15 @@ TimelineDateColumn
   -> BubbleCardView
 ```
 
-`TimelineGeometry` 是首页时间轴坐标系统的单一来源，把时间轴视为主页滚动场景中的局部坐标轴：`railCenterXInRow` 定义轨道相对阅读单元左边缘的横坐标，`initialRailCenterX` / `initialRailTopY` 定义 layout probe 回传前的首帧轨道位置，`railLeadInHeight` 定义轨道顶点到第一条 Moment 之间的呼吸空间，`railBottomOvershoot` 定义最后一条 Moment 之后继续延伸的轨道长度，`nodeCenterY` / `bubbleTailCenterY` 定义心情节点和气泡尾巴之间的纵向锚定关系，`bubbleTailSize` / `bubbleTailHorizontalOffset` 定义气泡尾巴自身几何。后续如果要移动时间轴位置、调整日期列、节点列或气泡尾巴关系，优先改这个几何基准，而不是在多个对象里改散落 padding。
+`TimelineGeometry` 是首页时间轴坐标系统的单一来源，把时间轴视为主页滚动场景中的局部坐标轴：`railCenterXInRow` 定义轨道相对阅读单元左边缘的横坐标，`initialRailCenterX` / `initialRailTopY` 定义轨道默认位置，`firstNodeCenterYOffsetFromRailTop` 定义默认态轨道顶点到第一条 Moment 心情节点中心的向下 y 偏移，`railLeadInHeight` 定义轨道顶点和第一条阅读单元之间的呼吸空间，`railBottomOvershoot` 定义最后一条 Moment 之后继续延伸的轨道长度，`nodeCenterY` / `bubbleTailCenterY` 定义心情节点和气泡尾巴之间的纵向锚定关系，`bubbleTailSize` / `bubbleTailHorizontalOffset` 定义气泡尾巴自身几何。后续如果要移动时间轴位置、调整日期列、节点列或气泡尾巴关系，优先改这个几何基准，而不是在多个对象里改散落 padding。
 
-`TimelineListView` 用 `ZStack` 组合独立的 `TimelineRailLayer` 和 SwiftUI `List`。轨道不属于任何一条 `TimelineRowView`，也不进入可滑动阅读单元；它是首页时间轴场景的结构层。轨道 x 坐标由 `TimelineSceneRailProbe` 读取 `List` 内容区真实起点后叠加 `TimelineGeometry.railCenterXInRow` 得出，初始 top 也由同一个 probe 读取后驱动，不依赖当前可见 Moment，也不通过某个心情节点反推时间轴位置。轨道 y 坐标采用混合滚动行为：下拉时顶点保持在标题区下方的初始位置，上滑时轨道随时间轴场景向上移动，底部通过 overshoot 延伸到屏幕外。滚动 offset 在 iOS 18+ 使用 SwiftUI `onScrollGeometryChange`，iOS 17 使用挂在 `List` 自身的零尺寸 `TimelineScrollOffsetReader` 读取承载 `UIScrollView`，不再依赖会被回收的行内探针。顶部标题栏展开态保持透明，折叠态使用 SwiftUI `Material` 形成毛玻璃过渡，让内容向上滚动时仍保持时间轴稳定穿过主场景的感知。
+`TimelineViewportView` 用 `ZStack` 组合独立的 `TimelineRailLayer` 和 `List` 滚动内容层。轨道不属于任何一条 `TimelineRowView`，也不进入可滑动阅读单元；它是首页时间轴场景的结构层。轨道 x 坐标直接来自 `TimelineGeometry.initialRailCenterX`，top 直接来自 `TimelineGeometry.initialRailTopY`，不依赖当前可见 Moment，也不通过某个心情节点或行内 probe 反推时间轴位置。滚动 offset 在 iOS 18+ 使用 SwiftUI `onScrollGeometryChange`，iOS 17 使用挂在 `List` 自身的零尺寸 `TimelineScrollOffsetReader` 读取承载 `UIScrollView`；这条读取链路只驱动标题折叠和轨道纵向相位，不参与轨道定位。轨道 y 坐标采用混合滚动行为：下拉时顶点保持在标题区下方的初始位置，上滑时轨道随时间轴场景向上移动，底部通过 overshoot 延伸到屏幕外。顶部标题栏展开态保持透明，折叠态使用 SwiftUI `Material` 形成毛玻璃过渡，让内容向上滚动时仍保持时间轴稳定穿过主场景的感知。
 
-`TimelineRowView` 只承载日期列、心情节点和气泡组成的阅读单元。左滑删除由 `TimelineRowView` 的 `SwipeToDeleteModifier` 集中挂载 SwiftUI `.swipeActions`，所以左滑删除的视觉目标是“日期 + 节点 + 气泡”一起从轨道上移走；连续时间轴轨道不参与横向位移。节点中心、气泡尾巴中心和尾巴尺寸/偏移由 `TimelineGeometry` 约束，再传入 `BubbleCardView`；当前代码结构已经把轨道、日期列、节点列和气泡列放到同一坐标系统中，并提供尾巴指向时间线的实现路径；真机视觉上的尖角对齐、比例关系和系统 swipe 过程中的最终观感仍需截图/录屏验收。
+`TimelineRowView` 只承载日期列、心情节点和气泡组成的阅读单元。左滑删除由 SwiftUI `List` 行的 `.swipeActions(edge: .trailing, allowsFullSwipe: true)` 提供，所以轻扫露出删除按钮、继续左滑按钮拉长并触发删除都交给系统成熟组件；连续时间轴轨道不参与横向位移。节点中心、气泡尾巴中心和尾巴尺寸/偏移由 `TimelineGeometry` 约束，再传入 `BubbleCardView`；当前代码结构已经把轨道、日期列、节点列和气泡列放到同一坐标系统中，并提供尾巴指向时间线的实现路径；真机视觉上的尖角对齐、比例关系和滑动删除过程中的最终观感仍需截图/录屏验收。
 
-真实记录点击气泡后写 `router.rootSheet = .preview(moment.id)`，VoiceOver 默认动作同样打开预览阅读卡片。左滑阅读单元仍使用 SwiftUI `.swipeActions` 软删除到垃圾箱；轻扫会露出“删除”按钮，继续滑动可触发系统 full swipe 删除；VoiceOver 删除替代路径挂在行级可访问元素上。由于 `List` 的 swipe 行为由系统 cell 语义决定，轨道、日期、节点和气泡在所有设备上的最终视觉关系仍需真机验证。引导记录不可点击、不可删除。
+真实记录点击气泡后写 `router.rootSheet = .preview(moment.id)`，VoiceOver 默认动作同样打开预览阅读卡片。左滑阅读单元使用系统 `.swipeActions` 软删除到垃圾箱；轻扫会露出“删除”按钮，继续滑动可触发系统 full swipe 删除；VoiceOver 删除替代路径挂在行级可访问元素上。引导记录不可点击、不可删除。
 
-根级 sheet 或筛选 sheet 展开时，`TimelineHomeView` 保留主页时间轴层级，不卸载 `TimelineListView`，以维持主场景返回态和滚动连续性；同时通过 `suppressAccessibility` 把后台时间轴行从可访问树中压低，避免临时任务上下文中误操作背景内容。垃圾箱相关 UI 测试只命中 `trashRow-*`，不把后台同名 Moment 行当作垃圾箱行。
+根级 sheet 或筛选 sheet 展开时，`TimelineHomeView` 保留主页时间轴层级，不卸载 `TimelineViewportView`，以维持主场景返回态和滚动连续性；同时通过 `suppressAccessibility` 把后台时间轴行从可访问树中压低，避免临时任务上下文中误操作背景内容。垃圾箱相关 UI 测试只命中 `trashRow-*`，不把后台同名 Moment 行当作垃圾箱行。
 
 ## 热力图与定位
 
@@ -54,7 +54,7 @@ TimelineDateColumn
 - 年度聚合会读取当前 `activeFilter`，用于展示当前筛选口径下的年度分布。
 - 点日期写入日粒度 anchor；点有记录的月份标签写入月粒度 anchor。两者都只更新 `timelineModel.heatmapFocusDate` 和 `timelineModel.heatmapAnchorGranularity`；当前热力图口径下没有记录的月份只显示文本，不提供月份定位按钮。
 - `HeatmapGridView` 在月粒度选中时用当前主色低透明蒙层覆盖对应月份列区，蒙层位于日期格上方且不拦截点击；日粒度选中时仍用日期格描边。
-- `TimelineListView` 监听包含 anchor 日期、粒度和目标行的派生滚动请求后，在当前可见 `entries` 中计算滚动目标；日 anchor 只命中同一天真实记录，月 anchor 只命中同一月真实记录，不会退到更早日期或更早月份。
+- `TimelineViewportView` 监听包含 anchor 日期、粒度和目标行的派生滚动请求后，在当前可见 `entries` 中计算滚动目标；日 anchor 只命中同一天真实记录，月 anchor 只命中同一月真实记录，不会退到更早日期或更早月份。
 - 换年会清空 `heatmapFocusDate`。
 - 再点同一天或同一月会取消定位高亮，不主动改回滚动位置。
 
@@ -143,7 +143,7 @@ TimelineHomeView.timelineFilterSheet
 仍未由自动化证明的 P0 / 架构稳定视觉项：
 
 - 真机截图中节点中心、气泡尾巴和时间轴竖线是否形成足够明确的绑定。
-- 左滑删除过程中系统 `.swipeActions` 的视觉位移是否满足“阅读单元整体从轨道移走、轨道背景保持连续”的边界；若仍造成系统 cell 层面的遮挡或错位，后续替换点应集中在 `SwipeToDeleteModifier`。
+- 左滑删除过程中系统 `.swipeActions` 的视觉位移是否满足“阅读单元整体从轨道移走、轨道背景保持连续”的边界；若需微调，只能限制在行操作层，不回退到行内轨道或 probe。
 - 热力图顶部上下文区在不同屏宽和明暗主题下是否足够像主页上下文，而不是漂浮卡片。
 
 ## Flutter 版只作为语义输入

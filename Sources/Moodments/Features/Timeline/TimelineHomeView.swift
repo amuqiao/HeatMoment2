@@ -4,8 +4,8 @@ import SwiftUI
 /// 首页时间轴（见 04-screen-specs.md §4.1）：唯一一级页面，聊天气泡式时间轴 + 顶部三入口 +
 /// 底部悬浮新建按钮；空数据态展示 3 条预置引导 Moment（见 `GuidedMoment`）。
 ///
-/// **阶段5重构**：`List` 数据本体（含标题两态折叠探针、定位滚动、筛选谓词）已下沉到
-/// `TimelineListView`（见该类型头部说明「定位 ≠ 筛选」的结构化落实）；本视图只保留
+/// **阶段5重构**：时间轴 viewport（含标题两态折叠、定位滚动、筛选谓词）已下沉到
+/// `TimelineViewportView`（见该类型头部说明「定位 ≠ 筛选」的结构化落实）；本视图只保留
 /// 顶部三入口 / 上下文标记横条 / 悬浮新建按钮这些「壳」，以及筛选就近浮窗的呈现。
 /// `TimelineModel` 由 `RootView` 上提持有并注入（见 `TimelineModel` 头部注释「必要重构」），
 /// 时间轴与热力图共享同一实例。
@@ -30,7 +30,7 @@ struct TimelineHomeView: View {
         ZStack {
             theme.canvasBackground.ignoresSafeArea()
 
-            TimelineListView(
+            TimelineViewportView(
                 filter: timelineModel.activeFilter,
                 suppressAccessibility: isModalContextPresented,
                 isTitleCollapsed: $isTitleCollapsed

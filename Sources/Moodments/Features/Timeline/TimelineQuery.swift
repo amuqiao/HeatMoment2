@@ -6,14 +6,14 @@ import SwiftData
 /// **公理2「定位 ≠ 筛选」的类型层保证**：`predicate(for:)` 签名内**没有任何 `Date` 参数**——
 /// 类型系统本身就杜绝了热力图定位污染数据集的可能；`scrollTargetID(for:granularity:in:)` 是纯函数，
 /// 只在调用方已经算好的「当前可见（已筛选）集」里挑一个 id，既不返回、也不修改数据集本身。
-/// 两个函数彼此不引用、不共享任何中间状态，`TimelineListView` 里也分别独立驱动
+/// 两个函数彼此不引用、不共享任何中间状态，`TimelineViewportView` 里也分别独立驱动
 /// （`@Query` = f(filter)；`.onChange(of: locateScrollRequest)` = f(focusDate, granularity, entries)）。
 enum TimelineQuery {
     /// 时间轴 `@Query` 谓词：只表达「未软删除」+「心情单选命中（若选了）」。
     ///
     /// **不放标签**：SwiftData `#Predicate` 对「集合是否包含某个子集」这类多值 AND 交集判断
     /// 不能可靠表达（`Tag` 是多对多关系），标签 AND 交集改在内存用 `FilterCondition.matches`
-    /// 判定（见 `TimelineListView`）；本函数只负责「谓词层能可靠表达」的部分。
+    /// 判定（见 `TimelineViewportView`）；本函数只负责「谓词层能可靠表达」的部分。
     ///
     /// **不接受 `Date` 参数**：热力图定位 `heatmapFocusDate` 绝不能进入这条谓词，签名上直接杜绝。
     static func predicate(for filter: FilterCondition?) -> Predicate<Moment> {
@@ -38,7 +38,8 @@ enum TimelineQuery {
         in entries: [TimelineEntry]
     ) -> UUID? {
         let calendar = Calendar.current
-        return entries
+        return
+            entries
             .filter { entry in
                 guard entry.momentID != nil else { return false }
                 guard entry.occurredAt <= date else { return false }

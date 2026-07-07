@@ -8,7 +8,6 @@ import SwiftUI
 struct TimelineGeometry {
     static let standard = TimelineGeometry()
 
-    let sceneCoordinateSpaceName = "TimelineListView.scroll"
     let listHorizontalInset: CGFloat = 20
     let dateColumnWidth: CGFloat = 64
     let interColumnSpacing: CGFloat = 12
@@ -17,13 +16,14 @@ struct TimelineGeometry {
     let nodeCenterY: CGFloat = 30
     let rowGapHeight: CGFloat = 20
     let initialRailTopY: CGFloat = 96
-    let railLeadInHeight: CGFloat = 36
+    let firstNodeCenterYOffsetFromRailTop: CGFloat = 78
     let railBottomOvershoot: CGFloat = 260
     let bubbleTailSize = CGSize(width: 8, height: 14)
     let bubbleTailHorizontalOffset: CGFloat = -6
 
     var bubbleTailCenterY: CGFloat { nodeCenterY }
     var nodeTopPadding: CGFloat { nodeCenterY - nodeDiameter / 2 }
+    var railLeadInHeight: CGFloat { firstNodeCenterYOffsetFromRailTop - nodeCenterY }
     var bubbleTailGeometry: BubbleTailGeometry {
         BubbleTailGeometry(size: bubbleTailSize, horizontalOffset: bubbleTailHorizontalOffset)
     }
@@ -33,10 +33,7 @@ struct TimelineGeometry {
         dateColumnWidth + interColumnSpacing + nodeColumnWidth / 2
     }
 
-    /// 轨道相对 `TimelineListView` viewport 左边缘的首帧初始 x 坐标。
-    ///
-    /// 运行时由 `TimelineSceneRailProbe` 测得真实列表内容起点；这个值只负责 layout
-    /// probe 回传前的首帧位置。
+    /// 轨道相对 `TimelineViewportView` viewport 左边缘的 x 坐标。
     var initialRailCenterX: CGFloat {
         listHorizontalInset + railCenterXInRow
     }
@@ -48,22 +45,5 @@ struct TimelineGeometry {
             bottom: 0,
             trailing: listHorizontalInset
         )
-    }
-}
-
-struct TimelineSceneRailAnchor: Equatable {
-    let x: CGFloat
-    let topY: CGFloat
-}
-
-struct TimelineSceneRailAnchorPreferenceKey: PreferenceKey {
-    static let defaultValue: TimelineSceneRailAnchor? = nil
-
-    static func reduce(
-        value: inout TimelineSceneRailAnchor?,
-        nextValue: () -> TimelineSceneRailAnchor?
-    ) {
-        guard let nextValue = nextValue() else { return }
-        value = nextValue
     }
 }

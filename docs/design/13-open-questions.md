@@ -39,7 +39,7 @@
 | 2 | SwiftData 是否暴露足够 CloudKit 同步事件粒度 | 实测，不足则启发式兜底（见 09-icloud-sync.md） |
 | 12 | 视觉规格色值多处 WCAG 不达标（亮色红字 3.23:1、FAB 白图标 2.99:1 等） | 实现前用对比度工具按 05-design-system.md 视觉无障碍一节复核调整 |
 | 13 | 日期选中圆用主色还是主文本色 | 真机实测区分（见 04-screen-specs.md、05-design-system.md） |
-| 20 | 时间轴定位命中行高亮的具体透明度 | 05-design-system.md §5.7 只给出「主色 12–16% 透明度叠加」的区间；阶段5实现取 **14%**（`TimelineListView.locateHighlightOpacity`），落在区间中点，待真机截图复核后如需调整只改这一处常量 |
+| 20 | 时间轴定位命中行高亮的具体透明度 | 05-design-system.md §5.7 只给出「主色 12–16% 透明度叠加」的区间；阶段5实现取 **14%**（`TimelineViewportView.locateHighlightOpacity`），落在区间中点，待真机截图复核后如需调整只改这一处常量 |
 
 ## ❓ 仍待定（新增，需后续确认）
 

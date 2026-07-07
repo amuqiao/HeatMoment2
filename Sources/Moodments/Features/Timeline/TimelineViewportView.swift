@@ -2,8 +2,7 @@ import SwiftData
 import SwiftUI
 import UIKit
 
-/// 时间轴 viewport + 投影层子视图（阶段5从 `TimelineHomeView` 抽出，见
-/// `docs/plans/implementation-plan.md` 阶段5「必要重构」）：动态 `@Query`=f(`filter`)
+/// 时间轴 viewport：动态 `@Query`=f(`filter`)
 /// + `ScrollViewReader`=f(`heatmapFocusDate`, 粒度, 当前可见集) 两条链路彼此独立、互不引用，
 /// 是「定位 ≠ 筛选」（公理2）在本视图层的结构化落实：
 ///
@@ -16,7 +15,7 @@ import UIKit
 ///
 /// 标签 AND 交集（`@Query` 谓词表达不了的部分）在 `matchedMoments` 里用
 /// `FilterCondition.matches` 内存过滤（见 04-screen-specs.md §4.2）。
-struct TimelineListView: View {
+struct TimelineViewportView: View {
     private static let geometry = TimelineGeometry.standard
     // 折叠阈值取接近大标题实际高度：仅当展开态大标题大体滚出后才切收起态，
     // 避免小阈值下「时刻 ⌄」与仍完整可见的大标题同屏并存（见阶段2 code review）。
@@ -29,8 +28,6 @@ struct TimelineListView: View {
     let filter: FilterCondition?
     let suppressAccessibility: Bool
     @Binding var isTitleCollapsed: Bool
-    @State private var measuredRailX: CGFloat?
-    @State private var measuredRailInitialTopY: CGFloat?
     @State private var scrollOffsetY: CGFloat = 0
 
     @Environment(AppRouter.self) private var router
@@ -105,21 +102,13 @@ struct TimelineListView: View {
         )
     }
 
-    private var effectiveRailX: CGFloat {
-        measuredRailX ?? Self.geometry.initialRailCenterX
-    }
-
-    private var effectiveRailInitialTopY: CGFloat {
-        measuredRailInitialTopY ?? Self.geometry.initialRailTopY
-    }
-
     var body: some View {
         ScrollViewReader { proxy in
-            ZStack {
+            ZStack(alignment: .topLeading) {
                 TimelineRailLayer(
                     geometry: Self.geometry,
-                    railX: effectiveRailX,
-                    initialTopY: effectiveRailInitialTopY,
+                    railX: Self.geometry.initialRailCenterX,
+                    initialTopY: Self.geometry.initialRailTopY,
                     scrollOffsetY: scrollOffsetY
                 )
 
@@ -132,7 +121,7 @@ struct TimelineListView: View {
                         .listRowInsets(Self.geometry.rowInsets)
                         .accessibilityHidden(suppressAccessibility)
 
-                    timelineSceneRailProbe
+                    timelineLeadIn
 
                     if isFilteredEmpty {
                         filteredEmptyState
@@ -141,8 +130,6 @@ struct TimelineListView: View {
                             .listRowInsets(Self.geometry.rowInsets)
                             .accessibilityHidden(suppressAccessibility)
                     } else {
-                        timelineLeadIn
-
                         ForEach(entries) { entry in
                             TimelineRowView(
                                 entry: entry,
@@ -172,7 +159,6 @@ struct TimelineListView: View {
                 .listRowSpacing(0)
                 .scrollContentBackground(.hidden)
                 .contentMargins(.horizontal, 0, for: .scrollContent)
-                .coordinateSpace(name: Self.geometry.sceneCoordinateSpaceName)
                 .modifier(
                     TimelineScrollObserver(
                         threshold: Self.collapseThreshold,
@@ -180,11 +166,6 @@ struct TimelineListView: View {
                         scrollOffsetY: $scrollOffsetY
                     )
                 )
-                .onPreferenceChange(TimelineSceneRailAnchorPreferenceKey.self) { anchor in
-                    guard let anchor else { return }
-                    measuredRailX = anchor.x
-                    measuredRailInitialTopY = anchor.topY + scrollOffsetY
-                }
                 .onChange(of: locateScrollRequest) { _, request in
                     guard let targetID = request?.targetID else { return }
                     withAnimation {
@@ -193,15 +174,6 @@ struct TimelineListView: View {
                 }
             }
         }
-    }
-
-    private var timelineSceneRailProbe: some View {
-        TimelineSceneRailProbe(geometry: Self.geometry)
-            .frame(height: 1)
-            .listRowSeparator(.hidden)
-            .listRowBackground(Color.clear)
-            .listRowInsets(Self.geometry.rowInsets)
-            .accessibilityHidden(true)
     }
 
     private var timelineLeadIn: some View {
@@ -220,23 +192,6 @@ struct TimelineListView: View {
             .listRowBackground(Color.clear)
             .listRowInsets(Self.geometry.rowInsets)
             .accessibilityHidden(true)
-    }
-
-    private struct TimelineSceneRailProbe: View {
-        let geometry: TimelineGeometry
-
-        var body: some View {
-            GeometryReader { proxy in
-                let frame = proxy.frame(in: .named(geometry.sceneCoordinateSpaceName))
-                Color.clear.preference(
-                    key: TimelineSceneRailAnchorPreferenceKey.self,
-                    value: TimelineSceneRailAnchor(
-                        x: frame.minX + geometry.railCenterXInRow,
-                        topY: frame.minY
-                    )
-                )
-            }
-        }
     }
 
     private var filteredEmptyState: some View {
@@ -277,7 +232,7 @@ struct TimelineListView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityIdentifier("timelineExpandedTitle")
             .accessibilityAddTraits(.isHeader)
-            // 折叠后展开态大标题虽仍在层级中（List 首行），对无障碍/自动化隐藏，
+            // 折叠后展开态大标题虽仍在滚动内容中，对无障碍/自动化隐藏，
             // 避免与收起态「时刻」并存造成 VoiceOver 重复播报页头（见阶段2 review）。
             .accessibilityHidden(isTitleCollapsed)
     }
@@ -285,7 +240,7 @@ struct TimelineListView: View {
 
 /// 监听时间轴滚动位置，驱动标题两态折叠和轨道混合纵向行为。
 ///
-/// 折叠判定：内容自顶部下滑超过 `|threshold|` 点即判定为收起态（`threshold` 为负，见调用处）。
+/// 折叠判定：内容自顶部上滑超过 `|threshold|` 点即判定为收起态（`threshold` 为负，见调用处）。
 private struct TimelineScrollObserver: ViewModifier {
     let threshold: CGFloat
     @Binding var isCollapsed: Bool
@@ -322,7 +277,7 @@ private struct TimelineScrollObserver: ViewModifier {
 }
 
 /// iOS 17 没有 `onScrollGeometryChange`，这里用一个零尺寸 UIView 挂到 `List` 自身，
-/// 直接读取承载它的 `UIScrollView` 偏移，避免把滚动状态绑定到会被回收的某一行。
+/// 直接读取承载它的 `UIScrollView` 偏移；它只负责滚动状态，不参与轨道定位。
 private struct TimelineScrollOffsetReader: UIViewRepresentable {
     var onChange: (CGFloat) -> Void
 
@@ -400,7 +355,7 @@ private struct TimelineScrollOffsetReader: UIViewRepresentable {
 }
 
 #Preview {
-    TimelineListView(filter: nil, isTitleCollapsed: .constant(false))
+    TimelineViewportView(filter: nil, isTitleCollapsed: .constant(false))
         .environment(AppRouter())
         .environment(ThemeManager())
         .environment(TimelineModel())

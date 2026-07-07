@@ -5,8 +5,7 @@ import SwiftUI
 /// （见 04-screen-specs.md §4.1）、左滑露出删除动作（软删除进垃圾箱，见 04 §4.14）。
 ///
 /// **架构边界**：连续时间轴轨道是稳定骨架；日期、心情节点和气泡是同一条 Moment 的阅读单元。
-/// 左滑删除使用成熟的 `List` + `.swipeActions`：系统移动这条阅读单元，独立轨道层不进入
-/// 可滑动内容。后续如果要调整删除样式，应优先调整 `SwipeToDeleteModifier`，不改日期/节点/气泡对象。
+/// 左滑删除使用 SwiftUI `List` 行的成熟 `.swipeActions` 语义；独立轨道层不进入可滑动内容。
 struct TimelineRowView: View {
     let entry: TimelineEntry
     let geometry: TimelineGeometry
@@ -21,16 +20,19 @@ struct TimelineRowView: View {
         VStack(spacing: 0) {
             TimelineReadingUnitView(entry: entry, geometry: geometry, onTap: onTap)
 
-            // 行间距只负责阅读节奏；连续轨道由 `TimelineListView` 的独立结构层绘制。
+            // 行间距只负责阅读节奏；连续轨道由 `TimelineViewportView` 的独立结构层绘制。
             Color.clear.frame(height: geometry.rowGapHeight)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(entry.accessibilityLabel))
         .accessibilityAddTraits(entry.isGuided ? [] : .isButton)
         .modifier(
-            TimelineRowActivateAccessibilityModifier(isEnabled: !entry.isGuided, onActivate: onTap)
+            TimelineRowActivateAccessibilityModifier(
+                isEnabled: !entry.isGuided,
+                onActivate: onTap
+            )
         )
-        .modifier(SwipeToDeleteModifier(onDelete: deleteAction))
+        .modifier(TimelineSwipeActionsModifier(onDelete: deleteAction))
     }
 }
 
@@ -130,8 +132,8 @@ private struct TimelineRowActivateAccessibilityModifier: ViewModifier {
 }
 
 /// 左滑删除动作 + 无障碍替代路径（见 04-screen-specs.md §4.1：首页删除无需二次确认，
-/// 有垃圾箱兜底，见公理3）。`onDelete == nil` 时不挂任何修饰符（引导 Moment 不可删）。
-private struct SwipeToDeleteModifier: ViewModifier {
+/// 有垃圾箱兜底，见公理3）。`onDelete == nil` 时不挂行操作（引导 Moment 不可删）。
+private struct TimelineSwipeActionsModifier: ViewModifier {
     let onDelete: (() -> Void)?
 
     func body(content: Content) -> some View {
