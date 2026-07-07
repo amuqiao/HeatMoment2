@@ -4,7 +4,7 @@
 
 ## 单页信息架构
 
-根体验只有一个一级页面 **Home Timeline「时刻」**，不存在并列 Tab；新建、预览、筛选、热力图、设置都从 Home Timeline 展开为临时上下文任务，任务完成后回到时间轴 `[真机确认 + 观测确认]`。
+根体验只有一个一级页面 **Home Timeline「时刻」**，不存在并列 Tab；新建、预览、热力图、设置都从 Home Timeline 展开为临时上下文；筛选是首页上的就地精炼 sheet，不进入任务卡片栈，调整完成后仍回到同一条时间轴 `[真机确认 + 观测确认]`。
 
 ```text
 Home Timeline（唯一一级页面）
@@ -33,9 +33,10 @@ flowchart TD
     Root[TimelineHomeView 根页面] -->|点击悬浮新建按钮| Editor[MomentEditorView 任务卡片sheet]
     Root -->|点击时间轴卡片| Preview[MomentPreviewView 弹出阅读卡片·任务卡片]
     Root -->|点击顶部左侧日历图标| Heatmap[YearHeatmapView 覆盖层]
-    Root -->|点击收起态标题 时刻⌄（大标题态不可点）| Filter[FilterPanelView 就近浮窗·锚定不下沉]
+    Root -->|点击收起态标题 时刻⌄（大标题态不可点）| Filter[FilterPanelView 就地筛选半屏sheet·不入任务卡片栈]
     Root -->|点击顶部右侧六边形图标| Settings[SettingsSheetView]
 
+    Filter -->|+新增标签| TagCreate
     Editor -->|情绪行| MoodPicker[MoodPickerView 就近浮窗·锚定不下沉]
     Editor -->|标签行| TagPicker[TagPickerView 就近浮窗·锚定不下沉]
     TagPicker -->|+添加| TagCreate[TagCreateSheetView .sheet自适应高度detent，居中卡片仅为视觉外观]
@@ -66,10 +67,11 @@ flowchart TD
 - **卡片层叠下沉是系统默认行为**：sheet 之上再 present sheet（如 编辑器→Paywall、设置子页→新建标签），系统自动令底层卡片下沉缩小变暗、逐层关闭逐层浮回，不手写动画、不引第三方库（业界称 Stacked Sheets / Cascading Page Sheets）`[设计决策]`。
 - `MomentPreviewView` = **弹出的阅读卡片（任务卡片，进卡片栈），不是 push 页面跳转**；关闭回到时间轴原滚动位置 `[观测确认]`（无独立截图，据公理产品逻辑推导，见 ADR-007）。`TrashView` 已定：挂设置「分组卡片 A」，与「标签」同级。
 - `YearHeatmapView` 是 `TimelineHomeView` 之上的覆盖层（ZStack overlay，非模态、非 sheet），背景半透明，X 收起并保留时间轴状态 `[真机确认 + 设计决策呈现机制]`。
-- `FilterPanelView`、`MoodPickerView`、`TagPickerView`、`DatePickerSheetView`、`TimePickerSheetView` 这类"就地选择一个条件或值"的短动作：统一为**就近浮窗**——**锚定触发元素、带指向尖角、尺寸自适应、背景不下沉、不缩小、不进层级栈**；**跨设备都保持锚定浮窗形态，iPhone 不降级为下沉的半高 sheet** `[真机确认交互 + 观测确认 + 设计决策呈现，见 14-design-decisions.md ADR-006]`。
+- `FilterPanelView` 是首页上的**就地筛选半屏 sheet**：从收起态标题/筛选入口打开，覆盖在主页之上但不进入任务卡片栈，不 push、不进 `AppRouter.rootSheet`；点选条件即时作用于首页时间轴、上下文标记和热力图口径，sheet 不因单次选择自动关闭，用户通过「完成」或系统下滑手势关闭 `[交互模型 v2 修订，见 14-design-decisions.md ADR-006]`。
+- `MoodPickerView`、`TagPickerView`、`DatePickerSheetView`、`TimePickerSheetView` 这类编辑页字段选择：统一为**就近浮窗**——**锚定触发元素、带指向尖角、尺寸自适应、背景不下沉、不缩小、不进层级栈**；**跨设备都保持锚定浮窗形态，iPhone 不降级为下沉的半高 sheet** `[真机确认交互 + 观测确认 + 设计决策呈现，见 14-design-decisions.md ADR-006]`。
 - `ImageViewerView` 用 `.fullScreenCover`（沉浸全屏、无层叠语义）；`PrivacyLockView` 是应用级全屏遮罩，无法手势关闭，详见《10-security-privacy.md》。
 
 **上下文标记（当前查看条件的可见表达）**：时间轴顶部可并存两类互不相同的标记，分别可移除、含义不同（依 `product-mental-model.md` 上下文标记对象与公理 2）——
-- **筛选标记**（`#标签` / 情绪 emoji + 名称）：说明"当前只看满足条件的时刻"；移除它改变的是**看哪些记录**（内容集合），来自筛选浮窗。
+- **筛选标记**（`#标签` / 情绪 emoji + 名称）：说明"当前只看满足条件的时刻"；移除它改变的是**看哪些记录**（内容集合），来自首页就地筛选 sheet。
 - **时间标记**（年 / 月 / 日）：说明"当前定位到某个时间点"；移除它改变的是**是否停在某个时间位置**（滚动锚点），来自热力图定位。
 - 二者正交、可同时存在、各自独立移除，工程上对应 `activeFilter` 与 `heatmapFocusDate` 两个独立状态源（见《08-architecture.md》§4.2）`[设计决策]`。

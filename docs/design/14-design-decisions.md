@@ -27,21 +27,22 @@
   - **分散 `.sheet(item:)` / `@State`（就近驱动）**：最简；否决理由——深链、"返回到指定层级"、状态恢复难实现，导航状态散落难追踪。（注：叶子级弹层仍可局部驱动，见 ADR-003 的层叠协作说明。）
 - **影响**：新增 `Navigation/AppRouter.swift`；`Features/*` 只发意图不各自持久化导航状态。可搜索：`swiftui NavigationStack NavigationPath router`、`unidirectional navigation swiftui`。
 
-## ADR-003 模态呈现：区分「任务卡片栈」与「就近浮窗」两类浮层（依公理 4）
+## ADR-003 模态呈现：区分「任务卡片栈」与「就地选择层」两类浮层（依公理 4）
 
 - **状态**：已采纳（依 `product-mental-model.md` 公理 4）
 - **效果命名**：
   - **任务卡片栈** = iOS **Sheet Presentation / Page Sheet**（UIKit `UISheetPresentationController`），多层叠加时底层卡片下沉缩小变暗的形态社区称 **Stacked Sheets / Cascading Page Sheets / Card Stack Modal**。出处：iOS 13 卡片式模态 + iOS 15 detents + iOS 16.4 SwiftUI presentation 修饰符。
-  - **就近浮窗** = **Popover**（锚定触发元素、带指向尖角、尺寸自适应，`.popover` + `presentationCompactAdaptation(.popover)`）。
+  - **就地选择层** = 不入任务卡片栈的局部选择呈现；首页筛选使用 half-sheet，编辑字段选择使用 popover。
+  - **就近浮窗** = 字段选择用的 **Popover**（锚定触发元素、带指向尖角、尺寸自适应，`.popover` + `presentationCompactAdaptation(.popover)`）。
 - **决策**：**两种本质不同的浮层层级不可混用**——
   1. **任务卡片栈（承接完整任务）**：用系统 `.sheet`（page sheet），**背景下沉、上一层缩小、进入层级栈**，由 Router 的 `.sheet(item:)` 驱动；**卡片层叠下沉是系统默认行为**（sheet 上再 present sheet 即自动层叠），不手写动画、不引第三方库。成员：新建/编辑、**单条预览（弹出阅读卡片，见 ADR-007）**、设置及其子页、Pro 权益、新建标签。
-  2. **就近浮窗（承接就地选择）**：**锚定触发元素、带指向尖角、尺寸自适应、背景不下沉、不缩小、不进层级栈**，跨设备保持浮窗形态（见 ADR-006）。成员：标签筛选、心情筛选、日期选择、时间选择。
+  2. **就地选择层（承接条件/字段调整，不入任务卡片栈）**：`FilterPanelView` 是首页就地筛选 half-sheet；`MoodPickerView`、`TagPickerView`、`DatePickerSheetView`、`TimePickerSheetView` 是编辑字段就近浮窗。筛选 half-sheet 不 push、不进 `AppRouter.rootSheet`，选择即时生效且不自动关闭；字段 popover 锚定触发元素、带指向尖角、尺寸自适应，跨设备保持浮窗形态（见 ADR-006）。
   - `.fullScreenCover` 仅用于图片查看器与隐私锁（无层叠语义）；覆盖层仅用于年度热力图。
-  - **层叠与集中 Router 协作**：任务卡片栈第一层绑 `router.rootSheet`；第二/三层（编辑器→Paywall、设置子页→新建标签）由该 sheet 的局部子状态驱动其 `.sheet(item:)`，呈现层叠由系统完成。**就近浮窗不进路由栈、不由 `rootSheet` 驱动**，由触发处的局部锚定状态就近驱动。
+  - **层叠与集中 Router 协作**：任务卡片栈第一层绑 `router.rootSheet`；第二/三层（编辑器→Paywall、设置子页→新建标签）由该 sheet 的局部子状态驱动其 `.sheet(item:)`，呈现层叠由系统完成。**就地选择层不进路由栈、不由 `rootSheet` 驱动**，由触发处的局部状态驱动。
 - **备选与否决**：
   - **第三方 sheet 库（类 `wolt_modal_sheet` 的 Swift 实现 / FittedSheets）**：否决理由——只有"同一 sheet 内多步骤切换 + 高度过渡动画"才需要，本 App 用不上，徒增依赖。
   - **自定义转场 / 手写 `Transform` 缩放下沉**：否决理由——系统已自带该形态，手写反而与系统手势冲突、难维护、易破坏 HIG 一致性。
-  - **所有浮层统一为 page sheet（含就近选择也走半高 sheet）**：否决理由——违反公理 4，把"就地选择"的短动作错误地下沉了主场景背景、挤入了层级栈，破坏"永不离开主场景"的心智（见被 supersede 的旧 ADR-006）。
+  - **所有浮层统一为 page sheet（含编辑字段选择也走半高 sheet）**：否决理由——违反公理 4，把"就地选择"全部错误地挤入任务卡片栈，破坏"永不离开主场景"的心智。首页筛选 half-sheet 是就地精炼的局部选择层，不是任务卡片 sheet。
 - **影响**：消除文档里"popover / 内嵌浮层""半高 sheet / popover"的二义。可搜索：`swiftui sheet presentationDetents`、`presentationCornerRadius`、`presentationBackground`、`ios page sheet stacked`、`swiftui popover presentationCompactAdaptation`。
 
 ## ADR-004 最低系统版本：iOS / iPadOS 17.0
@@ -60,13 +61,15 @@
 - **备选与否决**：**全部主线程 + `DispatchQueue` 手动切换**——否决理由——与 async/await 混用刷新时机难推理，Swift 6 严格并发下告警密集。
 - **影响**：跨隔离域只传值类型（如 `Moment.ID`），不传 `@Model` 引用。可搜索：`swiftdata modelactor background`、`swiftui .task(id:) cancellation`、`@MainActor swiftui`。
 
-## ADR-006 就近浮窗：筛选/日期/时间/心情选择跨设备保持锚定浮窗形态（依公理 4）
+## ADR-006 就地选择：筛选 half-sheet 与字段锚定浮窗（依公理 4）
 
 - **状态**：已采纳（**取代原 ADR-006「紧凑弹选 iPhone 半高 sheet / iPad popover」，旧决策 superseded**）
-- **决策**：情绪选择（`MoodPickerView`）、标签选择（`TagPickerView`）、日期/时间选择（`DatePickerSheetView` / `TimePickerSheetView`）等"就地选择一个条件或值"的短动作，**统一为就近浮窗（popover 语义）：锚定触发元素、带指向尖角、尺寸自适应、背景不下沉、不缩小、不进层级栈**。**跨设备都保持锚定浮窗形态，iPhone 上不降级为下沉的半高 sheet**（用 `.popover` + `presentationCompactAdaptation(.popover)` 强制保持 popover，而非默认降级）。
-- **背景**：依 `product-mental-model.md` 公理 4，任务卡片栈与就近浮窗是两种本质不同的浮层层级。就地选择属于就近浮窗——它应保持主场景（时间轴 / 编辑卡片）大部分可见、不下沉背景、不入层级栈。旧方案让 iPhone 降级为半高 sheet 会把短选择错误地当作"完整任务"处理，违反公理 4 与公理 5（永不离开主场景）。
-- **影响**：`08-architecture.md` §2 与本 ADR-003 对齐；`02-information-architecture.md`、`04-screen-specs.md` 对应页面呈现按"就近浮窗"定稿。可搜索：`swiftui popover presentationCompactAdaptation popover`、`anchored popover iphone`。
-- **交互模型 v2 修订（筛选解耦，`[AMENDED v2]`）**：**筛选面板（`FilterPanelView`）从上述"就近浮窗 popover"名单中移出，改为半屏 bottom sheet**（`.sheet` + `.presentationDetents([.medium, .large])`）。原因：筛选要同时承载**心情单选 + 标签多选（可累加多个标签）+ 末尾「新增标签」入口**，条目远多于其它"选一个值"的短动作；在固定窄宽的 popover 里多条件并排会拥挤、难以扫读与连续多选，半屏 sheet 提供可滚动、可扩展到 `.large` 的舒展版面更合适。**本次仅改「筛选」这一个对象的呈现容器**：`MoodPickerView` / `TagPickerView` / 日期/时间选择仍保持就近浮窗不变（它们仍是"选一个值"的短动作）。筛选的其余性质不变——**不进 `AppRouter`、由触发处（收起态「时刻 ⌄」）的局部 `@State` 驱动、就地即时生效（无「确认」按钮，点选即写 `activeFilter`）**；「完成」仅收起 sheet、不做提交。此修订**废止本 ADR 中"筛选跨设备保持 popover、不降级半高 sheet"这一条针对筛选的旧决策**（其它对象的 popover 决策不受影响）。可搜索：`swiftui sheet presentationDetents medium large`。
+- **决策**：就地选择层按内容重量分两种呈现：
+  - **首页筛选（`FilterPanelView`）**：使用半屏 bottom sheet（`.sheet` + `.presentationDetents([.medium, .large])`）。它从首页收起态标题/筛选入口打开，语义是"留在主页、调整当前时间轴内容"，不是导航式任务页；不 push、不进 `AppRouter.rootSheet`、不进入任务卡片栈。筛选即时作用于时间轴、上下文标记和热力图口径，选择条件后 sheet 不自动关闭，用户通过「完成」或系统下滑手势关闭。
+  - **编辑字段选择（`MoodPickerView`、`TagPickerView`、`DatePickerSheetView`、`TimePickerSheetView`）**：保持就近浮窗（popover 语义）：锚定触发元素、带指向尖角、尺寸自适应、背景不下沉、不缩小、不进层级栈。跨设备都保持锚定浮窗形态，iPhone 上不降级为下沉的半高 sheet（用 `.popover` + `presentationCompactAdaptation(.popover)` 强制保持 popover，而非默认降级）。
+- **筛选语义**：心情单选，可切回全部心情；标签多选，多个标签采用 AND 语义；「清除全部」同时移除心情和标签筛选。筛选只改变"看哪些记录"，热力图只改变"定位到哪个时间位置"，二者可同时存在但不可合并。
+- **背景**：依 `product-mental-model.md` 公理 4，任务卡片栈与就地选择层是两种本质不同的浮层层级。首页筛选承载多个条件的连续调整，固定窄宽 popover 不利于扫读和多选；half-sheet 是 SwiftUI 成熟组件下的局部选择容器，但不具备任务卡片栈语义。编辑页日期/时间/心情/标签仍是字段级短选择，需保持锚定浮窗。
+- **影响**：`08-architecture.md` §2 与本 ADR-003 对齐；`02-information-architecture.md`、`04-screen-specs.md` 对应页面呈现按"筛选 half-sheet / 字段 popover"定稿。可搜索：`swiftui sheet presentationDetents medium large`、`swiftui popover presentationCompactAdaptation popover`、`anchored popover iphone`。
 
 ## ~~ADR-006（旧）紧凑弹选：iPhone 半高 sheet / iPad popover~~ `[SUPERSEDED]`
 

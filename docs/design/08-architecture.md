@@ -13,7 +13,7 @@
 | 最低系统 | **iOS / iPadOS 17.0** | 与 SwiftData / `@Observable` 起点一致；`presentationDetents`(16.4+)、`@Observable`(17) 均可用 |
 | 架构范式 | **`@Observable`-based MVVM** | View 持有 `@Observable` model 用 `@State`，跨层用 `@Environment`；列表用 `@Query` 直接驱动；**不引 TCA**；**禁止 `@Observable` 与旧 `ObservableObject` 混用同一数据流** |
 | 导航/模态状态 | **集中式 `AppRouter`（`@Observable`，Environment 注入）** | 全局导航意图（根级 sheet、push 栈、覆盖层、应用锁）集中到一个可观察路由 model；见第 3 节 |
-| 浮层层级 | **两类：任务卡片栈（page sheet 层叠）+ 就近浮窗（popover，不下沉/不入栈）** | 完整任务用可层叠的任务卡片栈（卡片下沉靠系统默认、不手写动画/第三方库）；就地选择用锚定就近浮窗；预览=弹出阅读卡片；见第 2 节与 `14-design-decisions.md` ADR-003/006/007 |
+| 浮层层级 | **两类：任务卡片栈（page sheet 层叠）+ 就地选择层（筛选 half-sheet / 字段 popover，不入任务卡片栈）** | 完整任务用可层叠的任务卡片栈（卡片下沉靠系统默认、不手写动画/第三方库）；就地选择按内容重量使用首页筛选半屏 sheet 或字段锚定 popover；预览=弹出阅读卡片；见第 2 节与 `14-design-decisions.md` ADR-003/006/007 |
 | 并发 | **Swift Concurrency + `@MainActor` + SwiftData `ModelActor`** | UI 层 `@MainActor`；写入/批量/计数在后台 `ModelActor`；异步加载用 `.task(id:)`；见第 5 节 |
 | 持久化 | **SwiftData + CloudKit 私有库** | 见 `07-data-persistence.md`、`09-icloud-sync.md` |
 
@@ -41,7 +41,9 @@ App 采用「首页为根的单 `NavigationStack` + 两类浮层 + 沉浸全屏 
 
 1. **任务卡片栈（承接完整任务）**：用系统 `.sheet`（page sheet），**背景下沉、上一层缩小、进入层级栈**（系统 page sheet 层叠语义），由 `AppRouter` 的 `.sheet(item:)` 驱动（不用散落的多个 bool，避免组合爆炸）。成员：新建/编辑、**单条预览（弹出阅读卡片）**、设置及其子页、Pro 权益、新建标签。
    - **卡片层叠下沉效果 = 系统默认行为**：在一个 page sheet 之上再 present 一个 `.sheet`，系统自动把底层卡片下沉、缩小、变暗；逐层关闭逐层浮回。**禁止手写 `Transform`/缩放动画模拟，禁止用 `.fullScreenCover` 冒充可层叠的模态**（业界称 Stacked Sheets / Cascading Page Sheets，见 `14-design-decisions.md` ADR-003）。
-2. **就近浮窗（承接就地选择）**：**锚定触发元素、带指向尖角、尺寸自适应、背景不下沉、不缩小、不进层级栈**（popover 语义）。成员：标签筛选、心情筛选、日期选择、时间选择。**跨设备都保持锚定浮窗形态，iPhone 上不降级为下沉的半高 sheet**（依公理 4，见 `14-design-decisions.md` ADR-006）。
+2. **就地选择层（承接条件/字段调整，不入任务卡片栈）**：
+   - `FilterPanelView` 是首页筛选半屏 sheet：从收起态标题/筛选入口打开，由触发处局部状态驱动，不 push、不进 `AppRouter.rootSheet`，选择即时作用于时间轴、上下文标记和热力图口径，sheet 不因单次选择自动关闭。
+   - `MoodPickerView`、`TagPickerView`、`DatePickerSheetView`、`TimePickerSheetView` 是编辑页字段就近浮窗：**锚定触发元素、带指向尖角、尺寸自适应、背景不下沉、不缩小、不进层级栈**，跨设备保持 popover 形态（依公理 4，见 `14-design-decisions.md` ADR-006）。
 3. **`.fullScreenCover` 只用于「无层叠语义的沉浸全屏」**：图片查看器、隐私锁两处。
 4. **覆盖层（overlay）用于「非模态的顶部展开」**：年度热力图。
 
@@ -57,10 +59,10 @@ App 采用「首页为根的单 `NavigationStack` + 两类浮层 + 沉浸全屏 
 | `ProPaywallView` | 任务卡片栈（`.sheet` page sheet） | 三类触发来源共用；从编辑器/设置之上弹出时即形成第二层卡片层叠 |
 | `MomentPreviewView` | 任务卡片（弹出阅读卡片，入卡片栈） | 点卡片弹出阅读卡片，非 push；关闭回到时间轴原滚动位置 |
 | `YearHeatmapView` | `ZStack` overlay（覆盖层） | 顶部锚定展开、**继承主画布配色（不加全屏遮罩，依公理4「覆盖层背景不下沉」，与 05 §5.4 一致）**，非模态；X 收起并保留时间轴状态 |
-| `FilterPanelView` | 就近浮窗（锚定、带尖角、不下沉背景、不入栈；跨设备保持浮窗，不降级半高 sheet） | 就地选择即时应用，无「确认」按钮 |
+| `FilterPanelView` | 首页就地筛选半屏 sheet（局部 `.sheet` + detent；不 push、不进 `AppRouter.rootSheet`、不入任务卡片栈） | 心情单选、标签多选 AND，点选即时应用，无「确认」按钮；选择后不自动关闭 |
 | `MoodPickerView` | 就近浮窗（锚定、不下沉、不入栈；跨设备保持浮窗） | 从编辑器情绪行展开 |
 | `TagPickerView` | 就近浮窗（锚定、不下沉、不入栈；跨设备保持浮窗） | 从编辑器标签行展开，支持多选 |
-| `TagCreateSheetView` | 任务卡片栈（`.sheet` 自适应高度 detent，视觉居中卡片） | 从 `TagPickerView` 或 `TagManageView` 打开（第二/三层卡片层叠） |
+| `TagCreateSheetView` | 任务卡片栈（`.sheet` 自适应高度 detent，视觉居中卡片） | 从 `FilterPanelView`、`TagPickerView` 或 `TagManageView` 打开；筛选内打开时是首页筛选 sheet 之上的第二层 |
 | `DatePickerSheetView` / `TimePickerSheetView` | 就近浮窗（锚定、不下沉、不入栈；跨设备保持浮窗，不降级半高 sheet） | 从编辑器顶栏 chip 打开，选后立即回填 |
 | `ImageViewerView` | `.fullScreenCover`（全屏） | 无层叠语义，沉浸浏览 + 缩放/翻页 |
 | `MoodStatsView` / `TagManageView` / `TrashView` / `AppearanceThemeView` / `AboutView` | 设置栈内 `NavigationLink` push | 设置 sheet 内部的二级页 |
@@ -68,6 +70,7 @@ App 采用「首页为根的单 `NavigationStack` + 两类浮层 + 沉浸全屏 
 
 导航拓扑（触发关系）：
 - 首页 → 编辑器（悬浮按钮 / 限额未超）、预览（点卡片）、热力图（左侧日历图标）、筛选（收起态标题「时刻 ⌄」，大标题态不可点）、设置（右侧六边形图标）。
+- 筛选面板 → 新建标签弹窗；新建成功后新标签自动加入当前筛选条件。
 - 编辑器 → 情绪/标签/日期/时间各弹层；标签选择 → 新建标签弹窗；保存或触达免费上限 → Paywall（第二层卡片层叠）。
 - 预览 → 编辑器（编辑入口）、图片查看器（点图片）。
 - 设置 → Pro 横幅（Paywall）、心情统计、标签管理、垃圾箱、外观主题、关于。
@@ -89,14 +92,14 @@ final class AppRouter {
 
     // 根级模态第一层（任务卡片栈，由首页发起）——用 item 驱动 .sheet(item:)
     // 预览是「弹出阅读卡片」而非 push，故归入任务卡片栈（rootSheet），不进 homePath
-    var rootSheet: RootSheet?               // .preview / .editor / .settings / .paywall（筛选是就近浮窗，不在此）
+    var rootSheet: RootSheet?               // .preview / .editor / .settings / .paywall（筛选是首页局部半屏 sheet，不在此）
 
     // 覆盖层与应用级层
     var isHeatmapPresented = false          // YearHeatmap overlay
     var fullScreenCover: FullCover?         // .imageViewer(MomentImage.ID) 等
     var isLocked = false                    // 隐私锁遮罩，scenePhase 驱动
-    // 注：就近浮窗（标签/心情筛选、日期/时间选择）是锚定的局部浮层，
-    //     不进路由栈、不由 rootSheet 驱动，由触发处的局部锚定状态就近驱动（见下）。
+    // 注：就地选择层（首页筛选 half-sheet、编辑字段 popover）由具体 View 局部状态持有，
+    //     不进路由栈、不由 rootSheet 驱动。
 }
 
 enum HomeRoute: Hashable { /* 预留：真正的 push 型路由 */ }
@@ -109,7 +112,7 @@ enum FullCover: Identifiable { case imageViewer(momentID: Moment.ID, index: Int)
 **两类浮层如何与集中 Router 协作**（关键，避免实现者困惑）：
 - **任务卡片栈·第一层**（预览/编辑器/设置/Paywall 由首页发起）：绑定 `router.rootSheet`，`TimelineHomeView` 上 `.sheet(item: $router.rootSheet)`。预览是弹出的阅读卡片（`.preview`），进卡片栈而非 push。
 - **任务卡片栈·第二/三层**（编辑器→Paywall、设置子页→新建标签）：由**该 sheet 内容视图自身持有的局部子状态**驱动其 `.sheet(item:)`（或收敛到 Router 的分层字段，如 `editorSheet: EditorSheet?`），呈现上仍是「sheet 内再 present sheet」，**卡片层叠由系统自动完成**。集中 Router 只需负责「跨页级」意图，不必把每一个叶子弹层塞进一个巨型枚举。
-- **就近浮窗**（标签/心情筛选、日期/时间选择）：**不进路由栈、不由 `rootSheet` 驱动**，是锚定触发元素的局部浮层，由触发处（时间轴筛选入口、编辑卡片对应字段）自身持有的局部锚定状态就近驱动；**背景不下沉、不缩小、不入层级栈**，跨设备保持锚定浮窗形态。
+- **就地选择层**（首页筛选 half-sheet、编辑字段 popover）：**不进路由栈、不由 `rootSheet` 驱动**，由触发处自身持有局部状态。首页筛选使用半屏 sheet 承载多条件连续调整；编辑页日期/时间/心情/标签使用锚定 popover 承载单条时刻字段选择。二者都不进入任务卡片栈。
 - **深链 / 状态恢复**（如通知点开某条 Moment）：解析为对 `homePath` / `rootSheet` 的赋值即可，这是选择集中 Router 而非分散 `@State` 的主要收益。
 - **Router 属于 `@MainActor`**（导航即 UI 状态）。
 
