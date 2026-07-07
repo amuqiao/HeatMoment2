@@ -80,8 +80,9 @@ struct TimelineHomeView: View {
 
     // MARK: - 收起态筛选入口（见 04-screen-specs.md §4.1 标题两态）
 
-    /// 收起态：上滑折叠后固定栏中显示的「时刻 ⌄」，仅此状态可点、打开筛选就近浮窗，
-    /// 绑定 `timelineModel.activeFilter`（不进 `AppRouter`，见 08-architecture.md §2.2/§3）。
+    /// 收起态：上滑折叠后固定栏中显示的「时刻 ⌄」，仅此状态可点、打开筛选半屏 sheet，
+    /// 绑定 `timelineModel.activeFilter`（不进 `AppRouter`，见 08-architecture.md §2.2/§3；
+    /// 交互模型 v2：筛选从就近浮窗改为半屏 bottom sheet，见 ADR-006 `[AMENDED v2]`）。
     private var collapsedTitleButton: some View {
         @Bindable var timelineModel = timelineModel
 
@@ -98,9 +99,9 @@ struct TimelineHomeView: View {
         .accessibilityIdentifier("timelineCollapsedTitleButton")
         .accessibilityLabel(Text("时刻，筛选入口"))
         .accessibilityHint(Text("双击打开标签与心情筛选"))
-        .popover(isPresented: $isFilterPresented, arrowEdge: .top) {
+        .sheet(isPresented: $isFilterPresented) {
             FilterPanelView(activeFilter: $timelineModel.activeFilter)
-                .presentationCompactAdaptation(.popover)
+                .presentationDetents([.medium, .large])
         }
     }
 

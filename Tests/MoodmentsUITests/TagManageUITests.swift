@@ -29,7 +29,9 @@ final class TagManageUITests: XCTestCase {
         let workTagOption = app.buttons["filterTagOption-工作"]
         XCTAssertTrue(workTagOption.waitForExistence(timeout: 5))
         workTagOption.tap()
-        dismissPopoverIfPresent(app)
+        // 交互模型 v2：筛选改为半屏 sheet（见 `TitleCollapseFilterUITests`），点「完成」收起后
+        // 才能断言 sheet 之下的时间轴筛选态；这里的标签选择是筛选面板（sheet），非编辑器标签浮窗。
+        dismissFilterSheet(app)
 
         XCTAssertTrue(
             app.staticTexts["timelineFilteredEmptyState"].waitForExistence(timeout: 5),
@@ -226,11 +228,20 @@ final class TagManageUITests: XCTestCase {
     }
 
     /// 若就近浮窗仍在（未自动收起）则点外部收起；已收起则直接跳过，不视为失败
-    /// （见 `LocateFilterUITests` 同名 helper 的说明）。
+    /// （见 `LocateFilterUITests` 同名 helper 的说明）。**仅用于仍为就近浮窗的编辑器标签选择**
+    /// （`tagOption-*`）；筛选面板已在交互模型 v2 改为半屏 sheet，用下方 `dismissFilterSheet`。
     private func dismissPopoverIfPresent(_ app: XCUIApplication) {
         let dismissRegion = app.otherElements["PopoverDismissRegion"]
         guard dismissRegion.waitForExistence(timeout: 2) else { return }
         dismissRegion.tap()
+    }
+
+    /// 收起筛选半屏 sheet：点「完成」（`filterDoneButton`）。sheet 是模态，收起后其下的时间轴
+    /// 才重新进入无障碍树可被断言（交互模型 v2 筛选呈现变更，见 `TitleCollapseFilterUITests`）。
+    private func dismissFilterSheet(_ app: XCUIApplication) {
+        let doneButton = app.buttons["filterDoneButton"]
+        guard doneButton.waitForExistence(timeout: 5) else { return }
+        doneButton.tap()
     }
 
     private func waitForNonexistence(of element: XCUIElement, timeout: TimeInterval) -> Bool {

@@ -63,9 +63,10 @@
 ## ADR-006 就近浮窗：筛选/日期/时间/心情选择跨设备保持锚定浮窗形态（依公理 4）
 
 - **状态**：已采纳（**取代原 ADR-006「紧凑弹选 iPhone 半高 sheet / iPad popover」，旧决策 superseded**）
-- **决策**：情绪选择（`MoodPickerView`）、标签选择（`TagPickerView`）、筛选面板（`FilterPanelView`）、日期/时间选择（`DatePickerSheetView` / `TimePickerSheetView`）等"就地选择一个条件或值"的短动作，**统一为就近浮窗（popover 语义）：锚定触发元素、带指向尖角、尺寸自适应、背景不下沉、不缩小、不进层级栈**。**跨设备都保持锚定浮窗形态，iPhone 上不降级为下沉的半高 sheet**（用 `.popover` + `presentationCompactAdaptation(.popover)` 强制保持 popover，而非默认降级）。
+- **决策**：情绪选择（`MoodPickerView`）、标签选择（`TagPickerView`）、日期/时间选择（`DatePickerSheetView` / `TimePickerSheetView`）等"就地选择一个条件或值"的短动作，**统一为就近浮窗（popover 语义）：锚定触发元素、带指向尖角、尺寸自适应、背景不下沉、不缩小、不进层级栈**。**跨设备都保持锚定浮窗形态，iPhone 上不降级为下沉的半高 sheet**（用 `.popover` + `presentationCompactAdaptation(.popover)` 强制保持 popover，而非默认降级）。
 - **背景**：依 `product-mental-model.md` 公理 4，任务卡片栈与就近浮窗是两种本质不同的浮层层级。就地选择属于就近浮窗——它应保持主场景（时间轴 / 编辑卡片）大部分可见、不下沉背景、不入层级栈。旧方案让 iPhone 降级为半高 sheet 会把短选择错误地当作"完整任务"处理，违反公理 4 与公理 5（永不离开主场景）。
 - **影响**：`08-architecture.md` §2 与本 ADR-003 对齐；`02-information-architecture.md`、`04-screen-specs.md` 对应页面呈现按"就近浮窗"定稿。可搜索：`swiftui popover presentationCompactAdaptation popover`、`anchored popover iphone`。
+- **交互模型 v2 修订（筛选解耦，`[AMENDED v2]`）**：**筛选面板（`FilterPanelView`）从上述"就近浮窗 popover"名单中移出，改为半屏 bottom sheet**（`.sheet` + `.presentationDetents([.medium, .large])`）。原因：筛选要同时承载**心情单选 + 标签多选（可累加多个标签）+ 末尾「新增标签」入口**，条目远多于其它"选一个值"的短动作；在固定窄宽的 popover 里多条件并排会拥挤、难以扫读与连续多选，半屏 sheet 提供可滚动、可扩展到 `.large` 的舒展版面更合适。**本次仅改「筛选」这一个对象的呈现容器**：`MoodPickerView` / `TagPickerView` / 日期/时间选择仍保持就近浮窗不变（它们仍是"选一个值"的短动作）。筛选的其余性质不变——**不进 `AppRouter`、由触发处（收起态「时刻 ⌄」）的局部 `@State` 驱动、就地即时生效（无「确认」按钮，点选即写 `activeFilter`）**；「完成」仅收起 sheet、不做提交。此修订**废止本 ADR 中"筛选跨设备保持 popover、不降级半高 sheet"这一条针对筛选的旧决策**（其它对象的 popover 决策不受影响）。可搜索：`swiftui sheet presentationDetents medium large`。
 
 ## ~~ADR-006（旧）紧凑弹选：iPhone 半高 sheet / iPad popover~~ `[SUPERSEDED]`
 

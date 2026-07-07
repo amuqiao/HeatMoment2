@@ -33,11 +33,10 @@ final class LocateFilterUITests: XCTestCase {
         let happyOption = app.buttons["filterMoodOption-1"]
         XCTAssertTrue(happyOption.waitForExistence(timeout: 5))
         happyOption.tap()
-        // 实测：选中心情后 `activeFilter` 变化导致列表内容大幅变化（15 行 → 筛选空态），
-        // 该重排会让系统就近浮窗（`.popover`）自动收起，不同于标签多选场景（内容不变、
-        // 浮窗保持打开）；这里做一次「若还在则点外部收起」的兜底，兼容浮窗未自动收起的情况，
-        // 不假设某一种行为必然发生。
-        dismissPopoverIfPresent(app)
+        // 交互模型 v2：筛选已从就近浮窗改为半屏 sheet（`.presentationDetents([.medium, .large])`），
+        // sheet 不因点选自动收起（就地即时生效、点选即写 `activeFilter`），点「完成」收起 sheet
+        // 后再验证 sheet 之下（此前被模态遮挡）的时间轴筛选态。
+        dismissFilterSheet(app)
 
         XCTAssertTrue(
             app.staticTexts["timelineFilteredEmptyState"].waitForExistence(timeout: 5),
@@ -94,12 +93,12 @@ final class LocateFilterUITests: XCTestCase {
 
     // MARK: - Helpers
 
-    /// 若就近浮窗仍在（未自动收起）则点外部收起；已收起则直接跳过，不视为失败——
-    /// 见 `testFilterAbsentMoodShowsEmptyStateThenMarkerRemovalRestoresRecords` 内调用处说明。
-    private func dismissPopoverIfPresent(_ app: XCUIApplication) {
-        let dismissRegion = app.otherElements["PopoverDismissRegion"]
-        guard dismissRegion.waitForExistence(timeout: 2) else { return }
-        dismissRegion.tap()
+    /// 收起筛选半屏 sheet：点 sheet 右上「完成」（`filterDoneButton`）。sheet 是模态，收起后
+    /// 其下的时间轴才重新进入无障碍树可被断言（见调用处说明）。
+    private func dismissFilterSheet(_ app: XCUIApplication) {
+        let doneButton = app.buttons["filterDoneButton"]
+        guard doneButton.waitForExistence(timeout: 5) else { return }
+        doneButton.tap()
     }
 
     /// 等待某元素从无障碍树消失（`XCUIElement` 无内置 `waitForNonexistence`，用谓词表达式等待）。
