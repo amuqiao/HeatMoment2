@@ -7,15 +7,16 @@
 `scripts/` 提供本仓库稳定的本地操作入口，把「环境准备 / 工程生成 / 构建 / 测试 / 规范 / 运行 / 验证 / 清理」分开，避免一个脚本承担跨领域职责。
 
 ```text
+dev.sh         本地开发统一入口：路由常用脚本与模拟器 App 操作
 bootstrap.sh   准备工具链（xcodegen/swiftlint/swift-format）——首次一次
 gen.sh         XcodeGen 从 Project.yml 生成 Moodments.xcodeproj
 build.sh       构建（Debug + 模拟器，不签名）
 test.sh        XCTest/XCUITest：--unit | --ui | --all
 lint.sh        swiftlint + swift-format：check（默认）| --fix
-run.sh         模拟器 boot → build → install → launch，本地看界面
+run.sh         模拟器 boot → build → install → launch，本地看界面（dev.sh run 的底层动作）
 verify.sh      一次性验证 lint → build → test（本地与 CI 共用入口）
 clean.sh       删除 DerivedData 与生成的 .xcodeproj
-lib/           被 source 的公共 helper：common.sh（仓库根/日志/快速失败）· sim.sh（模拟器解析/启动）
+lib/           被 source 的公共 helper：common.sh（仓库根/日志/快速失败）· sim.sh（模拟器解析/状态/启动）
 ```
 
 新增脚本前先判断它是否属于已有入口的子命令；只有职责边界 / 生命周期 / 安全边界不同，才新增顶层 `*.sh`。

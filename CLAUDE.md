@@ -19,7 +19,8 @@ iOS SwiftUI 复刻 App「时刻」(App Store 商店名「心绪日记」/ 关于
 - 工程由 **XcodeGen** 从 `Project.yml` 生成；**`.xcodeproj` 不入库、不手改 `pbxproj`**（改工程改 `Project.yml` 后重新 `gen`）。
 - 首次环境准备：`./scripts/bootstrap.sh`（装 xcodegen / swiftlint / swift-format）。
 - 生成工程：`./scripts/gen.sh`
-- 构建 / 测试 / 启动：`./scripts/build.sh` · `./scripts/test.sh [--unit|--ui|--all]` · `./scripts/run.sh`（均带 `-h`）。
+- 本地开发统一入口：`./scripts/dev.sh <command>`（如 `status` / `run` / `test --unit` / `restart`，带 `-h`）。
+- 构建 / 测试 / 启动底层入口：`./scripts/build.sh` · `./scripts/test.sh [--unit|--ui|--all]` · `./scripts/run.sh`（均带 `-h`）。
 - **验证入口（本地与 CI 同一个）**：`./scripts/verify.sh`（lint → build → test）。
 - 复杂逻辑下沉 `scripts/lib/`；顶层脚本只做定位仓库根 + 参数分发 + 稳定 `-h` + 快速失败。
 

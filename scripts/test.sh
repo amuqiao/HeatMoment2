@@ -47,7 +47,7 @@ case "$MODE" in
   --unit) ARGS+=(-only-testing:MoodmentsTests) ;;
   --ui)   ARGS+=(-only-testing:MoodmentsUITests) ;;
   --all)  ;;
-  *) err "未知参数：$MODE（用 --unit|--ui|--all）" ;;
+  *) err "未知参数：${MODE}（用 --unit|--ui|--all）" ;;
 esac
 
 log "测试 ${PROJECT_NAME}（${MODE}，${SIM_NAME}）"

@@ -43,7 +43,7 @@ cd "$REPO_ROOT"
 BUNDLE_ID="com.moodments.app"
 UDID="$(sim_boot)"
 open -a Simulator || true
-log "构建并安装到模拟器 ${SIM_NAME}（$UDID）"
+log "构建并安装到模拟器 ${SIM_NAME}（${UDID}）"
 
 DERIVED="$REPO_ROOT/DerivedData"
 set -o pipefail
