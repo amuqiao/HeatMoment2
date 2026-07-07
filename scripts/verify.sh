@@ -33,6 +33,7 @@ exit code:
 EOF
 }
 case "${1:-}" in -h|--help) usage; exit 0 ;; esac
+require_no_args "./scripts/verify.sh" "$@"
 
 log "== 1/3 lint =="; "$DIR/lint.sh"
 log "== 2/3 build =="; "$DIR/build.sh"

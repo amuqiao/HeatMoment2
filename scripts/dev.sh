@@ -115,21 +115,35 @@ stop_app() {
 }
 
 case "${1:-}" in
-  -h|--help|"") usage; exit 0 ;;
+  -h|--help) usage; exit 0 ;;
+  "") usage; err "缺少命令（用 ./scripts/dev.sh -h 查看）" ;;
 esac
 
 COMMAND="$1"
 shift
 
 case "$COMMAND" in
-  doctor)  doctor ;;
-  status)  status ;;
+  doctor)
+    require_no_args "./scripts/dev.sh" "$@"
+    doctor
+    ;;
+  status)
+    require_no_args "./scripts/dev.sh" "$@"
+    status
+    ;;
   run|start) "$DIR/run.sh" "$@" ;;
-  launch)  launch_app ;;
-  stop)    stop_app ;;
-  restart)
+  launch)
+    require_no_args "./scripts/dev.sh" "$@"
+    launch_app
+    ;;
+  stop)
+    require_no_args "./scripts/dev.sh" "$@"
     stop_app
-    "$DIR/run.sh" "$@"
+    ;;
+  restart)
+    require_no_args "./scripts/dev.sh" "$@"
+    stop_app
+    "$DIR/run.sh"
     ;;
   build)   "$DIR/build.sh" "$@" ;;
   test)    "$DIR/test.sh" "$@" ;;

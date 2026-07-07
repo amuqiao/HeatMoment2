@@ -32,6 +32,7 @@ exit code:
 EOF
 }
 case "${1:-}" in -h|--help) usage; exit 0 ;; esac
+require_no_args "./scripts/bootstrap.sh" "$@"
 
 require_cmd xcodebuild
 log "Xcode: $(xcodebuild -version | head -1)"

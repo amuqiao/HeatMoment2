@@ -17,6 +17,13 @@ require_cmd() {
   command -v "$1" >/dev/null 2>&1 || err "缺少命令：$1（先运行 ./scripts/bootstrap.sh）"
 }
 
+# 无参数入口统一拒绝未知参数，避免错误命令被静默当作成功路径执行。
+require_no_args() {
+  local usage_hint="$1"
+  shift
+  [ "$#" -eq 0 ] || err "未知参数：$1（用 ${usage_hint} -h 查看）"
+}
+
 # 若安装了 xcbeautify 则用它美化 xcodebuild 输出，否则原样透传
 pretty() {
   if command -v xcbeautify >/dev/null 2>&1; then xcbeautify; else cat; fi

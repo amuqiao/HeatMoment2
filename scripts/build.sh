@@ -34,6 +34,7 @@ exit code:
 EOF
 }
 case "${1:-}" in -h|--help) usage; exit 0 ;; esac
+require_no_args "./scripts/build.sh" "$@"
 
 require_cmd xcodebuild
 cd "$REPO_ROOT"

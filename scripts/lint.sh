@@ -37,7 +37,19 @@ EOF
 case "${1:-}" in -h|--help) usage; exit 0 ;; esac
 
 cd "$REPO_ROOT"
-MODE="${1:-check}"
+case "$#" in
+  0) MODE="check" ;;
+  1)
+    case "$1" in
+      --fix) MODE="--fix" ;;
+      *) err "未知参数：$1（用 ./scripts/lint.sh -h 查看）" ;;
+    esac
+    ;;
+  *)
+    [ "$1" = "--fix" ] || err "未知参数：$1（用 ./scripts/lint.sh -h 查看）"
+    err "未知参数：$2（用 ./scripts/lint.sh -h 查看）"
+    ;;
+esac
 
 if command -v swiftlint >/dev/null 2>&1; then
   if [ "$MODE" = "--fix" ]; then swiftlint --fix || true; fi

@@ -33,6 +33,7 @@ exit code:
 EOF
 }
 case "${1:-}" in -h|--help) usage; exit 0 ;; esac
+require_no_args "./scripts/clean.sh" "$@"
 
 cd "$REPO_ROOT"
 rm -rf DerivedData "${PROJECT_NAME}.xcodeproj"
