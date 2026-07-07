@@ -6,6 +6,7 @@ import SwiftUI
 ///
 /// **架构边界**：连续时间轴轨道是稳定骨架；日期、心情节点和气泡是同一条 Moment 的阅读单元。
 /// 左滑删除使用 SwiftUI `List` 行的成熟 `.swipeActions` 语义；独立轨道层不进入可滑动内容。
+/// 轨道位于 `List` 行背景层，阅读单元位于行前景，二者消费同一个 `TimelineGeometry` 坐标契约。
 struct TimelineRowView: View {
     let entry: TimelineEntry
     let geometry: TimelineGeometry
@@ -18,11 +19,16 @@ struct TimelineRowView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            TimelineReadingUnitView(entry: entry, geometry: geometry, onTap: onTap)
+            TimelineReadingUnitView(
+                entry: entry,
+                geometry: geometry,
+                onTap: onTap
+            )
 
-            // 行间距只负责阅读节奏；连续轨道由 `TimelineViewportView` 的独立结构层绘制。
+            // 行间距只负责阅读节奏；连续轨道由 List 行背景统一绘制。
             Color.clear.frame(height: geometry.rowGapHeight)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(entry.accessibilityLabel))
         .accessibilityAddTraits(entry.isGuided ? [] : .isButton)
@@ -54,12 +60,15 @@ private struct TimelineReadingUnitView: View {
                 tailCenterY: geometry.bubbleTailCenterY,
                 tailGeometry: geometry.bubbleTailGeometry
             )
+            .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+            .layoutPriority(1)
             .contentShape(Rectangle())
             .onTapGesture {
                 guard !entry.isGuided else { return }
                 onTap()
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -105,7 +114,7 @@ private struct TimelineDateColumn: View {
     }()
 }
 
-/// 时间轴结构层的情绪锚点。轨道由独立结构层绘制，这里只负责节点本身。
+/// 时间轴结构层的情绪锚点。轨道由行背景绘制，这里只负责节点本身。
 private struct TimelineMoodAnchorColumn: View {
     let mood: Mood
     let geometry: TimelineGeometry

@@ -7,26 +7,61 @@ import UIKit
 /// 照片区共用同一组件（见阶段 4 计划）。
 ///
 /// `onTapImage` 非 `nil` 时，点击某张缩略图回调其下标（供预览照片区进入 `ImageViewerView`）；
-/// 时间轴气泡整行已有独立的点击语义（打开预览阅读卡片），不传该回调，避免手势冲突
-/// （见 `BubbleCardView` 调用处）。
+/// 时间轴气泡整行已有独立的点击和左滑删除语义，调用处会让图片区保持 hit testing，
+/// 避免图片上的横向滚动 / 轮播切换被误解释成 `List` 行级删除。
 struct ThumbnailStripView: View {
     let imageIDs: [UUID]
+    var displayMode: ImageDisplayMode = .scroll
+    var allowsImageInteraction = true
     var onTapImage: ((Int) -> Void)?
 
     @Environment(\.modelContext) private var modelContext
     @State private var thumbnailsByID: [UUID: Data] = [:]
 
     var body: some View {
-        HStack(spacing: 8) {
-            ForEach(Array(imageIDs.enumerated()), id: \.element) { index, imageID in
-                thumbnail(for: imageID)
-                    .onTapGesture { onTapImage?(index) }
-                    .accessibilityLabel(Text("照片，第\(index + 1)张，共\(imageIDs.count)张"))
-                    .accessibilityIdentifier("thumbnailStripImage-\(imageID.uuidString)")
+        imageGallery
+            .allowsHitTesting(allowsImageInteraction)
+            .task(id: imageIDs) {
+                await loadThumbnails()
             }
-        }
-        .task(id: imageIDs) {
-            await loadThumbnails()
+    }
+
+    @ViewBuilder
+    private var imageGallery: some View {
+        switch displayMode {
+        case .scroll:
+            ScrollView(.horizontal) {
+                LazyHStack(spacing: MomentCardLayout.thumbnailSpacing) {
+                    ForEach(Array(imageIDs.enumerated()), id: \.element) { index, imageID in
+                        thumbnail(for: imageID)
+                            .frame(
+                                width: MomentCardLayout.thumbnailSize.width,
+                                height: MomentCardLayout.thumbnailSize.height
+                            )
+                            .onTapGesture { onTapImage?(index) }
+                            .accessibilityLabel(Text("照片，第\(index + 1)张，共\(imageIDs.count)张"))
+                            .accessibilityIdentifier("thumbnailStripImage-\(imageID.uuidString)")
+                    }
+                }
+            }
+            .scrollIndicators(.hidden)
+            .accessibilityIdentifier("thumbnailStrip")
+            .frame(height: MomentCardLayout.imageSectionHeight(for: .scroll))
+            .frame(maxWidth: .infinity, alignment: .leading)
+        case .carousel:
+            TabView {
+                ForEach(Array(imageIDs.enumerated()), id: \.element) { index, imageID in
+                    thumbnail(for: imageID)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: MomentCardLayout.carouselHeight)
+                        .onTapGesture { onTapImage?(index) }
+                        .accessibilityLabel(Text("照片，第\(index + 1)张，共\(imageIDs.count)张"))
+                        .accessibilityIdentifier("thumbnailStripImage-\(imageID.uuidString)")
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: imageIDs.count > 1 ? .automatic : .never))
+            .accessibilityIdentifier("thumbnailStrip")
+            .frame(height: MomentCardLayout.imageSectionHeight(for: .carousel))
         }
     }
 
@@ -37,22 +72,29 @@ struct ThumbnailStripView: View {
                 Image(uiImage: uiImage)
                     .resizable()
                     .scaledToFill()
-                    .frame(width: 72, height: 72)
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .clipShape(
+                        RoundedRectangle(
+                            cornerRadius: MomentCardLayout.thumbnailCornerRadius,
+                            style: .continuous
+                        )
+                    )
             } else {
                 // 数据已加载却解码失败：缩略图 JPEG 由本 App 生成，失败即数据损坏，debug 暴露。
-                let _ = assertionFailure("缩略图解码失败 imageID=\(imageID)")
-                placeholder
+                corruptedThumbnailPlaceholder(imageID: imageID)
             }
         } else {
-            placeholder   // 尚未加载完成（正常态，非错误）
+            placeholder  // 尚未加载完成（正常态，非错误）
         }
     }
 
     private var placeholder: some View {
-        RoundedRectangle(cornerRadius: 12, style: .continuous)
+        RoundedRectangle(cornerRadius: MomentCardLayout.thumbnailCornerRadius, style: .continuous)
             .fill(Color.gray.opacity(0.15))
-            .frame(width: 72, height: 72)
+    }
+
+    private func corruptedThumbnailPlaceholder(imageID: UUID) -> some View {
+        assertionFailure("缩略图解码失败 imageID=\(imageID)")
+        return placeholder
     }
 
     /// 逐张经 `ThumbnailCache` 取图：命中缓存零 IO，未命中才 `await` 向仓库取原图现场生成

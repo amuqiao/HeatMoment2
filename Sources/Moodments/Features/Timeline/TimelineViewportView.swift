@@ -1,6 +1,5 @@
 import SwiftData
 import SwiftUI
-import UIKit
 
 /// 时间轴 viewport：动态 `@Query`=f(`filter`)
 /// + `ScrollViewReader`=f(`heatmapFocusDate`, 粒度, 当前可见集) 两条链路彼此独立、互不引用，
@@ -28,7 +27,6 @@ struct TimelineViewportView: View {
     let filter: FilterCondition?
     let suppressAccessibility: Bool
     @Binding var isTitleCollapsed: Bool
-    @State private var scrollOffsetY: CGFloat = 0
 
     @Environment(AppRouter.self) private var router
     @Environment(TimelineModel.self) private var timelineModel
@@ -104,73 +102,69 @@ struct TimelineViewportView: View {
 
     var body: some View {
         ScrollViewReader { proxy in
-            ZStack(alignment: .topLeading) {
-                TimelineRailLayer(
-                    geometry: Self.geometry,
-                    railX: Self.geometry.initialRailCenterX,
-                    initialTopY: Self.geometry.initialRailTopY,
-                    scrollOffsetY: scrollOffsetY
-                )
+            let viewportEntries = entries
+            let railVisibility = TimelineRailVisibility.resolve(
+                visibleReadingUnitCount: viewportEntries.count,
+                isFilteredEmpty: isFilteredEmpty
+            )
 
-                List {
-                    expandedTitle
-                        .padding(.top, 4)
-                        .padding(.bottom, 12)
+            List {
+                expandedTitle
+                    .padding(.top, 4)
+                    .padding(.bottom, Self.geometry.titleToRailTopSpacing)
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(Self.geometry.rowInsets)
+                    .accessibilityHidden(suppressAccessibility)
+
+                if railVisibility.showsRailRows {
+                    timelineLeadIn
+                }
+
+                if isFilteredEmpty {
+                    filteredEmptyState
                         .listRowSeparator(.hidden)
                         .listRowBackground(Color.clear)
                         .listRowInsets(Self.geometry.rowInsets)
                         .accessibilityHidden(suppressAccessibility)
+                } else {
+                    ForEach(viewportEntries) { entry in
+                        TimelineRowView(
+                            entry: entry,
+                            geometry: Self.geometry,
+                            onTap: {
+                                if let momentID = entry.momentID {
+                                    router.rootSheet = .preview(momentID)
+                                }
+                            },
+                            onDelete: entry.momentID == nil ? nil : { handleDelete(entry) }
+                        )
+                        .id(entry.id)
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(rowBackground(for: entry))
+                        .listRowInsets(Self.geometry.rowInsets)
+                        .accessibilityHidden(suppressAccessibility)
+                    }
 
-                    timelineLeadIn
-
-                    if isFilteredEmpty {
-                        filteredEmptyState
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear)
-                            .listRowInsets(Self.geometry.rowInsets)
-                            .accessibilityHidden(suppressAccessibility)
-                    } else {
-                        ForEach(entries) { entry in
-                            TimelineRowView(
-                                entry: entry,
-                                geometry: Self.geometry,
-                                onTap: {
-                                    if let momentID = entry.momentID {
-                                        router.rootSheet = .preview(momentID)
-                                    }
-                                },
-                                onDelete: entry.momentID == nil ? nil : { handleDelete(entry) }
-                            )
-                            .id(entry.id)
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(
-                                highlightedID == entry.id
-                                    ? theme.accent.opacity(Self.locateHighlightOpacity)
-                                    : Color.clear
-                            )
-                            .listRowInsets(Self.geometry.rowInsets)
-                            .accessibilityHidden(suppressAccessibility)
-                        }
-
+                    if railVisibility.showsRailRows {
                         timelineBottomOvershoot
                     }
                 }
-                .listStyle(.plain)
-                .listRowSpacing(0)
-                .scrollContentBackground(.hidden)
-                .contentMargins(.horizontal, 0, for: .scrollContent)
-                .modifier(
-                    TimelineScrollObserver(
-                        threshold: Self.collapseThreshold,
-                        isCollapsed: $isTitleCollapsed,
-                        scrollOffsetY: $scrollOffsetY
-                    )
+            }
+            .listStyle(.plain)
+            .listRowSpacing(0)
+            .scrollContentBackground(.hidden)
+            .contentMargins(.horizontal, 0, for: .scrollContent)
+            .modifier(
+                TimelineScrollObserver(
+                    threshold: Self.collapseThreshold,
+                    isCollapsed: $isTitleCollapsed
                 )
-                .onChange(of: locateScrollRequest) { _, request in
-                    guard let targetID = request?.targetID else { return }
-                    withAnimation {
-                        proxy.scrollTo(targetID, anchor: .center)
-                    }
+            )
+            .onChange(of: locateScrollRequest) { _, request in
+                guard let targetID = request?.targetID else { return }
+                withAnimation {
+                    proxy.scrollTo(targetID, anchor: .center)
                 }
             }
         }
@@ -180,7 +174,7 @@ struct TimelineViewportView: View {
         Color.clear
             .frame(height: Self.geometry.railLeadInHeight)
             .listRowSeparator(.hidden)
-            .listRowBackground(Color.clear)
+            .listRowBackground(railBackground())
             .listRowInsets(Self.geometry.rowInsets)
             .accessibilityHidden(true)
     }
@@ -189,9 +183,23 @@ struct TimelineViewportView: View {
         Color.clear
             .frame(height: Self.geometry.railBottomOvershoot)
             .listRowSeparator(.hidden)
-            .listRowBackground(Color.clear)
+            .listRowBackground(railBackground())
             .listRowInsets(Self.geometry.rowInsets)
             .accessibilityHidden(true)
+    }
+
+    @ViewBuilder
+    private func rowBackground(for entry: TimelineEntry) -> some View {
+        TimelineRailRowBackground(
+            geometry: Self.geometry,
+            highlightColor: highlightedID == entry.id
+                ? theme.accent.opacity(Self.locateHighlightOpacity)
+                : nil
+        )
+    }
+
+    private func railBackground() -> some View {
+        TimelineRailRowBackground(geometry: Self.geometry)
     }
 
     private var filteredEmptyState: some View {
@@ -217,7 +225,7 @@ struct TimelineViewportView: View {
             } catch {
                 // `@Query` 是真相源：删除失败时它本就不会反映出该行已消失，不需要额外回滚
                 // 本地状态（见阶段6计划决策3：可恢复写失败改走统一错误通道）。
-                await errorPresenter.report(message: "删除失败，请稍后重试。", underlying: error)
+                errorPresenter.report(message: "删除失败，请稍后重试。", underlying: error)
             }
         }
     }
@@ -235,122 +243,6 @@ struct TimelineViewportView: View {
             // 折叠后展开态大标题虽仍在滚动内容中，对无障碍/自动化隐藏，
             // 避免与收起态「时刻」并存造成 VoiceOver 重复播报页头（见阶段2 review）。
             .accessibilityHidden(isTitleCollapsed)
-    }
-}
-
-/// 监听时间轴滚动位置，驱动标题两态折叠和轨道混合纵向行为。
-///
-/// 折叠判定：内容自顶部上滑超过 `|threshold|` 点即判定为收起态（`threshold` 为负，见调用处）。
-private struct TimelineScrollObserver: ViewModifier {
-    let threshold: CGFloat
-    @Binding var isCollapsed: Bool
-    @Binding var scrollOffsetY: CGFloat
-
-    private struct TimelineScrollState: Equatable {
-        let isCollapsed: Bool
-        let offsetY: CGFloat
-    }
-
-    func body(content: Content) -> some View {
-        if #available(iOS 18.0, *) {
-            content.onScrollGeometryChange(for: TimelineScrollState.self) { geometry in
-                // 顶部时 contentOffset.y == -contentInsets.top，二者相加为 0；上滑后为正。
-                let offsetY = geometry.contentOffset.y + geometry.contentInsets.top
-                return TimelineScrollState(
-                    isCollapsed: offsetY > -threshold,
-                    offsetY: offsetY
-                )
-            } action: { _, state in
-                isCollapsed = state.isCollapsed
-                scrollOffsetY = state.offsetY
-            }
-        } else {
-            content.background(
-                TimelineScrollOffsetReader { offsetY in
-                    isCollapsed = offsetY > -threshold
-                    scrollOffsetY = offsetY
-                }
-                .frame(width: 0, height: 0)
-            )
-        }
-    }
-}
-
-/// iOS 17 没有 `onScrollGeometryChange`，这里用一个零尺寸 UIView 挂到 `List` 自身，
-/// 直接读取承载它的 `UIScrollView` 偏移；它只负责滚动状态，不参与轨道定位。
-private struct TimelineScrollOffsetReader: UIViewRepresentable {
-    var onChange: (CGFloat) -> Void
-
-    func makeUIView(context: Context) -> OffsetReaderView {
-        let view = OffsetReaderView()
-        view.onChange = onChange
-        return view
-    }
-
-    func updateUIView(_ uiView: OffsetReaderView, context: Context) {
-        uiView.onChange = onChange
-        uiView.attachIfNeeded()
-    }
-
-    final class OffsetReaderView: UIView {
-        var onChange: (CGFloat) -> Void = { _ in }
-
-        private weak var observedScrollView: UIScrollView?
-        private var contentOffsetObservation: NSKeyValueObservation?
-
-        override func didMoveToWindow() {
-            super.didMoveToWindow()
-            attachIfNeeded()
-        }
-
-        override func layoutSubviews() {
-            super.layoutSubviews()
-            emitCurrentOffset()
-        }
-
-        func attachIfNeeded() {
-            DispatchQueue.main.async { [weak self] in
-                self?.attachToEnclosingScrollView()
-            }
-        }
-
-        private func attachToEnclosingScrollView() {
-            guard let scrollView = enclosingScrollView(), scrollView !== observedScrollView else {
-                emitCurrentOffset()
-                return
-            }
-
-            observedScrollView = scrollView
-            contentOffsetObservation = scrollView.observe(
-                \.contentOffset,
-                options: [.initial, .new]
-            ) { [weak self, weak scrollView] _, _ in
-                DispatchQueue.main.async {
-                    guard let scrollView else { return }
-                    self?.emit(scrollView)
-                }
-            }
-        }
-
-        private func emitCurrentOffset() {
-            guard let observedScrollView else { return }
-            emit(observedScrollView)
-        }
-
-        private func emit(_ scrollView: UIScrollView) {
-            onChange(scrollView.contentOffset.y + scrollView.adjustedContentInset.top)
-        }
-
-        private func enclosingScrollView() -> UIScrollView? {
-            var view = superview
-            while let candidate = view {
-                if let scrollView = candidate as? UIScrollView {
-                    return scrollView
-                }
-                view = candidate.superview
-            }
-            return nil
-        }
     }
 }
 

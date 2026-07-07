@@ -66,6 +66,7 @@ struct RootView: View {
                 }
                 #if DEBUG
                     UITestSupport.seedIfRequested(modelContext)
+                    UITestSupport.seedImageMomentIfRequested(modelContext)
                     UITestSupport.seedMomentQuotaIfRequested(modelContext)
                 #endif
             }

@@ -22,31 +22,22 @@ struct BubbleCardView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .font(AppTypography.cardTitle)
-                .foregroundStyle(theme.bubbleTitleText)
-                .lineLimit(1)
-
-            if !bodyText.isEmpty {
-                Text(bodyText)
-                    .font(AppTypography.body)
-                    .foregroundStyle(theme.bubbleBodyText)
-                    .lineLimit(3)
-                    .truncationMode(.tail)
-            }
+            textBlock(for: contentKind)
 
             if !placeholderImageHexColors.isEmpty {
-                HStack(spacing: 8) {
-                    ForEach(Array(placeholderImageHexColors.enumerated()), id: \.offset) { _, hex in
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(Color(hex: hex))
-                            .frame(width: 72, height: 72)
-                    }
-                }
+                PlaceholderImageGalleryView(
+                    hexColors: placeholderImageHexColors,
+                    displayMode: theme.imageDisplayMode,
+                    allowsImageInteraction: MomentCardLayout.timelineImageGalleryAllowsHitTesting
+                )
             } else if !imageIDs.isEmpty {
-                // 时间轴气泡整行已有独立点击语义（打开预览阅读卡片），故不传 `onTapImage`，
-                // 避免与行级 `onTapGesture` 冲突（见 `ThumbnailStripView` 头部说明）。
-                ThumbnailStripView(imageIDs: imageIDs)
+                // 图片区是媒体交互区：横向滚动/轮播优先，不把图片上的左滑解释成删除。
+                // 非图片区仍由 `List.swipeActions` 承担系统行级删除。
+                ThumbnailStripView(
+                    imageIDs: imageIDs,
+                    displayMode: theme.imageDisplayMode,
+                    allowsImageInteraction: MomentCardLayout.timelineImageGalleryAllowsHitTesting
+                )
             }
 
             if !tagNames.isEmpty {
@@ -72,6 +63,98 @@ struct BubbleCardView: View {
                         )
                 }
         )
+    }
+
+    private var hasImages: Bool {
+        !placeholderImageHexColors.isEmpty || !imageIDs.isEmpty
+    }
+
+    private var contentKind: MomentCardContentKind {
+        MomentCardContentKind(title: title, bodyText: bodyText, hasImages: hasImages)
+    }
+
+    @ViewBuilder
+    private func textBlock(for kind: MomentCardContentKind) -> some View {
+        switch kind {
+        case .titleOnly:
+            titleText
+        case .bodyOnly:
+            bodyTextView
+        case .titleAndBody:
+            titleText
+            bodyTextView
+        case .textWithImages:
+            if !title.isEmpty { titleText }
+            if !bodyText.isEmpty { bodyTextView }
+        case .imagesOnly:
+            EmptyView()
+        }
+    }
+
+    private var titleText: some View {
+        Text(title)
+            .font(AppTypography.cardTitle)
+            .foregroundStyle(theme.bubbleTitleText)
+            .lineLimit(1)
+    }
+
+    private var bodyTextView: some View {
+        Text(bodyText)
+            .font(AppTypography.body)
+            .foregroundStyle(theme.bubbleBodyText)
+            .lineLimit(3)
+            .truncationMode(.tail)
+    }
+}
+
+/// Moment 气泡内容形态。它把“标题/正文/图片”组合显式枚举出来，避免展示层只对
+/// 当前 happy path 写死布局，后续支持纯图片或纯正文时破坏时间轴骨架。
+enum MomentCardContentKind: Equatable {
+    case titleOnly
+    case bodyOnly
+    case titleAndBody
+    case textWithImages
+    case imagesOnly
+
+    init(title: String, bodyText: String, hasImages: Bool) {
+        let hasTitle = !title.isEmpty
+        let hasBody = !bodyText.isEmpty
+
+        switch (hasTitle, hasBody, hasImages) {
+        case (true, false, false):
+            self = .titleOnly
+        case (false, true, false):
+            self = .bodyOnly
+        case (true, true, false):
+            self = .titleAndBody
+        case (true, _, true), (false, true, true):
+            self = .textWithImages
+        case (false, false, true):
+            self = .imagesOnly
+        case (false, false, false):
+            assertionFailure("MomentCardContentKind requires at least one visible content axis")
+            self = .bodyOnly
+        }
+    }
+}
+
+/// 首页 Moment 气泡图片区的稳定尺寸合同。
+///
+/// 图片数量、原图比例、滚动/轮播模式都不能反向撑开气泡宽度；只允许决定图片区高度。
+struct MomentCardLayout {
+    static let thumbnailSize = CGSize(width: 72, height: 72)
+    static let thumbnailSpacing: CGFloat = 8
+    static let thumbnailCornerRadius: CGFloat = 12
+    static let carouselHeight: CGFloat = 132
+    static let timelineImageGalleryAllowsHitTesting = true
+
+    static func imageSectionHeight(for mode: ImageDisplayMode) -> CGFloat {
+        switch mode {
+        case .scroll:
+            thumbnailSize.height
+        case .carousel:
+            carouselHeight
+        }
     }
 }
 
@@ -99,6 +182,53 @@ private struct BubbleTailShape: Shape {
         path.addLine(to: CGPoint(x: rect.minX, y: rect.midY))
         path.closeSubpath()
         return path
+    }
+}
+
+private struct PlaceholderImageGalleryView: View {
+    let hexColors: [UInt32]
+    let displayMode: ImageDisplayMode
+    let allowsImageInteraction: Bool
+
+    var body: some View {
+        imageGallery
+            .allowsHitTesting(allowsImageInteraction)
+    }
+
+    @ViewBuilder
+    private var imageGallery: some View {
+        switch displayMode {
+        case .scroll:
+            ScrollView(.horizontal) {
+                LazyHStack(spacing: MomentCardLayout.thumbnailSpacing) {
+                    ForEach(Array(hexColors.enumerated()), id: \.offset) { _, hex in
+                        placeholder(hex)
+                            .frame(
+                                width: MomentCardLayout.thumbnailSize.width,
+                                height: MomentCardLayout.thumbnailSize.height
+                            )
+                    }
+                }
+            }
+            .scrollIndicators(.hidden)
+            .frame(height: MomentCardLayout.imageSectionHeight(for: .scroll))
+            .frame(maxWidth: .infinity, alignment: .leading)
+        case .carousel:
+            TabView {
+                ForEach(Array(hexColors.enumerated()), id: \.offset) { _, hex in
+                    placeholder(hex)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: MomentCardLayout.carouselHeight)
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: hexColors.count > 1 ? .automatic : .never))
+            .frame(height: MomentCardLayout.imageSectionHeight(for: .carousel))
+        }
+    }
+
+    private func placeholder(_ hex: UInt32) -> some View {
+        RoundedRectangle(cornerRadius: MomentCardLayout.thumbnailCornerRadius, style: .continuous)
+            .fill(Color(hex: hex))
     }
 }
 

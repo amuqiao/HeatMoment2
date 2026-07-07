@@ -24,6 +24,46 @@ final class DeleteRestorePurgeUITests: XCTestCase {
         )
     }
 
+    /// 首页 Moment 图片区是媒体交互区：从缩略图上左滑应被横向图片区消费，不能直接触发行级删除；
+    /// 从同一 Moment 的非图片区左滑仍应使用系统 `.swipeActions` 露出删除按钮。
+    func testSwipingOnTimelineImageDoesNotTriggerDelete() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTestSeedImageMoment"]
+        app.launch()
+
+        assertImageMomentGestureBoundary(app)
+    }
+
+    /// 轮播模式同样属于图片区媒体手势：`TabView(.page)` 横向切换不能被误解释成行级删除。
+    func testSwipingOnTimelineCarouselImageDoesNotTriggerDelete() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTestSeedImageMoment", "-uiTestImageDisplayCarousel"]
+        app.launch()
+
+        assertImageMomentGestureBoundary(app)
+    }
+
+    private func assertImageMomentGestureBoundary(_ app: XCUIApplication) {
+        let row = app.buttons
+            .matching(NSPredicate(format: "label CONTAINS %@", "《图片手势测试》"))
+            .firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 10))
+
+        dragAcrossImageArea(in: row)
+
+        XCTAssertFalse(
+            app.buttons["timelineSwipeDeleteButton"].waitForExistence(timeout: 1),
+            "图片上的横向滑动不应触发行级删除"
+        )
+
+        dragAcrossTextArea(in: row)
+
+        XCTAssertTrue(
+            app.buttons["timelineSwipeDeleteButton"].waitForExistence(timeout: 5),
+            "非图片区左滑仍应保留系统行级删除"
+        )
+    }
+
     /// 垃圾箱内右滑（leading）恢复 → 记录重新出现在时间轴。
     func testRestoreReturnsToTimeline() {
         let app = XCUIApplication()
@@ -106,7 +146,10 @@ final class DeleteRestorePurgeUITests: XCTestCase {
 
         XCTAssertTrue(app.scrollViews["momentPreviewCard"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["momentPreviewCloseButton"].exists, "预览卡片应以「关闭」取消态呈现，而非 push 返回")
-        XCTAssertFalse(app.navigationBars.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Back")).firstMatch.exists)
+        let pushBackButton = app.navigationBars.buttons
+            .matching(NSPredicate(format: "label CONTAINS %@", "Back"))
+            .firstMatch
+        XCTAssertFalse(pushBackButton.exists)
 
         app.buttons["momentPreviewCloseButton"].tap()
 
@@ -153,6 +196,18 @@ final class DeleteRestorePurgeUITests: XCTestCase {
                 )
             )
             .firstMatch
+    }
+
+    private func dragAcrossImageArea(in row: XCUIElement) {
+        let start = row.coordinate(withNormalizedOffset: CGVector(dx: 0.72, dy: 0.68))
+        let end = row.coordinate(withNormalizedOffset: CGVector(dx: 0.36, dy: 0.68))
+        start.press(forDuration: 0.1, thenDragTo: end)
+    }
+
+    private func dragAcrossTextArea(in row: XCUIElement) {
+        let start = row.coordinate(withNormalizedOffset: CGVector(dx: 0.86, dy: 0.18))
+        let end = row.coordinate(withNormalizedOffset: CGVector(dx: 0.20, dy: 0.18))
+        start.press(forDuration: 0.1, thenDragTo: end)
     }
 
     private func closeSettings(_ app: XCUIApplication) {

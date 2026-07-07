@@ -8,6 +8,9 @@
     ///
     /// - `-uiTestReset`：使用内存容器（空态、与磁盘隔离）。
     /// - `-uiTestSeedMoments`：使用内存容器并预置 15 条 Moment（使时间轴可滚动，用于标题折叠等验收）。
+    /// - `-uiTestSeedImageMoment`：使用内存容器并预置 1 条带 3 张合成图片的 Moment，
+    ///   供图片区手势与行级删除边界验收。
+    /// - `-uiTestImageDisplayCarousel`：UI 测试隔离外观偏好中把图片展示方式预置为轮播。
     /// - `-uiTestSeedMomentQuota`：使用内存容器并预置 10 条 Moment（占满免费额度），
     ///   供 `QuotaBlockUITests.testEleventhMomentBlocked` 验证第 11 篇创建被前置闸门拦截。
     /// - `-uiTestSkipDefaultTags`：使用内存容器但跳过首启默认标签预置，供标签管理正常新建路径
@@ -20,6 +23,7 @@
             let args = ProcessInfo.processInfo.arguments
             return args.contains("-uiTestReset")
                 || args.contains("-uiTestSeedMoments")
+                || args.contains("-uiTestSeedImageMoment")
                 || args.contains("-uiTestSeedMomentQuota")
                 || args.contains("-uiTestSkipDefaultTags")
         }
@@ -72,6 +76,12 @@
             ProcessInfo.processInfo.arguments.contains("-uiTestFailAppearanceSave")
         }
 
+        /// 图片展示方式 UI 测试专用：在隔离外观 store 中预置轮播，覆盖 `ThumbnailStripView`
+        /// 的 `TabView(.page)` 分支与行级 swipe 的手势边界。
+        static var wantsImageDisplayCarousel: Bool {
+            ProcessInfo.processInfo.arguments.contains("-uiTestImageDisplayCarousel")
+        }
+
         /// UI 测试隔离：清掉上一次测试运行可能残留在 `UserDefaults.standard` 里的语言偏好
         /// （见 `LanguagePreference`）——该 key 与生产用户共用 `.standard`（未像外观偏好那样切独立
         /// 套件，因为语言偏好不涉及「必失败场景注入」，只需保证起点确定性），任意 `-uiTest*`
@@ -101,8 +111,25 @@
             let suiteName = appearanceTestSuiteName
             let defaults = UserDefaults(suiteName: suiteName) ?? .standard
             defaults.removePersistentDomain(forName: suiteName)
-            return AppearanceStore(
-                defaults: defaults, simulateSaveFailure: wantsAppearanceSaveFailure)
+            let store = AppearanceStore(
+                defaults: defaults,
+                simulateSaveFailure: wantsAppearanceSaveFailure
+            )
+            if wantsImageDisplayCarousel {
+                do {
+                    try store.save(
+                        AppearancePreference(
+                            mode: .dark,
+                            accentColor: .violet,
+                            backgroundTexture: .grid,
+                            imageDisplayMode: .carousel
+                        )
+                    )
+                } catch {
+                    assertionFailure("UITest 轮播外观偏好预置失败：\(error)")
+                }
+            }
+            return store
         }
 
         /// 生成一张极小的合成 JPEG，供 UI 测试注入编辑器草稿照片，不依赖真机相册权限/内容、
@@ -144,6 +171,44 @@
                 try context.save()
             } catch {
                 assertionFailure("UITest seed 失败：\(error)")
+            }
+        }
+
+        /// 若带 `-uiTestSeedImageMoment` 且当前为空，则预置 1 条带 3 张图片的 Moment。
+        @MainActor
+        static func seedImageMomentIfRequested(_ context: ModelContext) {
+            guard ProcessInfo.processInfo.arguments.contains("-uiTestSeedImageMoment") else {
+                return
+            }
+            let existing: Int
+            do {
+                existing = try context.fetchCount(FetchDescriptor<Moment>())
+            } catch {
+                assertionFailure("UITest 图片 Moment 预置检查失败：\(error)")
+                return
+            }
+            guard existing == 0 else { return }
+
+            let moment = Moment()
+            moment.title = "图片手势测试"
+            moment.bodyText = "用于验证图片区域横向手势不会触发行级删除。"
+            moment.occurredAt = Date()
+            context.insert(moment)
+
+            for index in 0..<3 {
+                let image = MomentImage(
+                    sortIndex: index,
+                    imageData: makeSyntheticPhotoData(),
+                    moment: moment
+                )
+                context.insert(image)
+                moment.images.append(image)
+            }
+
+            do {
+                try context.save()
+            } catch {
+                assertionFailure("UITest 图片 Moment 预置失败：\(error)")
             }
         }
 
