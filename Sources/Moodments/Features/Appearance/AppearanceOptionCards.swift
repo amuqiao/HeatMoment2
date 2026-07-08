@@ -1,32 +1,6 @@
 import SwiftUI
 import UIKit
 
-struct AppearanceOptionSection<Content: View>: View {
-    @Environment(ThemeManager.self) private var theme
-
-    let title: String
-    @ViewBuilder var content: Content
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(title)
-                .font(AppTypography.cardTitle)
-                .foregroundStyle(theme.primaryText)
-                .padding(.horizontal, 2)
-
-            VStack(spacing: 18) {
-                content
-            }
-            .padding(16)
-            .frame(maxWidth: .infinity)
-            .background(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(theme.sheetPanelBackground)
-            )
-        }
-    }
-}
-
 struct AppearanceInlineNotice: View {
     @Environment(ThemeManager.self) private var theme
 
@@ -169,7 +143,10 @@ struct AppearanceTextureOptionLabel: View {
 
     private var selectionBorder: some View {
         RoundedRectangle(cornerRadius: 12, style: .continuous)
-            .stroke(isSelected ? theme.accent : theme.separator.opacity(0.65), lineWidth: isSelected ? 2 : 1)
+            .stroke(
+                isSelected ? theme.accent : theme.separator.opacity(0.65),
+                lineWidth: isSelected ? 2 : 1
+            )
     }
 }
 
@@ -385,7 +362,7 @@ private struct AppearanceImageDisplayPreview: View {
         LinearGradient(
             colors: [
                 theme.moodColor(.normal).opacity(theme.mode == .dark ? 0.55 : 0.28),
-                theme.moodColor(.normal).opacity(theme.mode == .dark ? 0.22 : 0.16),
+                theme.moodColor(.normal).opacity(theme.mode == .dark ? 0.22 : 0.16)
             ],
             startPoint: .bottomLeading,
             endPoint: .topTrailing

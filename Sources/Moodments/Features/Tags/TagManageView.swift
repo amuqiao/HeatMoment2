@@ -46,6 +46,7 @@ struct TagManageView: View {
                 }
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
+                .taskListContentFrame()
             }
         }
         .background(theme.sheetBackground.ignoresSafeArea())
@@ -109,6 +110,14 @@ struct TagManageView: View {
         .buttonStyle(.plain)
         .listRowSeparator(.hidden)
         .listRowBackground(Color.clear)
+        .listRowInsets(
+            EdgeInsets(
+                top: TaskSurfaceMetrics.listRowVerticalInset,
+                leading: TaskSurfaceMetrics.pageHorizontalInset,
+                bottom: TaskSurfaceMetrics.listRowVerticalInset,
+                trailing: TaskSurfaceMetrics.pageHorizontalInset
+            )
+        )
         .accessibilityIdentifier("tagManageRow-\(tag.id.uuidString)")
         .accessibilityLabel(Text("#\(tag.name)，双击重命名"))
         .destructiveSwipeAction(

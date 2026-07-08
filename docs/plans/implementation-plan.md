@@ -9,7 +9,8 @@
 - P0 当前实现事实已移入 [`../current/`](../current/README.md)；本计划只保留 P0 剩余视觉验收与后续 P1/P2/P3 缺口。
 - 2026-07-07 已补一轮架构稳定化：顶部 chrome、热力图上下文槽位、筛选 half-sheet presenter 已拆分；时间轴轨道已从 `List` row 背景迁出为 `TimelineRailSceneLayer` 场景层，阅读单元由 `TimelineRowView` 承载，Moment 气泡补齐稳定宽度与图片展示合同，删除操作回到 SwiftUI `List` 行级 `.swipeActions(allowsFullSwipe: true)` 的成熟语义；as-built 事实见 [`../current/implementation-truth.md`](../current/implementation-truth.md)。
 - 2026-07-08 P2a 已补首页主场景背景最小闭环：背景设置支持网格线、点阵、无、自定义图片；自定义图片仅保存为本地外观文件，不进入 SwiftData/CloudKit；as-built 事实见 [`../current/implementation-truth.md`](../current/implementation-truth.md)。
-- 2026-07-08 外观页 A 方案已落地：保持系统 `List` / `NavigationStack` 任务容器骨架，改为设计稿式“模式 / 颜色 / 网格 / 图片”四组；模式区承担当前主题总览预览，颜色区为响应式 swatch，网格区为纯背景纹理样本，图片区为图片展示行为样本；组件消费 SwiftUI 真实主题 token 和当前主色，不引入 Flutter 皮肤 registry 或自定义导航/sheet。
+- 2026-07-08 外观页 A 方案已落地：保留系统 `NavigationStack`，任务内容改为 `TaskPageScrollView` / `TaskSurfaceSection` 响应式骨架，并呈现设计稿式“模式 / 颜色 / 网格 / 图片”四组；模式区承担当前主题总览预览，颜色区为响应式 swatch，网格区为纯背景纹理样本，图片区为图片展示行为样本；组件消费 SwiftUI 真实主题 token 和当前主色，不引入 Flutter 皮肤 registry 或自定义导航/sheet。
+- 2026-07-08 已稳定任务页响应式骨架：`TaskSurfaceMetrics` / `TaskPageScrollView` / `TaskSurfaceSection` / `TaskSurfacePanel` 成为设置、外观、编辑、预览等任务页的内容列基线。该骨架只表达任务空间的宽度、panel、row 和滚动边界，不替代首页时间轴气泡、筛选 popover、标签创建 sheet 或其它独立语义对象。
 - 2026-07-08 已完成一次最初设计稿审计，审计对象为 [`../_source/设计稿/`](../_source/%E8%AE%BE%E8%AE%A1%E7%A8%BF/) 25 张图片。结论：`docs/design/05-design-system.md` 已吸收大部分取色、主题矩阵和页面视觉语义；本计划只承接尚未闭环的 SwiftUI 差距和需要用户裁决的设计稿偏离点，不把一手设计稿重新升格为当前契约。
 - 2026-07-08 已完成 P0 视觉验收取证：暗色主页、热力图展开、日期定位、筛选与定位标记并存、左滑删除露出系统按钮、亮色主页截图均已审计。发现并修正年份显示 `2,026` 与热力图顶部上下文透出时间轴内容两个偏差；修正后同一 UI 取证流程通过，最终 `./scripts/verify.sh` 全部通过。证据和 as-built 结论见 [`../current/implementation-truth.md`](../current/implementation-truth.md)。
 - 2026-07-08 用户裁决标签创建归属：标签不允许在编辑器里临时创建，继续只在设置页 `TagManageView` 集中创建/重命名/删除；编辑器 `TagPickerView` 和首页筛选 `FilterPanelView` 只消费已有标签。该裁决已同步到公理层、设计层和 current 层，并由编辑器 / 筛选 / 设置页标签管理 UI 边界测试与 `./scripts/verify.sh` 验证通过。
@@ -54,6 +55,7 @@
 | Sheet 深度 | 当前主要路径保持两层，但设置子页、Pro、标签创建仍需按完整用户路径审计。 | 保持“入口 sheet + 一个详情层”为上限；超过两层要改 IA 或呈现方式。 |
 | 时间轴比例 | 代码已有滚动场景轨道、节点和气泡尾巴的共享中心参数，但仍需视觉审计 x 坐标、轨道顶部 lead-in、比例、滑动状态和节点对齐。 | 先用截图验证时间轴 x、轨道顶部 lead-in、节点中心、气泡起点和尖角目标点，再决定是否继续调 `TimelineGeometry` 参数。 |
 | 外观页视觉语义 | 外观页已从列表行/勾选重构为模式总览预览、主色 swatch、纯背景纹理样本和图片展示样本；首页背景设置已闭环。 | 后续只做真机截图审计：确认暗/亮模式、不同主色、自定义图片和图片展示分组在常见屏宽下排版稳定、对比足够。 |
+| 任务页骨架 | 设置、外观、编辑、预览已共享任务内容列；标签和垃圾箱保留 `List` swipe 语义但统一页边距。 | 后续新增任务页先复用 `TaskSurfaceMetrics`，再按语义选择 `TaskSurfacePanel` 或成熟系统 `List`；不再按页面手写独立宽度。 |
 | 亮色主题细节 | 除 `.normal` 外的亮色心情色仍待确认；当前 SwiftUI 已有 `AppThemeTokens` / `ThemeManager` token 闭环，但仍缺系统性亮色截图验收。 | 亮色不是只换背景，还要保证文字、节点、热力图和统计的可读性；后续发现问题先校准 token，再替换散落消费，不把旧 Flutter 的 registry / 皮肤系统照搬进 SwiftUI。 |
 | 设计稿与契约偏离 | 最初设计稿暗示空月份可定位；设计层已裁决为只定位真实记录月份，current 已落地。 | 不默认按设计稿回改；若要改变，先在 `13-open-questions.md` 重新打开 #21。 |
 | 终身买断视觉 | 原始 Pro 设计稿只有月订阅单方案，当前契约新增终身买断。 | Paywall 进入改造前必须先裁决双方案呈现，不假装原设计稿已经回答。 |
@@ -125,7 +127,7 @@ HeatMoment2 是对 `/Users/admin/Downloads/Code/HeatMoment` 中 Flutter 项目�
    - 预览必须消费 SwiftUI 当前真实主题语义（如 `ThemeManager` 暴露的背景、文字、强调色、心情色、纹理状态），不能做成与实际界面脱节的静态演示样式。
    - `imageDisplayMode` 的气泡图片消费路径已落地，后续只做视觉参数验收。
    - 保持主色、心情色、危险色三套语义分离。
-   - SwiftUI 实现优先使用 `List` / `Section` 保持设置页原生性；选项布局用 `LazyVGrid` 或横向 `ScrollView` 适配宽度；预览卡只封装小型视觉样本，不引入 Flutter 的完整皮肤系统、开发者隐藏轴或跨轴 registry。
+   - SwiftUI 实现优先使用 `TaskPageScrollView` / `TaskSurfaceSection` 保持任务页响应式内容列；选项布局用 `LazyVGrid` 或横向 `ScrollView` 适配宽度；需要系统行级行为的页面继续保留 `List` / `.swipeActions`。预览卡只封装小型视觉样本，不引入 Flutter 的完整皮肤系统、开发者隐藏轴或跨轴 registry。
 
 ### P2b Token 化主题与分组缩略计划
 

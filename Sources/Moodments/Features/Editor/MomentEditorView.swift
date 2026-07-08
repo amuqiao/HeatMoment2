@@ -35,8 +35,11 @@ struct MomentEditorView: View {
     /// `MomentEditorModel`（草稿模型），而 `@Environment` 属性包装器只在视图挂载后才解析，
     /// `init()` 阶段读取会拿到默认/未初始化状态（与 `lastUsedMood` 需要绕开
     /// `@AppStorage` 初始化顺序陷阱同一原因，见下方注释）。
-    init(mode: EditorMode, modelContainer: ModelContainer, subscriptionService: SubscriptionService)
-    {
+    init(
+        mode: EditorMode,
+        modelContainer: ModelContainer,
+        subscriptionService: SubscriptionService
+    ) {
         self.mode = mode
         self.modelContainer = modelContainer
         // 直接读 `UserDefaults` 而非 `_lastUsedMood` 的 wrapped value：属性包装器初始化顺序
@@ -86,16 +89,10 @@ struct MomentEditorView: View {
     }
 
     private var content: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                moodAndTagRow
-                Divider()
-                titleField
-                Divider()
-                bodyField
-                EditorPhotoSection(model: model, editorPaywallTrigger: $editorPaywallTrigger)
-            }
-            .padding(20)
+        TaskPageScrollView(spacing: 20) {
+            moodAndTagRow
+            editorTextPanel
+            EditorPhotoSection(model: model, editorPaywallTrigger: $editorPaywallTrigger)
         }
     }
 
@@ -123,9 +120,8 @@ struct MomentEditorView: View {
     // MARK: - 情绪 + 标签行（同一行左右布局，见 05-design-system.md §5.7）
 
     private var moodAndTagRow: some View {
-        HStack {
+        HStack(spacing: 12) {
             moodButton
-            Spacer()
             tagButton
         }
     }
@@ -134,15 +130,25 @@ struct MomentEditorView: View {
         Button {
             isMoodPickerPresented = true
         } label: {
-            HStack(spacing: 4) {
+            HStack(spacing: 6) {
                 Image(systemName: "heart.fill").foregroundStyle(theme.accent)
                 Text("\(model.mood.emoji) \(model.mood.displayName)")
                     .foregroundStyle(theme.primaryText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
                 Image(systemName: "chevron.down")
                     .font(.caption)
                     .foregroundStyle(theme.secondaryText)
             }
+            .padding(.horizontal, TaskSurfaceMetrics.rowHorizontalPadding)
+            .frame(maxWidth: .infinity, minHeight: 46, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(theme.sheetPanelBackground)
+            )
         }
+        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity)
         .accessibilityIdentifier("editorMoodRow")
         .accessibilityLabel(Text("情绪，\(model.mood.displayName)，双击更改"))
         .popover(isPresented: $isMoodPickerPresented, arrowEdge: .top) {
@@ -158,14 +164,25 @@ struct MomentEditorView: View {
         Button {
             isTagPickerPresented = true
         } label: {
-            HStack(spacing: 4) {
+            HStack(spacing: 6) {
                 Text("#").foregroundStyle(theme.accent)
                 Text(tagSummaryText).foregroundStyle(theme.primaryText)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .minimumScaleFactor(0.85)
                 Image(systemName: "chevron.down")
                     .font(.caption)
                     .foregroundStyle(theme.secondaryText)
             }
+            .padding(.horizontal, TaskSurfaceMetrics.rowHorizontalPadding)
+            .frame(maxWidth: .infinity, minHeight: 46, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(theme.sheetPanelBackground)
+            )
         }
+        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity)
         .accessibilityIdentifier("editorTagRow")
         .accessibilityLabel(Text("标签，\(tagSummaryText)，双击更改"))
         .popover(isPresented: $isTagPickerPresented, arrowEdge: .top) {
@@ -243,6 +260,18 @@ struct MomentEditorView: View {
     }()
 
     // MARK: - 标题 / 正文
+
+    private var editorTextPanel: some View {
+        TaskSurfacePanel {
+            VStack(alignment: .leading, spacing: 14) {
+                titleField
+                Divider()
+                bodyField
+                    .frame(minHeight: 170, alignment: .topLeading)
+            }
+        }
+        .taskSurfaceMeasurementIdentifier("editorTextPanel")
+    }
 
     private var titleField: some View {
         TextField("标题", text: titleBinding)

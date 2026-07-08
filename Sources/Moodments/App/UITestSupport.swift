@@ -39,6 +39,12 @@
             ProcessInfo.processInfo.arguments.contains("-uiTestBackgroundImageInjection")
         }
 
+        /// 是否暴露任务页骨架测量 marker。只用于 UI 测试读取响应式边界；
+        /// 生产 DEBUG 运行不把透明测量元素放进无障碍树。
+        static var wantsTaskSurfaceMeasurementIdentifiers: Bool {
+            isAnyUITestRun
+        }
+
         /// 标签管理 UI 测试专用：在隔离内存容器中跳过默认 3 标签预置，便于覆盖免费额度未满时的
         /// 正常新建路径。生产路径和未携带该参数的 UI 测试仍保持首启默认标签语义。
         static var wantsSkipDefaultTags: Bool {

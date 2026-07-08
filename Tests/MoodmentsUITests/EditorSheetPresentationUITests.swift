@@ -6,7 +6,8 @@ import XCTest
 final class EditorSheetPresentationUITests: XCTestCase {
     func testTapFABPresentsEditorWithMoodRowAndSaveButton() {
         let app = XCUIApplication()
-        app.launchArguments = ["-uiTestReset"]   // 隔离内存容器，呈现机制验收不受磁盘数据影响
+        // 隔离内存容器，呈现机制验收不受磁盘数据影响。
+        app.launchArguments = ["-uiTestReset"]
         app.launch()
 
         let fab = app.buttons["新建时刻"]
@@ -44,5 +45,55 @@ final class EditorSheetPresentationUITests: XCTestCase {
             from: app.navigationBars["设置"],
             expectedHomeButtonLabel: "新建时刻"
         )
+    }
+
+    func testSettingsTaskSurfacesShareHorizontalBounds() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTestReset"]
+        app.launch()
+
+        let settingsButton = app.buttons["设置"]
+        XCTAssertTrue(settingsButton.waitForExistence(timeout: 10))
+        settingsButton.tap()
+
+        let proBanner = app.buttons["settingsProBanner"]
+        let primarySection = app.otherElements["settingsPrimarySection"]
+        let supportSection = app.otherElements["settingsSupportSection"]
+        let aboutSection = app.otherElements["settingsAboutSection"]
+        XCTAssertTrue(proBanner.waitForExistence(timeout: 5))
+        XCTAssertTrue(primarySection.waitForExistence(timeout: 5))
+        XCTAssertTrue(supportSection.waitForExistence(timeout: 5))
+        XCTAssertTrue(aboutSection.waitForExistence(timeout: 5))
+
+        assertHorizontallyAligned(primarySection, with: proBanner, message: "Pro 横幅应和主设置组同宽")
+        assertHorizontallyAligned(supportSection, with: primarySection, message: "设置分组之间应同宽")
+        assertHorizontallyAligned(aboutSection, with: primarySection, message: "关于分组应和主设置组同宽")
+    }
+
+    func testEditorTaskSurfacesShareHorizontalBounds() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTestReset"]
+        app.launch()
+
+        let fab = app.buttons["新建时刻"]
+        XCTAssertTrue(fab.waitForExistence(timeout: 10))
+        fab.tap()
+
+        let textPanel = app.otherElements["editorTextPanel"]
+        let addPhotoButton = app.buttons["editorAddPhotoButton"]
+        XCTAssertTrue(textPanel.waitForExistence(timeout: 5))
+        XCTAssertTrue(addPhotoButton.waitForExistence(timeout: 5))
+
+        assertHorizontallyAligned(addPhotoButton, with: textPanel, message: "添加照片按钮应和编辑输入面板同宽")
+    }
+
+    private func assertHorizontallyAligned(
+        _ lhs: XCUIElement,
+        with rhs: XCUIElement,
+        tolerance: CGFloat = 1.5,
+        message: String
+    ) {
+        XCTAssertEqual(lhs.frame.minX, rhs.frame.minX, accuracy: tolerance, message)
+        XCTAssertEqual(lhs.frame.maxX, rhs.frame.maxX, accuracy: tolerance, message)
     }
 }

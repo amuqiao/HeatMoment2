@@ -38,7 +38,7 @@ final class AppearanceSaveFailureUITests: XCTestCase {
 
         openAppearanceThemeView(app)
 
-        // 「图片」分组在列表末尾，`List` 懒加载未滚到的行不会出现在无障碍树里，需先滚动到底
+        // 「图片」分组在页面末尾，需先滚动到底
         // （见 `ThemeSwitchUITests.scrollToBottom` 同类说明）。
         scrollToBottom(app)
 
@@ -46,7 +46,7 @@ final class AppearanceSaveFailureUITests: XCTestCase {
         XCTAssertTrue(carouselOption.waitForExistence(timeout: 5))
         carouselOption.tap()
 
-        // 点选后 `List` 会重新布局、滚动位置不可靠（实测偶发把「图片」分组重新挤出可见范围），
+        // 点选后页面会重新布局、滚动位置不可靠（实测偶发把「图片」分组重新挤出可见范围），
         // 重新滚动到底、重新定位元素后再读取 `isSelected`，不复用点击前的元素句柄/滚动假设。
         scrollToBottom(app)
         let carouselOptionAfterTap = app.buttons["appearanceImageModeOption-carousel"]
@@ -74,8 +74,8 @@ final class AppearanceSaveFailureUITests: XCTestCase {
         appearanceRow.tap()
     }
 
-    /// 在 `AppearanceThemeView` 的 `List` 内反复下滑到底，使懒加载的末尾分组（「图片」）
-    /// 进入无障碍树；次数留足余量（5 次）以覆盖点选后重新布局导致的滚动位置漂移。
+    /// 在 `AppearanceThemeView` 内反复下滑到底，使末尾分组（「图片」）进入可见区域；
+    /// 次数留足余量（5 次）以覆盖点选后重新布局导致的滚动位置漂移。
     private func scrollToBottom(_ app: XCUIApplication) {
         for _ in 0..<5 { app.swipeUp() }
     }

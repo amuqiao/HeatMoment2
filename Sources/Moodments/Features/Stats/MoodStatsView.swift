@@ -15,11 +15,10 @@ struct MoodStatsView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
+            TaskResponsiveContent(spacing: 24) {
                 heatmapCard
                 barsCard
             }
-            .padding(20)
         }
         .background(theme.canvasBackground.ignoresSafeArea())
         .navigationTitle("心情统计")

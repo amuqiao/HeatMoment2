@@ -64,6 +64,31 @@ final class ThemeSwitchUITests: XCTestCase {
         }
     }
 
+    func testAppearanceTaskSectionsShareHorizontalBounds() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTestReset"]
+        app.launch()
+
+        XCTAssertTrue(app.buttons["新建时刻"].waitForExistence(timeout: 10))
+        openAppearanceThemeView(app)
+
+        let modeSection = app.otherElements["appearanceModeSection"]
+        let accentSection = app.otherElements["appearanceAccentSection"]
+        XCTAssertTrue(modeSection.waitForExistence(timeout: 5))
+        XCTAssertTrue(accentSection.waitForExistence(timeout: 5))
+        assertHorizontallyAligned(accentSection, with: modeSection, message: "模式和颜色分组应同宽")
+
+        let textureSection = app.otherElements["appearanceTextureSection"]
+        scrollUntilVisible(textureSection, app: app)
+        XCTAssertTrue(textureSection.waitForExistence(timeout: 5))
+        assertHorizontallyAligned(textureSection, with: modeSection, message: "网格分组应和模式分组同宽")
+
+        let imageSection = app.otherElements["appearanceImageDisplaySection"]
+        scrollUntilVisible(imageSection, app: app)
+        XCTAssertTrue(imageSection.waitForExistence(timeout: 5))
+        assertHorizontallyAligned(imageSection, with: modeSection, message: "图片分组应和模式分组同宽")
+    }
+
     /// 模式区是当前主题总览：切主色时，同一张模式卡内的 FAB/强调色预览应同步重绘。
     func testSwitchingAccentColorUpdatesModeOverviewPreviewRendering() {
         let app = XCUIApplication()
@@ -258,7 +283,7 @@ final class ThemeSwitchUITests: XCTestCase {
         XCTAssertTrue(app.buttons["新建时刻"].waitForExistence(timeout: 10))
         openAppearanceThemeView(app)
 
-        // 「图片」分组在列表末尾，`List` 懒加载未滚到的行不会出现在无障碍树里，需先滚动到底。
+        // 「图片」分组在页面末尾，需先滚动到底。
         scrollToBottom(app)
 
         let scrollOption = app.buttons["appearanceImageModeOption-scroll"]
@@ -285,8 +310,7 @@ final class ThemeSwitchUITests: XCTestCase {
         appearanceRow.tap()
     }
 
-    /// 在 `AppearanceThemeView` 的 `List` 内下滑到底，使懒加载的末尾分组（「图片」）进入
-    /// 无障碍树（`List` 对应 `UICollectionView`，未滚到的行不会实例化）。
+    /// 在 `AppearanceThemeView` 内下滑到底，使末尾分组（「图片」）进入可见区域。
     private func scrollToBottom(_ app: XCUIApplication) {
         for _ in 0..<3 { app.swipeUp() }
     }
@@ -295,6 +319,16 @@ final class ThemeSwitchUITests: XCTestCase {
         for _ in 0..<6 where !element.exists || !element.isHittable {
             app.swipeUp()
         }
+    }
+
+    private func assertHorizontallyAligned(
+        _ lhs: XCUIElement,
+        with rhs: XCUIElement,
+        tolerance: CGFloat = 1.5,
+        message: String
+    ) {
+        XCTAssertEqual(lhs.frame.minX, rhs.frame.minX, accuracy: tolerance, message)
+        XCTAssertEqual(lhs.frame.maxX, rhs.frame.maxX, accuracy: tolerance, message)
     }
 
     private func closeSettings(_ app: XCUIApplication) {
@@ -320,18 +354,30 @@ final class ThemeSwitchUITests: XCTestCase {
         let image = element.screenshot().image
         guard let ciImage = CIImage(image: image) else { return (0, 0, 0) }
         let extent = CIVector(
-            x: ciImage.extent.origin.x, y: ciImage.extent.origin.y,
-            z: ciImage.extent.size.width, w: ciImage.extent.size.height
+            x: ciImage.extent.origin.x,
+            y: ciImage.extent.origin.y,
+            z: ciImage.extent.size.width,
+            w: ciImage.extent.size.height
         )
-        guard let filter = CIFilter(name: "CIAreaAverage", parameters: [kCIInputImageKey: ciImage, kCIInputExtentKey: extent]),
-              let output = filter.outputImage
-        else { return (0, 0, 0) }
+        let parameters = [
+            kCIInputImageKey: ciImage,
+            kCIInputExtentKey: extent,
+        ]
+        guard let filter = CIFilter(name: "CIAreaAverage", parameters: parameters),
+            let output = filter.outputImage
+        else {
+            return (0, 0, 0)
+        }
 
         var bitmap = [UInt8](repeating: 0, count: 4)
         let context = CIContext(options: [.workingColorSpace: NSNull()])
         context.render(
-            output, toBitmap: &bitmap, rowBytes: 4,
-            bounds: CGRect(x: 0, y: 0, width: 1, height: 1), format: .RGBA8, colorSpace: nil
+            output,
+            toBitmap: &bitmap,
+            rowBytes: 4,
+            bounds: CGRect(x: 0, y: 0, width: 1, height: 1),
+            format: .RGBA8,
+            colorSpace: nil
         )
         return (CGFloat(bitmap[0]) / 255, CGFloat(bitmap[1]) / 255, CGFloat(bitmap[2]) / 255)
     }
@@ -342,7 +388,10 @@ final class ThemeSwitchUITests: XCTestCase {
     }
 
     /// 归一化欧氏距离（0...约1.73），用于判断两次采样的颜色是否有「明显」差异。
-    private func colorDistance(_ lhs: (r: CGFloat, g: CGFloat, b: CGFloat), _ rhs: (r: CGFloat, g: CGFloat, b: CGFloat)) -> CGFloat {
+    private func colorDistance(
+        _ lhs: (r: CGFloat, g: CGFloat, b: CGFloat),
+        _ rhs: (r: CGFloat, g: CGFloat, b: CGFloat)
+    ) -> CGFloat {
         let dr = lhs.r - rhs.r
         let dg = lhs.g - rhs.g
         let db = lhs.b - rhs.b

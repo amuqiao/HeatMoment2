@@ -15,18 +15,13 @@ struct AppearanceThemeView: View {
     @State private var customBackgroundPickerItem: PhotosPickerItem?
 
     var body: some View {
-        List {
+        TaskPageScrollView {
             notices
             modeSection
-                .appearanceListRow(top: 8, bottom: 10)
             accentSection
-                .appearanceListRow(bottom: 10)
             textureSection
-                .appearanceListRow(bottom: 10)
             imageDisplaySection
-                .appearanceListRow(bottom: 22)
         }
-        .taskGroupedListBackground(theme)
         .navigationTitle("主题颜色")
         .navigationBarTitleDisplayMode(.inline)
         .themedTaskContainer(theme)
@@ -47,7 +42,6 @@ struct AppearanceThemeView: View {
                 identifier: "appearanceCorrectedNotice",
                 color: theme.accent
             )
-            .appearanceListRow(bottom: 8)
         }
         if theme.appearanceSaveFailed {
             AppearanceInlineNotice(
@@ -55,7 +49,6 @@ struct AppearanceThemeView: View {
                 identifier: "appearanceSaveFailedNotice",
                 color: theme.danger
             )
-            .appearanceListRow(bottom: 8)
         }
         if theme.customBackgroundImageRecovered {
             AppearanceInlineNotice(
@@ -63,7 +56,6 @@ struct AppearanceThemeView: View {
                 identifier: "customBackgroundImageRecoveredNotice",
                 color: theme.danger
             )
-            .appearanceListRow(bottom: 8)
         }
         if theme.photoDisplaySaveFailed {
             AppearanceInlineNotice(
@@ -71,13 +63,15 @@ struct AppearanceThemeView: View {
                 identifier: "photoDisplaySaveFailedNotice",
                 color: theme.danger
             )
-            .appearanceListRow(bottom: 8)
         }
     }
 
     private var modeSection: some View {
-        AppearanceOptionSection(title: "模式") {
-            HStack(spacing: 28) {
+        TaskSurfaceSection(title: "模式", accessibilityIdentifier: "appearanceModeSection") {
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 130), spacing: 28)],
+                spacing: 18
+            ) {
                 AppearanceModeOptionCard(
                     mode: .dark,
                     title: "暗色模式",
@@ -103,9 +97,9 @@ struct AppearanceThemeView: View {
     }
 
     private var accentSection: some View {
-        AppearanceOptionSection(title: "颜色") {
+        TaskSurfaceSection(title: "颜色", accessibilityIdentifier: "appearanceAccentSection") {
             LazyVGrid(
-                columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 6),
+                columns: [GridItem(.adaptive(minimum: 44), spacing: 8)],
                 spacing: 0
             ) {
                 ForEach(AccentColorOption.allCases) { option in
@@ -124,9 +118,12 @@ struct AppearanceThemeView: View {
         let isCustomImageSelected = theme.backgroundTexture == .customImage
         let customImageURL = theme.customBackgroundImageURL
 
-        return AppearanceOptionSection(title: "网格") {
+        return TaskSurfaceSection(
+            title: "网格",
+            accessibilityIdentifier: "appearanceTextureSection"
+        ) {
             LazyVGrid(
-                columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 4),
+                columns: [GridItem(.adaptive(minimum: 68), spacing: 12)],
                 spacing: 14
             ) {
                 AppearanceTextureOptionCard(
@@ -194,8 +191,11 @@ struct AppearanceThemeView: View {
     }
 
     private var imageDisplaySection: some View {
-        AppearanceOptionSection(title: "图片") {
-            HStack(spacing: 18) {
+        TaskSurfaceSection(title: "图片", accessibilityIdentifier: "appearanceImageDisplaySection") {
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 138), spacing: 18)],
+                spacing: 18
+            ) {
                 AppearanceImageDisplayOptionCard(
                     mode: .scroll,
                     title: "滚动",
@@ -228,14 +228,6 @@ struct AppearanceThemeView: View {
             theme.markAppearanceSaveFailed()
             assertionFailure("自定义背景图片读取失败：\(error)")
         }
-    }
-}
-
-private extension View {
-    func appearanceListRow(top: CGFloat = 0, bottom: CGFloat = 0) -> some View {
-        listRowInsets(EdgeInsets(top: top, leading: 16, bottom: bottom, trailing: 16))
-            .listRowBackground(Color.clear)
-            .listRowSeparator(.hidden)
     }
 }
 

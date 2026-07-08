@@ -94,7 +94,21 @@ TimelineHomeView.timelineFilterSheet
 
 ## 设置与外观
 
-`SettingsSheetView` 是根级第一层 sheet，内部使用 `NavigationStack + insetGrouped List`。根页不提供显式关闭按钮，依赖系统 sheet 下滑关闭；设置子页包括统计、标签、垃圾箱、语言、外观、关于，均在设置栈内 push 并保留系统返回；Pro 横幅使用设置内部局部 `.sheet(item:)` 打开 `ProPaywallView`。
+`SettingsSheetView` 是根级第一层 sheet，内部使用 `NavigationStack + TaskPageScrollView`。根页不提供显式关闭按钮，依赖系统 sheet 下滑关闭；设置子页包括统计、标签、垃圾箱、语言、外观、关于，均在设置栈内 push 并保留系统返回；Pro 横幅使用设置内部局部 `.sheet(item:)` 打开 `ProPaywallView`。
+
+任务页的响应式骨架收口在 `TaskContainerStyle.swift`：
+
+```text
+TaskSurfaceMetrics
+  -> TaskPageScrollView
+      -> TaskSurfaceSection
+          -> TaskSurfacePanel
+              -> TaskSurfaceRow / feature content
+```
+
+`TaskSurfaceMetrics` 定义任务页内容列的水平边距、最大可读宽度、分组间距、panel 圆角、panel padding 和 row 最小高度。`TaskPageScrollView` 负责 sheet 背景、滚动和底部安全余量；`TaskResponsiveContent` 只负责内容列居中、最大宽度和页边距，因此可被统计页等非 sheet 背景场景借用；`TaskSurfaceSection` 负责可选标题和 panel 边界；`TaskSurfacePanel` 只表达任务容器面板；`TaskSurfaceRow` 表达设置类行。用于 UI 验证的 section measurement identifier 是 1pt 透明边界标记，不覆盖整块内容，避免抢走按钮命中区域。
+
+这套骨架只用于“系统任务空间”：设置根页、外观详情、编辑器输入面板、预览阅读卡片，以及统计/标签/垃圾箱的页边距基线。它不用于首页品牌画布、时间轴 Moment 气泡、筛选 popover、日期/时间 popover 或标签创建 sheet；这些对象各自保留自身语义。当前 Settings 的 Pro 横幅、设置分组、支持分组、关于分组共享同一内容列；Appearance 的模式、颜色、网格、图片分组共享同一内容列；Editor 的文本输入 panel 和添加照片 CTA 共享同一内容列；Preview 的阅读内容也进入同一任务页滚动骨架。
 
 `TagManageView` 是当前标签新增、重命名、删除的唯一管理入口。右上“+”在打开 `TagCreateSheetView` 前经 `QuotaService` 做标签额度闸门，超额时打开 `ProPaywallView`；`TagCreateSheetView` 在真正创建新标签前再次复核标签额度，避免表单打开后数量变化造成越额写入。`TagCreateSheetView` 使用设置子页上的局部 `.sheet(item:)` 呈现为第二层任务卡片，当前为 `.large` detent 的系统 page sheet，内容是居中的“# 标签名称 / 输入框 / 整行保存 / 取消”纵向表单；重命名态复用同一表单骨架并预填原名。列表行点击进入重命名，左滑使用统一的系统 `.swipeActions(allowsFullSwipe: true)` 展示删除按钮并支持 full swipe。删除成功后调用 `TimelineModel.discardFilterTag` 清理当前筛选中可能残留的标签 id。
 
@@ -118,12 +132,12 @@ TimelineHomeView.timelineFilterSheet
 - 危险色通过 `theme.danger` 解析，不读取主色。
 - `ProPaywallView` / `AboutView` 使用固定商业 token，并在本页局部注入 `.light` color scheme：浅色背景、浅色行/面板、固定红和固定商业文字不跟随用户主色或暗/亮模式，也不被设置任务容器的暗色环境污染。Paywall 的月订阅 / 终身买断结构仍按当前 StoreKit 契约展示；双方案视觉样式是否继续改造仍归 Paywall 专项裁决。
 - `ImageViewerView` 使用固定媒体 token：沉浸黑底、白色 chrome 和黑色 chrome scrim，不跟随主题主色。
-- `TaskContainerStyle` 是任务容器层的 SwiftUI 封装：设置、外观、语言、标签、垃圾箱、编辑器、预览和筛选等任务面板统一注入 `theme.colorScheme`、导航栏色彩方案和 `theme.accent`；基于 `List` / `Section` 的设置类页面统一使用 `sheetBackground` 作为列表背景、`sheetPanelBackground` 作为行背景。这样避免系统默认浅色 grouped list 在暗色主题下盖住正确文字色。
+- `TaskContainerStyle` 是任务容器层的 SwiftUI 封装：设置、外观、语言、标签、垃圾箱、编辑器、预览和筛选等任务面板统一注入 `theme.colorScheme`、导航栏色彩方案和 `theme.accent`。任务内容列使用 `TaskPageScrollView` / `TaskSurfacePanel` 表达响应式宽度与 panel 语义；统计页只借用 `TaskResponsiveContent` 的内容列，不继承 sheet 背景；仍需系统行级能力的标签和垃圾箱列表保留 `List` / `.swipeActions`，通过 `taskListContentFrame()` 和共享 row inset 对齐同一最大宽度基线。这样避免系统默认浅色 grouped list 在暗色主题下盖住正确文字色，也避免不同任务页各自写死宽度。
 - 设置栈内的 `TagManageView`、`TrashView`、`LanguageSettingsView` 已归入任务容器语义，背景使用 `sheetBackground`，行/面板使用 `sheetPanelBackground`，文字使用 `primaryText` / `secondaryText`，不再复用首页品牌画布和气泡 token。
 - `backgroundTexture` 已驱动首页主场景背景，`HomeSceneBackgroundView` 统一渲染网格线、点阵、无和自定义图片；作用范围包括时间轴背后区域、顶部 chrome 展开态和首页热力图上下文，不作用于设置页、编辑器 sheet、气泡卡片或其它页面。
 - 自定义背景图片由 `AppearanceThemeView` 通过系统 `PhotosPicker` 选择，`ThemeManager` 在后台压缩后写入 `AppearanceStore` 暴露的 Application Support 固定文件；写入成功后才切到 `.customImage`，写入失败不改变当前背景。UI 测试下使用 `-uiTestBackgroundImageInjection` 暴露调试注入按钮。
 - `imageDisplayMode` 已有 UI、状态和持久化，并驱动时间轴气泡图片区在横向缩略图布局和轮播布局之间切换；它只改变照片展示行为，不改变主题颜色语义。
-- `AppearanceThemeView` 保留设置页原生 `List` 任务容器骨架。模式区两张卡是当前外观状态在暗/亮模式下的总览预览，会同时体现当前背景纹理/自定义图片、导航文字层、FAB/主色和模式色板；颜色区使用响应式 swatch 网格，不允许固定宽度溢出屏幕；网格区的选项卡只表达纯背景纹理效果，不再展示 FAB 或导航元素；图片区只表达滚动/轮播展示差异。外观页组件消费 `ThemeManager` 和 `AppThemeTokens.resolve`，但不进入 `AppRouter`，也不把首页品牌画布、气泡卡片和 sheet panel 混成同一个容器。
+- `AppearanceThemeView` 使用 `TaskPageScrollView` 任务内容列和自适应 `LazyVGrid` 分组骨架。模式区两张卡是当前外观状态在暗/亮模式下的总览预览，会同时体现当前背景纹理/自定义图片、导航文字层、FAB/主色和模式色板；颜色区使用响应式 swatch 网格，不允许固定宽度溢出屏幕；网格区的选项卡只表达纯背景纹理效果，不再展示 FAB 或导航元素；图片区只表达滚动/轮播展示差异。外观页组件消费 `ThemeManager` 和 `AppThemeTokens.resolve`，但不进入 `AppRouter`，也不把首页品牌画布、气泡卡片和 sheet panel 混成同一个容器。
 
 ## 与设计层的已知漂移
 
@@ -142,7 +156,7 @@ TimelineHomeView.timelineFilterSheet
 ./scripts/verify.sh
 ```
 
-结果：`ThemeManagerTests` 执行 7 个测试、0 失败，覆盖自定义背景图写入/修正、五层 token 暗/亮取值、主色派生前景矩阵和商业固定色独立性；`ThemeSwitchUITests` 执行 9 个测试、0 失败，覆盖切换亮/暗、主色、主色 swatch 不溢出屏幕、主色驱动模式总览同步、背景纹理、自定义背景图、图片展示模式，以及设置/外观任务容器在 sheet 已挂载时跟随模式更新；最终 `./scripts/verify.sh` 全部通过。
+结果：`ThemeManagerTests` 执行 7 个测试、0 失败，覆盖自定义背景图写入/修正、五层 token 暗/亮取值、主色派生前景矩阵和商业固定色独立性；`ThemeSwitchUITests` 执行 10 个测试、0 失败，覆盖切换亮/暗、主色、主色 swatch 不溢出屏幕、外观页分组同宽、主色驱动模式总览同步、背景纹理、自定义背景图、图片展示模式，以及设置/外观任务容器在 sheet 已挂载时跟随模式更新；最终 `./scripts/verify.sh` 全部通过。
 
 ## P0 验证事实
 

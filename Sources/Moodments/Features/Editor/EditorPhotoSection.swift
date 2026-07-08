@@ -30,9 +30,17 @@ struct EditorPhotoSection: View {
             if model.draftPhotos.isEmpty {
                 addPhotoButton
             } else {
-                Text("日志图片 \(model.draftPhotos.count) 张")
-                    .font(AppTypography.caption)
-                    .foregroundStyle(theme.secondaryText)
+                HStack(spacing: 8) {
+                    Image(systemName: "photo")
+                    Text("日志图片")
+                        .font(AppTypography.cardTitle)
+                    Text("\(model.draftPhotos.count) 张")
+                        .font(AppTypography.caption)
+                        .foregroundStyle(theme.secondaryText)
+                    Spacer()
+                }
+                .foregroundStyle(theme.primaryText)
+
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 12) {
                         ForEach(model.draftPhotos) { photo in
@@ -57,6 +65,7 @@ struct EditorPhotoSection: View {
             }
             #endif
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .photosPicker(
             isPresented: $isPickerPresented,
             selection: $pickerSelection,
@@ -81,9 +90,16 @@ struct EditorPhotoSection: View {
                 .font(AppTypography.button)
                 .foregroundStyle(theme.onAccentText)
                 .frame(maxWidth: .infinity)
-                .frame(height: 48)
-                .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(theme.accent))
+                .frame(height: 56)
+                .background(
+                    RoundedRectangle(
+                        cornerRadius: TaskSurfaceMetrics.panelCornerRadius,
+                        style: .continuous
+                    )
+                    .fill(theme.accent)
+                )
         }
+        .buttonStyle(.plain)
         .accessibilityIdentifier("editorAddPhotoButton")
     }
 
@@ -161,7 +177,10 @@ struct EditorPhotoSection: View {
     private func loadData(from item: PhotosPickerItem) async -> Data? {
         do {
             guard let data = try await item.loadTransferable(type: Data.self) else {
-                await errorPresenter.report(message: "读取所选照片失败，请重试。", underlying: PhotoLoadError.emptyData)
+                await errorPresenter.report(
+                    message: "读取所选照片失败，请重试。",
+                    underlying: PhotoLoadError.emptyData
+                )
                 return nil
             }
             return data

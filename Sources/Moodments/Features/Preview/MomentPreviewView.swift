@@ -66,44 +66,39 @@ struct MomentPreviewView: View {
     // MARK: - 内容（见 04-screen-specs.md §4.9：顶部心情/日期/编辑入口；正文区标题/标签/照片/正文）
 
     private func content(for moment: Moment) -> some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                header(for: moment)
+        TaskPageScrollView(spacing: 20, accessibilityIdentifier: "momentPreviewCard") {
+            header(for: moment)
 
-                if !moment.title.isEmpty {
-                    Text(moment.title)
-                        .font(AppTypography.pageTitle)
-                        .foregroundStyle(theme.primaryText)
-                        .accessibilityAddTraits(.isHeader)
-                        .accessibilityFocused($isTitleFocused)
-                }
+            if !moment.title.isEmpty {
+                Text(moment.title)
+                    .font(AppTypography.pageTitle)
+                    .foregroundStyle(theme.primaryText)
+                    .accessibilityAddTraits(.isHeader)
+                    .accessibilityFocused($isTitleFocused)
+            }
 
-                let tagNames = moment.tags.map(\.name)
-                if !tagNames.isEmpty {
-                    HStack(spacing: 6) {
-                        ForEach(tagNames, id: \.self) { name in
-                            TagChipView(name: name)
-                        }
+            let tagNames = moment.tags.map(\.name)
+            if !tagNames.isEmpty {
+                HStack(spacing: 6) {
+                    ForEach(tagNames, id: \.self) { name in
+                        TagChipView(name: name)
                     }
-                }
-
-                let imageIDs = imageIDs(for: moment)
-                if !imageIDs.isEmpty {
-                    ThumbnailStripView(imageIDs: imageIDs) { index in
-                        viewerContext = ViewerContext(startIndex: index)
-                    }
-                }
-
-                if !moment.bodyText.isEmpty {
-                    Text(moment.bodyText)
-                        .font(AppTypography.body)
-                        .foregroundStyle(theme.secondaryText)
                 }
             }
-            .padding(20)
-            .frame(maxWidth: .infinity, alignment: .leading)
+
+            let imageIDs = imageIDs(for: moment)
+            if !imageIDs.isEmpty {
+                ThumbnailStripView(imageIDs: imageIDs) { index in
+                    viewerContext = ViewerContext(startIndex: index)
+                }
+            }
+
+            if !moment.bodyText.isEmpty {
+                Text(moment.bodyText)
+                    .font(AppTypography.body)
+                    .foregroundStyle(theme.secondaryText)
+            }
         }
-        .accessibilityIdentifier("momentPreviewCard")
         // 阅读卡片弹出完成后，VoiceOver 焦点移到标题，避免停留在已下沉的时间轴卡片上
         // （见 04 §4.9 无障碍要求）；若标题为空（无标题时刻）则不移动焦点，交由系统默认行为。
         .onAppear {

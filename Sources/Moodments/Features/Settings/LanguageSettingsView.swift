@@ -17,15 +17,19 @@ struct LanguageSettingsView: View {
     }
 
     var body: some View {
-        List {
-            Section {
-                ForEach(LanguagePreference.allCases) { option in
+        TaskPageScrollView {
+            TaskSurfaceSection {
+                ForEach(
+                    Array(LanguagePreference.allCases.enumerated()),
+                    id: \.element.id
+                ) { index, option in
                     row(for: option)
-                        .listRowBackground(theme.sheetPanelBackground)
+                    if index < LanguagePreference.allCases.count - 1 {
+                        TaskSurfaceSeparator()
+                    }
                 }
             }
         }
-        .taskGroupedListBackground(theme)
         .navigationTitle("语言")
         .themedTaskContainer(theme)
     }
@@ -35,14 +39,15 @@ struct LanguageSettingsView: View {
         return Button {
             rawValue = option.rawValue
         } label: {
-            HStack {
-                Text(option.displayNameKey).foregroundStyle(theme.primaryText)
-                Spacer()
+            TaskSurfaceRow {
+                Text(option.displayNameKey)
+                    .foregroundStyle(theme.primaryText)
+            } trailing: {
                 if isSelected {
-                    Image(systemName: "checkmark").foregroundStyle(theme.accent)
+                    Image(systemName: "checkmark")
+                        .foregroundStyle(theme.accent)
                 }
             }
-            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("languageOption-\(option.rawValue)")

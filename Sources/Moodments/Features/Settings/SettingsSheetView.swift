@@ -21,76 +21,54 @@ struct SettingsSheetView: View {
 
     var body: some View {
         NavigationStack {
-            List {
-                Section {
-                    proBanner
-                }
-                .listRowInsets(EdgeInsets())
-                .listRowBackground(Color.clear)
+            TaskPageScrollView {
+                proBanner
 
-                Section {
-                    NavigationLink {
+                TaskSurfaceSection(accessibilityIdentifier: "settingsPrimarySection") {
+                    settingsNavigationRow(
+                        title: "心情统计",
+                        identifier: "settingsMoodStatsRow"
+                    ) {
                         MoodStatsView(modelContainer: modelContext.container)
-                    } label: {
-                        Text("心情统计").foregroundStyle(theme.primaryText)
                     }
-                    .accessibilityIdentifier("settingsMoodStatsRow")
-
-                    NavigationLink {
+                    TaskSurfaceSeparator()
+                    settingsNavigationRow(
+                        title: "标签管理",
+                        identifier: "settingsTagManageRow"
+                    ) {
                         TagManageView(modelContainer: modelContext.container)
-                    } label: {
-                        Text("标签管理").foregroundStyle(theme.primaryText)
                     }
-                    .accessibilityIdentifier("settingsTagManageRow")
-
-                    NavigationLink {
+                    TaskSurfaceSeparator()
+                    settingsNavigationRow(title: "垃圾箱", identifier: "settingsTrashRow") {
                         TrashView()
-                    } label: {
-                        Text("垃圾箱").foregroundStyle(theme.primaryText)
                     }
-                    .accessibilityIdentifier("settingsTrashRow")
                 }
-                .taskGroupedRowBackground(theme)
 
-                Section {
+                TaskSurfaceSection(accessibilityIdentifier: "settingsSupportSection") {
                     iCloudSyncRow
+                    TaskSurfaceSeparator()
                     biometricLockRow
-
-                    NavigationLink {
+                    TaskSurfaceSeparator()
+                    settingsNavigationRow(title: "语言", identifier: "settingsLanguageRow") {
                         LanguageSettingsView()
-                    } label: {
-                        Text("语言").foregroundStyle(theme.primaryText)
                     }
-                    .accessibilityIdentifier("settingsLanguageRow")
-
-                    NavigationLink {
+                    TaskSurfaceSeparator()
+                    settingsNavigationRow(title: "外观主题", identifier: "settingsAppearanceRow") {
                         AppearanceThemeView()
-                    } label: {
-                        Text("外观主题").foregroundStyle(theme.primaryText)
                     }
-                    .accessibilityIdentifier("settingsAppearanceRow")
                 }
-                .taskGroupedRowBackground(theme)
 
-                Section {
-                    NavigationLink {
+                TaskSurfaceSection(accessibilityIdentifier: "settingsAboutSection") {
+                    settingsNavigationRow(title: "关于心绪日记", identifier: "settingsAboutRow") {
                         AboutView()
-                    } label: {
-                        Text("关于心绪日记").foregroundStyle(theme.primaryText)
                     }
-                    .accessibilityIdentifier("settingsAboutRow")
                 }
-                .taskGroupedRowBackground(theme)
 
-                Section {
-                    Text("版本 \(Self.versionText)")
-                        .font(AppTypography.caption)
-                        .foregroundStyle(theme.secondaryText)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                }
-                .listRowBackground(Color.clear)
+                Text("版本 \(Self.versionText)")
+                    .font(AppTypography.caption)
+                    .foregroundStyle(theme.secondaryText)
+                    .frame(maxWidth: .infinity, alignment: .center)
             }
-            .taskGroupedListBackground(theme)
             .navigationTitle("设置")
             .sheet(item: $paywallTrigger) { trigger in
                 ProPaywallView(trigger: trigger)
@@ -123,26 +101,33 @@ struct SettingsSheetView: View {
                 .foregroundStyle(theme.onAccentSecondaryText)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(16)
-            .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(theme.accent))
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
+            .padding(TaskSurfaceMetrics.panelPadding)
+            .background(
+                RoundedRectangle(
+                    cornerRadius: TaskSurfaceMetrics.panelCornerRadius,
+                    style: .continuous
+                )
+                .fill(theme.accent)
+            )
         }
         .buttonStyle(.plain)
+        .frame(maxWidth: .infinity)
         .accessibilityIdentifier("settingsProBanner")
-        .accessibilityLabel(Text(
-            subscriptionService.isPro
-                ? "你已是 Pro 会员，已解锁无限日记、无限照片、无限标签"
-                : "立即升级成为 Pro 用户，解锁无限日记、无限照片、无限标签"
-        ))
+        .accessibilityLabel(
+            Text(
+                subscriptionService.isPro
+                    ? "你已是 Pro 会员，已解锁无限日记、无限照片、无限标签"
+                    : "立即升级成为 Pro 用户，解锁无限日记、无限照片、无限标签"
+            )
+        )
     }
 
     /// iCloud 同步状态行内展示（见 `docs/design/09-icloud-sync.md` §9.2、阶段7计划「浮层归属」：
     /// 行内展示、非 push 子页）。
     private var iCloudSyncRow: some View {
-        HStack {
-            Text("iCloud 数据同步").foregroundStyle(theme.primaryText)
-            Spacer()
+        TaskSurfaceRow {
+            Text("iCloud 数据同步")
+        } trailing: {
             Text(syncStatusService.status.displayText)
                 .font(AppTypography.caption)
                 .foregroundStyle(theme.secondaryText)
@@ -158,17 +143,21 @@ struct SettingsSheetView: View {
     @ViewBuilder
     private var biometricLockRow: some View {
         if biometricService.canEvaluate() {
-            Toggle(isOn: Binding(
-                get: { isBiometricLockEnabled },
-                set: { newValue in
-                    isBiometricLockEnabled = newValue
-                    BiometricLockPreference.setEnabled(newValue)
-                }
-            )) {
+            Toggle(
+                isOn: Binding(
+                    get: { isBiometricLockEnabled },
+                    set: { newValue in
+                        isBiometricLockEnabled = newValue
+                        BiometricLockPreference.setEnabled(newValue)
+                    }
+                )
+            ) {
                 Label("面容解锁", systemImage: "faceid")
                     .foregroundStyle(theme.primaryText)
             }
             .tint(theme.accent)
+            .padding(.horizontal, TaskSurfaceMetrics.rowHorizontalPadding)
+            .frame(minHeight: TaskSurfaceMetrics.rowMinHeight)
             .accessibilityIdentifier("settingsBiometricRow")
         } else {
             disabledPlaceholderRow(title: "面容解锁", identifier: "settingsBiometricRow")
@@ -176,9 +165,9 @@ struct SettingsSheetView: View {
     }
 
     private func disabledPlaceholderRow(title: String, identifier: String) -> some View {
-        HStack {
+        TaskSurfaceRow {
             Text(title).foregroundStyle(theme.mutedText)
-            Spacer()
+        } trailing: {
             Text("即将推出")
                 .font(AppTypography.caption)
                 .foregroundStyle(theme.mutedText)
@@ -186,6 +175,24 @@ struct SettingsSheetView: View {
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier(identifier)
         .accessibilityLabel(Text("\(title)，即将推出"))
+    }
+
+    private func settingsNavigationRow<Destination: View>(
+        title: LocalizedStringKey,
+        identifier: String,
+        @ViewBuilder destination: () -> Destination
+    ) -> some View {
+        NavigationLink {
+            destination()
+        } label: {
+            TaskSurfaceRow {
+                Text(title).foregroundStyle(theme.primaryText)
+            } trailing: {
+                TaskDisclosureIndicator()
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(identifier)
     }
 
     private static var versionText: String {

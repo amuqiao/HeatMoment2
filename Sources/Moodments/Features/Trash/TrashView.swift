@@ -27,6 +27,14 @@ struct TrashView: View {
                         row(for: item)
                             .listRowSeparator(.hidden)
                             .listRowBackground(Color.clear)
+                            .listRowInsets(
+                                EdgeInsets(
+                                    top: TaskSurfaceMetrics.listRowVerticalInset,
+                                    leading: TaskSurfaceMetrics.pageHorizontalInset,
+                                    bottom: TaskSurfaceMetrics.listRowVerticalInset,
+                                    trailing: TaskSurfaceMetrics.pageHorizontalInset
+                                )
+                            )
                             .swipeActions(edge: .leading, allowsFullSwipe: true) {
                                 Button {
                                     handleRestore(item)
@@ -47,6 +55,7 @@ struct TrashView: View {
                 }
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
+                .taskListContentFrame()
             }
         }
         .background(theme.sheetBackground.ignoresSafeArea())
