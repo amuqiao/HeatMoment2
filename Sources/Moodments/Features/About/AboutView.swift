@@ -38,7 +38,7 @@ struct AboutView: View {
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
         .background(theme.commercialBackground.ignoresSafeArea())
-        .navigationTitle("关于心绪日记")
+        .settingsDetailNavigationChrome("关于心绪日记")
         .environment(\.colorScheme, .light)
         .tint(theme.commercialRed)
         .toolbarColorScheme(.light, for: .navigationBar)

@@ -70,6 +70,24 @@ final class EditorSheetPresentationUITests: XCTestCase {
         assertHorizontallyAligned(aboutSection, with: primarySection, message: "关于分组应和主设置组同宽")
     }
 
+    func testSettingsPrimaryDetailPagesUseUnifiedNavigationTitles() {
+        let app = XCUIApplication()
+        openSettings(app)
+
+        assertSettingsDetailTitle(app, rowID: "settingsMoodStatsRow", title: "心情统计")
+        assertSettingsDetailTitle(app, rowID: "settingsTagManageRow", title: "标签管理")
+        assertSettingsDetailTitle(app, rowID: "settingsTrashRow", title: "垃圾箱")
+    }
+
+    func testSettingsSupportDetailPagesUseUnifiedNavigationTitles() {
+        let app = XCUIApplication()
+        openSettings(app)
+
+        assertSettingsDetailTitle(app, rowID: "settingsLanguageRow", title: "语言")
+        assertSettingsDetailTitle(app, rowID: "settingsAppearanceRow", title: "外观主题")
+        assertSettingsDetailTitle(app, rowID: "settingsAboutRow", title: "关于心绪日记")
+    }
+
     func testEditorTaskSurfacesShareHorizontalBounds() {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTestReset"]
@@ -95,5 +113,32 @@ final class EditorSheetPresentationUITests: XCTestCase {
     ) {
         XCTAssertEqual(lhs.frame.minX, rhs.frame.minX, accuracy: tolerance, message)
         XCTAssertEqual(lhs.frame.maxX, rhs.frame.maxX, accuracy: tolerance, message)
+    }
+
+    private func openSettings(_ app: XCUIApplication) {
+        app.launchArguments = ["-uiTestReset"]
+        app.launch()
+
+        let settingsButton = app.buttons["设置"]
+        XCTAssertTrue(settingsButton.waitForExistence(timeout: 10))
+        settingsButton.tap()
+        XCTAssertTrue(app.navigationBars["设置"].waitForExistence(timeout: 5))
+    }
+
+    private func assertSettingsDetailTitle(_ app: XCUIApplication, rowID: String, title: String) {
+        let row = app.buttons[rowID]
+        XCTAssertTrue(row.waitForExistence(timeout: 5), "\(rowID) 应存在")
+        if !row.isHittable {
+            app.swipeUp()
+            XCTAssertTrue(row.waitForExistence(timeout: 5), "\(rowID) 应滚动后存在")
+        }
+        row.tap()
+        let navigationBar = app.navigationBars[title]
+        XCTAssertTrue(navigationBar.waitForExistence(timeout: 5), "\(title) 应显示系统导航标题")
+
+        let backButton = navigationBar.buttons["设置"]
+        XCTAssertTrue(backButton.waitForExistence(timeout: 5), "\(title) 应保留系统返回按钮")
+        backButton.tap()
+        XCTAssertTrue(app.navigationBars["设置"].waitForExistence(timeout: 5), "返回后应回到设置根页")
     }
 }

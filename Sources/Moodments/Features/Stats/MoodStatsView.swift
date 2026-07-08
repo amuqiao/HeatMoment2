@@ -21,7 +21,7 @@ struct MoodStatsView: View {
             }
         }
         .background(theme.canvasBackground.ignoresSafeArea())
-        .navigationTitle("心情统计")
+        .settingsDetailNavigationChrome("心情统计")
         .themedTaskContainer(theme)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {

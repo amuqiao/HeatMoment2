@@ -50,7 +50,7 @@ struct TagManageView: View {
             }
         }
         .background(theme.sheetBackground.ignoresSafeArea())
-        .navigationTitle("标签管理")
+        .settingsDetailNavigationChrome("标签管理")
         .themedTaskContainer(theme)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {

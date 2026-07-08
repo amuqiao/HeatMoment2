@@ -26,7 +26,7 @@
 | 上下文标记 | 已落地。筛选标记和时间定位标记可并存、可分别移除。 | `TimelineContextMarkerBar.swift`、`TimelineModel.swift` |
 | 编辑页日期/时间选择 | 已落地。日期和时间由局部 `.popover` 打开系统 `DatePicker`，即时回写 `occurredAt`；日期/时间 popover 打开与 `OccurredAtComposer` 合成语义已有窄测试覆盖，时间 picker 只替换时/分并保留不可见秒。 | `MomentEditorView.swift`、`DateTimePopovers.swift` |
 | 任务页骨架 | 已落地。设置、外观、编辑、预览等任务型 sheet 共享 `TaskSurfaceMetrics` / `TaskPageScrollView` / `TaskSurfaceSection` / `TaskSurfacePanel` 的响应式内容列；Pro 横幅、设置分组、外观分组、编辑输入面板和添加照片 CTA 统一横向边界。首页气泡、时间轴、筛选 popover、标签创建 sheet 不混入这套任务内容列。 | `TaskContainerStyle.swift`、`SettingsSheetView.swift`、`AppearanceThemeView.swift`、`MomentEditorView.swift`、`MomentPreviewView.swift` |
-| 设置流 | 已落地。设置页是第一层 sheet，根页不提供显式关闭按钮，依赖系统 sheet 下滑关闭；子页在设置内 `NavigationStack` push 并保留系统返回；设置根页内容使用任务页响应式内容列，而不是各组独立写宽度。Pro 可作为设置内第二层 sheet。标签新增、重命名、删除归属 `TagManageView`，新增入口和保存创建前都做标签额度闸门，删除使用系统 `.swipeActions(allowsFullSwipe: true)`。 | `SettingsSheetView.swift`、`TagManageView.swift` |
+| 设置流 | 已落地。设置页是第一层 sheet，根页不提供显式关闭按钮，依赖系统 sheet 下滑关闭；子页在设置内 `NavigationStack` push 并保留系统返回。设置根页和设置详情页通过 settings-only 导航 chrome 统一使用系统导航栏：根页保留系统标题样式，详情页显式 inline 居中标题，并保留系统 scroll-edge 导航栏背景行为。设置根页内容使用任务页响应式内容列，而不是各组独立写宽度。Pro 可作为设置内第二层 sheet。标签新增、重命名、删除归属 `TagManageView`，新增入口和保存创建前都做标签额度闸门，删除使用系统 `.swipeActions(allowsFullSwipe: true)`。 | `SettingsSheetView.swift`、`SettingsNavigationChrome.swift`、`TagManageView.swift` |
 | 外观设置 | 部分落地。模式、主色、网格、图片展示已有 UI、内存态、持久化和实际消费路径；`backgroundTexture` 已驱动首页主场景背景的网格线/点阵/无/自定义图片四分支，自定义图片为本地外观文件，不进入 SwiftData/CloudKit；`imageDisplayMode` 已驱动首页气泡图片区在横向缩略图布局和轮播布局之间切换；外观页使用任务页内容列和自适应分组网格，以模式总览预览、主色 swatch、纯背景纹理样本和图片展示样本表达差异，并消费真实主题 token。剩余是亮色截图审计和细节精修。 | `AppearanceThemeView.swift`、`AppearanceOptionCards.swift`、`ThemeManager.swift`、`AppearanceStore.swift`、`HomeSceneBackgroundView.swift`、`TimelineHomeView.swift`、`BubbleCardView.swift`、`ThumbnailStripView.swift` |
 | 主题语义 | 已落地。`ThemeManager.tokens` 解析五层运行时 token；主色、心情色、危险色、商业固定色和图片查看器媒体色由不同语义入口暴露，心情色、危险色、商业固定色不跟随主色。 | `ThemeManager.swift`、`ThemeTokens.swift`、`Colors.swift` |
 
@@ -100,3 +100,16 @@ rg -n "docs/current|docs/plans|implementation-truth|implementation-plan" CLAUDE.
 ```
 
 结果：全部通过。最终 `./scripts/verify.sh` 覆盖 lint、build、144 条单元测试和 47 条 UI 测试；本轮重点验证设置页各任务面板同宽、外观页各分组同宽、编辑输入面板与添加照片 CTA 同宽、外观项切换和保存失败提示、预览仍为任务卡片而非 push、垃圾箱 swipe 生命周期，以及标签新增/重命名/删除集中在设置页管理。`lint` 仍输出既有非阻断 warning。
+
+2026-07-08 本轮设置流导航 chrome 骨架稳定化的定向验证：
+
+```sh
+./scripts/gen.sh
+./scripts/build.sh
+./scripts/test.sh --only MoodmentsUITests/EditorSheetPresentationUITests
+./scripts/test.sh --only MoodmentsUITests/ThemeSwitchUITests
+./scripts/test.sh --only MoodmentsUITests/LanguageSwitchUITests
+./scripts/verify.sh
+```
+
+结果：全部通过。`EditorSheetPresentationUITests` 执行 6 条 UI 测试、0 失败，覆盖设置根页无显式关闭按钮、设置详情页系统标题和系统返回路径、设置任务面板横向边界、编辑任务面板横向边界；`ThemeSwitchUITests` 执行 10 条 UI 测试、0 失败；`LanguageSwitchUITests` 执行 2 条 UI 测试、0 失败。最终 `./scripts/verify.sh` 覆盖 lint、build、144 条单元测试（4 条 skipped）和 49 条 UI 测试；`lint` 仍输出既有非阻断 warning。

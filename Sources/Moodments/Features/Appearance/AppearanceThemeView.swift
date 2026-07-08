@@ -22,8 +22,7 @@ struct AppearanceThemeView: View {
             textureSection
             imageDisplaySection
         }
-        .navigationTitle("主题颜色")
-        .navigationBarTitleDisplayMode(.inline)
+        .settingsDetailNavigationChrome("外观主题")
         .themedTaskContainer(theme)
         .onChange(of: customBackgroundPickerItem) { _, newItem in
             guard let newItem else { return }
