@@ -90,7 +90,7 @@ TimelineHomeView.timelineFilterSheet
 - 选择后通过 `OccurredAtComposer` 合成 `occurredAt`，只改变日期或只改变时间。
 - 没有额外确认按钮。
 
-这条代码路径使用系统日期/时间控件，未为基础 picker 重做自定义控件。当前测试面覆盖日期 popover 的打开/收起；时间 popover 与 `OccurredAtComposer` 即时回写仍缺窄测试覆盖。
+这条代码路径使用系统日期/时间控件，未为基础 picker 重做自定义控件。当前测试面覆盖日期和时间 popover 的打开/收起，并用 `OccurredAtComposerTests` 覆盖“只改日期保留时分秒 / 只改时分保留年月日和不可见秒”的合成语义。
 
 ## 设置与外观
 

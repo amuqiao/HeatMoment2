@@ -42,6 +42,13 @@ final class CreateMomentFlowUITests: XCTestCase {
         XCTAssertTrue(app.datePickers["editorDatePicker"].waitForExistence(timeout: 5))
         dismissAnyPopover(app)
 
+        // 时间：只验收就近浮窗打开/收起；具体滚轮即时回写由 `OccurredAtComposerTests` 锁定。
+        let timeChip = app.buttons["editorTimeChip"]
+        XCTAssertTrue(timeChip.waitForExistence(timeout: 5))
+        timeChip.tap()
+        XCTAssertTrue(app.datePickers["editorTimePicker"].waitForExistence(timeout: 5))
+        dismissAnyPopover(app)
+
         // 标题
         let titleField = app.textFields["editorTitleField"]
         XCTAssertTrue(titleField.waitForExistence(timeout: 5))
