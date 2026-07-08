@@ -12,6 +12,8 @@ import UIKit
 struct ThumbnailStripView: View {
     let imageIDs: [UUID]
     var displayMode: ImageDisplayMode = .scroll
+    var usesMomentPhotoRailLayout = false
+    var preferredSizesByID: [UUID: CGSize] = [:]
     var allowsImageInteraction = true
     var onTapImage: ((Int) -> Void)?
 
@@ -31,13 +33,9 @@ struct ThumbnailStripView: View {
         switch displayMode {
         case .scroll:
             ScrollView(.horizontal) {
-                LazyHStack(spacing: MomentCardLayout.thumbnailSpacing) {
+                LazyHStack(spacing: scrollItemSpacing) {
                     ForEach(Array(imageIDs.enumerated()), id: \.element) { index, imageID in
-                        thumbnail(for: imageID)
-                            .frame(
-                                width: MomentCardLayout.thumbnailSize.width,
-                                height: MomentCardLayout.thumbnailSize.height
-                            )
+                        thumbnail(for: imageID, preferredSize: preferredItemSize(for: imageID))
                             .onTapGesture { onTapImage?(index) }
                             .accessibilityLabel(Text("照片，第\(index + 1)张，共\(imageIDs.count)张"))
                             .accessibilityIdentifier("thumbnailStripImage-\(imageID.uuidString)")
@@ -46,7 +44,7 @@ struct ThumbnailStripView: View {
             }
             .scrollIndicators(.hidden)
             .accessibilityIdentifier("thumbnailStrip")
-            .frame(height: MomentCardLayout.imageSectionHeight(for: .scroll))
+            .frame(height: scrollItemHeight)
             .frame(maxWidth: .infinity, alignment: .leading)
         case .carousel:
             TabView {
@@ -66,35 +64,84 @@ struct ThumbnailStripView: View {
     }
 
     @ViewBuilder
-    private func thumbnail(for imageID: UUID) -> some View {
+    private func thumbnail(for imageID: UUID, preferredSize: CGSize? = nil) -> some View {
         if let data = thumbnailsByID[imageID] {
             if let uiImage = UIImage(data: data) {
                 Image(uiImage: uiImage)
                     .resizable()
                     .scaledToFill()
+                    .frame(width: preferredSize?.width, height: preferredSize?.height)
                     .clipShape(
                         RoundedRectangle(
-                            cornerRadius: MomentCardLayout.thumbnailCornerRadius,
+                            cornerRadius: scrollItemCornerRadius,
                             style: .continuous
                         )
                     )
+                    .overlay(photoBorder(cornerRadius: scrollItemCornerRadius))
             } else {
                 // 数据已加载却解码失败：缩略图 JPEG 由本 App 生成，失败即数据损坏，debug 暴露。
-                corruptedThumbnailPlaceholder(imageID: imageID)
+                corruptedThumbnailPlaceholder(imageID: imageID, preferredSize: preferredSize)
             }
         } else {
-            placeholder  // 尚未加载完成（正常态，非错误）
+            placeholder(preferredSize: preferredSize)  // 尚未加载完成（正常态，非错误）
         }
     }
 
-    private var placeholder: some View {
-        RoundedRectangle(cornerRadius: MomentCardLayout.thumbnailCornerRadius, style: .continuous)
+    private func placeholder(preferredSize: CGSize? = nil) -> some View {
+        return RoundedRectangle(cornerRadius: scrollItemCornerRadius, style: .continuous)
             .fill(Color.gray.opacity(0.15))
+            .frame(width: preferredSize?.width, height: preferredSize?.height)
+            .overlay(photoBorder(cornerRadius: scrollItemCornerRadius))
     }
 
-    private func corruptedThumbnailPlaceholder(imageID: UUID) -> some View {
+    private func corruptedThumbnailPlaceholder(
+        imageID: UUID,
+        preferredSize: CGSize? = nil
+    ) -> some View {
         assertionFailure("缩略图解码失败 imageID=\(imageID)")
-        return placeholder
+        return placeholder(preferredSize: preferredSize)
+    }
+
+    private func preferredItemSize(for imageID: UUID) -> CGSize {
+        guard usesMomentPhotoRailLayout else {
+            return MomentCardLayout.thumbnailSize
+        }
+        if let preferredSize = preferredSizesByID[imageID] {
+            return preferredSize
+        }
+        guard
+            let data = thumbnailsByID[imageID],
+            let uiImage = UIImage(data: data)
+        else {
+            return MomentPhotoRailLayout.fallbackItemSize
+        }
+        return MomentPhotoRailLayout.itemSize(for: uiImage.size)
+    }
+
+    private var scrollItemHeight: CGFloat {
+        usesMomentPhotoRailLayout
+            ? MomentPhotoRailLayout.itemHeight
+            : MomentCardLayout.imageSectionHeight(for: .scroll)
+    }
+
+    private var scrollItemSpacing: CGFloat {
+        usesMomentPhotoRailLayout
+            ? MomentPhotoRailLayout.itemSpacing
+            : MomentCardLayout.thumbnailSpacing
+    }
+
+    private var scrollItemCornerRadius: CGFloat {
+        usesMomentPhotoRailLayout
+            ? MomentPhotoRailLayout.itemCornerRadius
+            : MomentCardLayout.thumbnailCornerRadius
+    }
+
+    @ViewBuilder
+    private func photoBorder(cornerRadius: CGFloat) -> some View {
+        if usesMomentPhotoRailLayout {
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.10), lineWidth: 0.5)
+        }
     }
 
     /// 逐张经 `ThumbnailCache` 取图：命中缓存零 IO，未命中才 `await` 向仓库取原图现场生成

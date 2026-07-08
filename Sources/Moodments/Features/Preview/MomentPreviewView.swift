@@ -1,5 +1,6 @@
 import SwiftData
 import SwiftUI
+import UIKit
 
 /// 单条时刻预览：弹出的阅读卡片（进任务卡片栈，非 push，见 `docs/design/04-screen-specs.md` §4.9、
 /// `14-design-decisions.md` ADR-007）。由 `AppRouter.rootSheet` 的 `.preview(Moment.ID)` 驱动
@@ -86,9 +87,15 @@ struct MomentPreviewView: View {
                 }
             }
 
-            let imageIDs = imageIDs(for: moment)
+            let orderedImages = orderedImages(for: moment)
+            let imageIDs = orderedImages.map(\.id)
             if !imageIDs.isEmpty {
-                ThumbnailStripView(imageIDs: imageIDs) { index in
+                ThumbnailStripView(
+                    imageIDs: imageIDs,
+                    displayMode: .scroll,
+                    usesMomentPhotoRailLayout: true,
+                    preferredSizesByID: preferredSizesByID(for: orderedImages)
+                ) { index in
                     viewerContext = ViewerContext(startIndex: index)
                 }
             }
@@ -123,9 +130,21 @@ struct MomentPreviewView: View {
         }
     }
 
-    /// 按 `sortIndex` 有序的图片 id 列表（见 07-data-persistence.md §5）。
-    private func imageIDs(for moment: Moment) -> [UUID] {
-        moment.images.sorted { $0.sortIndex < $1.sortIndex }.map(\.id)
+    /// 按 `sortIndex` 有序的图片列表（见 07-data-persistence.md §5）。
+    private func orderedImages(for moment: Moment) -> [MomentImage] {
+        moment.images.sorted { $0.sortIndex < $1.sortIndex }
+    }
+
+    private func preferredSizesByID(for images: [MomentImage]) -> [UUID: CGSize] {
+        Dictionary(
+            uniqueKeysWithValues: images.map { image in
+                let size =
+                    UIImage(data: image.imageData).map {
+                        MomentPhotoRailLayout.itemSize(for: $0.size)
+                    } ?? MomentPhotoRailLayout.fallbackItemSize
+                return (image.id, size)
+            }
+        )
     }
 
     private static let dateFormatter: DateFormatter = {

@@ -38,31 +38,33 @@ struct EditorPhotoSection: View {
                         .font(AppTypography.caption)
                         .foregroundStyle(theme.secondaryText)
                     Spacer()
+                    appendButton
                 }
                 .foregroundStyle(theme.primaryText)
 
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
+                    HStack(spacing: MomentPhotoRailLayout.itemSpacing) {
                         ForEach(model.draftPhotos) { photo in
                             thumbnail(for: photo)
                         }
-                        appendButton
                     }
+                    .padding(.top, 16)
+                    .padding(.trailing, 12)
                 }
             }
 
             #if DEBUG
-            if UITestSupport.wantsPhotoInjectionHook {
-                Button("注入测试照片") {
-                    Task {
-                        let check = await model.addPhoto(UITestSupport.makeSyntheticPhotoData())
-                        if case .exceeded = check {
-                            editorPaywallTrigger = .quotaPhoto
+                if UITestSupport.wantsPhotoInjectionHook {
+                    Button("注入测试照片") {
+                        Task {
+                            let check = await model.addPhoto(UITestSupport.makeSyntheticPhotoData())
+                            if case .exceeded = check {
+                                editorPaywallTrigger = .quotaPhoto
+                            }
                         }
                     }
+                    .accessibilityIdentifier("editorInjectPhotoButton")
                 }
-                .accessibilityIdentifier("editorInjectPhotoButton")
-            }
             #endif
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -107,36 +109,42 @@ struct EditorPhotoSection: View {
         Button {
             requestAddPhotos()
         } label: {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(theme.accent, lineWidth: 1.5)
-                .frame(width: 72, height: 72)
-                .overlay(Image(systemName: "plus").foregroundStyle(theme.accent))
+            Image(systemName: "plus")
+                .font(.system(size: 16, weight: .bold))
+                .foregroundStyle(theme.onAccentText)
+                .frame(width: 28, height: 28)
+                .background(Circle().fill(theme.accent))
+                .frame(width: 44, height: 44)
         }
+        .buttonStyle(.plain)
         .accessibilityIdentifier("editorAppendPhotoButton")
         .accessibilityLabel(Text("追加照片"))
     }
 
     private func thumbnail(for photo: DraftPhoto) -> some View {
-        ZStack(alignment: .topTrailing) {
-            if let uiImage = UIImage(data: photo.jpegData) {
-                Image(uiImage: uiImage)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: 72, height: 72)
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            } else {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(theme.chipFill)
-                    .frame(width: 72, height: 72)
-            }
+        let uiImage = UIImage(data: photo.jpegData)
+        let itemSize =
+            uiImage.map {
+                MomentPhotoRailLayout.itemSize(for: $0.size)
+            } ?? MomentPhotoRailLayout.fallbackItemSize
+
+        return ZStack(alignment: .topTrailing) {
+            photoContent(uiImage: uiImage, size: itemSize)
             Button {
                 model.removePhoto(id: photo.id)
             } label: {
-                Image(systemName: "minus.circle.fill")
-                    .symbolRenderingMode(.palette)
-                    .foregroundStyle(theme.onDangerText, theme.danger)
+                Image(systemName: "minus")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(theme.onDangerText)
+                    .frame(
+                        width: MomentPhotoRailLayout.deleteBadgeDiameter,
+                        height: MomentPhotoRailLayout.deleteBadgeDiameter
+                    )
+                    .background(Circle().fill(theme.danger))
+                    .frame(width: 44, height: 44)
             }
-            .offset(x: 6, y: -6)
+            .buttonStyle(.plain)
+            .offset(x: 12, y: -12)
             .accessibilityLabel(Text("删除该照片"))
             .accessibilityAction(named: Text("删除该照片")) {
                 model.removePhoto(id: photo.id)
@@ -144,6 +152,36 @@ struct EditorPhotoSection: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("editorPhotoThumbnail-\(photo.id.uuidString)")
+    }
+
+    @ViewBuilder
+    private func photoContent(uiImage: UIImage?, size: CGSize) -> some View {
+        if let uiImage {
+            Image(uiImage: uiImage)
+                .resizable()
+                .scaledToFill()
+                .frame(width: size.width, height: size.height)
+                .clipShape(
+                    RoundedRectangle(
+                        cornerRadius: MomentPhotoRailLayout.itemCornerRadius,
+                        style: .continuous
+                    )
+                )
+                .overlay(photoBorder)
+        } else {
+            RoundedRectangle(
+                cornerRadius: MomentPhotoRailLayout.itemCornerRadius,
+                style: .continuous
+            )
+            .fill(theme.chipFill)
+            .frame(width: size.width, height: size.height)
+            .overlay(photoBorder)
+        }
+    }
+
+    private var photoBorder: some View {
+        RoundedRectangle(cornerRadius: MomentPhotoRailLayout.itemCornerRadius, style: .continuous)
+            .strokeBorder(theme.secondaryText.opacity(0.12), lineWidth: 0.5)
     }
 
     private func requestAddPhotos() {

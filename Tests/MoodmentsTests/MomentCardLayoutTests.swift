@@ -48,4 +48,47 @@ final class MomentCardLayoutTests: XCTestCase {
 
         XCTAssertEqual(geometry.railCenterXInViewport, geometry.nodeCenterXInViewport)
     }
+
+    func testMomentPhotoRailWidthUsesClampedImageAspectRatio() {
+        XCTAssertEqual(
+            MomentPhotoRailLayout.itemWidth(for: CGSize(width: 300, height: 600)),
+            MomentPhotoRailLayout.itemHeight * MomentPhotoRailLayout.minimumAspectRatio
+        )
+        XCTAssertEqual(
+            MomentPhotoRailLayout.itemWidth(for: CGSize(width: 800, height: 400)),
+            MomentPhotoRailLayout.itemHeight * MomentPhotoRailLayout.maximumAspectRatio
+        )
+        XCTAssertEqual(
+            MomentPhotoRailLayout.itemWidth(for: CGSize(width: 120, height: 100)),
+            MomentPhotoRailLayout.itemHeight * 1.2
+        )
+    }
+
+    func testMomentPhotoRailInvalidImageSizeUsesFallbackWidth() {
+        XCTAssertEqual(
+            MomentPhotoRailLayout.itemWidth(for: .zero),
+            MomentPhotoRailLayout.fallbackItemSize.width
+        )
+    }
+
+    func testThumbnailStripDefaultRemainsCompactTimelineLayout() {
+        let strip = ThumbnailStripView(imageIDs: [])
+
+        XCTAssertEqual(strip.displayMode, .scroll)
+        XCTAssertFalse(strip.usesMomentPhotoRailLayout)
+    }
+
+    func testThumbnailStripCanOptIntoMomentPhotoRailLayout() {
+        let imageID = UUID()
+        let preferredSize = CGSize(width: 160, height: 168)
+        let strip = ThumbnailStripView(
+            imageIDs: [imageID],
+            displayMode: .scroll,
+            usesMomentPhotoRailLayout: true,
+            preferredSizesByID: [imageID: preferredSize]
+        )
+
+        XCTAssertTrue(strip.usesMomentPhotoRailLayout)
+        XCTAssertEqual(strip.preferredSizesByID[imageID], preferredSize)
+    }
 }
