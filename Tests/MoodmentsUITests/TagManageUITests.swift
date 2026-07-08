@@ -262,10 +262,11 @@ final class TagManageUITests: XCTestCase {
     }
 
     private func dismissSettingsSheet(_ app: XCUIApplication) {
-        XCTAssertTrue(app.buttons["settingsTagManageRow"].waitForExistence(timeout: 5))
-        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.18))
-        let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.90))
-        start.press(forDuration: 0.1, thenDragTo: end)
+        dismissSettingsSheet(
+            app,
+            from: app.buttons["settingsTagManageRow"],
+            expectedHomeButtonLabel: "新建时刻"
+        )
     }
 
     private func replaceText(in field: XCUIElement, with newValue: String) {

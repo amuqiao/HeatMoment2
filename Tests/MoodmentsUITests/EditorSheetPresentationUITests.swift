@@ -39,11 +39,10 @@ final class EditorSheetPresentationUITests: XCTestCase {
         XCTAssertTrue(backButton.waitForExistence(timeout: 5), "设置内子页仍应保留系统返回按钮")
         backButton.tap()
 
-        XCTAssertTrue(app.navigationBars["设置"].waitForExistence(timeout: 5))
-        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.18))
-        let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.90))
-        start.press(forDuration: 0.1, thenDragTo: end)
-
-        XCTAssertTrue(app.buttons["新建时刻"].waitForExistence(timeout: 5))
+        dismissSettingsSheet(
+            app,
+            from: app.navigationBars["设置"],
+            expectedHomeButtonLabel: "新建时刻"
+        )
     }
 }

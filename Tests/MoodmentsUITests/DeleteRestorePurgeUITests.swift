@@ -215,9 +215,10 @@ final class DeleteRestorePurgeUITests: XCTestCase {
         if app.navigationBars.buttons.element(boundBy: 0).exists {
             app.navigationBars.buttons.element(boundBy: 0).tap()
         }
-        XCTAssertTrue(app.buttons["settingsTrashRow"].waitForExistence(timeout: 5))
-        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.18))
-        let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.90))
-        start.press(forDuration: 0.1, thenDragTo: end)
+        dismissSettingsSheet(
+            app,
+            from: app.buttons["settingsTrashRow"],
+            expectedHomeButtonLabel: "新建时刻"
+        )
     }
 }

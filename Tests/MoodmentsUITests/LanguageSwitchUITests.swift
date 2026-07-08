@@ -42,7 +42,11 @@ final class LanguageSwitchUITests: XCTestCase {
             "切换语言应立即生效，无需重启/无需重新呈现设置"
         )
         XCTAssertFalse(app.buttons["Close"].exists, "设置根页不应再提供显式关闭按钮")
-        dismissSettingsSheet(app, expectedFABLabel: "New Moment")
+        dismissSettingsSheet(
+            app,
+            from: app.buttons["settingsLanguageRow"],
+            expectedHomeButtonLabel: "New Moment"
+        )
 
         // 回到时间轴：FAB 无障碍标签（核心新建入口）也应已切换为英文。
         XCTAssertTrue(app.buttons["New Moment"].waitForExistence(timeout: 5))
@@ -74,7 +78,11 @@ final class LanguageSwitchUITests: XCTestCase {
         XCTAssertTrue(languageRow.waitForExistence(timeout: 5))
         XCTAssertTrue(languageRow.label.contains("语言"), "切回简体中文应立即生效")
         XCTAssertFalse(app.buttons["关闭"].exists, "设置根页不应再提供显式关闭按钮")
-        dismissSettingsSheet(app, expectedFABLabel: "新建时刻")
+        dismissSettingsSheet(
+            app,
+            from: app.buttons["settingsLanguageRow"],
+            expectedHomeButtonLabel: "新建时刻"
+        )
 
         XCTAssertTrue(app.buttons["新建时刻"].waitForExistence(timeout: 5))
     }
@@ -93,10 +101,4 @@ final class LanguageSwitchUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["语言"].waitForExistence(timeout: 5))
     }
 
-    private func dismissSettingsSheet(_ app: XCUIApplication, expectedFABLabel: String) {
-        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.18))
-        let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.90))
-        start.press(forDuration: 0.1, thenDragTo: end)
-        XCTAssertTrue(app.buttons[expectedFABLabel].waitForExistence(timeout: 5))
-    }
 }
