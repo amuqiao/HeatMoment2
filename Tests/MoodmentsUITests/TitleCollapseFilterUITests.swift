@@ -41,6 +41,15 @@ final class TitleCollapseFilterUITests: XCTestCase {
         collapseTitleAndOpenFilter(app)
 
         XCTAssertFalse(app.buttons["filterAddTagButton"].exists, "筛选 sheet 不应暴露标签新增入口")
+        XCTAssertFalse(app.textFields["tagCreateNameField"].exists, "筛选 sheet 不应打开新建标签表单")
+        XCTAssertFalse(app.buttons["tagManageAddButton"].exists, "筛选 sheet 不应复用标签管理新增按钮")
+        let createTagButton = app.buttons
+            .matching(NSPredicate(format: "label CONTAINS %@", "新建标签"))
+            .firstMatch
+        XCTAssertFalse(
+            createTagButton.exists,
+            "筛选 sheet 不应提供新建标签按钮"
+        )
 
         let workTagOption = app.buttons["filterTagOption-工作"]
         XCTAssertTrue(workTagOption.waitForExistence(timeout: 5))

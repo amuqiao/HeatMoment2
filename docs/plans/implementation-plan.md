@@ -111,7 +111,7 @@ HeatMoment2 是对 `/Users/admin/Downloads/Code/HeatMoment` 中 Flutter 项目�
    - 设置根 sheet chrome 已裁决并实现：不显示显式“关闭”按钮，依赖系统 sheet 下滑关闭；设置内子页保留系统返回。后续只检查该边界没有被 sheet 层级调整误破坏。
    - 逐条检查设置子页、Pro、标签创建是否仍在“最多两层”的任务范围内；筛选 sheet 不再创建标签。
    - 不在计划层重开热力图空月份裁决；若用户明确要求空月份可定位，先回到 `13-open-questions.md` #21 重新裁决。
-   - 标签创建归属已裁决为设置页集中创建/重命名/删除；编辑器 `TagPickerView` 和首页筛选 `FilterPanelView` 只消费已有标签。后续 P1b 只检查该边界没有被 sheet 层级调整误破坏。
+   - 标签创建归属已裁决为设置页集中创建/重命名/删除；编辑器 `TagPickerView` 和首页筛选 `FilterPanelView` 只消费已有标签。2026-07-08 已补充取消返回、保存创建、筛选/编辑器不出现新增标签入口的 UI 验收证据；后续 P1b 只检查该边界没有被 sheet 层级调整误破坏。
 
 5. 编辑页局部选择审计（P1b）
    - 保留日期/时间 popover 作为正向范式。

@@ -26,10 +26,28 @@ final class TagManageUITests: XCTestCase {
 
         let nameField = app.textFields["tagCreateNameField"]
         XCTAssertTrue(nameField.waitForExistence(timeout: 5))
+
+        let saveButton = app.buttons["tagCreateSaveButton"]
+        let cancelButton = app.buttons["tagCreateCancelButton"]
+        XCTAssertTrue(saveButton.waitForExistence(timeout: 5))
+        XCTAssertTrue(cancelButton.waitForExistence(timeout: 5))
+        XCTAssertFalse(saveButton.isEnabled, "标签名为空时保存按钮应禁用")
+        cancelButton.tap()
+        XCTAssertTrue(
+            app.staticTexts["tagManageEmptyState"].waitForExistence(timeout: 5),
+            "取消后应回到标签管理子页"
+        )
+        XCTAssertFalse(app.textFields["tagCreateNameField"].exists, "取消后新建标签卡片应关闭")
+
+        addButton.tap()
+        XCTAssertTrue(nameField.waitForExistence(timeout: 5))
+        XCTAssertTrue(saveButton.waitForExistence(timeout: 5))
+
         nameField.tap()
         nameField.typeText("旅行")
 
-        app.buttons["tagCreateSaveButton"].tap()
+        XCTAssertTrue(saveButton.isEnabled, "输入标签名后保存按钮应可用")
+        saveButton.tap()
 
         XCTAssertTrue(
             app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "旅行")).firstMatch
