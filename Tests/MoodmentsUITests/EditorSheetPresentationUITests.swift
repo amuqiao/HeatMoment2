@@ -18,4 +18,32 @@ final class EditorSheetPresentationUITests: XCTestCase {
         XCTAssertTrue(app.buttons["editorCancelButton"].exists)
         XCTAssertTrue(app.buttons["editorSaveButton"].exists)
     }
+
+    func testSettingsRootHasNoExplicitCloseAndChildPageKeepsBackButton() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTestReset"]
+        app.launch()
+
+        let settingsButton = app.buttons["设置"]
+        XCTAssertTrue(settingsButton.waitForExistence(timeout: 10))
+        settingsButton.tap()
+
+        XCTAssertTrue(app.navigationBars["设置"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["关闭"].exists, "设置根页应依赖系统 sheet 下滑关闭，不显示关闭按钮")
+
+        let tagManageRow = app.buttons["settingsTagManageRow"]
+        XCTAssertTrue(tagManageRow.waitForExistence(timeout: 5))
+        tagManageRow.tap()
+
+        let backButton = app.navigationBars.buttons.element(boundBy: 0)
+        XCTAssertTrue(backButton.waitForExistence(timeout: 5), "设置内子页仍应保留系统返回按钮")
+        backButton.tap()
+
+        XCTAssertTrue(app.navigationBars["设置"].waitForExistence(timeout: 5))
+        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.18))
+        let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.90))
+        start.press(forDuration: 0.1, thenDragTo: end)
+
+        XCTAssertTrue(app.buttons["新建时刻"].waitForExistence(timeout: 5))
+    }
 }

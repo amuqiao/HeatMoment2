@@ -93,7 +93,7 @@
 ## 4.11 SettingsSheetView（设置）
 
 - **内容**：标题「设置」；Pro 横幅（升级引导文案+价格提示）；分组卡片 A（心情统计、标签、垃圾箱）；分组卡片 B（iCloud 数据同步、面容解锁、语言、外观主题）；「关于心绪日记」；作者其他应用展示区（占位，不承诺跳转行为）；底部版本信息。
-- **交互**：各行点击 push 到对应子页（`MoodStatsView` / `TagManageView` / `AppearanceThemeView` / `AboutView`），或触发系统行为（语言切换、面容解锁开关）；Pro 横幅点击打开 `ProPaywallView`。
+- **交互**：设置根页不提供显式「关闭」按钮，依赖系统 sheet 下滑关闭；各行点击 push 到对应子页（`MoodStatsView` / `TagManageView` / `AppearanceThemeView` / `AboutView`），子页保留系统返回；Pro 横幅点击打开 `ProPaywallView`。
 - **状态**：Pro 会员态下横幅已裁决——升级引导横幅替换为「已是 Pro 会员」态（《13-open-questions.md》问题 11 已裁决）。
 - **无障碍**：每个分组行作为整体可点击元素，label 包含标题+当前值（如「iCloud 数据同步，已同步」）。
 

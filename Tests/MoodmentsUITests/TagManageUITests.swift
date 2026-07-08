@@ -254,14 +254,18 @@ final class TagManageUITests: XCTestCase {
     }
 
     private func closeSettings(_ app: XCUIApplication) {
-        // 标签管理是设置栈内的子页，需先返回设置根页再关闭 sheet。
+        // 标签管理是设置栈内的子页，需先返回设置根页，再使用系统下滑关闭设置 sheet。
         if app.navigationBars.buttons.element(boundBy: 0).exists {
             app.navigationBars.buttons.element(boundBy: 0).tap()
         }
-        let closeButton = app.buttons["关闭"]
-        if closeButton.waitForExistence(timeout: 5) {
-            closeButton.tap()
-        }
+        dismissSettingsSheet(app)
+    }
+
+    private func dismissSettingsSheet(_ app: XCUIApplication) {
+        XCTAssertTrue(app.buttons["settingsTagManageRow"].waitForExistence(timeout: 5))
+        let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.18))
+        let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.90))
+        start.press(forDuration: 0.1, thenDragTo: end)
     }
 
     private func replaceText(in field: XCUIElement, with newValue: String) {

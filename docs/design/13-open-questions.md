@@ -10,6 +10,7 @@
 
 | # | 问题 | 裁决 | 落实位置 |
 |---|---|---|---|
+| 24 | 设置根页是否保留显式关闭按钮 | **移除设置根页左上显式「关闭」按钮**。设置页作为系统 sheet，依赖系统下滑关闭；设置内子页仍保留系统返回按钮。 | 04-screen-specs.md、../current/implementation-truth.md、../plans/implementation-plan.md |
 | 23 | 标签创建入口归属 | **标签不允许在编辑器里临时创建，继续只在设置页标签管理集中创建/重命名/删除**。编辑器 `TagPickerView` 和首页筛选 `FilterPanelView` 只消费已有标签，不提供新增入口。 | ../product-mental-model.md、03-user-flows.md、04-screen-specs.md、08-architecture.md |
 | 22 | 首页删除手势与时间轴操作态 | **首页 Moment 左滑软删除进垃圾箱，无确认**；交互优先使用 SwiftUI/iOS 成熟 swipe action，轻扫露出删除、继续滑动按钮拉长。左滑时日期、心情节点、moment 气泡作为一个记录整体左移，不能让时间轴视觉断裂。 | 03-user-flows.md、04-screen-specs.md、implementation-plan.md |
 | 21 | 热力图「选月」是否落地 | **落地**。月份入口隐藏在热力图月份标签/月份区域中；点月只作为时间定位 anchor，不筛选；当前月份区域显示与设置页主色一致的轻微透明蒙层；锚点命中该月在当前筛选口径下的真实记录。 | 03-user-flows.md、04-screen-specs.md、08-architecture.md、implementation-plan.md |
