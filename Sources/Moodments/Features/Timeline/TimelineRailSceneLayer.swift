@@ -7,21 +7,21 @@ import SwiftUI
 /// `TimelineGeometry` 坐标合同绘制稳定背景轴，并关闭命中测试，避免影响点击、横滑和滚动。
 struct TimelineRailSceneLayer: View {
     let geometry: TimelineGeometry
-    let railBounds: TimelineRailSceneBounds
+    let metrics: TimelineViewportMetrics
 
     @Environment(ThemeManager.self) private var theme
 
     var body: some View {
-        GeometryReader { _ in
-            Rectangle()
-                .fill(theme.timelineRail)
-                .frame(width: geometry.railWidth, height: railBounds.height)
-                .position(
-                    x: geometry.railCenterXInViewport,
-                    y: railBounds.midY
-                )
-        }
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
+        let railBounds = metrics.railBounds
+
+        Rectangle()
+            .fill(theme.timelineRail)
+            .frame(width: geometry.railWidth, height: railBounds.height)
+            .position(
+                x: geometry.railCenterXInViewport,
+                y: railBounds.midY
+            )
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
     }
 }

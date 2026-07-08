@@ -26,8 +26,21 @@ final class TimelineGeometryTests: XCTestCase {
 
     func testRailTopKeepsBreathingSpaceBelowExpandedTitle() {
         let geometry = TimelineGeometry.standard
+        let layout = TimelineViewportLayout.standard
+        let metrics = TimelineViewportMetrics(
+            viewportSize: CGSize(width: 430, height: 760),
+            scrollOffsetY: 0,
+            layout: layout,
+            firstNodeCenterYOffsetFromRailTop: geometry.firstNodeCenterYOffsetFromRailTop
+        )
 
-        XCTAssertGreaterThanOrEqual(geometry.titleToRailTopSpacing, 8)
+        XCTAssertGreaterThanOrEqual(layout.titleToRailTopSpacing, 8)
+        XCTAssertEqual(layout.titleToRailTopSpacing, geometry.titleToRailTopSpacing)
+        XCTAssertEqual(
+            metrics.railTopY,
+            layout.expandedTitleSlotBottomY + layout.titleToRailTopSpacing
+        )
+        XCTAssertLessThan(metrics.railTopY, metrics.restingFirstNodeCenterY)
     }
 
     func testSceneRailStartsAboveFirstReadingUnitNode() {
@@ -59,24 +72,83 @@ final class TimelineGeometryTests: XCTestCase {
             railTopY,
             geometry.firstNodeCenterY(railTopY: railTopY)
         )
-        XCTAssertGreaterThanOrEqual(geometry.railBottomOvershoot, 200)
     }
 
-    func testMeasuredRailBoundsUseTopAndBottomAnchors() {
-        let bounds = TimelineRailSceneBounds(topY: 120, bottomY: 620)
+    func testViewportMetricsProducesVisibleRailBoundsAtRest() {
+        let geometry = TimelineGeometry.standard
+        let layout = TimelineViewportLayout.standard
+        let metrics = TimelineViewportMetrics(
+            viewportSize: CGSize(width: 430, height: 760),
+            scrollOffsetY: 0,
+            layout: layout,
+            firstNodeCenterYOffsetFromRailTop: geometry.firstNodeCenterYOffsetFromRailTop
+        )
 
-        XCTAssertEqual(bounds.height, 500)
-        XCTAssertEqual(bounds.midY, 370)
+        XCTAssertEqual(metrics.railBounds.topY, layout.restingRailTopY)
+        XCTAssertEqual(metrics.railBounds.bottomY, 760 + layout.railBottomOvershoot)
+        XCTAssertGreaterThan(metrics.railBounds.height, 0)
     }
 
-    func testRailBoundsPreferenceCombinesTopAndBottomReports() {
-        var preference = TimelineRailBoundsPreference(edge: .top, frame: CGRect(x: 0, y: 120, width: 1, height: 30))
+    func testViewportRailBoundsDoNotDependOnListRowPreferences() {
+        let geometry = TimelineGeometry.standard
+        let layout = TimelineViewportLayout.standard
+        let metrics = TimelineViewportMetrics(
+            viewportSize: CGSize(width: 430, height: 620),
+            scrollOffsetY: 0,
+            layout: layout,
+            firstNodeCenterYOffsetFromRailTop: geometry.firstNodeCenterYOffsetFromRailTop
+        )
 
-        TimelineRailBoundsPreferenceKey.reduce(value: &preference) {
-            TimelineRailBoundsPreference(edge: .bottom, frame: CGRect(x: 0, y: 700, width: 1, height: 80))
-        }
+        let bounds = metrics.railBounds
 
-        XCTAssertEqual(preference.bounds, TimelineRailSceneBounds(topY: 120, bottomY: 780))
+        XCTAssertEqual(bounds.topY, layout.restingRailTopY)
+        XCTAssertEqual(bounds.bottomY, 620 + layout.railBottomOvershoot)
+        XCTAssertLessThan(bounds.topY, metrics.restingFirstNodeCenterY)
+    }
+
+    func testViewportRailDoesNotMoveDownWhenPullingPastTop() {
+        let geometry = TimelineGeometry.standard
+        let layout = TimelineViewportLayout.standard
+        let metrics = TimelineViewportMetrics(
+            viewportSize: CGSize(width: 430, height: 620),
+            scrollOffsetY: -40,
+            layout: layout,
+            firstNodeCenterYOffsetFromRailTop: geometry.firstNodeCenterYOffsetFromRailTop
+        )
+
+        XCTAssertEqual(metrics.railTopY, layout.restingRailTopY)
+    }
+
+    func testViewportRailMovesUpWithContentWhenScrollingForward() {
+        let geometry = TimelineGeometry.standard
+        let layout = TimelineViewportLayout.standard
+        let metrics = TimelineViewportMetrics(
+            viewportSize: CGSize(width: 430, height: 620),
+            scrollOffsetY: 44,
+            layout: layout,
+            firstNodeCenterYOffsetFromRailTop: geometry.firstNodeCenterYOffsetFromRailTop
+        )
+
+        XCTAssertEqual(metrics.railTopY, layout.restingRailTopY - 44)
+    }
+
+    func testViewportLayoutMovesRailTopThroughNamedSceneSlot() {
+        let geometry = TimelineGeometry.standard
+        let layout = TimelineViewportLayout(
+            expandedTitleSlotBottomY: 80,
+            titleToRailTopSpacing: 16,
+            railBottomOvershoot: 280
+        )
+        let metrics = TimelineViewportMetrics(
+            viewportSize: CGSize(width: 430, height: 620),
+            scrollOffsetY: 0,
+            layout: layout,
+            firstNodeCenterYOffsetFromRailTop: geometry.firstNodeCenterYOffsetFromRailTop
+        )
+
+        XCTAssertEqual(layout.restingRailTopY, 96)
+        XCTAssertEqual(metrics.railTopY, 96)
+        XCTAssertEqual(metrics.railBottomY, 900)
     }
 
     func testSceneRailAndNodeShareTheSameViewportCoordinate() {

@@ -17,7 +17,6 @@ struct TimelineGeometry {
     let rowGapHeight: CGFloat
     let titleToRailTopSpacing: CGFloat
     let firstNodeCenterYOffsetFromRailTop: CGFloat
-    let railBottomOvershoot: CGFloat
     let railWidth: CGFloat
     let bubbleTailSize: CGSize
     let bubbleTailHorizontalOffset: CGFloat
@@ -32,7 +31,6 @@ struct TimelineGeometry {
         rowGapHeight: CGFloat = 20,
         titleToRailTopSpacing: CGFloat = 12,
         firstNodeCenterYOffsetFromRailTop: CGFloat = 78,
-        railBottomOvershoot: CGFloat = 260,
         railWidth: CGFloat = 1,
         bubbleTailSize: CGSize = CGSize(width: 8, height: 14),
         bubbleTailHorizontalOffset: CGFloat = -6
@@ -46,7 +44,6 @@ struct TimelineGeometry {
         self.rowGapHeight = rowGapHeight
         self.titleToRailTopSpacing = titleToRailTopSpacing
         self.firstNodeCenterYOffsetFromRailTop = firstNodeCenterYOffsetFromRailTop
-        self.railBottomOvershoot = railBottomOvershoot
         self.railWidth = railWidth
         self.bubbleTailSize = bubbleTailSize
         self.bubbleTailHorizontalOffset = bubbleTailHorizontalOffset

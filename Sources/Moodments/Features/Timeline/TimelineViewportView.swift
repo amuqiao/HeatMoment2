@@ -16,7 +16,7 @@ import SwiftUI
 /// `FilterCondition.matches` 内存过滤（见 04-screen-specs.md §4.2）。
 struct TimelineViewportView: View {
     private static let geometry = TimelineGeometry.standard
-    private static let coordinateSpaceName = "TimelineViewportCoordinateSpace"
+    private static let viewportLayout = TimelineViewportLayout.standard
     // 折叠阈值取接近大标题实际高度：仅当展开态大标题大体滚出后才切收起态，
     // 避免小阈值下「时刻 ⌄」与仍完整可见的大标题同屏并存（见阶段2 code review）。
     private static let collapseThreshold: CGFloat = -44
@@ -35,6 +35,7 @@ struct TimelineViewportView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(ErrorPresenter.self) private var errorPresenter
     @Environment(SyncStatusService.self) private var syncStatusService
+    @State private var scrollOffsetY: CGFloat = 0
 
     @Query private var moments: [Moment]
 
@@ -109,72 +110,85 @@ struct TimelineViewportView: View {
                 isFilteredEmpty: isFilteredEmpty
             )
 
-            ZStack(alignment: .topLeading) {
-                List {
-                    expandedTitle
-                        .padding(.top, 4)
-                        .padding(.bottom, Self.geometry.titleToRailTopSpacing)
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                        .listRowInsets(Self.geometry.rowInsets)
-                        .accessibilityHidden(suppressAccessibility)
+            GeometryReader { viewportProxy in
+                let viewportMetrics = TimelineViewportMetrics(
+                    viewportSize: viewportProxy.size,
+                    scrollOffsetY: scrollOffsetY,
+                    layout: Self.viewportLayout,
+                    firstNodeCenterYOffsetFromRailTop:
+                        Self.geometry.firstNodeCenterYOffsetFromRailTop
+                )
 
+                ZStack(alignment: .topLeading) {
                     if railVisibility.showsRail {
-                        timelineLeadIn
+                        TimelineRailSceneLayer(
+                            geometry: Self.geometry,
+                            metrics: viewportMetrics
+                        )
+                        .zIndex(0)
                     }
 
-                    if isFilteredEmpty {
-                        filteredEmptyState
+                    List {
+                        expandedTitle
+                            .padding(.top, 4)
+                            .padding(.bottom, Self.geometry.titleToRailTopSpacing)
                             .listRowSeparator(.hidden)
                             .listRowBackground(Color.clear)
                             .listRowInsets(Self.geometry.rowInsets)
                             .accessibilityHidden(suppressAccessibility)
-                    } else {
-                        ForEach(viewportEntries) { entry in
-                            TimelineRowView(
-                                entry: entry,
-                                geometry: Self.geometry,
-                                onTap: {
-                                    if let momentID = entry.momentID {
-                                        router.rootSheet = .preview(momentID)
-                                    }
-                                },
-                                onDelete: entry.momentID == nil ? nil : { handleDelete(entry) }
-                            )
-                            .id(entry.id)
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(rowBackground(for: entry))
-                            .listRowInsets(Self.geometry.rowInsets)
-                            .accessibilityHidden(suppressAccessibility)
-                        }
 
                         if railVisibility.showsRail {
-                            timelineBottomOvershoot
+                            timelineLeadIn
+                        }
+
+                        if isFilteredEmpty {
+                            filteredEmptyState
+                                .listRowSeparator(.hidden)
+                                .listRowBackground(Color.clear)
+                                .listRowInsets(Self.geometry.rowInsets)
+                                .accessibilityHidden(suppressAccessibility)
+                        } else {
+                            ForEach(viewportEntries) { entry in
+                                TimelineRowView(
+                                    entry: entry,
+                                    geometry: Self.geometry,
+                                    onTap: {
+                                        if let momentID = entry.momentID {
+                                            router.rootSheet = .preview(momentID)
+                                        }
+                                    },
+                                    onDelete: entry.momentID == nil ? nil : { handleDelete(entry) }
+                                )
+                                .id(entry.id)
+                                .listRowSeparator(.hidden)
+                                .listRowBackground(rowBackground(for: entry))
+                                .listRowInsets(Self.geometry.rowInsets)
+                                .accessibilityHidden(suppressAccessibility)
+                            }
+
+                            if railVisibility.showsRail {
+                                timelineBottomOvershoot
+                            }
                         }
                     }
-                }
-                .listStyle(.plain)
-                .listRowSpacing(0)
-                .scrollContentBackground(.hidden)
-                .contentMargins(.horizontal, 0, for: .scrollContent)
-                .modifier(
-                    TimelineScrollObserver(
-                        threshold: Self.collapseThreshold,
-                        isCollapsed: $isTitleCollapsed
+                    .listStyle(.plain)
+                    .listRowSpacing(0)
+                    .scrollContentBackground(.hidden)
+                    .contentMargins(.horizontal, 0, for: .scrollContent)
+                    .modifier(
+                        TimelineScrollObserver(
+                            threshold: Self.collapseThreshold,
+                            isCollapsed: $isTitleCollapsed,
+                            scrollOffsetY: $scrollOffsetY
+                        )
                     )
-                )
-                .onChange(of: locateScrollRequest) { _, request in
-                    guard let targetID = request?.targetID else { return }
-                    withAnimation {
-                        proxy.scrollTo(targetID, anchor: .center)
+                    .onChange(of: locateScrollRequest) { _, request in
+                        guard let targetID = request?.targetID else { return }
+                        withAnimation {
+                            proxy.scrollTo(targetID, anchor: .center)
+                        }
                     }
-                }
-            }
-            .coordinateSpace(name: Self.coordinateSpaceName)
-            .overlayPreferenceValue(TimelineRailBoundsPreferenceKey.self) { preference in
-                if railVisibility.showsRail, let bounds = preference.bounds {
-                    TimelineRailSceneLayer(geometry: Self.geometry, railBounds: bounds)
-                        .zIndex(1)
+                    .zIndex(1)
                 }
             }
         }
@@ -183,12 +197,6 @@ struct TimelineViewportView: View {
     private var timelineLeadIn: some View {
         Color.clear
             .frame(height: Self.geometry.railLeadInHeight)
-            .background(
-                TimelineRailBoundsReporter(
-                    coordinateSpaceName: Self.coordinateSpaceName,
-                    edge: .top
-                )
-            )
             .listRowSeparator(.hidden)
             .listRowBackground(Color.clear)
             .listRowInsets(Self.geometry.rowInsets)
@@ -197,13 +205,7 @@ struct TimelineViewportView: View {
 
     private var timelineBottomOvershoot: some View {
         Color.clear
-            .frame(height: Self.geometry.railBottomOvershoot)
-            .background(
-                TimelineRailBoundsReporter(
-                    coordinateSpaceName: Self.coordinateSpaceName,
-                    edge: .bottom
-                )
-            )
+            .frame(height: Self.viewportLayout.railBottomOvershoot)
             .listRowSeparator(.hidden)
             .listRowBackground(Color.clear)
             .listRowInsets(Self.geometry.rowInsets)
