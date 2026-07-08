@@ -9,6 +9,7 @@
 - P0 当前实现事实已移入 [`../current/`](../current/README.md)；本计划只保留 P0 剩余视觉验收与后续 P1/P2/P3 缺口。
 - 2026-07-07 已补一轮架构稳定化：顶部 chrome、热力图上下文槽位、筛选 half-sheet presenter 已拆分；时间轴轨道已从 `List` row 背景迁出为 `TimelineRailSceneLayer` 场景层，阅读单元由 `TimelineRowView` 承载，Moment 气泡补齐稳定宽度与图片展示合同，删除操作回到 SwiftUI `List` 行级 `.swipeActions(allowsFullSwipe: true)` 的成熟语义；as-built 事实见 [`../current/implementation-truth.md`](../current/implementation-truth.md)。
 - 2026-07-08 已完成一次最初设计稿审计，审计对象为 [`../_source/设计稿/`](../_source/%E8%AE%BE%E8%AE%A1%E7%A8%BF/) 25 张图片。结论：`docs/design/05-design-system.md` 已吸收大部分取色、主题矩阵和页面视觉语义；本计划只承接尚未闭环的 SwiftUI 差距和需要用户裁决的设计稿偏离点，不把一手设计稿重新升格为当前契约。
+- 2026-07-08 已完成 P0 视觉验收取证：暗色主页、热力图展开、日期定位、筛选与定位标记并存、左滑删除露出系统按钮、亮色主页截图均已审计。发现并修正年份显示 `2,026` 与热力图顶部上下文透出时间轴内容两个偏差；修正后同一 UI 取证流程通过，最终 `./scripts/verify.sh` 全部通过。证据和 as-built 结论见 [`../current/implementation-truth.md`](../current/implementation-truth.md)。
 
 ## Initial Design Draft Gap Audit
 
@@ -45,7 +46,6 @@
 
 | 主题 | 当前缺口 | 审计重点 |
 | --- | --- | --- |
-| 主页 P0 视觉验收 | P0 代码已实现，且首页/时间轴骨架已拆分为场景轨道层、阅读单元前景层和系统行级删除操作层；节点/气泡/竖线绑定、热力图顶部上下文感、左滑过程连续性仍需模拟器/真机截图或录屏审计。 | 优先确认主页是否仍表达“时间流 + 心情节点 + 内容气泡”，而不是普通记录列表；时间轴按主页局部坐标轴理解，时间轴 x、节点中心、气泡尾巴和日期列优先通过 `TimelineGeometry` 统一调整；首屏标题槽位、标题到轨道顶点间隔和底部超出优先通过 `TimelineViewportLayout` 统一调整；上滑/下拉相位和 viewport bounds 优先通过 `TimelineViewportMetrics` 统一调整；轨道由 `TimelineRailSceneLayer` 作为 viewport 场景层绘制，阅读单元在行前景，滚动监听只输出 viewport offset，不反推节点位置；心情节点静止态必须压在轨道 y 轴上；左滑时优先接受 SwiftUI `List` 行级 `.swipeActions` 的系统行为，若视觉不通过，先调整 viewport / row 结构边界，不回到手写 swipe 阈值。 |
 | 筛选 sheet 控件 | 代码已补显式“全部心情”和“清除全部”，标签/心情候选已网格化；仍需真机确认半屏下触控密度、drag handle / 系统下滑关闭和标签 AND 的可见反馈。 | 保持当前 half-sheet 心智模型，优先用 `LazyVGrid`、系统 sheet detent 和按钮状态微调，不引入自定义 bottom sheet。 |
 | 设置 sheet chrome | 设置页当前有显式“关闭”按钮。 | 判断是否应依赖系统下滑关闭，减少临时 sheet 的页面感。 |
 | Sheet 深度 | 当前主要路径保持两层，但设置子页、Pro、标签创建仍需按完整用户路径审计。 | 保持“入口 sheet + 一个详情层”为上限；超过两层要改 IA 或呈现方式。 |
@@ -64,7 +64,7 @@
 
 | 优先级 | 范围 | 目标 |
 | --- | --- | --- |
-| P0 | 主页时间轴 / 节点 / 气泡 / 热力图位置 | 代码已落地；剩余工作是截图/录屏视觉验收和必要微调。 |
+| P0 | 主页时间轴 / 节点 / 气泡 / 热力图位置 | 已完成截图取证与必要微调，as-built 事实已回写 current；后续只随真机尺寸或动态内容变化做抽查。 |
 | P1a | 筛选控件验证 | 就地筛选 sheet 控件已补齐；剩余是截图/真机验证和必要参数微调，保持 half-sheet 心智模型不漂移。 |
 | P1b | 局部选择 / Sheet 层级 / 设置关闭按钮 | 收紧临时任务层级，确认编辑页局部选择、设置和二级 sheet 路径不增加页面感；同步处理标签创建归属的四层文档冲突。 |
 | P2 | 外观页预览 / 亮色适配 / 背景纹理 | 让外观设置变成可感知的主题预览，而不是只有选项文本；补齐主页纹理真实消费。 |
@@ -101,15 +101,11 @@ HeatMoment2 是对 `/Users/admin/Downloads/Code/HeatMoment` 中 Flutter 项目�
    - 当前 SwiftUI 已覆盖 half-sheet、即时生效、标签 AND、选择后不自动关闭、网格化标签/心情候选、显式“全部心情”和“清除全部”；筛选 sheet 已移除标签新增入口，标签新增/重命名/删除统一归设置页 `TagManageView`。仍需验证 drag handle / 系统下滑关闭 / 标签 AND 的可见交互。
    - 实现优先使用现有 `sheet` detent、`NavigationStack`、`ScrollView` / `LazyVGrid`、`Button` / `Label`、`swipeActions` 和系统 drag 手势；不为了复刻 Flutter 的 `ChoiceChip` 或 bottom sheet 内部结构重写自定义容器。
 
-3. 主页 P0 剩余验收
-   - 用截图/录屏审计时间轴固定 x 坐标、轨道顶部固定 y、节点中心点 x/y、气泡起点 x、气泡尖角目标点和左滑过程连续性。
-   - 上下滚动时，轨道属于时间轴滚动场景：初始态顶点略低于导航栏/时刻标题下方并留出 lead-in；上滑后轨道与阅读单元纵向同场景滚动，顶部 chrome 从透明过渡到毛玻璃，视觉上保持稳定连续；底部 overshoot 延伸到最后一条 Moment 之后，避免过早露出轨道底部。
-   - 心情节点必须落在轨道 y 轴上；若出现最上方节点不在线上，优先调整 `TimelineGeometry` 的坐标锚点，而不是给单个 row 打补丁。
-   - 后续移动时间轴位置或调整对象比例时，按“时间轴是主页局部坐标轴”的方式处理：优先改 `TimelineGeometry` 这类命名几何锚点，不把 x/y/padding 散落到日期、节点、气泡对象内部。
-   - 检查热力图顶部上下文区在明暗主题、不同屏宽、标题折叠状态下是否仍属于主页上下文，而不是漂浮卡片。
-   - 检查月选中蒙层、日选中描边、筛选标记和时间定位标记在热力图展开/标题折叠/空态下的关系。
-   - 检查 SwiftUI `List` 行级 `.swipeActions(allowsFullSwipe: true)` 是否满足“轻扫露出删除按钮、继续左滑按钮拉长并触发删除”的成熟系统语义；若视觉不通过，不重写时间轴查询、路由和数据层，也不手写 swipe 阈值，先调整 viewport / row 的结构边界。
-   - 若截图或录屏不通过，优先调整 `TimelineGeometry` 或 viewport / row 边界；`List` 只作为成熟滚动和行级操作宿主，不作为轨道坐标来源。
+3. 主页 P0 视觉验收（已关闭）
+   - 2026-07-08 已用 UI 取证流程生成暗色主页、热力图展开、日期定位、筛选与定位标记并存、左滑删除露出系统按钮、亮色主页截图。
+   - 审计发现年份显示 `2,026` 与热力图顶部上下文透出时间轴内容两个实现偏差；已通过 `Text(verbatim:)` 年份显示、热力图不透明背景和展开态顶部 chrome 背景修正。
+   - 修正后同一取证流程通过，最终 `./scripts/verify.sh` 全部通过；P0 不再需要产品方向裁决。系统 `.swipeActions` 的左滑观感按当前截图接受，不投入自定义操作层。
+   - 后续若新增屏幕尺寸、动态字体或大图内容导致 P0 截图退化，按“时间轴是主页局部坐标轴”的方式处理：优先改 `TimelineGeometry`、`TimelineViewportLayout` 或 viewport / row 边界，不把 x/y/padding 散落到日期、节点、气泡对象内部。
 
 4. Sheet 层级审计（P1b）
    - 判断设置根 sheet 是否移除左上关闭按钮；未裁决前保持 current 事实，不预先移除。

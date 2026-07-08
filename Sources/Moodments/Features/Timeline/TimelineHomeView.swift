@@ -63,6 +63,7 @@ struct TimelineHomeView: View {
         VStack(spacing: 0) {
             TimelineHomeChromeView(
                 isTitleCollapsed: isTitleCollapsed,
+                isContextPanelPresented: isHeatmapPresented,
                 onCalendarTapped: {
                     isHeatmapPresented.toggle()
                 },

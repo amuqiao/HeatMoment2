@@ -7,6 +7,7 @@ import SwiftUI
 /// sheet detent 时，不需要改动时间轴列表和数据查询。
 struct TimelineHomeChromeView: View {
     let isTitleCollapsed: Bool
+    let isContextPanelPresented: Bool
     let onCalendarTapped: () -> Void
     let onFilterTapped: () -> Void
     let onSettingsTapped: () -> Void
@@ -32,7 +33,9 @@ struct TimelineHomeChromeView: View {
 
     @ViewBuilder
     private var chromeBackground: some View {
-        if isTitleCollapsed {
+        if isContextPanelPresented {
+            theme.canvasBackground.ignoresSafeArea(edges: .top)
+        } else if isTitleCollapsed {
             Rectangle()
                 .fill(.ultraThinMaterial)
                 .overlay(theme.canvasBackground.opacity(0.36))
@@ -60,6 +63,7 @@ struct TimelineHomeChromeView: View {
 #Preview {
     TimelineHomeChromeView(
         isTitleCollapsed: true,
+        isContextPanelPresented: false,
         onCalendarTapped: {},
         onFilterTapped: {},
         onSettingsTapped: {}

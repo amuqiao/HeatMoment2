@@ -139,12 +139,6 @@ TimelineHomeView.timelineFilterSheet
 
 结果：全量单元测试和 UI 测试通过。后续新增测试后，具体测试数量以当次脚本输出为准，不在 current 文档中固化旧数量。
 
-仍未由自动化证明的 P0 / 架构稳定视觉项：
-
-- 模拟器/真机截图中节点中心、气泡尾巴和时间轴竖线是否形成足够明确的绑定。
-- 左滑删除过程中系统 `.swipeActions` 的视觉位移是否满足“阅读单元整体从轨道移走、场景轨道保持连续”的边界；若需微调，只能限制在 viewport / row 边界，不回退到行内轨道或 probe。
-- 热力图顶部上下文区在不同屏宽和明暗主题下是否足够像主页上下文，而不是漂浮卡片。
-
 2026-07-07 追加运行：
 
 ```sh
@@ -163,6 +157,21 @@ TimelineHomeView.timelineFilterSheet
 ```
 
 结果：`MomentCardLayoutTests` 执行 4 个测试、0 失败；`TimelineGeometryTests` 执行 13 个测试、0 失败；`TimelineRailVisibilityTests` 执行 4 个测试、0 失败，覆盖筛选空态不渲染孤立轨道、真实记录和未筛选引导记录仍渲染轨道；四条 `DeleteRestorePurgeUITests` 定向 UI 用例均通过，覆盖首页左滑软删除进垃圾箱、横向缩略图和轮播图片区横向手势不触发行级删除、非图片区仍可露出系统删除按钮，以及预览卡片不是 push 页面；筛选空态 UI 和未筛选引导空态 UI 均通过。`build` 通过；`lint` 通过并保留既有 warning。
+
+2026-07-08 追加运行一次 P0 视觉取证 UI 流程，截图写入 `/private/tmp/heatmoment-p0-visual/`：
+
+```sh
+./scripts/run.sh
+./scripts/gen.sh
+./scripts/test.sh --only MoodmentsUITests/P0VisualAuditCaptureUITests/testCaptureP0VisualAuditStates
+./scripts/verify.sh
+```
+
+首次截图审计发现两个实现偏差：热力图年份因 SwiftUI 文本本地化显示为 `2,026`，以及热力图展开并滚动定位后顶部上下文区域有时间轴内容透出。代码修正后重新运行同一取证流程，结果通过。当前截图证据覆盖暗色主页、热力图展开、日期定位、筛选与定位标记并存、左滑删除露出系统删除按钮、亮色主页。审计结论是：节点中心、气泡尾巴和时间轴竖线形成明确绑定；热力图仍属于主页顶部上下文，不是独立漂浮卡片；系统 `.swipeActions` 的轻扫状态满足“阅读单元横向移走、场景轨道保持连续”的 P0 视觉边界。
+
+最终阶段验收运行 `./scripts/verify.sh`，结果全部通过：lint 完成、构建通过、单元测试执行 132 个测试（4 个跳过）且 0 失败、UI 测试执行 37 个测试且 0 失败。lint 仍打印仓库既有 warning，但未阻塞验证。
+
+当前 P0 视觉验收仍有两个非阻塞边界：截图取证是人工视觉审计，不是像素级 snapshot 断言；不同真机尺寸和未来动态内容仍需随对应阶段做抽查。
 
 ## Flutter 版只作为语义输入
 

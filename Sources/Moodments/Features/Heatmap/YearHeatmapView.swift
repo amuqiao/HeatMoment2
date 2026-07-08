@@ -48,7 +48,7 @@ struct YearHeatmapView: View {
         .padding(.top, 12)
         .padding(.bottom, 14)
         .frame(maxWidth: .infinity)
-        .background(theme.canvasBackground.opacity(0.98))
+        .background(theme.canvasBackground)
         .overlay(alignment: .bottom) {
             Rectangle()
                 .fill(theme.timelineRail.opacity(0.55))
@@ -85,11 +85,15 @@ struct YearHeatmapView: View {
     private var yearMenu: some View {
         Menu {
             ForEach(HeatmapYearRange.availableYears.reversed(), id: \.self) { year in
-                Button("\(year)") { handleSelectYear(year) }
+                Button {
+                    handleSelectYear(year)
+                } label: {
+                    Text(verbatim: String(year))
+                }
             }
         } label: {
             HStack(spacing: 4) {
-                Text("\(heatmapModel.year)")
+                Text(verbatim: String(heatmapModel.year))
                 Image(systemName: "chevron.up.chevron.down")
             }
             .font(.headline.weight(.semibold))
