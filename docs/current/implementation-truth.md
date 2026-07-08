@@ -111,10 +111,15 @@ TimelineHomeView.timelineFilterSheet
 
 当前外观设置的落地边界：
 
-- `ThemeManager` 是运行时主题 token 消费入口；`SemanticColor` / `MoodColorPalette` / `AccentColorOption` 仍是定义层。业务 view 不直接新增十六进制色值，P2b 触达范围内的二级文字、弱提示、强调色前景、选中弱填充、禁用强调填充、热力图月份高亮、首页纹理色、自定义背景遮罩、顶部 chrome 叠色、热力图分隔线和预览外框均经 `theme.*` 消费。
-- 模式、主色会影响已接入 `ThemeManager` 的背景、文字、气泡、chip、热力图空格、顶栏图标描边、首页背景纹理和外观页真实预览等。
+- `ThemeManager` 是运行时主题 token 消费入口，并暴露 `tokens: AppThemeTokens` 作为当前模式 + 主色解析后的稳定 token。定义层已拆为 `BrandCanvasPalette`（首页品牌画布）、`MemoryObjectPalette`（气泡/热力图等记忆对象）、`TaskContainerPalette`（sheet/设置/编辑等任务容器）、`AccentPalette`（行动强调主色及其派生前景）、`MoodPalette`（心情色数据语义）和 `FixedIntentColor`（危险、商业固定、图片查看器媒体色）。兼容门面已移除，新增颜色消费必须走 `ThemeManager`、`AppThemeTokens` 或对应 palette。
+- 业务 view 不直接新增十六进制色值，P2b 触达范围内的二级文字、弱提示、强调色前景、选中弱填充、禁用强调填充、热力图月份高亮、首页纹理色、自定义背景遮罩、顶部 chrome 叠色、热力图分隔线、预览外框、商业固定色和图片查看器固定媒体色均经 `theme.*` 消费。
+- 模式、主色会影响已接入 `ThemeManager` 的背景、文字、气泡、chip、热力图空格、顶栏图标描边、首页背景纹理、行动强调前景和外观页真实预览等。亮色不是暗色反相：首页仍使用轻灰紫画布，任务 sheet 使用 iOS 分组浅色体系，首页气泡和 sheet panel 不互相复用。
 - 心情色通过 `theme.moodColor(_:)` 解析，不读取主色。
 - 危险色通过 `theme.danger` 解析，不读取主色。
+- `ProPaywallView` / `AboutView` 使用固定商业 token，并在本页局部注入 `.light` color scheme：浅色背景、浅色行/面板、固定红和固定商业文字不跟随用户主色或暗/亮模式，也不被设置任务容器的暗色环境污染。Paywall 的月订阅 / 终身买断结构仍按当前 StoreKit 契约展示；双方案视觉样式是否继续改造仍归 Paywall 专项裁决。
+- `ImageViewerView` 使用固定媒体 token：沉浸黑底、白色 chrome 和黑色 chrome scrim，不跟随主题主色。
+- `TaskContainerStyle` 是任务容器层的 SwiftUI 封装：设置、外观、语言、标签、垃圾箱、编辑器、预览和筛选等任务面板统一注入 `theme.colorScheme`、导航栏色彩方案和 `theme.accent`；基于 `List` / `Section` 的设置类页面统一使用 `sheetBackground` 作为列表背景、`sheetPanelBackground` 作为行背景。这样避免系统默认浅色 grouped list 在暗色主题下盖住正确文字色。
+- 设置栈内的 `TagManageView`、`TrashView`、`LanguageSettingsView` 已归入任务容器语义，背景使用 `sheetBackground`，行/面板使用 `sheetPanelBackground`，文字使用 `primaryText` / `secondaryText`，不再复用首页品牌画布和气泡 token。
 - `backgroundTexture` 已驱动首页主场景背景，`HomeSceneBackgroundView` 统一渲染网格线、点阵、无和自定义图片；作用范围包括时间轴背后区域、顶部 chrome 展开态和首页热力图上下文，不作用于设置页、编辑器 sheet、气泡卡片或其它页面。
 - 自定义背景图片由 `AppearanceThemeView` 通过系统 `PhotosPicker` 选择，`ThemeManager` 在后台压缩后写入 `AppearanceStore` 暴露的 Application Support 固定文件；写入成功后才切到 `.customImage`，写入失败不改变当前背景。UI 测试下使用 `-uiTestBackgroundImageInjection` 暴露调试注入按钮。
 - `imageDisplayMode` 已有 UI、状态和持久化，并驱动时间轴气泡图片区在横向缩略图布局和轮播布局之间切换；它只改变照片展示行为，不改变主题颜色语义。
@@ -137,7 +142,7 @@ TimelineHomeView.timelineFilterSheet
 ./scripts/verify.sh
 ```
 
-结果：`ThemeManagerTests` 执行 5 个测试、0 失败，覆盖自定义背景图写入/修正与新增主题 token 解析；`ThemeSwitchUITests` 执行 6 个测试、0 失败，覆盖切换亮/暗、主色、背景纹理、自定义背景图、图片展示模式和新增外观页真实预览同步；最终 `./scripts/verify.sh` 全部通过。
+结果：`ThemeManagerTests` 执行 7 个测试、0 失败，覆盖自定义背景图写入/修正、五层 token 暗/亮取值、主色派生前景矩阵和商业固定色独立性；`ThemeSwitchUITests` 执行 7 个测试、0 失败，覆盖切换亮/暗、主色、背景纹理、自定义背景图、图片展示模式、新增外观页真实预览同步，以及设置/外观任务容器在 sheet 已挂载时跟随模式更新；最终 `./scripts/verify.sh` 全部通过。
 
 ## P0 验证事实
 

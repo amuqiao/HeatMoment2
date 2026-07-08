@@ -49,6 +49,7 @@ struct MomentPreviewView: View {
                 }
             }
         }
+        .themedTaskContainer(theme)
         // 阅读卡片对底层已下沉的时间轴做 VoiceOver 模态隔离，防焦点穿透（见 04 §4.9）。
         .accessibilityAddTraits(.isModal)
         .sheet(item: $editorPresentation) { presentation in
@@ -96,7 +97,7 @@ struct MomentPreviewView: View {
                 if !moment.bodyText.isEmpty {
                     Text(moment.bodyText)
                         .font(AppTypography.body)
-                        .foregroundStyle(theme.bubbleBodyText)
+                        .foregroundStyle(theme.secondaryText)
                 }
             }
             .padding(20)
@@ -123,7 +124,7 @@ struct MomentPreviewView: View {
             Spacer()
             Text(Self.dateFormatter.string(from: moment.occurredAt))
                 .font(AppTypography.caption)
-                .foregroundStyle(theme.bubbleBodyText)
+                .foregroundStyle(theme.secondaryText)
         }
     }
 

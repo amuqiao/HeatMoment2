@@ -12,6 +12,7 @@ struct ImageViewerView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(ThemeManager.self) private var theme
     @State private var currentIndex: Int
     @State private var images: [MomentImageData] = []
     @State private var isLoaded = false
@@ -24,7 +25,7 @@ struct ImageViewerView: View {
 
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            theme.imageViewerBackground.ignoresSafeArea()
 
             if isLoaded {
                 TabView(selection: $currentIndex) {
@@ -35,7 +36,7 @@ struct ImageViewerView: View {
                 }
                 .tabViewStyle(.page(indexDisplayMode: images.count > 1 ? .automatic : .never))
             } else {
-                ProgressView().tint(.white)
+                ProgressView().tint(theme.onImageViewerChrome)
             }
 
             VStack {
@@ -46,7 +47,10 @@ struct ImageViewerView: View {
                     } label: {
                         Image(systemName: "xmark.circle.fill")
                             .symbolRenderingMode(.palette)
-                            .foregroundStyle(.white, .black.opacity(0.4))
+                            .foregroundStyle(
+                                theme.onImageViewerChrome,
+                                theme.imageViewerChromeScrim
+                            )
                             .font(.system(size: 30))
                     }
                     .padding()
@@ -67,12 +71,16 @@ struct ImageViewerView: View {
             if let uiImage = UIImage(data: image.data) {
                 ZoomableImageView(uiImage: uiImage)
             } else {
-                // 原图数据来自自有存储（入库压缩的 JPEG），解码失败即数据损坏，debug 暴露。
-                let _ = assertionFailure("图片查看器原图解码失败 imageID=\(image.id)")
-                Color.clear
+                imageDecodeFailureView(imageID: image.id)
             }
         }
         .accessibilityLabel(Text("照片，第\(index + 1)张，共\(images.count)张"))
+    }
+
+    private func imageDecodeFailureView(imageID: UUID) -> some View {
+        // 原图数据来自自有存储（入库压缩的 JPEG），解码失败即数据损坏，debug 暴露。
+        assertionFailure("图片查看器原图解码失败 imageID=\(imageID)")
+        return Color.clear
     }
 
     /// - Note: 不吞错——加载失败按 CLAUDE.md「不擅自添加兜底策略」显式暴露（debug 崩溃、

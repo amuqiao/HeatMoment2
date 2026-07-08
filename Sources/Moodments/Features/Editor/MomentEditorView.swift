@@ -74,6 +74,7 @@ struct MomentEditorView: View {
             }
             .userFacingErrorAlert(errorPresenter)
         }
+        .themedTaskContainer(theme)
         .task {
             guard case .edit = mode else { return }
             do {

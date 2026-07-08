@@ -27,7 +27,7 @@
 | 统计回看 | `170`、`171`、`178` | 统计页是设置流中的年度回看，不是一级仪表盘；热力图和统计条形共用心情色语义。 | 亮色统计页也需验证心情色和文本可读性。 | 并入 P2 亮色主题验收。 |
 | 设置服务中枢 | `169`、`172` | 设置是支撑能力中枢，不是第二个主场景；标签管理是轻量管理，不是复杂 taxonomy 系统。 | 2026-07-08 用户已裁决设置根页不保留显式“关闭”按钮，依赖系统 sheet 下滑关闭；设置内子页保留系统返回。 | 已同步设计层和 current 层；P1b 后续只继续审计 sheet 深度。 |
 | 外观主题 | `173`、`174` | 外观页应通过预览表达模式、主色、背景和图片展示的真实差异。 | P2a 已补首页主场景背景消费闭环；P2b 已接入外观页真实预览和 token 消费边界，as-built 见 current。 | P2 后续只做亮色细节视觉验收和页面级漂移精修。 |
-| 关于 / Pro | `175`、`176` | 关于和 Pro 是强制亮色 + 固定红商业/信任语义，不跟随用户主色。 | 原设计稿只有单月订阅；当前契约新增终身买断，双方案视觉仍未裁决。 | 保留 `13-open-questions.md` #15；进入 Paywall 改造前单独裁决。 |
+| 关于 / Pro | `175`、`176` | 关于和 Pro 是强制亮色 + 固定红商业/信任语义，不跟随用户主色。 | 固定商业 token 已接入 About / Pro；原设计稿只有单月订阅，当前契约新增终身买断，双方案视觉仍未裁决。 | 保留 `13-open-questions.md` #15；进入 Paywall 双方案视觉改造前单独裁决。 |
 | 草稿缺席场景 | 无对应图 | 筛选 half-sheet、单条预览卡片、垃圾箱、图片查看器、隐私锁来自后续公理层和设计层抽象。 | 不应因设计稿缺席而削弱这些契约。 | 继续以 `product-mental-model.md`、`docs/design/` 和 `docs/current/` 为准。 |
 
 ## P0 开工裁决记录
@@ -53,7 +53,7 @@
 | Sheet 深度 | 当前主要路径保持两层，但设置子页、Pro、标签创建仍需按完整用户路径审计。 | 保持“入口 sheet + 一个详情层”为上限；超过两层要改 IA 或呈现方式。 |
 | 时间轴比例 | 代码已有滚动场景轨道、节点和气泡尾巴的共享中心参数，但仍需视觉审计 x 坐标、轨道顶部 lead-in、比例、滑动状态和节点对齐。 | 先用截图验证时间轴 x、轨道顶部 lead-in、节点中心、气泡起点和尖角目标点，再决定是否继续调 `TimelineGeometry` 参数。 |
 | 外观页视觉语义 | 当前外观页主要是列表行和勾选；首页背景设置已闭环。 | 参考 Flutter 外观页的“轴分离 + 真实预览”理念，用小型预览表达背景、主文字、副文字、强调色、节点色和纹理效果；预览必须消费 SwiftUI 当前真实 token，不做脱离实际界面的静态演示。 |
-| 亮色主题细节 | 除 `.normal` 外的亮色心情色仍待确认；当前 SwiftUI 色彩语义集中在 `SemanticColor` / `ThemeManager`，但仍存在部分直接取 `SemanticColor.secondaryText` 或局部 opacity 的分散消费。 | 亮色不是只换背景，还要保证文字、节点、热力图和统计的可读性；下一阶段先补 token 化主题表面，不把旧 Flutter 的 registry / 皮肤系统照搬进 SwiftUI。 |
+| 亮色主题细节 | 除 `.normal` 外的亮色心情色仍待确认；当前 SwiftUI 已有 `AppThemeTokens` / `ThemeManager` token 闭环，但仍缺系统性亮色截图验收。 | 亮色不是只换背景，还要保证文字、节点、热力图和统计的可读性；后续发现问题先校准 token，再替换散落消费，不把旧 Flutter 的 registry / 皮肤系统照搬进 SwiftUI。 |
 | 设计稿与契约偏离 | 最初设计稿暗示空月份可定位；设计层已裁决为只定位真实记录月份，current 已落地。 | 不默认按设计稿回改；若要改变，先在 `13-open-questions.md` 重新打开 #21。 |
 | 终身买断视觉 | 原始 Pro 设计稿只有月订阅单方案，当前契约新增终身买断。 | Paywall 进入改造前必须先裁决双方案呈现，不假装原设计稿已经回答。 |
 | Current 覆盖面 | current 能力矩阵当前偏重 P0/时间轴，部分已落地支撑能力未完整进入 current 入口。 | P3 回写时补齐 StoreKit、隐私锁、语言、iCloud 状态行、统计、垃圾箱、标签管理等已实现事实，避免计划层重复规划。 |
@@ -132,19 +132,20 @@ HeatMoment2 是对 `/Users/admin/Downloads/Code/HeatMoment` 中 Flutter 项目�
 
 - `docs/design/05-design-system.md` 已定义模式、主色、背景、图片展示、心情色、危险色、系统分组容器等设计契约。
 - P2b 已落地的 token 消费边界和外观页真实预览事实记录在 `docs/current/implementation-truth.md`。
+- SwiftUI 主题层当前按五层心智落地为 `AppThemeTokens`，并拆出 `BrandCanvasPalette`、`MemoryObjectPalette`、`TaskContainerPalette`、`AccentPalette`、`MoodPalette`、`FixedIntentColor`。`ThemeManager` 继续负责状态、持久化和自定义背景图片导入；View 层优先消费 `theme.*`，不把 token 解析散到页面。
 - 旧 Flutter 项目只作为 token 语义参考；SwiftUI 新项目不继承 Flutter 的 `ThemeData`、皮肤 registry、开发者隐藏轴或 widget 结构。
 
 #### Remaining Gaps
 
-- About 固定亮色、图片查看器固定黑底、Paywall 固定红/亮色漂移不混入 P2b token 闭环，后续按各自页面边界单独处理。
+- 固定商业色和图片查看器媒体色已归入 token；剩余 Paywall 问题不是颜色 token，而是月订阅 / 终身买断双方案视觉是否需要重排，仍按 `13-open-questions.md` #15 单独裁决。
 - 亮色适配还缺系统性截图审计：除 `.normal` 外的亮色心情色仍待真机或设计确认；亮色下部分主色、心情色、热力图空格、统计条形和文字/白卡组合需要避免低对比或误把图形色用于文字。
 - 外观页真实预览已接入，但仍需在后续视觉验收中确认不同屏宽、亮色模式和自定义背景图片下的排版/对比。
 
 #### Planned Work
 
-- 保持 token 使用边界：新增 UI 不直接写 `Color(hex:)`、裸十六进制、随手 opacity 或把 `SemanticColor.secondaryText` 到处散用；颜色应先归入“主舞台 / 系统分组容器 / 文字层级 / 强调动作 / 数据心情色 / 危险动作 / 外观预览”之一，再经 `ThemeManager` 或专用 preview token 消费。
+- 保持 token 使用边界：新增 UI 不直接写 `Color(hex:)`、裸十六进制或随手 opacity；颜色应先归入“主舞台 / 系统分组容器 / 文字层级 / 强调动作 / 数据心情色 / 危险动作 / 外观预览”之一，再经 `ThemeManager`、`AppThemeTokens` 或对应 palette 消费。
 - 浅色适配精修按 token 面推进：用截图和窄测试确认首页、设置/外观、热力图、统计、编辑器基础可读性；发现问题时先校准 token，再替换散落消费。
-- Paywall 视觉漂移单独评估：若按设计恢复固定亮色 + 固定红，不应复用普通 `theme.accent` 语义。
+- Paywall 双方案视觉单独评估：颜色已固定为商业 token，后续只讨论订阅方案布局和文案层级，不回退为普通 `theme.accent` 语义。
 
 #### Acceptance
 

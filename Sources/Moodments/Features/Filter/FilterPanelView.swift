@@ -34,7 +34,7 @@ struct FilterPanelView: View {
                     if tags.isEmpty {
                         Text("还没有标签")
                             .font(AppTypography.caption)
-                            .foregroundStyle(theme.bubbleBodyText)
+                            .foregroundStyle(theme.secondaryText)
                             .accessibilityIdentifier("filterNoTagsHint")
                     } else {
                         LazyVGrid(columns: tagGridColumns, alignment: .leading, spacing: 10) {
@@ -76,6 +76,8 @@ struct FilterPanelView: View {
                 }
             }
         }
+        .themedTaskContainer(theme)
+        .presentationBackground(theme.sheetBackground)
     }
 
     private var tagGridColumns: [GridItem] {
@@ -108,7 +110,7 @@ struct FilterPanelView: View {
                         .font(.caption.weight(.semibold))
                 }
             }
-            .foregroundStyle(isSelected ? theme.sheetBackground : theme.primaryText)
+            .foregroundStyle(isSelected ? theme.onAccentText : theme.primaryText)
             .frame(maxWidth: .infinity, minHeight: 44)
             .padding(.horizontal, 10)
             .background {
@@ -139,7 +141,7 @@ struct FilterPanelView: View {
                         .font(.caption.weight(.semibold))
                 }
             }
-            .foregroundStyle(isSelected ? theme.sheetBackground : theme.primaryText)
+            .foregroundStyle(isSelected ? theme.onAccentText : theme.primaryText)
             .frame(maxWidth: .infinity, minHeight: 44)
             .padding(.horizontal, 10)
             .background {
@@ -171,7 +173,7 @@ struct FilterPanelView: View {
                         .font(.caption.weight(.semibold))
                 }
             }
-            .foregroundStyle(isSelected ? theme.sheetBackground : theme.primaryText)
+            .foregroundStyle(isSelected ? theme.onAccentText : theme.primaryText)
             .frame(maxWidth: .infinity, minHeight: 44)
             .padding(.horizontal, 10)
             .background {

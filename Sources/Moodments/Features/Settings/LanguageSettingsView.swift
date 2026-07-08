@@ -9,7 +9,8 @@ import SwiftUI
 /// 无需用户额外确认或重启（个别系统级文案的「需重启」例外见 `MoodmentsApp` 注释）。
 struct LanguageSettingsView: View {
     @Environment(ThemeManager.self) private var theme
-    @AppStorage(LanguagePreference.storageKey) private var rawValue = LanguagePreference.zhHans.rawValue
+    @AppStorage(LanguagePreference.storageKey)
+    private var rawValue = LanguagePreference.zhHans.rawValue
 
     private var current: LanguagePreference {
         LanguagePreference(rawValue: rawValue) ?? .zhHans
@@ -20,13 +21,13 @@ struct LanguageSettingsView: View {
             Section {
                 ForEach(LanguagePreference.allCases) { option in
                     row(for: option)
+                        .listRowBackground(theme.sheetPanelBackground)
                 }
             }
         }
-        .listStyle(.insetGrouped)
-        .scrollContentBackground(.hidden)
-        .background(theme.canvasBackground.ignoresSafeArea())
+        .taskGroupedListBackground(theme)
         .navigationTitle("语言")
+        .themedTaskContainer(theme)
     }
 
     private func row(for option: LanguagePreference) -> some View {

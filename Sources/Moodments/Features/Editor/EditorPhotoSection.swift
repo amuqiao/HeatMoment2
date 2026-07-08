@@ -32,7 +32,7 @@ struct EditorPhotoSection: View {
             } else {
                 Text("日志图片 \(model.draftPhotos.count) 张")
                     .font(AppTypography.caption)
-                    .foregroundStyle(theme.bubbleBodyText)
+                    .foregroundStyle(theme.secondaryText)
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 12) {
                         ForEach(model.draftPhotos) { photo in

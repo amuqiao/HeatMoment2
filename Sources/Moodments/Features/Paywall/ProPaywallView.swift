@@ -28,8 +28,11 @@ struct ProPaywallView: View {
                     purchaseContent
                 }
             }
-            .background(theme.sheetBackground.ignoresSafeArea())
+            .background(theme.commercialBackground.ignoresSafeArea())
             .navigationTitle("Pro 会员")
+            .environment(\.colorScheme, .light)
+            .tint(theme.commercialRed)
+            .toolbarColorScheme(.light, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("关闭") { dismiss() }
@@ -38,7 +41,10 @@ struct ProPaywallView: View {
             .userFacingErrorAlert(errorPresenter)
             .alert(
                 "提示",
-                isPresented: Binding(get: { infoMessage != nil }, set: { if !$0 { infoMessage = nil } }),
+                isPresented: Binding(
+                    get: { infoMessage != nil },
+                    set: { if !$0 { infoMessage = nil } }
+                ),
                 presenting: infoMessage
             ) { _ in
                 Button("好") {}
@@ -46,7 +52,9 @@ struct ProPaywallView: View {
                 Text(message)
             }
             .task {
-                guard subscriptionService.monthlyProduct == nil || subscriptionService.lifetimeProduct == nil else {
+                let needsMonthlyProduct = subscriptionService.monthlyProduct == nil
+                let needsLifetimeProduct = subscriptionService.lifetimeProduct == nil
+                if !(needsMonthlyProduct || needsLifetimeProduct) {
                     return
                 }
                 do {
@@ -64,13 +72,13 @@ struct ProPaywallView: View {
         VStack(spacing: 16) {
             Image(systemName: "checkmark.seal.fill")
                 .font(.system(size: 48))
-                .foregroundStyle(theme.accent)
+                .foregroundStyle(theme.commercialRed)
             Text("你已是 Pro 会员")
                 .font(AppTypography.cardTitle)
-                .foregroundStyle(theme.primaryText)
+                .foregroundStyle(theme.commercialPrimaryText)
             Text("无限日记、无限照片、无限标签已解锁")
                 .font(AppTypography.body)
-                .foregroundStyle(theme.bubbleBodyText)
+                .foregroundStyle(theme.commercialSecondaryText)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .accessibilityIdentifier("paywallAlreadyProContent")
@@ -97,10 +105,10 @@ struct ProPaywallView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(triggerHeadline)
                 .font(AppTypography.cardTitle)
-                .foregroundStyle(theme.primaryText)
+                .foregroundStyle(theme.commercialPrimaryText)
             Text("解锁无限日记、无限照片、无限标签，随时随地记录每一个时刻")
                 .font(AppTypography.body)
-                .foregroundStyle(theme.bubbleBodyText)
+                .foregroundStyle(theme.commercialSecondaryText)
         }
         .accessibilityIdentifier("paywallHeadline")
     }
@@ -128,8 +136,8 @@ struct ProPaywallView: View {
 
     private func benefitRow(text: LocalizedStringKey) -> some View {
         HStack(alignment: .top, spacing: 8) {
-            Image(systemName: "checkmark.circle.fill").foregroundStyle(theme.accent)
-            Text(text).foregroundStyle(theme.primaryText)
+            Image(systemName: "checkmark.circle.fill").foregroundStyle(theme.commercialRed)
+            Text(text).foregroundStyle(theme.commercialPrimaryText)
         }
         .accessibilityElement(children: .combine)
     }
@@ -148,7 +156,11 @@ struct ProPaywallView: View {
     }
 
     /// 价格用 `Product.displayPrice` 动态渲染，不写死文本（见 11 §11.1）。
-    private func purchaseButton(product: Product?, title: LocalizedStringKey, identifier: String) -> some View {
+    private func purchaseButton(
+        product: Product?,
+        title: LocalizedStringKey,
+        identifier: String
+    ) -> some View {
         Button {
             guard let product else { return }
             handlePurchase(product)
@@ -163,10 +175,13 @@ struct ProPaywallView: View {
                 }
             }
             .font(AppTypography.button)
-            .foregroundStyle(.white)
+            .foregroundStyle(theme.onCommercialText)
             .padding(.horizontal, 16)
             .frame(maxWidth: .infinity, minHeight: 48)
-            .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(theme.accent))
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(theme.commercialRed)
+            )
         }
         .disabled(product == nil || isPurchasing)
         .accessibilityIdentifier(identifier)
@@ -180,7 +195,7 @@ struct ProPaywallView: View {
                 ProgressView()
             } else {
                 Text("恢复购买")
-                    .foregroundStyle(theme.accent)
+                    .foregroundStyle(theme.commercialRed)
             }
         }
         .disabled(isRestoring)
@@ -192,7 +207,7 @@ struct ProPaywallView: View {
         Button("兑换码") {
             handleRedeemCode()
         }
-        .foregroundStyle(theme.accent)
+        .foregroundStyle(theme.commercialRed)
         .frame(maxWidth: .infinity)
         .accessibilityIdentifier("paywallRedeemCodeButton")
     }
@@ -237,10 +252,13 @@ struct ProPaywallView: View {
 
     private func handleRedeemCode() {
         Task {
-            guard let scene = UIApplication.shared.connectedScenes
+            let foregroundScene = UIApplication.shared.connectedScenes
                 .compactMap({ $0 as? UIWindowScene })
-                .first(where: { $0.activationState == .foregroundActive }) ?? UIApplication.shared
-                .connectedScenes.compactMap({ $0 as? UIWindowScene }).first
+                .first(where: { $0.activationState == .foregroundActive })
+            let fallbackScene = UIApplication.shared.connectedScenes
+                .compactMap({ $0 as? UIWindowScene })
+                .first
+            guard let scene = foregroundScene ?? fallbackScene
             else { return }
             do {
                 try await subscriptionService.presentCodeRedemption(in: scene)

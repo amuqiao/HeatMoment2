@@ -6,7 +6,7 @@ import XCTest
 /// `docs/design/05-design-system.md` §5.3、`docs/plans/implementation-plan.md` 阶段6）：
 ///
 /// **核心不变量**：切**主色**时 FAB/强调随之变化，但心情色 / 危险色**不变**——
-/// 心情色/危险色独立于主色的结构性保证已由 `MoodColorPaletteTests`（单元级，签名不含
+/// 心情色/危险色独立于主色的结构性保证已由 `MoodPaletteTests`（单元级，palette 签名不含
 /// `AccentColorOption` 参数）覆盖；本文件在真实运行时 UI 层面复核主色确实驱动了强调色
 /// （FAB 颜色随之改变），并确认外观选项的即时生效（乐观更新：点选后立即反映为选中态）。
 @MainActor
@@ -47,7 +47,7 @@ final class ThemeSwitchUITests: XCTestCase {
     /// 切**模式**（暗→亮）→ 立即生效：`AppearanceThemeView` 选中态随之切换；当前主色槽位
     /// （选中的仍是同一个 `AccentColorOption`）不因切模式而改变——只是该主色解析出的具体
     /// RGB 值随模式切到其亮/暗两态（05 §5.3.2），这与「心情色随模式切换」是同一层语义
-    /// （见 `MoodColorPaletteTests`），但主色/模式与心情色是两套独立状态，互不影响。
+    /// （见 `MoodPaletteTests`），但主色/模式与心情色是两套独立状态，互不影响。
     func testSwitchingModeUpdatesSelectionAndKeepsAccentSlotUnchanged() {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTestReset"]
@@ -71,6 +71,48 @@ final class ThemeSwitchUITests: XCTestCase {
         scrollUntilVisible(violetOption, app: app)
         XCTAssertTrue(violetOption.waitForExistence(timeout: 5))
         XCTAssertTrue(violetOption.isSelected, "切模式不应改变当前选中的主色槽位（仍是紫罗兰）")
+    }
+
+    /// 任务容器的系统 row 必须跟随 `ThemeManager.mode`，不能出现 token 已是暗色但 `List`
+    /// row 仍由系统浅色 scheme 渲染的混搭。
+    func testTaskContainerRowsFollowModeWhileSheetIsMounted() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTestReset"]
+        app.launch()
+
+        XCTAssertTrue(app.buttons["新建时刻"].waitForExistence(timeout: 10))
+
+        let settingsButton = app.buttons["设置"]
+        XCTAssertTrue(settingsButton.waitForExistence(timeout: 5))
+        settingsButton.tap()
+
+        let appearanceRow = app.buttons["settingsAppearanceRow"]
+        XCTAssertTrue(appearanceRow.waitForExistence(timeout: 5))
+        XCTAssertLessThan(
+            brightness(of: appearanceRow),
+            0.55,
+            "默认暗色下设置页分组 row 应为暗色任务面板，不能是系统白色 row"
+        )
+        appearanceRow.tap()
+
+        let darkOption = app.buttons["appearanceModeOption-dark"]
+        let lightOption = app.buttons["appearanceModeOption-light"]
+        XCTAssertTrue(darkOption.waitForExistence(timeout: 5))
+        XCTAssertTrue(lightOption.waitForExistence(timeout: 5))
+        XCTAssertLessThan(
+            brightness(of: darkOption),
+            0.55,
+            "默认暗色下外观页模式 row 应为暗色任务面板"
+        )
+
+        lightOption.tap()
+
+        XCTAssertTrue(lightOption.isSelected)
+        XCTAssertGreaterThan(
+            brightness(of: lightOption),
+            0.70,
+            "切到亮色后已挂载外观页 row 应即时切到浅色任务面板"
+        )
     }
 
     /// 外观页真实预览消费同一套主题 token：切暗/亮模式后，预览区域应同步发生可见变化。
@@ -246,6 +288,11 @@ final class ThemeSwitchUITests: XCTestCase {
             bounds: CGRect(x: 0, y: 0, width: 1, height: 1), format: .RGBA8, colorSpace: nil
         )
         return (CGFloat(bitmap[0]) / 255, CGFloat(bitmap[1]) / 255, CGFloat(bitmap[2]) / 255)
+    }
+
+    private func brightness(of element: XCUIElement) -> CGFloat {
+        let color = averageColor(of: element)
+        return color.r * 0.2126 + color.g * 0.7152 + color.b * 0.0722
     }
 
     /// 归一化欧氏距离（0...约1.73），用于判断两次采样的颜色是否有「明显」差异。

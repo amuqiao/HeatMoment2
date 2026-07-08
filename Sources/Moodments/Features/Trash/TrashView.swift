@@ -49,8 +49,9 @@ struct TrashView: View {
                 .scrollContentBackground(.hidden)
             }
         }
-        .background(theme.canvasBackground.ignoresSafeArea())
+        .background(theme.sheetBackground.ignoresSafeArea())
         .navigationTitle("垃圾箱")
+        .themedTaskContainer(theme)
         .task { await reload() }
         .alert(
             "彻底删除？",
@@ -68,7 +69,7 @@ struct TrashView: View {
     private var emptyState: some View {
         Text("垃圾箱是空的")
             .font(AppTypography.body)
-            .foregroundStyle(theme.bubbleBodyText)
+            .foregroundStyle(theme.secondaryText)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .accessibilityIdentifier("trashEmptyState")
     }
@@ -77,16 +78,16 @@ struct TrashView: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(item.title.isEmpty ? "（无标题）" : item.title)
                 .font(AppTypography.cardTitle)
-                .foregroundStyle(theme.bubbleTitleText)
+                .foregroundStyle(theme.primaryText)
                 .lineLimit(1)
             Text(Self.dateFormatter.string(from: item.occurredAt))
                 .font(AppTypography.caption)
-                .foregroundStyle(theme.bubbleBodyText)
+                .foregroundStyle(theme.secondaryText)
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous).fill(theme.bubbleBackground)
+            RoundedRectangle(cornerRadius: 20, style: .continuous).fill(theme.sheetPanelBackground)
         )
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("trashRow-\(item.id.uuidString)")

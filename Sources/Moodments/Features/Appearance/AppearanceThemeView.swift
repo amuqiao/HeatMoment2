@@ -29,6 +29,7 @@ struct AppearanceThemeView: View {
                         color: theme.accent
                     )
                 }
+                .taskGroupedRowBackground(theme)
             }
             if theme.appearanceSaveFailed {
                 Section {
@@ -38,6 +39,7 @@ struct AppearanceThemeView: View {
                         color: theme.danger
                     )
                 }
+                .taskGroupedRowBackground(theme)
             }
             if theme.customBackgroundImageRecovered {
                 Section {
@@ -47,6 +49,7 @@ struct AppearanceThemeView: View {
                         color: theme.danger
                     )
                 }
+                .taskGroupedRowBackground(theme)
             }
             if theme.photoDisplaySaveFailed {
                 Section {
@@ -56,6 +59,7 @@ struct AppearanceThemeView: View {
                         color: theme.danger
                     )
                 }
+                .taskGroupedRowBackground(theme)
             }
 
             Section("预览") {
@@ -68,12 +72,14 @@ struct AppearanceThemeView: View {
                 modeRow(.dark, label: "暗色")
                 modeRow(.light, label: "亮色")
             }
+            .taskGroupedRowBackground(theme)
 
             Section("颜色") {
                 ForEach(AccentColorOption.allCases) { option in
                     accentRow(option)
                 }
             }
+            .taskGroupedRowBackground(theme)
 
             Section("背景") {
                 textureRow(.grid, label: "网格线")
@@ -93,16 +99,17 @@ struct AppearanceThemeView: View {
                     }
                 #endif
             }
+            .taskGroupedRowBackground(theme)
 
             Section("图片") {
                 imageModeRow(.scroll, label: "滚动")
                 imageModeRow(.carousel, label: "轮播")
             }
+            .taskGroupedRowBackground(theme)
         }
-        .listStyle(.insetGrouped)
-        .scrollContentBackground(.hidden)
-        .background(theme.canvasBackground.ignoresSafeArea())
+        .taskGroupedListBackground(theme)
         .navigationTitle("主题颜色")
+        .themedTaskContainer(theme)
         .onChange(of: customBackgroundPickerItem) { _, newItem in
             guard let newItem else { return }
             Task {
@@ -137,7 +144,7 @@ struct AppearanceThemeView: View {
         } label: {
             HStack {
                 Circle()
-                    .fill(option.color(for: theme.mode))
+                    .fill(theme.accentSwatch(option))
                     .frame(width: 24, height: 24)
                 Text(name).foregroundStyle(theme.primaryText)
                 Spacer()

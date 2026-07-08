@@ -30,7 +30,7 @@ struct MoodStatBarView: View {
                 Spacer()
                 Text("\(count)次")
                     .font(AppTypography.caption)
-                    .foregroundStyle(theme.bubbleBodyText)
+                    .foregroundStyle(theme.secondaryText)
             }
             GeometryReader { geometry in
                 ZStack(alignment: .leading) {

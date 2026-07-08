@@ -48,8 +48,9 @@ struct TagManageView: View {
                 .scrollContentBackground(.hidden)
             }
         }
-        .background(theme.canvasBackground.ignoresSafeArea())
+        .background(theme.sheetBackground.ignoresSafeArea())
         .navigationTitle("标签管理")
+        .themedTaskContainer(theme)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
@@ -83,7 +84,7 @@ struct TagManageView: View {
     private var emptyState: some View {
         Text("还没有标签")
             .font(AppTypography.body)
-            .foregroundStyle(theme.bubbleBodyText)
+            .foregroundStyle(theme.secondaryText)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .accessibilityIdentifier("tagManageEmptyState")
     }
@@ -93,12 +94,12 @@ struct TagManageView: View {
             editContext = .rename(tag)
         } label: {
             Text("#\(tag.name)")
-                .foregroundStyle(theme.bubbleTitleText)
+                .foregroundStyle(theme.primaryText)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(16)
                 .background(
                     RoundedRectangle(cornerRadius: 14, style: .continuous).fill(
-                        theme.bubbleBackground)
+                        theme.sheetPanelBackground)
                 )
                 // 见 `MoodPickerView`/`TagPickerView`/`FilterPanelView` 同类注释：不加
                 // `contentShape` 时命中区域会退化为文字字形本身的绘制区域，padding/背景色的

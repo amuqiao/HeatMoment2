@@ -45,7 +45,7 @@ struct TagPickerView: View {
             if tags.isEmpty {
                 Text("还没有标签")
                     .font(AppTypography.caption)
-                    .foregroundStyle(theme.bubbleBodyText)
+                    .foregroundStyle(theme.secondaryText)
                     .padding(.horizontal, 16)
                     .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                     .accessibilityIdentifier("tagPickerEmptyState")

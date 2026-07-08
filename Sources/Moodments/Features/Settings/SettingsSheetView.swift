@@ -29,43 +29,58 @@ struct SettingsSheetView: View {
                 .listRowBackground(Color.clear)
 
                 Section {
-                    NavigationLink("心情统计") {
+                    NavigationLink {
                         MoodStatsView(modelContainer: modelContext.container)
+                    } label: {
+                        Text("心情统计").foregroundStyle(theme.primaryText)
                     }
                     .accessibilityIdentifier("settingsMoodStatsRow")
 
-                    NavigationLink("标签管理") {
+                    NavigationLink {
                         TagManageView(modelContainer: modelContext.container)
+                    } label: {
+                        Text("标签管理").foregroundStyle(theme.primaryText)
                     }
                     .accessibilityIdentifier("settingsTagManageRow")
 
-                    NavigationLink("垃圾箱") {
+                    NavigationLink {
                         TrashView()
+                    } label: {
+                        Text("垃圾箱").foregroundStyle(theme.primaryText)
                     }
                     .accessibilityIdentifier("settingsTrashRow")
                 }
+                .taskGroupedRowBackground(theme)
 
                 Section {
                     iCloudSyncRow
                     biometricLockRow
 
-                    NavigationLink("语言") {
+                    NavigationLink {
                         LanguageSettingsView()
+                    } label: {
+                        Text("语言").foregroundStyle(theme.primaryText)
                     }
                     .accessibilityIdentifier("settingsLanguageRow")
 
-                    NavigationLink("外观主题") {
+                    NavigationLink {
                         AppearanceThemeView()
+                    } label: {
+                        Text("外观主题").foregroundStyle(theme.primaryText)
                     }
                     .accessibilityIdentifier("settingsAppearanceRow")
                 }
+                .taskGroupedRowBackground(theme)
 
                 Section {
-                    NavigationLink("关于心绪日记") {
+                    NavigationLink {
                         AboutView()
+                    } label: {
+                        Text("关于心绪日记").foregroundStyle(theme.primaryText)
                     }
                     .accessibilityIdentifier("settingsAboutRow")
                 }
+                .taskGroupedRowBackground(theme)
 
                 Section {
                     Text("版本 \(Self.versionText)")
@@ -75,9 +90,7 @@ struct SettingsSheetView: View {
                 }
                 .listRowBackground(Color.clear)
             }
-            .listStyle(.insetGrouped)
-            .scrollContentBackground(.hidden)
-            .background(theme.sheetBackground.ignoresSafeArea())
+            .taskGroupedListBackground(theme)
             .navigationTitle("设置")
             .sheet(item: $paywallTrigger) { trigger in
                 ProPaywallView(trigger: trigger)
@@ -87,6 +100,7 @@ struct SettingsSheetView: View {
                 await syncStatusService.refresh()
             }
         }
+        .themedTaskContainer(theme)
     }
 
     /// Pro 会员态下横幅替换为「已是 Pro 会员」态（04 §4.11，已裁决见 13-open-questions.md #11）：

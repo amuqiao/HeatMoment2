@@ -199,101 +199,140 @@ final class ThemeManager {
         customBackgroundImageRecovered = true
     }
 
+    /// 当前模式 + 主色解析后的稳定运行时 token。新增颜色消费优先经此对象理解语义边界。
+    var tokens: AppThemeTokens { AppThemeTokens.resolve(mode: mode, accentColor: accentColor) }
+
+    /// 当前应用主题对应的系统 `ColorScheme`。任务容器页必须显式消费它，避免 SwiftUI
+    /// 已呈现 sheet 中的 `List` / `NavigationBar` 和 token 模式脱节。
+    var colorScheme: ColorScheme { mode.colorScheme }
+
     /// 当前主色，解析自 `accentColor` + `mode`（见 05 §5.3.2 Any/Dark 双值机制）。
-    var accent: Color { accentColor.color(for: mode) }
+    var accent: Color { tokens.accent }
 
-    /// 心情色（转发 `MoodColorPalette.color(for:mode:)`，见公理1）：View 层统一经此消费，
-    /// 不直接调用 `MoodColorPalette`；签名/实现均不读取 `accentColor`，是「切主色时心情色
-    /// 不变」的结构性保证（见 `MoodColorPalette` 头部说明）。
-    func moodColor(_ mood: Mood) -> Color { MoodColorPalette.color(for: mood, mode: mode) }
+    /// 外观页主色选项色块，与运行时主色解析同源。
+    func accentSwatch(_ option: AccentColorOption) -> Color { tokens.accentSwatch(option) }
 
-    /// 固定危险色（转发 `SemanticColor.danger`）：删除/失败等动作统一经此消费，不得误用
+    /// 心情色（转发 `MoodPalette.color(_:mode:)`，见公理1）：View 层统一经此消费；
+    /// 签名/实现均不读取 `accentColor`，是「切主色时心情色不变」的结构性保证。
+    func moodColor(_ mood: Mood) -> Color { tokens.moodColor(mood) }
+
+    /// 固定危险色：删除/失败等动作统一经此消费，不得误用
     /// `accent`（见 05 §5.3.5：危险色与主色解耦、不跟随主题）。
-    var danger: Color { SemanticColor.danger }
+    var danger: Color { tokens.danger }
 
     /// 强调色实底上的文字/图标。
-    var onAccentText: Color { SemanticColor.onAccentText }
+    var onAccentText: Color { tokens.onAccentText }
 
     /// 强调色实底上的弱化说明文字。
-    var onAccentSecondaryText: Color { SemanticColor.onAccentSecondaryText }
+    var onAccentSecondaryText: Color { tokens.onAccentSecondaryText }
 
     /// 危险色实底上的文字/图标。
-    var onDangerText: Color { SemanticColor.onDangerText }
+    var onDangerText: Color { tokens.onDangerText }
+
+    /// 固定商业视觉，不随用户主色/模式变化。
+    var commercialRed: Color { tokens.commercialRed }
+
+    /// 固定商业页背景。
+    var commercialBackground: Color { tokens.commercialBackground }
+
+    /// 固定商业页面板。
+    var commercialPanelBackground: Color { tokens.commercialPanelBackground }
+
+    /// 固定商业页一级文字。
+    var commercialPrimaryText: Color { tokens.commercialPrimaryText }
+
+    /// 固定商业页二级文字。
+    var commercialSecondaryText: Color { tokens.commercialSecondaryText }
+
+    /// 固定商业页品牌块填充。
+    var commercialLogoFill: Color { tokens.commercialLogoFill }
+
+    /// 固定商业色实底文字/图标。
+    var onCommercialText: Color { tokens.onCommercialText }
+
+    /// 图片查看器固定沉浸黑底。
+    var imageViewerBackground: Color { tokens.imageViewerBackground }
+
+    /// 图片查看器 chrome 遮罩。
+    var imageViewerChromeScrim: Color { tokens.imageViewerChromeScrim }
+
+    /// 图片查看器 chrome 前景。
+    var onImageViewerChrome: Color { tokens.onImageViewerChrome }
 
     /// 画布背景色（见 05 §5.2.1）。
-    var canvasBackground: Color { SemanticColor.canvasBackground(mode) }
+    var canvasBackground: Color { tokens.canvasBackground }
 
     /// 气泡卡片背景色。
-    var bubbleBackground: Color { SemanticColor.bubbleBackground(mode) }
+    var bubbleBackground: Color { tokens.bubbleBackground }
 
     /// 卡片主标题文字色。
-    var bubbleTitleText: Color { SemanticColor.bubbleTitleText(mode) }
+    var bubbleTitleText: Color { tokens.bubbleTitleText }
 
     /// 卡片正文/摘要文字色。
-    var bubbleBodyText: Color { SemanticColor.bubbleBodyText(mode) }
+    var bubbleBodyText: Color { tokens.bubbleBodyText }
 
     /// 时间轴竖线色。
-    var timelineRail: Color { SemanticColor.timelineRail(mode) }
+    var timelineRail: Color { tokens.timelineRail }
 
     /// 输入框/Chip 填充色。
-    var chipFill: Color { SemanticColor.chipFill(mode) }
+    var chipFill: Color { tokens.chipFill }
 
     /// 一级文字色。
-    var primaryText: Color { SemanticColor.primaryText(mode) }
+    var primaryText: Color { tokens.primaryText }
 
     /// 二级文字色。
-    var secondaryText: Color { SemanticColor.secondaryText }
+    var secondaryText: Color { tokens.secondaryText }
 
     /// 弱提示/禁用文字色。
-    var mutedText: Color { SemanticColor.mutedText }
+    var mutedText: Color { tokens.mutedText }
 
     /// 顶部三入口图标的中性描边色（不跟随主色）。
-    var neutralIconStroke: Color { SemanticColor.neutralIconStroke(mode) }
+    var neutralIconStroke: Color { tokens.neutralIconStroke }
 
     /// Sheet 顶层背景色（编辑器/设置等系统分组容器，见 §5.2.2）。
-    var sheetBackground: Color { SemanticColor.sheetBackground(mode) }
+    var sheetBackground: Color { tokens.sheetBackground }
 
     /// Sheet 内分组面板背景。
-    var sheetPanelBackground: Color { SemanticColor.sheetPanelBackground(mode) }
+    var sheetPanelBackground: Color { tokens.sheetPanelBackground }
 
     /// 分隔线/hairline。
-    var separator: Color { SemanticColor.separator(mode) }
+    var separator: Color { tokens.separator }
 
     /// 热力图/心情统计「无记录」日期格底色（见 §5.7）。
-    var heatmapEmptyCell: Color { SemanticColor.heatmapEmptyCell(mode) }
+    var heatmapEmptyCell: Color { tokens.heatmapEmptyCell }
 
     /// 选中行/选中 chip 的主色弱填充。
-    var selectionFill: Color { SemanticColor.selectionFill(accent: accent) }
+    var selectionFill: Color { tokens.selectionFill }
 
     /// 禁用态主按钮填充。
-    var accentDisabledFill: Color { SemanticColor.accentDisabledFill(accent: accent) }
+    var accentDisabledFill: Color { tokens.accentDisabledFill }
 
     /// 热力图月份定位高亮。
-    var selectedMonthFill: Color { SemanticColor.selectedMonthFill(accent: accent) }
+    var selectedMonthFill: Color { tokens.selectedMonthFill }
 
     /// 首页背景纹理颜色。
-    var homeTextureColor: Color { SemanticColor.homeTextureColor(accent: accent, mode: mode) }
+    var homeTextureColor: Color { tokens.homeTextureColor }
 
     /// 自定义首页背景图上的画布遮罩。
-    var customBackgroundOverlay: Color { SemanticColor.customBackgroundOverlay(mode) }
+    var customBackgroundOverlay: Color { tokens.customBackgroundOverlay }
 
     /// 首页顶部 chrome 收起态的材质叠色。
-    var topChromeOverlay: Color { SemanticColor.topChromeOverlay(mode) }
+    var topChromeOverlay: Color { tokens.topChromeOverlay }
 
     /// 首页热力图上下文底部分隔线。
-    var heatmapSeparator: Color { SemanticColor.heatmapSeparator(mode) }
+    var heatmapSeparator: Color { tokens.heatmapSeparator }
 
     /// FAB 阴影。
-    var floatingActionShadow: Color { SemanticColor.floatingActionShadow }
+    var floatingActionShadow: Color { tokens.floatingActionShadow }
 
     /// 外观页真实预览卡自身容器背景。
-    var previewBackground: Color { SemanticColor.previewBackground(mode) }
+    var previewBackground: Color { tokens.previewBackground }
 
     /// 外观页真实预览卡弱描边/弱笔触。
-    var previewMuted: Color { SemanticColor.previewMuted(mode) }
+    var previewMuted: Color { tokens.previewMuted }
 
     /// 心情统计条形的空轨道。
     func moodStatTrack(_ mood: Mood) -> Color {
-        SemanticColor.moodStatTrack(moodColor: moodColor(mood))
+        tokens.moodStatTrack(mood)
     }
 }

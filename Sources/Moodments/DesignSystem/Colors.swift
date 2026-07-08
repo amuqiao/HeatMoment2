@@ -22,13 +22,17 @@ extension Color {
 /// 也不读取任何全局主色状态——这是「切主色时心情色不变」（公理1核心不变量）的结构性保证，
 /// 而不是靠约定人工遵守。切**模式**（暗/亮）时心情色切到该情绪对应模式的取值（预期行为，
 /// 区别于「切主色不变」）。
-enum MoodColorPalette {
+enum MoodPalette {
     /// - Parameters:
     ///   - mood: 情绪。
     ///   - mode: 当前外观模式，决定解析暗/亮两态中的哪一值；**不接受、不读取 `AccentColorOption`**。
-    static func color(for mood: Mood, mode: ThemeMode) -> Color {
+    static func color(_ mood: Mood, mode: ThemeMode) -> Color {
         let values = hexValues(for: mood)
         return Color(hex: mode == .dark ? values.dark : values.light)
+    }
+
+    static func statTrack(moodColor: Color) -> Color {
+        moodColor.opacity(0.15)
     }
 
     /// (暗色态, 亮色态) 十六进制取值。
@@ -68,161 +72,4 @@ enum AccentColorOption: String, CaseIterable, Identifiable, Sendable {
     case violet
 
     var id: String { rawValue }
-
-    /// - Parameter mode: 当前外观模式，决定解析暗/亮两态中的哪一值。
-    func color(for mode: ThemeMode) -> Color {
-        switch (self, mode) {
-        case (.purple, _): Color(hex: 0x5E5BE6)
-        case (.red, .dark): Color(hex: 0xFC5447)
-        case (.red, .light): Color(hex: 0xE9604F)
-        case (.orange, .dark): Color(hex: 0xF7A213)
-        case (.orange, .light): Color(hex: 0xF39911)
-        case (.green, .dark): Color(hex: 0x2DAD74)
-        case (.green, .light): Color(hex: 0x228859)
-        case (.cyan, _): Color(hex: 0x00C7BD)
-        case (.violet, .dark): Color(hex: 0xB678F5)
-        case (.violet, .light): Color(hex: 0x8E51AE)
-        }
-    }
-}
-
-// MARK: - 语义色（见 05-design-system.md §5.2）
-
-/// 时间轴品牌画布 + 系统分组容器的语义色，按 `ThemeManager.mode` 双值解析。
-/// 心情色、危险色不在此列——它们独立于「模式」，见 `MoodColorPalette` 与 `SemanticColor.danger`。
-enum SemanticColor {
-    /// 页面背景（含网格/点阵纹理），见 §5.2.1。
-    static func canvasBackground(_ mode: ThemeMode) -> Color {
-        mode == .dark ? Color(hex: 0x121221) : Color(hex: 0xF2F2F6)
-    }
-
-    /// 气泡卡片背景。
-    static func bubbleBackground(_ mode: ThemeMode) -> Color {
-        mode == .dark ? Color(hex: 0x3A3A40) : Color(hex: 0xFFFFFF)
-    }
-
-    /// 卡片主标题文字。
-    static func bubbleTitleText(_ mode: ThemeMode) -> Color {
-        mode == .dark ? Color(hex: 0xEBEBED) : Color(hex: 0x0D0C2B)
-    }
-
-    /// 卡片正文/摘要文字（secondary）。
-    static func bubbleBodyText(_ mode: ThemeMode) -> Color {
-        mode == .dark ? Color(hex: 0xC7C7CC) : Color(hex: 0x6C6C70)
-    }
-
-    /// 时间轴竖线。
-    static func timelineRail(_ mode: ThemeMode) -> Color {
-        mode == .dark ? Color(hex: 0x2A2A38) : Color(hex: 0xE3E2EA)
-    }
-
-    /// 输入框/Chip 填充，见 §5.2.2。
-    static func chipFill(_ mode: ThemeMode) -> Color {
-        mode == .dark ? Color(hex: 0x48484B) : Color(hex: 0xE9E9EC)
-    }
-
-    /// 一级文字。
-    static func primaryText(_ mode: ThemeMode) -> Color {
-        mode == .dark ? Color(hex: 0xF2F2F7) : Color(hex: 0x0D0C2B)
-    }
-
-    /// 二级/占位文字，两态数值相同（Apple 官方定义，见 §5.2.2）。
-    static let secondaryText = Color(hex: 0x8E8E93)
-
-    /// 弱提示/禁用文字，当前复用二级文字；单独暴露语义，便于后续亮/暗对比校准。
-    static let mutedText = secondaryText
-
-    /// 强调色实底上的文字/图标。
-    static let onAccentText = Color.white
-
-    /// 强调色实底上的弱化说明文字。
-    static let onAccentSecondaryText = Color.white.opacity(0.85)
-
-    /// 危险色实底上的文字/图标。
-    static let onDangerText = Color.white
-
-    /// 固定危险色（删除/失败/Pro 页高风险动作），与主色/模式解耦，不跟随主题变化（见 §5.3.5）。
-    static let danger = Color(hex: 0xFC5447)
-
-    /// 顶部三入口图标线性描边中性色，不跟随主色（见 §5.6 组件规格：暗色下浅灰/白、亮色下深灰/黑）。
-    /// 文档未给出精确取色值，此处按同类中性色语义近似取值 `[设计决策]`。
-    static func neutralIconStroke(_ mode: ThemeMode) -> Color {
-        mode == .dark ? Color(hex: 0xEBEBF5) : Color(hex: 0x3C3C43)
-    }
-
-    /// Sheet 顶层背景（编辑器/设置等系统分组容器，见 §5.2.2：暗色 `#1C1C1E` / 亮色
-    /// 标准 iOS `systemGroupedBackground` 浅色值 `#F2F2F7`）。阶段 3 供 `MomentEditorView` 使用。
-    static func sheetBackground(_ mode: ThemeMode) -> Color {
-        mode == .dark ? Color(hex: 0x1C1C1E) : Color(hex: 0xF2F2F7)
-    }
-
-    /// Sheet 内分组面板/预览样本面板背景。
-    static func sheetPanelBackground(_ mode: ThemeMode) -> Color {
-        mode == .dark ? Color(hex: 0x2C2C2E) : Color(hex: 0xFFFFFF)
-    }
-
-    /// 分隔线/hairline。
-    static func separator(_ mode: ThemeMode) -> Color {
-        mode == .dark ? Color(hex: 0x3A3A3C) : Color(hex: 0xE5E5EA)
-    }
-
-    /// 热力图/心情统计「无记录」日期格底色（见 §5.7 MoodStatsView：「格子未命中为深灰
-    /// `#454547`」）；`YearHeatmapView` 与 `MoodStatsView` 卡片1 共用同一空态语义（`HeatmapGridView`）。
-    /// 亮色态数值文档未给出，按同类中性色语义近似取值 `[设计决策]`。
-    static func heatmapEmptyCell(_ mode: ThemeMode) -> Color {
-        mode == .dark ? Color(hex: 0x454547) : Color(hex: 0xD1D1D6)
-    }
-
-    /// 选中行/选中 chip 的主色弱填充。
-    static func selectionFill(accent: Color) -> Color {
-        accent.opacity(0.08)
-    }
-
-    /// 禁用态主按钮填充。
-    static func accentDisabledFill(accent: Color) -> Color {
-        accent.opacity(0.45)
-    }
-
-    /// 热力图月份定位高亮。
-    static func selectedMonthFill(accent: Color) -> Color {
-        accent.opacity(0.14)
-    }
-
-    /// 心情统计条形的空轨道。
-    static func moodStatTrack(moodColor: Color) -> Color {
-        moodColor.opacity(0.15)
-    }
-
-    /// 首页背景纹理颜色。
-    static func homeTextureColor(accent: Color, mode: ThemeMode) -> Color {
-        accent.opacity(mode == .dark ? 0.10 : 0.14)
-    }
-
-    /// 自定义首页背景图上的画布遮罩。
-    static func customBackgroundOverlay(_ mode: ThemeMode) -> Color {
-        canvasBackground(mode).opacity(mode == .dark ? 0.18 : 0.10)
-    }
-
-    /// 首页顶部 chrome 收起态的材质叠色。
-    static func topChromeOverlay(_ mode: ThemeMode) -> Color {
-        canvasBackground(mode).opacity(0.36)
-    }
-
-    /// 首页热力图上下文底部分隔线。
-    static func heatmapSeparator(_ mode: ThemeMode) -> Color {
-        timelineRail(mode).opacity(0.55)
-    }
-
-    /// FAB 阴影。
-    static let floatingActionShadow = Color.black.opacity(0.20)
-
-    /// 外观页真实预览卡自身容器背景。
-    static func previewBackground(_ mode: ThemeMode) -> Color {
-        sheetPanelBackground(mode)
-    }
-
-    /// 外观页真实预览卡弱描边/弱笔触。
-    static func previewMuted(_ mode: ThemeMode) -> Color {
-        separator(mode)
-    }
 }

@@ -56,6 +56,7 @@ struct TagCreateSheetView: View {
         .background(theme.sheetBackground.ignoresSafeArea())
         .presentationDetents([.large])
         .presentationBackground(theme.sheetBackground)
+        .themedTaskContainer(theme)
         .sheet(item: $paywallTrigger) { trigger in
             ProPaywallView(trigger: trigger)
         }
