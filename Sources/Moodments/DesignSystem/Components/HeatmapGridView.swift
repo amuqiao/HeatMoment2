@@ -213,7 +213,7 @@ struct HeatmapGridView: View {
     private func monthLabel(_ item: (month: Int, column: Int)) -> some View {
         let label = Text("\(item.month)月")
             .font(.caption2)
-            .foregroundStyle(SemanticColor.secondaryText)
+            .foregroundStyle(theme.secondaryText)
 
         if monthsWithRecords.contains(item.month),
            let onSelectMonth,
@@ -241,7 +241,7 @@ struct HeatmapGridView: View {
             let selectedMonth = Self.calendar.component(.month, from: selectedDate)
             if let range = layout.monthColumnRanges.first(where: { $0.month == selectedMonth }) {
                 RoundedRectangle(cornerRadius: 5, style: .continuous)
-                    .fill(theme.accent.opacity(0.14))
+                    .fill(theme.selectedMonthFill)
                     .frame(
                         width: CGFloat(range.endColumn - range.startColumn + 1) * Self.columnStride - Self.cellSpacing,
                         height: Self.gridHeight

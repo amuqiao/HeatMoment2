@@ -129,6 +129,18 @@ enum SemanticColor {
     /// 二级/占位文字，两态数值相同（Apple 官方定义，见 §5.2.2）。
     static let secondaryText = Color(hex: 0x8E8E93)
 
+    /// 弱提示/禁用文字，当前复用二级文字；单独暴露语义，便于后续亮/暗对比校准。
+    static let mutedText = secondaryText
+
+    /// 强调色实底上的文字/图标。
+    static let onAccentText = Color.white
+
+    /// 强调色实底上的弱化说明文字。
+    static let onAccentSecondaryText = Color.white.opacity(0.85)
+
+    /// 危险色实底上的文字/图标。
+    static let onDangerText = Color.white
+
     /// 固定危险色（删除/失败/Pro 页高风险动作），与主色/模式解耦，不跟随主题变化（见 §5.3.5）。
     static let danger = Color(hex: 0xFC5447)
 
@@ -144,10 +156,73 @@ enum SemanticColor {
         mode == .dark ? Color(hex: 0x1C1C1E) : Color(hex: 0xF2F2F7)
     }
 
+    /// Sheet 内分组面板/预览样本面板背景。
+    static func sheetPanelBackground(_ mode: ThemeMode) -> Color {
+        mode == .dark ? Color(hex: 0x2C2C2E) : Color(hex: 0xFFFFFF)
+    }
+
+    /// 分隔线/hairline。
+    static func separator(_ mode: ThemeMode) -> Color {
+        mode == .dark ? Color(hex: 0x3A3A3C) : Color(hex: 0xE5E5EA)
+    }
+
     /// 热力图/心情统计「无记录」日期格底色（见 §5.7 MoodStatsView：「格子未命中为深灰
     /// `#454547`」）；`YearHeatmapView` 与 `MoodStatsView` 卡片1 共用同一空态语义（`HeatmapGridView`）。
     /// 亮色态数值文档未给出，按同类中性色语义近似取值 `[设计决策]`。
     static func heatmapEmptyCell(_ mode: ThemeMode) -> Color {
         mode == .dark ? Color(hex: 0x454547) : Color(hex: 0xD1D1D6)
+    }
+
+    /// 选中行/选中 chip 的主色弱填充。
+    static func selectionFill(accent: Color) -> Color {
+        accent.opacity(0.08)
+    }
+
+    /// 禁用态主按钮填充。
+    static func accentDisabledFill(accent: Color) -> Color {
+        accent.opacity(0.45)
+    }
+
+    /// 热力图月份定位高亮。
+    static func selectedMonthFill(accent: Color) -> Color {
+        accent.opacity(0.14)
+    }
+
+    /// 心情统计条形的空轨道。
+    static func moodStatTrack(moodColor: Color) -> Color {
+        moodColor.opacity(0.15)
+    }
+
+    /// 首页背景纹理颜色。
+    static func homeTextureColor(accent: Color, mode: ThemeMode) -> Color {
+        accent.opacity(mode == .dark ? 0.10 : 0.14)
+    }
+
+    /// 自定义首页背景图上的画布遮罩。
+    static func customBackgroundOverlay(_ mode: ThemeMode) -> Color {
+        canvasBackground(mode).opacity(mode == .dark ? 0.18 : 0.10)
+    }
+
+    /// 首页顶部 chrome 收起态的材质叠色。
+    static func topChromeOverlay(_ mode: ThemeMode) -> Color {
+        canvasBackground(mode).opacity(0.36)
+    }
+
+    /// 首页热力图上下文底部分隔线。
+    static func heatmapSeparator(_ mode: ThemeMode) -> Color {
+        timelineRail(mode).opacity(0.55)
+    }
+
+    /// FAB 阴影。
+    static let floatingActionShadow = Color.black.opacity(0.20)
+
+    /// 外观页真实预览卡自身容器背景。
+    static func previewBackground(_ mode: ThemeMode) -> Color {
+        sheetPanelBackground(mode)
+    }
+
+    /// 外观页真实预览卡弱描边/弱笔触。
+    static func previewMuted(_ mode: ThemeMode) -> Color {
+        separator(mode)
     }
 }

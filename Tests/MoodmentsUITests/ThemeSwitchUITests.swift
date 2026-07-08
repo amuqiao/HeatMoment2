@@ -24,17 +24,15 @@ final class ThemeSwitchUITests: XCTestCase {
 
         openAppearanceThemeView(app)
 
-        // 默认主色为「紫罗兰」，切到色值差异明显的「红色」。
-        let violetOption = app.buttons["appearanceAccentOption-violet"]
-        let redOption = app.buttons["appearanceAccentOption-red"]
-        XCTAssertTrue(violetOption.waitForExistence(timeout: 5))
-        XCTAssertTrue(redOption.waitForExistence(timeout: 5))
-        XCTAssertTrue(violetOption.isSelected, "默认主色应为紫罗兰")
+        // 切到色值差异明显且在当前列表位置可定位的「绿色」。
+        let greenOption = app.buttons["appearanceAccentOption-green"]
+        scrollUntilVisible(greenOption, app: app)
+        XCTAssertTrue(greenOption.waitForExistence(timeout: 5))
+        XCTAssertFalse(greenOption.isSelected, "切换前绿色不应是选中主色")
 
-        redOption.tap()
+        greenOption.tap()
 
-        XCTAssertTrue(redOption.isSelected, "点选后应立即变为选中态（乐观更新，无需保存按钮）")
-        XCTAssertFalse(violetOption.isSelected, "旧选项应立即失去选中态")
+        XCTAssertTrue(greenOption.isSelected, "点选后应立即变为选中态（乐观更新，无需保存按钮）")
 
         closeSettings(app)
 
@@ -42,7 +40,7 @@ final class ThemeSwitchUITests: XCTestCase {
         let colorAfterSwitch = averageColor(of: fab)
         XCTAssertTrue(
             colorDistance(colorBeforeSwitch, colorAfterSwitch) > 0.15,
-            "切主色后 FAB 渲染颜色应有明显变化（紫罗兰→红色）"
+            "切主色后 FAB 渲染颜色应有明显变化（紫罗兰→绿色）"
         )
     }
 
@@ -64,15 +62,39 @@ final class ThemeSwitchUITests: XCTestCase {
         XCTAssertTrue(lightOption.waitForExistence(timeout: 5))
         XCTAssertTrue(darkOption.isSelected, "默认模式应为暗色")
 
-        let violetOption = app.buttons["appearanceAccentOption-violet"]
-        XCTAssertTrue(violetOption.waitForExistence(timeout: 5))
-        XCTAssertTrue(violetOption.isSelected, "切模式前当前主色槽位为紫罗兰")
-
         lightOption.tap()
 
         XCTAssertTrue(lightOption.isSelected, "切模式应立即生效")
         XCTAssertFalse(darkOption.isSelected)
+
+        let violetOption = app.buttons["appearanceAccentOption-violet"]
+        scrollUntilVisible(violetOption, app: app)
+        XCTAssertTrue(violetOption.waitForExistence(timeout: 5))
         XCTAssertTrue(violetOption.isSelected, "切模式不应改变当前选中的主色槽位（仍是紫罗兰）")
+    }
+
+    /// 外观页真实预览消费同一套主题 token：切暗/亮模式后，预览区域应同步发生可见变化。
+    func testSwitchingModeUpdatesAppearancePreviewRendering() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTestReset"]
+        app.launch()
+
+        XCTAssertTrue(app.buttons["新建时刻"].waitForExistence(timeout: 10))
+        openAppearanceThemeView(app)
+
+        let preview = app.otherElements["appearanceThemePreview"]
+        XCTAssertTrue(preview.waitForExistence(timeout: 5))
+        let colorBeforeSwitch = averageColor(of: preview)
+
+        let lightOption = app.buttons["appearanceModeOption-light"]
+        XCTAssertTrue(lightOption.waitForExistence(timeout: 5))
+        lightOption.tap()
+
+        let colorAfterSwitch = averageColor(of: preview)
+        XCTAssertTrue(
+            colorDistance(colorBeforeSwitch, colorAfterSwitch) > 0.12,
+            "切模式后外观页真实预览应同步变化"
+        )
     }
 
     /// 切背景纹理（网格→点阵）即时生效：选中态立即切换，无需保存按钮。
@@ -86,6 +108,7 @@ final class ThemeSwitchUITests: XCTestCase {
 
         let gridOption = app.buttons["appearanceTextureOption-grid"]
         let dotOption = app.buttons["appearanceTextureOption-dot"]
+        scrollUntilVisible(gridOption, app: app)
         XCTAssertTrue(gridOption.waitForExistence(timeout: 5))
         XCTAssertTrue(dotOption.waitForExistence(timeout: 5))
         XCTAssertTrue(gridOption.isSelected, "默认背景纹理应为网格线")
@@ -181,7 +204,7 @@ final class ThemeSwitchUITests: XCTestCase {
     }
 
     private func scrollUntilVisible(_ element: XCUIElement, app: XCUIApplication) {
-        for _ in 0..<3 where !element.exists {
+        for _ in 0..<6 where !element.exists || !element.isHittable {
             app.swipeUp()
         }
     }

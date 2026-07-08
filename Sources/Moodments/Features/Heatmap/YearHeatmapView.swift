@@ -51,7 +51,7 @@ struct YearHeatmapView: View {
         .background(HomeSceneBackgroundView())
         .overlay(alignment: .bottom) {
             Rectangle()
-                .fill(theme.timelineRail.opacity(0.55))
+                .fill(theme.heatmapSeparator)
                 .frame(height: 0.5)
         }
         .task(id: LoadKey(year: heatmapModel.year, filter: timelineModel.activeFilter)) {
@@ -75,7 +75,7 @@ struct YearHeatmapView: View {
             } label: {
                 Image(systemName: "xmark.circle.fill")
                     .font(.title2)
-                    .foregroundStyle(SemanticColor.secondaryText)
+                    .foregroundStyle(theme.secondaryText)
             }
             .accessibilityLabel(Text("关闭"))
             .accessibilityIdentifier("heatmapCloseButton")
@@ -119,7 +119,7 @@ struct YearHeatmapView: View {
         VStack(spacing: 8) {
             Image(systemName: "moon.stars")
                 .font(.largeTitle)
-                .foregroundStyle(SemanticColor.secondaryText)
+                .foregroundStyle(theme.secondaryText)
             Text("这些天没有日记哦")
                 .font(AppTypography.body)
                 .foregroundStyle(theme.bubbleBodyText)

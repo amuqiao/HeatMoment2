@@ -26,7 +26,7 @@
 | 编辑与就地选择 | `162`、`163`、`165`、`166`、`167`、`168` | 编辑器是任务卡片；情绪、标签、日期、时间是字段级就地选择；照片区有“添加前 CTA / 添加后资产管理”两态。 | 时间 popover 即时回写仍缺窄测试；`164` 暗示标签选择内可 `+添加`，但 2026-07-08 用户已裁决标签创建只归设置页标签管理。 | P1 补日期/时间回写测试；不按设计稿 `164` 在编辑器内新增标签创建入口。 |
 | 统计回看 | `170`、`171`、`178` | 统计页是设置流中的年度回看，不是一级仪表盘；热力图和统计条形共用心情色语义。 | 亮色统计页也需验证心情色和文本可读性。 | 并入 P2 亮色主题验收。 |
 | 设置服务中枢 | `169`、`172` | 设置是支撑能力中枢，不是第二个主场景；标签管理是轻量管理，不是复杂 taxonomy 系统。 | 2026-07-08 用户已裁决设置根页不保留显式“关闭”按钮，依赖系统 sheet 下滑关闭；设置内子页保留系统返回。 | 已同步设计层和 current 层；P1b 后续只继续审计 sheet 深度。 |
-| 外观主题 | `173`、`174` | 外观页应通过预览表达模式、主色、背景和图片展示的真实差异。 | P2a 已补首页主场景背景消费闭环；当前 SwiftUI 外观页仍是 `List` 行 + 勾选，缺少真实预览。 | P2 后续只做外观页真实预览和亮色细节验收。 |
+| 外观主题 | `173`、`174` | 外观页应通过预览表达模式、主色、背景和图片展示的真实差异。 | P2a 已补首页主场景背景消费闭环；P2b 已接入外观页真实预览和 token 消费边界，as-built 见 current。 | P2 后续只做亮色细节视觉验收和页面级漂移精修。 |
 | 关于 / Pro | `175`、`176` | 关于和 Pro 是强制亮色 + 固定红商业/信任语义，不跟随用户主色。 | 原设计稿只有单月订阅；当前契约新增终身买断，双方案视觉仍未裁决。 | 保留 `13-open-questions.md` #15；进入 Paywall 改造前单独裁决。 |
 | 草稿缺席场景 | 无对应图 | 筛选 half-sheet、单条预览卡片、垃圾箱、图片查看器、隐私锁来自后续公理层和设计层抽象。 | 不应因设计稿缺席而削弱这些契约。 | 继续以 `product-mental-model.md`、`docs/design/` 和 `docs/current/` 为准。 |
 
@@ -131,27 +131,26 @@ HeatMoment2 是对 `/Users/admin/Downloads/Code/HeatMoment` 中 Flutter 项目�
 #### Current Baseline
 
 - `docs/design/05-design-system.md` 已定义模式、主色、背景、图片展示、心情色、危险色、系统分组容器等设计契约。
-- SwiftUI 当前实现已通过 `ThemeManager` 暴露 `accent`、`canvasBackground`、`bubbleBackground`、`primaryText`、`sheetBackground`、`heatmapEmptyCell` 等语义色；P2a 已把首页背景设置接入 `HomeSceneBackgroundView`。
-- 旧 Flutter 项目可作为 token 语义参考：它把颜色拆成主舞台、内容表面、文本层级、设置 sheet、设置预览、强调色和危险色；但 SwiftUI 新项目不继承 Flutter 的 `ThemeData`、皮肤 registry、开发者隐藏轴或 widget 结构。
+- P2b 已落地的 token 消费边界和外观页真实预览事实记录在 `docs/current/implementation-truth.md`。
+- 旧 Flutter 项目只作为 token 语义参考；SwiftUI 新项目不继承 Flutter 的 `ThemeData`、皮肤 registry、开发者隐藏轴或 widget 结构。
 
 #### Remaining Gaps
 
-- 当前 SwiftUI token 粒度还不够完整：设置分组行背景、hairline、muted text、preview canvas、preview muted stroke、accent soft、custom image overlay、texture opacity 等语义仍散落在具体 view 或以局部 opacity 表达。
-- 外观页还没有真实预览；用户切换模式、主色、背景、图片展示时，仍主要靠 `List` 文本和勾选理解变化。
-- 亮色适配还缺系统性审计：除 `.normal` 外的亮色心情色仍待真机或设计确认；亮色下部分主色、心情色、热力图空格、统计条形和文字/白卡组合需要避免低对比或误把图形色用于文字。
+- About 固定亮色、图片查看器固定黑底、Paywall 固定红/亮色漂移不混入 P2b token 闭环，后续按各自页面边界单独处理。
+- 亮色适配还缺系统性截图审计：除 `.normal` 外的亮色心情色仍待真机或设计确认；亮色下部分主色、心情色、热力图空格、统计条形和文字/白卡组合需要避免低对比或误把图形色用于文字。
+- 外观页真实预览已接入，但仍需在后续视觉验收中确认不同屏宽、亮色模式和自定义背景图片下的排版/对比。
 
 #### Planned Work
 
-- 在 SwiftUI 侧补一个轻量 token 层，而不是复制 Flutter 配置系统：优先扩展 `SemanticColor` / `ThemeManager` 的语义访问面，形成 `theme` 可直接消费的 token，如 `sheetPanelBackground`、`separator`、`secondaryText`、`mutedText`、`accentSoft`、`previewBackground`、`previewMuted`、`homeTextureColor`、`customBackgroundOverlay`。
-- 建立 token 使用边界：新增 UI 不直接写 `Color(hex:)`、裸十六进制、随手 opacity 或把 `SemanticColor.secondaryText` 到处散用；颜色应先归入“主舞台 / 系统分组容器 / 文字层级 / 强调动作 / 数据心情色 / 危险动作 / 外观预览”之一，再经 `ThemeManager` 或专用 preview token 消费。
-- 外观页新增一个真实预览区，消费同一套 SwiftUI token：预览中至少包含主画布背景、纹理/自定义背景状态、气泡表面、主文字、副文字、当前主色行动点、一个心情节点和一个热力图空格样本。预览不新增业务状态，不进入 `AppRouter`。
-- 外观页选项仍保持原生 `List` / `Section` 心智；预览卡只封装小型视觉样本，不把首页完整时间轴或 Flutter 皮肤系统搬进设置页。
-- 浅色适配精修按 token 面推进：先校准 token，再替换散落消费，再用截图和窄测试确认首页、设置/外观、热力图、统计、编辑器基础可读性。
+- 保持 token 使用边界：新增 UI 不直接写 `Color(hex:)`、裸十六进制、随手 opacity 或把 `SemanticColor.secondaryText` 到处散用；颜色应先归入“主舞台 / 系统分组容器 / 文字层级 / 强调动作 / 数据心情色 / 危险动作 / 外观预览”之一，再经 `ThemeManager` 或专用 preview token 消费。
+- 浅色适配精修按 token 面推进：用截图和窄测试确认首页、设置/外观、热力图、统计、编辑器基础可读性；发现问题时先校准 token，再替换散落消费。
+- Paywall 视觉漂移单独评估：若按设计恢复固定亮色 + 固定红，不应复用普通 `theme.accent` 语义。
 
 #### Acceptance
 
 - 代码层新增颜色消费时，除设计系统内部定义外，不新增裸十六进制色值；已有 P2 触达范围内的颜色优先通过 `ThemeManager` token 消费。
-- 外观页预览和真实首页/设置/热力图组件消费同一套 token；切换模式、主色、背景后，预览与实际界面同步变化。
+- 外观页预览和真实首页/设置/热力图组件消费同一套 token；切换模式或主色后，预览与已接入的真实界面元素同步变化。当前已有定向 UI 测试覆盖切模式后预览同步变化。
+- 背景轴验收只覆盖首页主场景和首页热力图上下文；设置页、编辑器 sheet、气泡卡片和其它系统分组页面不得为了通过预览验收而继承 `HomeSceneBackgroundView`。
 - 浅色截图能确认主文字、副文字、气泡表面、时间轴轨道、心情节点、热力图空格、统计条形和设置页分组在亮色模式下可读且语义不混。
 - 主色仍只影响行动、选中、聚焦和背景纹理等强调语义；心情色、危险色、内容文字和中性基底不被主色污染。
 - 关闭本计划前，P2b 的 as-built 事实必须移入 `docs/current/implementation-truth.md` 或相邻 current 文档；计划层只保留验收证据。

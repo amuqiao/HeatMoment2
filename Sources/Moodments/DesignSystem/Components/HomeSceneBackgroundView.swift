@@ -21,9 +21,9 @@ struct HomeSceneBackgroundView: View {
     private var backgroundContent: some View {
         switch theme.backgroundTexture {
         case .grid:
-            GridTextureLayer(color: textureColor)
+            GridTextureLayer(color: theme.homeTextureColor)
         case .dot:
-            DotTextureLayer(color: textureColor)
+            DotTextureLayer(color: theme.homeTextureColor)
         case .none:
             EmptyView()
         case .customImage:
@@ -44,18 +44,10 @@ struct HomeSceneBackgroundView: View {
                         .frame(width: proxy.size.width, height: proxy.size.height)
                         .clipped()
                         .id(theme.customBackgroundImageRevision)
-                        .overlay(theme.canvasBackground.opacity(customImageOverlayOpacity))
+                        .overlay(theme.customBackgroundOverlay)
                 }
             }
         }
-    }
-
-    private var textureColor: Color {
-        theme.accent.opacity(theme.mode == .dark ? 0.10 : 0.14)
-    }
-
-    private var customImageOverlayOpacity: CGFloat {
-        theme.mode == .dark ? 0.18 : 0.10
     }
 }
 

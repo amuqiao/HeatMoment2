@@ -139,7 +139,7 @@ struct MomentEditorView: View {
                     .foregroundStyle(theme.primaryText)
                 Image(systemName: "chevron.down")
                     .font(.caption)
-                    .foregroundStyle(SemanticColor.secondaryText)
+                    .foregroundStyle(theme.secondaryText)
             }
         }
         .accessibilityIdentifier("editorMoodRow")
@@ -162,7 +162,7 @@ struct MomentEditorView: View {
                 Text(tagSummaryText).foregroundStyle(theme.primaryText)
                 Image(systemName: "chevron.down")
                     .font(.caption)
-                    .foregroundStyle(SemanticColor.secondaryText)
+                    .foregroundStyle(theme.secondaryText)
             }
         }
         .accessibilityIdentifier("editorTagRow")

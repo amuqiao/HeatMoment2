@@ -38,7 +38,7 @@ struct TimelineHomeChromeView: View {
         } else if isTitleCollapsed {
             Rectangle()
                 .fill(.ultraThinMaterial)
-                .overlay(theme.canvasBackground.opacity(0.36))
+                .overlay(theme.topChromeOverlay)
                 .ignoresSafeArea(edges: .top)
         } else {
             Color.clear.ignoresSafeArea(edges: .top)

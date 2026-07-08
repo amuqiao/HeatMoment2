@@ -211,6 +211,15 @@ final class ThemeManager {
     /// `accent`（见 05 §5.3.5：危险色与主色解耦、不跟随主题）。
     var danger: Color { SemanticColor.danger }
 
+    /// 强调色实底上的文字/图标。
+    var onAccentText: Color { SemanticColor.onAccentText }
+
+    /// 强调色实底上的弱化说明文字。
+    var onAccentSecondaryText: Color { SemanticColor.onAccentSecondaryText }
+
+    /// 危险色实底上的文字/图标。
+    var onDangerText: Color { SemanticColor.onDangerText }
+
     /// 画布背景色（见 05 §5.2.1）。
     var canvasBackground: Color { SemanticColor.canvasBackground(mode) }
 
@@ -232,12 +241,59 @@ final class ThemeManager {
     /// 一级文字色。
     var primaryText: Color { SemanticColor.primaryText(mode) }
 
+    /// 二级文字色。
+    var secondaryText: Color { SemanticColor.secondaryText }
+
+    /// 弱提示/禁用文字色。
+    var mutedText: Color { SemanticColor.mutedText }
+
     /// 顶部三入口图标的中性描边色（不跟随主色）。
     var neutralIconStroke: Color { SemanticColor.neutralIconStroke(mode) }
 
     /// Sheet 顶层背景色（编辑器/设置等系统分组容器，见 §5.2.2）。
     var sheetBackground: Color { SemanticColor.sheetBackground(mode) }
 
+    /// Sheet 内分组面板背景。
+    var sheetPanelBackground: Color { SemanticColor.sheetPanelBackground(mode) }
+
+    /// 分隔线/hairline。
+    var separator: Color { SemanticColor.separator(mode) }
+
     /// 热力图/心情统计「无记录」日期格底色（见 §5.7）。
     var heatmapEmptyCell: Color { SemanticColor.heatmapEmptyCell(mode) }
+
+    /// 选中行/选中 chip 的主色弱填充。
+    var selectionFill: Color { SemanticColor.selectionFill(accent: accent) }
+
+    /// 禁用态主按钮填充。
+    var accentDisabledFill: Color { SemanticColor.accentDisabledFill(accent: accent) }
+
+    /// 热力图月份定位高亮。
+    var selectedMonthFill: Color { SemanticColor.selectedMonthFill(accent: accent) }
+
+    /// 首页背景纹理颜色。
+    var homeTextureColor: Color { SemanticColor.homeTextureColor(accent: accent, mode: mode) }
+
+    /// 自定义首页背景图上的画布遮罩。
+    var customBackgroundOverlay: Color { SemanticColor.customBackgroundOverlay(mode) }
+
+    /// 首页顶部 chrome 收起态的材质叠色。
+    var topChromeOverlay: Color { SemanticColor.topChromeOverlay(mode) }
+
+    /// 首页热力图上下文底部分隔线。
+    var heatmapSeparator: Color { SemanticColor.heatmapSeparator(mode) }
+
+    /// FAB 阴影。
+    var floatingActionShadow: Color { SemanticColor.floatingActionShadow }
+
+    /// 外观页真实预览卡自身容器背景。
+    var previewBackground: Color { SemanticColor.previewBackground(mode) }
+
+    /// 外观页真实预览卡弱描边/弱笔触。
+    var previewMuted: Color { SemanticColor.previewMuted(mode) }
+
+    /// 心情统计条形的空轨道。
+    func moodStatTrack(_ mood: Mood) -> Color {
+        SemanticColor.moodStatTrack(moodColor: moodColor(mood))
+    }
 }

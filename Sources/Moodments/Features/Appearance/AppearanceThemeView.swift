@@ -58,6 +58,12 @@ struct AppearanceThemeView: View {
                 }
             }
 
+            Section("预览") {
+                AppearanceThemePreviewView()
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+            }
+
             Section("模式") {
                 modeRow(.dark, label: "暗色")
                 modeRow(.light, label: "亮色")
@@ -226,6 +232,95 @@ struct AppearanceThemeView: View {
         } catch {
             theme.markAppearanceSaveFailed()
             assertionFailure("自定义背景图片读取失败：\(error)")
+        }
+    }
+}
+
+private struct AppearanceThemePreviewView: View {
+    @Environment(ThemeManager.self) private var theme
+
+    private static var heatmapPreviewMoods: [Mood?] {
+        [.normal, nil, .happy, .motivated] + [nil, .sad, .normal, nil]
+    }
+
+    var body: some View {
+        ZStack {
+            HomeSceneBackgroundView()
+            VStack(alignment: .leading, spacing: 12) {
+                header
+                timelineSample
+            }
+            .padding(14)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: theme.imageDisplayMode == .carousel ? 332 : 268)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(theme.previewMuted, lineWidth: 0.5)
+        )
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text("外观预览"))
+        .accessibilityValue(Text("展示当前模式、主色、背景纹理和图片展示效果"))
+        .accessibilityIdentifier("appearanceThemePreview")
+    }
+
+    private var header: some View {
+        HStack(spacing: 10) {
+            Text("时刻")
+                .font(.headline.weight(.semibold))
+                .foregroundStyle(theme.primaryText)
+            Spacer()
+            Circle()
+                .fill(theme.accent)
+                .frame(width: 30, height: 30)
+                .overlay(
+                    Image(systemName: "plus")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(theme.onAccentText)
+                )
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(theme.sheetPanelBackground)
+        )
+    }
+
+    private var timelineSample: some View {
+        HStack(alignment: .top, spacing: 12) {
+            VStack(spacing: 6) {
+                MoodNodeView(mood: .normal, diameter: 13)
+                Rectangle()
+                    .fill(theme.timelineRail)
+                    .frame(width: 2, height: 92)
+                RoundedRectangle(cornerRadius: 3, style: .continuous)
+                    .fill(theme.heatmapEmptyCell)
+                    .frame(width: 13, height: 13)
+            }
+            .frame(width: 18)
+
+            VStack(alignment: .leading, spacing: 10) {
+                BubbleCardView(
+                    title: "今天的心情",
+                    bodyText: "记录当下状态",
+                    tagNames: [],
+                    placeholderImageHexColors: [0xB678F5, 0x15BEB4, 0xB17521],
+                    tailGeometry: BubbleTailGeometry(size: .zero, horizontalOffset: 0)
+                )
+                heatmapSample
+            }
+        }
+    }
+
+    private var heatmapSample: some View {
+        HStack(spacing: 4) {
+            ForEach(Array(Self.heatmapPreviewMoods.enumerated()), id: \.offset) { _, mood in
+                RoundedRectangle(cornerRadius: 3, style: .continuous)
+                    .fill(mood.map { theme.moodColor($0) } ?? theme.heatmapEmptyCell)
+                    .frame(width: 13, height: 13)
+            }
         }
     }
 }

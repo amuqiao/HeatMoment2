@@ -34,7 +34,7 @@ struct MoodPickerView: View {
                     // 一个零面积矩形（曾在 UI 测试中复现为 XCUITest 无法计算有效命中点）；
                     // `contentShape` 确保整行（含空白区）而非仅文字/背景绘制区域可点击。
                     .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
-                    .background(mood == selectedMood ? theme.accent.opacity(0.08) : Color.clear)
+                    .background(mood == selectedMood ? theme.selectionFill : Color.clear)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)

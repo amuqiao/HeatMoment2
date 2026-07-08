@@ -111,19 +111,33 @@ TimelineHomeView.timelineFilterSheet
 
 当前外观设置的落地边界：
 
-- 模式、主色会影响已接入 `ThemeManager` 的背景、文字、气泡、chip、热力图空格、顶栏图标描边等。
+- `ThemeManager` 是运行时主题 token 消费入口；`SemanticColor` / `MoodColorPalette` / `AccentColorOption` 仍是定义层。业务 view 不直接新增十六进制色值，P2b 触达范围内的二级文字、弱提示、强调色前景、选中弱填充、禁用强调填充、热力图月份高亮、首页纹理色、自定义背景遮罩、顶部 chrome 叠色、热力图分隔线和预览外框均经 `theme.*` 消费。
+- 模式、主色会影响已接入 `ThemeManager` 的背景、文字、气泡、chip、热力图空格、顶栏图标描边、首页背景纹理和外观页真实预览等。
 - 心情色通过 `theme.moodColor(_:)` 解析，不读取主色。
 - 危险色通过 `theme.danger` 解析，不读取主色。
 - `backgroundTexture` 已驱动首页主场景背景，`HomeSceneBackgroundView` 统一渲染网格线、点阵、无和自定义图片；作用范围包括时间轴背后区域、顶部 chrome 展开态和首页热力图上下文，不作用于设置页、编辑器 sheet、气泡卡片或其它页面。
 - 自定义背景图片由 `AppearanceThemeView` 通过系统 `PhotosPicker` 选择，`ThemeManager` 在后台压缩后写入 `AppearanceStore` 暴露的 Application Support 固定文件；写入成功后才切到 `.customImage`，写入失败不改变当前背景。UI 测试下使用 `-uiTestBackgroundImageInjection` 暴露调试注入按钮。
 - `imageDisplayMode` 已有 UI、状态和持久化，并驱动时间轴气泡图片区在横向缩略图布局和轮播布局之间切换；它只改变照片展示行为，不改变主题颜色语义。
+- `AppearanceThemeView` 顶部已有真实预览区，预览内部消费 `HomeSceneBackgroundView`、`BubbleCardView`、`theme.accent`、`theme.moodColor(_:)`、`theme.heatmapEmptyCell` 等真实运行时路径；`BubbleCardView` 内部继续复用真实气泡背景、文字、chip 和图片展示模式。`previewBackground` / `previewMuted` 只用于预览卡自身容器和描边。预览不进入 `AppRouter`，仍保留外观页原生 `List` / `Section` 心智。
 
 ## 与设计层的已知漂移
 
 | 漂移 | 当前事实 | 当前影响 |
 | --- | --- | --- |
-| 外观页预览 | 代码当前是 `List` 行 + 勾选。 | 主题效果主要通过文字行表达，缺少真实预览。 |
 | 亮色心情色 | 亮色下除 `.normal` 外仍沿用暗色推导值。 | 不影响主色独立性；亮色效果缺少独立取色事实。 |
+
+## P2b 验证事实
+
+2026-07-08 已运行：
+
+```sh
+./scripts/test.sh --only MoodmentsTests/ThemeManagerTests
+./scripts/test.sh --only MoodmentsUITests/ThemeSwitchUITests/testSwitchingModeUpdatesAppearancePreviewRendering
+./scripts/test.sh --only MoodmentsUITests/ThemeSwitchUITests
+./scripts/verify.sh
+```
+
+结果：`ThemeManagerTests` 执行 5 个测试、0 失败，覆盖自定义背景图写入/修正与新增主题 token 解析；`ThemeSwitchUITests` 执行 6 个测试、0 失败，覆盖切换亮/暗、主色、背景纹理、自定义背景图、图片展示模式和新增外观页真实预览同步；最终 `./scripts/verify.sh` 全部通过。
 
 ## P0 验证事实
 

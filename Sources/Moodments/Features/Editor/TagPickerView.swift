@@ -33,7 +33,7 @@ struct TagPickerView: View {
                     // 见 `MoodPickerView` 同类注释：撑满行宽 + 显式命中形状，避免 `Spacer()`
                     // 在未约束宽度的 popover 内容中退化为零宽、导致行不可命中。
                     .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                    .background(isSelected ? theme.accent.opacity(0.08) : Color.clear)
+                    .background(isSelected ? theme.selectionFill : Color.clear)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)

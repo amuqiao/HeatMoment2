@@ -79,7 +79,7 @@ struct EditorPhotoSection: View {
         } label: {
             Text("添加照片")
                 .font(AppTypography.button)
-                .foregroundStyle(.white)
+                .foregroundStyle(theme.onAccentText)
                 .frame(maxWidth: .infinity)
                 .frame(height: 48)
                 .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(theme.accent))
@@ -118,7 +118,7 @@ struct EditorPhotoSection: View {
             } label: {
                 Image(systemName: "minus.circle.fill")
                     .symbolRenderingMode(.palette)
-                    .foregroundStyle(.white, SemanticColor.danger)
+                    .foregroundStyle(theme.onDangerText, theme.danger)
             }
             .offset(x: 6, y: -6)
             .accessibilityLabel(Text("删除该照片"))

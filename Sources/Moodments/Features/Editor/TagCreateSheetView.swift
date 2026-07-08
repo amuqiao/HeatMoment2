@@ -88,7 +88,7 @@ struct TagCreateSheetView: View {
                 } label: {
                     Text("保存")
                         .font(AppTypography.button)
-                        .foregroundStyle(.white)
+                        .foregroundStyle(theme.onAccentText)
                         .frame(maxWidth: .infinity, minHeight: 56)
                         .background(
                             RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -116,7 +116,7 @@ struct TagCreateSheetView: View {
                 .frame(width: 34, height: 34)
                 .background(
                     RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(SemanticColor.secondaryText)
+                        .fill(theme.secondaryText)
                 )
 
             Text(editing == nil ? "标签名称" : "重命名标签")
@@ -129,7 +129,7 @@ struct TagCreateSheetView: View {
     }
 
     private var saveButtonFill: Color {
-        trimmedName.isEmpty || isSaving ? theme.accent.opacity(0.45) : theme.accent
+        trimmedName.isEmpty || isSaving ? theme.accentDisabledFill : theme.accent
     }
 
     private func save() async {

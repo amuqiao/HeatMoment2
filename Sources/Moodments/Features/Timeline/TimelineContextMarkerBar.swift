@@ -79,7 +79,7 @@ struct TimelineContextMarkerBar: View {
             } label: {
                 Image(systemName: "xmark.circle.fill")
                     .font(.caption)
-                    .foregroundStyle(SemanticColor.secondaryText)
+                    .foregroundStyle(theme.secondaryText)
             }
             .accessibilityLabel(Text("移除条件 \(text)"))
         }

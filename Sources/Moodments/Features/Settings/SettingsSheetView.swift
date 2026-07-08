@@ -70,7 +70,7 @@ struct SettingsSheetView: View {
                 Section {
                     Text("版本 \(Self.versionText)")
                         .font(AppTypography.caption)
-                        .foregroundStyle(SemanticColor.secondaryText)
+                        .foregroundStyle(theme.secondaryText)
                         .frame(maxWidth: .infinity, alignment: .center)
                 }
                 .listRowBackground(Color.clear)
@@ -99,14 +99,14 @@ struct SettingsSheetView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(subscriptionService.isPro ? "你已是 Pro 会员" : "立即升级成为 Pro 用户")
                     .font(AppTypography.cardTitle)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(theme.onAccentText)
                 Text(
                     subscriptionService.isPro
                         ? "已解锁无限日记、无限照片、无限标签"
                         : "解锁无限日记、无限照片、无限标签"
                 )
                 .font(AppTypography.caption)
-                .foregroundStyle(.white.opacity(0.85))
+                .foregroundStyle(theme.onAccentSecondaryText)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(16)
@@ -131,7 +131,7 @@ struct SettingsSheetView: View {
             Spacer()
             Text(syncStatusService.status.displayText)
                 .font(AppTypography.caption)
-                .foregroundStyle(SemanticColor.secondaryText)
+                .foregroundStyle(theme.secondaryText)
         }
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("settingsICloudRow")
@@ -163,11 +163,11 @@ struct SettingsSheetView: View {
 
     private func disabledPlaceholderRow(title: String, identifier: String) -> some View {
         HStack {
-            Text(title).foregroundStyle(SemanticColor.secondaryText)
+            Text(title).foregroundStyle(theme.mutedText)
             Spacer()
             Text("即将推出")
                 .font(AppTypography.caption)
-                .foregroundStyle(SemanticColor.secondaryText)
+                .foregroundStyle(theme.mutedText)
         }
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier(identifier)
