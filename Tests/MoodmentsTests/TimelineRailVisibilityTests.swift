@@ -2,31 +2,31 @@ import XCTest
 @testable import Moodments
 
 final class TimelineRailVisibilityTests: XCTestCase {
-    func testFilteredEmptyStateDoesNotRenderRailRows() {
+    func testFilteredEmptyStateDoesNotRenderSceneRail() {
         let visibility = TimelineRailVisibility.resolve(
             visibleReadingUnitCount: 0,
             isFilteredEmpty: true
         )
 
-        XCTAssertFalse(visibility.showsRailRows)
+        XCTAssertFalse(visibility.showsRail)
     }
 
-    func testVisibleMomentsRenderRailRows() {
+    func testVisibleMomentsRenderSceneRail() {
         let visibility = TimelineRailVisibility.resolve(
             visibleReadingUnitCount: 3,
             isFilteredEmpty: false
         )
 
-        XCTAssertTrue(visibility.showsRailRows)
+        XCTAssertTrue(visibility.showsRail)
     }
 
-    func testUnfilteredGuidedReadingUnitsRenderRailRows() {
+    func testUnfilteredGuidedReadingUnitsRenderSceneRail() {
         let visibility = TimelineRailVisibility.resolve(
             visibleReadingUnitCount: GuidedMoment.all.count,
             isFilteredEmpty: false
         )
 
-        XCTAssertTrue(visibility.showsRailRows)
+        XCTAssertTrue(visibility.showsRail)
     }
 
     func testEmptyNonFilteredViewportDoesNotLeaveOrphanRail() {
@@ -35,6 +35,6 @@ final class TimelineRailVisibilityTests: XCTestCase {
             isFilteredEmpty: false
         )
 
-        XCTAssertFalse(visibility.showsRailRows)
+        XCTAssertFalse(visibility.showsRail)
     }
 }

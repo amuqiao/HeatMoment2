@@ -30,6 +30,18 @@ final class TimelineGeometryTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(geometry.titleToRailTopSpacing, 8)
     }
 
+    func testSceneRailStartsAboveFirstReadingUnitNode() {
+        let geometry = TimelineGeometry.standard
+        let measuredRailTopY: CGFloat = 248
+        let firstNodeCenterY = geometry.firstNodeCenterY(railTopY: measuredRailTopY)
+
+        XCTAssertLessThan(measuredRailTopY, firstNodeCenterY)
+        XCTAssertGreaterThanOrEqual(
+            firstNodeCenterY - measuredRailTopY,
+            geometry.railLeadInHeight
+        )
+    }
+
     func testLeadInHeightPlacesFirstNodeAtConfiguredOffset() {
         let geometry = TimelineGeometry.standard
 
@@ -50,23 +62,40 @@ final class TimelineGeometryTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(geometry.railBottomOvershoot, 200)
     }
 
-    func testRailBackgroundAndNodeShareTheSameRowBackgroundCoordinate() {
+    func testMeasuredRailBoundsUseTopAndBottomAnchors() {
+        let bounds = TimelineRailSceneBounds(topY: 120, bottomY: 620)
+
+        XCTAssertEqual(bounds.height, 500)
+        XCTAssertEqual(bounds.midY, 370)
+    }
+
+    func testRailBoundsPreferenceCombinesTopAndBottomReports() {
+        var preference = TimelineRailBoundsPreference(edge: .top, frame: CGRect(x: 0, y: 120, width: 1, height: 30))
+
+        TimelineRailBoundsPreferenceKey.reduce(value: &preference) {
+            TimelineRailBoundsPreference(edge: .bottom, frame: CGRect(x: 0, y: 700, width: 1, height: 80))
+        }
+
+        XCTAssertEqual(preference.bounds, TimelineRailSceneBounds(topY: 120, bottomY: 780))
+    }
+
+    func testSceneRailAndNodeShareTheSameViewportCoordinate() {
         let geometry = TimelineGeometry.standard
 
         XCTAssertEqual(
             geometry.railCenterXInViewport,
-            geometry.nodeCenterXInListRow
+            geometry.nodeCenterXInViewport
         )
     }
 
-    func testMovingTimelineHorizontalInsetMovesWholeReadingUnitAndRailTogether() {
+    func testMovingTimelineHorizontalInsetMovesReadingUnitAndSceneRailTogether() {
         let base = TimelineGeometry.standard
         let moved = TimelineGeometry(listHorizontalInset: base.listHorizontalInset + 14)
 
         XCTAssertEqual(moved.rowInsets.leading, base.rowInsets.leading + 14)
         XCTAssertEqual(
-            moved.nodeCenterXInListRow,
-            base.nodeCenterXInListRow + 14
+            moved.nodeCenterXInViewport,
+            base.nodeCenterXInViewport + 14
         )
         XCTAssertEqual(
             moved.railCenterXInViewport,

@@ -35,9 +35,9 @@ TimelineDateColumn
   -> BubbleCardView
 ```
 
-`TimelineGeometry` 是首页时间轴坐标系统的单一来源，把时间轴视为主页滚动场景中的局部坐标轴：`listHorizontalInset` 定义整条阅读单元的行内缩进，`dateColumnWidth` / `interColumnSpacing` / `nodeColumnWidth` 定义日期列、节点列和气泡列的横向关系，`nodeCenterXInReadingUnit` / `nodeCenterXInListRow` / `railCenterXInViewport` 定义节点中心与视口轨道的 x 绑定，`titleToRailTopSpacing` 定义展开态标题底部到默认态轨道顶点的呼吸间隔，`firstNodeCenterYOffsetFromRailTop` 定义默认态轨道顶点到第一条 Moment 心情节点中心的向下 y 偏移，`railLeadInHeight` 定义轨道顶点和第一条阅读单元之间的呼吸空间，`railBottomOvershoot` 定义最后一条 Moment 之后继续延伸的轨道长度，`nodeCenterY` / `bubbleTailCenterY` 定义心情节点和气泡尾巴之间的纵向锚定关系，`bubbleTailSize` / `bubbleTailHorizontalOffset` 定义气泡尾巴自身几何。默认态轨道顶点由标题行底部留白和 lead-in 行共同形成，第一条阅读单元只消费这个合同，不再反推或上报轨道位置。后续如果要移动时间轴位置、调整日期列、节点列或气泡尾巴关系，优先改这个几何基准，而不是在多个对象里改散落 padding。
+`TimelineGeometry` 是首页时间轴坐标系统的单一来源，把时间轴视为主页滚动场景中的局部坐标轴：`listHorizontalInset` 定义整条阅读单元的行内缩进，`dateColumnWidth` / `interColumnSpacing` / `nodeColumnWidth` 定义日期列、节点列和气泡列的横向关系，`readingUnitOriginX` / `nodeCenterXInReadingUnit` / `nodeCenterXInViewport` / `railCenterXInViewport` 定义节点中心与视口轨道的 x 绑定，`titleToRailTopSpacing` 定义展开态标题底部到默认态轨道顶点的呼吸间隔，`firstNodeCenterYOffsetFromRailTop` 定义默认态轨道顶点到第一条 Moment 心情节点中心的向下 y 偏移，`railLeadInHeight` 定义轨道顶点和第一条阅读单元之间的呼吸空间，`railBottomOvershoot` 定义最后一条 Moment 之后继续延伸的轨道长度，`nodeCenterY` / `bubbleTailCenterY` 定义心情节点和气泡尾巴之间的纵向锚定关系，`bubbleTailSize` / `bubbleTailHorizontalOffset` 定义气泡尾巴自身几何。场景轨道的实际顶点和底端由 `TimelineRailBoundsReporter` 分别测量 lead-in 行顶部和 bottom overshoot 行底部，再通过 `overlayPreferenceValue` 传给 `TimelineRailSceneLayer`，避免顶部 chrome、热力图、上下文标记高度或记录数量变化时依赖固定 y 常量。后续如果要移动时间轴位置、调整日期列、节点列或气泡尾巴关系，优先改这个几何基准，而不是在多个对象里改散落 padding。
 
-`TimelineViewportView` 使用 `ScrollViewReader + List` 承载成熟滚动、定位和行级 swipe action。连续轨道由 `TimelineRailRowBackground` 作为 `listRowBackground` 绘制在 lead-in、记录行和底部 overshoot 中；日期列、心情节点和气泡是行前景阅读单元。`TimelineRailVisibility` 决定是否渲染这些轨道行：只有存在可见阅读单元时才画轨道；筛选后 0 条命中时只显示空态文案，不渲染 lead-in 或 bottom overshoot，避免出现没有日期、节点、气泡归属的孤立竖线。轨道背景层不属于可横向滑动的阅读单元内容，因此左滑删除时系统只移动日期、节点和气泡，轨道不会被 row swipe 容器移动、裁剪或切断。这个实现避免了 UIKit-backed `List` 遮挡外部 sibling overlay 的问题，也不依赖透明空行透出。滚动监听在 iOS 18+ 使用 SwiftUI `onScrollGeometryChange`，iOS 17 使用挂在 `List` 自身的零尺寸 `TimelineScrollOffsetReader` 读取承载 `UIScrollView`；这条读取链路只驱动标题折叠，不反推轨道 x 坐标或节点位置。
+`TimelineViewportView` 使用 `ScrollViewReader + List` 承载成熟滚动、定位和行级 swipe action。连续轨道由 `TimelineRailSceneLayer` 作为 viewport 场景层绘制，不属于任何 `List` row、阅读单元或气泡；日期列、心情节点和气泡是行前景阅读单元。`TimelineRailVisibility` 决定是否渲染场景轨道：只有存在可见阅读单元时才画轨道；筛选后 0 条命中时只显示空态文案，不渲染轨道或 lead-in / bottom overshoot，避免出现没有日期、节点、气泡归属的孤立竖线。轨道场景层不参与 `List` 行级 `.swipeActions`，因此左滑删除时系统移动日期、节点和气泡这个阅读单元，轨道不会被 row swipe 容器移动、裁剪或切断。滚动监听在 iOS 18+ 使用 SwiftUI `onScrollGeometryChange`，iOS 17 使用挂在 `List` 自身的零尺寸 `TimelineScrollOffsetReader` 读取承载 `UIScrollView`；这条读取链路只驱动标题折叠，不反推轨道 x 坐标或节点位置。
 
 `TimelineRowView` 只承载日期列、心情节点和气泡组成的阅读单元。左滑删除由 SwiftUI `List` 行的 `.swipeActions(edge: .trailing, allowsFullSwipe: true)` 提供，所以轻扫露出删除按钮、继续左滑按钮拉长并触发删除都交给系统成熟组件；连续时间轴轨道不参与横向位移。节点中心、气泡尾巴中心和尾巴尺寸/偏移由 `TimelineGeometry` 约束，再传入 `BubbleCardView`；当前代码结构已经把轨道、日期列、节点列和气泡列放到同一坐标系统中，并提供尾巴指向时间线的实现路径。
 
@@ -142,7 +142,7 @@ TimelineHomeView.timelineFilterSheet
 仍未由自动化证明的 P0 / 架构稳定视觉项：
 
 - 模拟器/真机截图中节点中心、气泡尾巴和时间轴竖线是否形成足够明确的绑定。
-- 左滑删除过程中系统 `.swipeActions` 的视觉位移是否满足“阅读单元整体从轨道移走、轨道背景保持连续”的边界；若需微调，只能限制在行操作层，不回退到行内轨道或 probe。
+- 左滑删除过程中系统 `.swipeActions` 的视觉位移是否满足“阅读单元整体从轨道移走、场景轨道保持连续”的边界；若需微调，只能限制在 viewport / row 边界，不回退到行内轨道或 probe。
 - 热力图顶部上下文区在不同屏宽和明暗主题下是否足够像主页上下文，而不是漂浮卡片。
 
 2026-07-07 追加运行：
@@ -162,7 +162,7 @@ TimelineHomeView.timelineFilterSheet
 ./scripts/lint.sh
 ```
 
-结果：`MomentCardLayoutTests` 执行 4 个测试、0 失败；`TimelineGeometryTests` 执行 10 个测试、0 失败；`TimelineRailVisibilityTests` 执行 4 个测试、0 失败，覆盖筛选空态不渲染孤立轨道、真实记录和未筛选引导记录仍渲染轨道；四条 `DeleteRestorePurgeUITests` 定向 UI 用例均通过，覆盖首页左滑软删除进垃圾箱、横向缩略图和轮播图片区横向手势不触发行级删除、非图片区仍可露出系统删除按钮，以及预览卡片不是 push 页面；筛选空态 UI 和未筛选引导空态 UI 均通过。`build` 通过；`lint` 通过并保留既有 warning。
+结果：`MomentCardLayoutTests` 执行 4 个测试、0 失败；`TimelineGeometryTests` 执行 13 个测试、0 失败；`TimelineRailVisibilityTests` 执行 4 个测试、0 失败，覆盖筛选空态不渲染孤立轨道、真实记录和未筛选引导记录仍渲染轨道；四条 `DeleteRestorePurgeUITests` 定向 UI 用例均通过，覆盖首页左滑软删除进垃圾箱、横向缩略图和轮播图片区横向手势不触发行级删除、非图片区仍可露出系统删除按钮，以及预览卡片不是 push 页面；筛选空态 UI 和未筛选引导空态 UI 均通过。`build` 通过；`lint` 通过并保留既有 warning。
 
 ## Flutter 版只作为语义输入
 

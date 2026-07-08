@@ -43,9 +43,9 @@ final class MomentCardLayoutTests: XCTestCase {
         )
     }
 
-    func testTimelineBubbleStillUsesTheSameNodeAndRailCoordinate() {
+    func testTimelineBubbleStillUsesTheSameNodeAndSceneRailCoordinate() {
         let geometry = TimelineGeometry.standard
 
-        XCTAssertEqual(geometry.railCenterXInViewport, geometry.nodeCenterXInListRow)
+        XCTAssertEqual(geometry.railCenterXInViewport, geometry.nodeCenterXInViewport)
     }
 }

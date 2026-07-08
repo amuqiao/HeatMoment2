@@ -1,6 +1,80 @@
 import SwiftUI
 import UIKit
 
+/// 场景轨道在 viewport 坐标系中的实测边界。
+///
+/// 轨道顶点和底端必须由真实布局测量得出，不能写成固定 magic number；否则顶部 chrome、
+/// 热力图、上下文标记或记录数量变化时，轨道会重新错位或留下无归属残线。
+struct TimelineRailSceneBounds: Equatable {
+    let topY: CGFloat
+    let bottomY: CGFloat
+
+    var height: CGFloat {
+        max(0, bottomY - topY)
+    }
+
+    var midY: CGFloat {
+        topY + height / 2
+    }
+}
+
+struct TimelineRailBoundsReporter: View {
+    let coordinateSpaceName: String
+    let edge: TimelineRailMeasuredEdge
+
+    var body: some View {
+        GeometryReader { proxy in
+            let frame = proxy.frame(in: .named(coordinateSpaceName))
+            Color.clear.preference(
+                key: TimelineRailBoundsPreferenceKey.self,
+                value: TimelineRailBoundsPreference(edge: edge, frame: frame)
+            )
+        }
+    }
+}
+
+enum TimelineRailMeasuredEdge {
+    case top
+    case bottom
+}
+
+struct TimelineRailBoundsPreference: Equatable {
+    var topY: CGFloat?
+    var bottomY: CGFloat?
+
+    init(topY: CGFloat? = nil, bottomY: CGFloat? = nil) {
+        self.topY = topY
+        self.bottomY = bottomY
+    }
+
+    init(edge: TimelineRailMeasuredEdge, frame: CGRect) {
+        switch edge {
+        case .top:
+            self.init(topY: frame.minY)
+        case .bottom:
+            self.init(bottomY: frame.maxY)
+        }
+    }
+
+    var bounds: TimelineRailSceneBounds? {
+        guard let topY, let bottomY, bottomY > topY else { return nil }
+        return TimelineRailSceneBounds(topY: topY, bottomY: bottomY)
+    }
+}
+
+struct TimelineRailBoundsPreferenceKey: PreferenceKey {
+    static let defaultValue = TimelineRailBoundsPreference()
+
+    static func reduce(
+        value: inout TimelineRailBoundsPreference,
+        nextValue: () -> TimelineRailBoundsPreference
+    ) {
+        let next = nextValue()
+        value.topY = next.topY ?? value.topY
+        value.bottomY = next.bottomY ?? value.bottomY
+    }
+}
+
 /// 监听时间轴滚动位置，驱动标题两态折叠。
 ///
 /// 折叠判定：内容自顶部上滑超过 `|threshold|` 点即判定为收起态（`threshold` 为负，见调用处）。
