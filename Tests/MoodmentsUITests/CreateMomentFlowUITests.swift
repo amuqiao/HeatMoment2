@@ -58,6 +58,37 @@ final class CreateMomentFlowUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["今天很开心"].waitForExistence(timeout: 5))
     }
 
+    /// 标签创建归属设置页标签管理；编辑器标签浮窗只消费已有标签，不提供临时创建入口。
+    func testEditorTagPickerOnlyConsumesExistingTags() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTestReset"]
+        app.launch()
+
+        let fab = app.buttons["新建时刻"]
+        XCTAssertTrue(fab.waitForExistence(timeout: 10))
+        fab.tap()
+
+        let tagRow = app.buttons["editorTagRow"]
+        XCTAssertTrue(tagRow.waitForExistence(timeout: 5))
+        tagRow.tap()
+
+        XCTAssertTrue(app.buttons["tagOption-工作"].waitForExistence(timeout: 5))
+        XCTAssertFalse(
+            app.textFields["tagCreateNameField"].exists,
+            "编辑器标签浮窗不应打开新建标签表单"
+        )
+        XCTAssertFalse(
+            app.buttons["tagManageAddButton"].exists,
+            "编辑器标签浮窗不应暴露标签管理新增按钮"
+        )
+        XCTAssertFalse(
+            app.buttons
+                .matching(NSPredicate(format: "label CONTAINS %@", "新建标签"))
+                .firstMatch.exists,
+            "编辑器标签浮窗不应提供新建标签入口"
+        )
+    }
+
     /// 点击浮窗外部收起当前就近浮窗（popover 语义，见 04-screen-specs.md §4.5/§4.6/§4.8）：
     /// 直接命中系统为 `.popover` 自动生成的 `PopoverDismissRegion` 无障碍元素（覆盖浮窗之外的
     /// 整个可交互区域），比对一个猜测的屏幕坐标做 `tap()` 更可靠——曾实测坐标 tap 未必落在

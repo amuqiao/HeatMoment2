@@ -22,6 +22,7 @@
 | 时间轴连续性 | 结构归属已调整。连续轨道由 `TimelineRailSceneLayer` 承载在 `TimelineViewportView` 场景层，不属于任何 `List` row；阅读单元位于行前景。轨道 x、节点中心、日期列和气泡尾巴关系由 `TimelineGeometry` 集中定义；首屏标题槽位、标题到轨道顶点间隔和底部超出由 `TimelineViewportLayout` 定义；滚动相位和 viewport bounds 由 `TimelineViewportMetrics` 计算。轨道不再依赖 `List` 行 preference 上报后才渲染。轨道可见性由 `TimelineRailVisibility` 收口，只有存在阅读单元时才渲染，筛选空态不留下孤立轨道。滚动宿主使用 SwiftUI `List`，删除使用系统 `.swipeActions(allowsFullSwipe: true)`，支持轻扫露出按钮和继续滑动触发删除；真实 Moment 的 VoiceOver 默认动作打开预览，删除作为命名动作保留。定向单元测试已锁住节点中心与轨道坐标合同。 | `TimelineGeometry.swift`、`TimelineViewportMetrics.swift`、`TimelineRailVisibility.swift`、`TimelineRailSceneLayer.swift`、`TimelineViewportView.swift`、`TimelineRowView.swift`、`BubbleCardView.swift` |
 | 热力图定位 | 已落地。热力图由首页局部状态在导航栏下方原位展开，作为顶部上下文区参与主页布局；点日/点有记录的月份只写时间 anchor，不改筛选条件。选中月份用主色低透明蒙层标记。 | `TimelineHomeView.swift`、`YearHeatmapView.swift`、`HeatmapGridView.swift`、`TimelineViewportView.swift` |
 | 筛选 | 已落地。当前是首页局部半屏/大屏 `FilterPanelView` sheet，不进 `AppRouter.rootSheet`，标签/心情以紧凑网格选择，提供“全部心情”和“清除全部”，点选即时生效且选择后不自动关闭；筛选 sheet 只选择已有标签，不提供标签新增入口。 | `TimelineHomeView.swift`、`FilterPanelView.swift` |
+| 标签创建归属 | 已落地。编辑器 `TagPickerView` 和首页筛选 `FilterPanelView` 只消费已有标签，不临时创建标签；标签新增、重命名、删除统一归属设置页 `TagManageView`。 | `MomentEditorView.swift`、`TagPickerView.swift`、`FilterPanelView.swift`、`TagManageView.swift` |
 | 上下文标记 | 已落地。筛选标记和时间定位标记可并存、可分别移除。 | `TimelineContextMarkerBar.swift`、`TimelineModel.swift` |
 | 编辑页日期/时间选择 | 代码已落地。日期和时间由局部 `.popover` 打开系统 `DatePicker`，即时回写 `occurredAt`；时间 popover 与即时回写仍缺窄测试覆盖。 | `MomentEditorView.swift`、`DateTimePopovers.swift` |
 | 设置流 | 已落地。设置页是第一层 sheet，子页在设置内 `NavigationStack` push；Pro 可作为设置内第二层 sheet。标签新增、重命名、删除归属 `TagManageView`，新增入口和保存创建前都做标签额度闸门，删除使用系统 `.swipeActions(allowsFullSwipe: true)`。 | `SettingsSheetView.swift`、`TagManageView.swift` |
@@ -47,8 +48,10 @@
 - `Tests/MoodmentsUITests/LocateFilterUITests.swift`
 - `Tests/MoodmentsUITests/DeleteRestorePurgeUITests.swift`
 - `Tests/MoodmentsUITests/EditorSheetPresentationUITests.swift`
+- `Tests/MoodmentsUITests/TagManageUITests.swift`
 - `Tests/MoodmentsUITests/ThemeSwitchUITests.swift`
 - `Tests/MoodmentsUITests/AppearanceSaveFailureUITests.swift`
+- `Tests/MoodmentsUITests/P0VisualAuditCaptureUITests.swift`
 
 文档层验证命令：
 
