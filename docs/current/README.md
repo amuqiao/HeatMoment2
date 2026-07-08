@@ -26,7 +26,7 @@
 | 上下文标记 | 已落地。筛选标记和时间定位标记可并存、可分别移除。 | `TimelineContextMarkerBar.swift`、`TimelineModel.swift` |
 | 编辑页日期/时间选择 | 已落地。日期和时间由局部 `.popover` 打开系统 `DatePicker`，即时回写 `occurredAt`；日期/时间 popover 打开与 `OccurredAtComposer` 合成语义已有窄测试覆盖，时间 picker 只替换时/分并保留不可见秒。 | `MomentEditorView.swift`、`DateTimePopovers.swift` |
 | 设置流 | 已落地。设置页是第一层 sheet，根页不提供显式关闭按钮，依赖系统 sheet 下滑关闭；子页在设置内 `NavigationStack` push 并保留系统返回；Pro 可作为设置内第二层 sheet。标签新增、重命名、删除归属 `TagManageView`，新增入口和保存创建前都做标签额度闸门，删除使用系统 `.swipeActions(allowsFullSwipe: true)`。 | `SettingsSheetView.swift`、`TagManageView.swift` |
-| 外观设置 | 部分落地。模式、主色、背景、图片展示已有 UI、内存态、持久化和实际消费路径；`backgroundTexture` 已驱动首页主场景背景的网格线/点阵/无/自定义图片四分支，自定义图片为本地外观文件，不进入 SwiftData/CloudKit；`imageDisplayMode` 已驱动首页气泡图片区在横向缩略图布局和轮播布局之间切换；外观页已有消费真实 token 的预览区。剩余是亮色截图审计和细节精修。 | `AppearanceThemeView.swift`、`ThemeManager.swift`、`AppearanceStore.swift`、`HomeSceneBackgroundView.swift`、`TimelineHomeView.swift`、`BubbleCardView.swift`、`ThumbnailStripView.swift` |
+| 外观设置 | 部分落地。模式、主色、网格、图片展示已有 UI、内存态、持久化和实际消费路径；`backgroundTexture` 已驱动首页主场景背景的网格线/点阵/无/自定义图片四分支，自定义图片为本地外观文件，不进入 SwiftData/CloudKit；`imageDisplayMode` 已驱动首页气泡图片区在横向缩略图布局和轮播布局之间切换；外观页以模式总览预览、主色 swatch、纯背景纹理样本和图片展示样本表达差异，并消费真实主题 token。剩余是亮色截图审计和细节精修。 | `AppearanceThemeView.swift`、`AppearanceOptionCards.swift`、`ThemeManager.swift`、`AppearanceStore.swift`、`HomeSceneBackgroundView.swift`、`TimelineHomeView.swift`、`BubbleCardView.swift`、`ThumbnailStripView.swift` |
 | 主题语义 | 已落地。`ThemeManager.tokens` 解析五层运行时 token；主色、心情色、危险色、商业固定色和图片查看器媒体色由不同语义入口暴露，心情色、危险色、商业固定色不跟随主色。 | `ThemeManager.swift`、`ThemeTokens.swift`、`Colors.swift` |
 
 ## 当前验证基线

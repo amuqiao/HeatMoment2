@@ -51,7 +51,7 @@ struct HomeSceneBackgroundView: View {
     }
 }
 
-private struct GridTextureLayer: View {
+struct GridTextureLayer: View {
     let color: Color
 
     var body: some View {
@@ -75,7 +75,7 @@ private struct GridTextureLayer: View {
     }
 }
 
-private struct DotTextureLayer: View {
+struct DotTextureLayer: View {
     let color: Color
 
     var body: some View {

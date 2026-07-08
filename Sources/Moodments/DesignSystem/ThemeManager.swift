@@ -325,10 +325,10 @@ final class ThemeManager {
     /// FAB 阴影。
     var floatingActionShadow: Color { tokens.floatingActionShadow }
 
-    /// 外观页真实预览卡自身容器背景。
+    /// 外观页缩略样本自身容器背景。
     var previewBackground: Color { tokens.previewBackground }
 
-    /// 外观页真实预览卡弱描边/弱笔触。
+    /// 外观页缩略样本弱描边/弱笔触。
     var previewMuted: Color { tokens.previewMuted }
 
     /// 心情统计条形的空轨道。

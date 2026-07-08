@@ -103,7 +103,7 @@ TimelineHomeView.timelineFilterSheet
 ```text
 模式
 颜色
-背景
+网格
 图片
 ```
 
@@ -113,7 +113,7 @@ TimelineHomeView.timelineFilterSheet
 
 - `ThemeManager` 是运行时主题 token 消费入口，并暴露 `tokens: AppThemeTokens` 作为当前模式 + 主色解析后的稳定 token。定义层已拆为 `BrandCanvasPalette`（首页品牌画布）、`MemoryObjectPalette`（气泡/热力图等记忆对象）、`TaskContainerPalette`（sheet/设置/编辑等任务容器）、`AccentPalette`（行动强调主色及其派生前景）、`MoodPalette`（心情色数据语义）和 `FixedIntentColor`（危险、商业固定、图片查看器媒体色）。兼容门面已移除，新增颜色消费必须走 `ThemeManager`、`AppThemeTokens` 或对应 palette。
 - 业务 view 不直接新增十六进制色值，P2b 触达范围内的二级文字、弱提示、强调色前景、选中弱填充、禁用强调填充、热力图月份高亮、首页纹理色、自定义背景遮罩、顶部 chrome 叠色、热力图分隔线、预览外框、商业固定色和图片查看器固定媒体色均经 `theme.*` 消费。
-- 模式、主色会影响已接入 `ThemeManager` 的背景、文字、气泡、chip、热力图空格、顶栏图标描边、首页背景纹理、行动强调前景和外观页真实预览等。亮色不是暗色反相：首页仍使用轻灰紫画布，任务 sheet 使用 iOS 分组浅色体系，首页气泡和 sheet panel 不互相复用。
+- 模式、主色会影响已接入 `ThemeManager` 的背景、文字、气泡、chip、热力图空格、顶栏图标描边、首页背景纹理、行动强调前景和外观页分组缩略卡等。亮色不是暗色反相：首页仍使用轻灰紫画布，任务 sheet 使用 iOS 分组浅色体系，首页气泡和 sheet panel 不互相复用。
 - 心情色通过 `theme.moodColor(_:)` 解析，不读取主色。
 - 危险色通过 `theme.danger` 解析，不读取主色。
 - `ProPaywallView` / `AboutView` 使用固定商业 token，并在本页局部注入 `.light` color scheme：浅色背景、浅色行/面板、固定红和固定商业文字不跟随用户主色或暗/亮模式，也不被设置任务容器的暗色环境污染。Paywall 的月订阅 / 终身买断结构仍按当前 StoreKit 契约展示；双方案视觉样式是否继续改造仍归 Paywall 专项裁决。
@@ -123,7 +123,7 @@ TimelineHomeView.timelineFilterSheet
 - `backgroundTexture` 已驱动首页主场景背景，`HomeSceneBackgroundView` 统一渲染网格线、点阵、无和自定义图片；作用范围包括时间轴背后区域、顶部 chrome 展开态和首页热力图上下文，不作用于设置页、编辑器 sheet、气泡卡片或其它页面。
 - 自定义背景图片由 `AppearanceThemeView` 通过系统 `PhotosPicker` 选择，`ThemeManager` 在后台压缩后写入 `AppearanceStore` 暴露的 Application Support 固定文件；写入成功后才切到 `.customImage`，写入失败不改变当前背景。UI 测试下使用 `-uiTestBackgroundImageInjection` 暴露调试注入按钮。
 - `imageDisplayMode` 已有 UI、状态和持久化，并驱动时间轴气泡图片区在横向缩略图布局和轮播布局之间切换；它只改变照片展示行为，不改变主题颜色语义。
-- `AppearanceThemeView` 顶部已有真实预览区，预览内部消费 `HomeSceneBackgroundView`、`BubbleCardView`、`theme.accent`、`theme.moodColor(_:)`、`theme.heatmapEmptyCell` 等真实运行时路径；`BubbleCardView` 内部继续复用真实气泡背景、文字、chip 和图片展示模式。`previewBackground` / `previewMuted` 只用于预览卡自身容器和描边。预览不进入 `AppRouter`，仍保留外观页原生 `List` / `Section` 心智。
+- `AppearanceThemeView` 保留设置页原生 `List` 任务容器骨架。模式区两张卡是当前外观状态在暗/亮模式下的总览预览，会同时体现当前背景纹理/自定义图片、导航文字层、FAB/主色和模式色板；颜色区使用响应式 swatch 网格，不允许固定宽度溢出屏幕；网格区的选项卡只表达纯背景纹理效果，不再展示 FAB 或导航元素；图片区只表达滚动/轮播展示差异。外观页组件消费 `ThemeManager` 和 `AppThemeTokens.resolve`，但不进入 `AppRouter`，也不把首页品牌画布、气泡卡片和 sheet panel 混成同一个容器。
 
 ## 与设计层的已知漂移
 
@@ -137,12 +137,12 @@ TimelineHomeView.timelineFilterSheet
 
 ```sh
 ./scripts/test.sh --only MoodmentsTests/ThemeManagerTests
-./scripts/test.sh --only MoodmentsUITests/ThemeSwitchUITests/testSwitchingModeUpdatesAppearancePreviewRendering
+./scripts/test.sh --only MoodmentsUITests/ThemeSwitchUITests/testSwitchingModeUpdatesModeOptionCardRendering
 ./scripts/test.sh --only MoodmentsUITests/ThemeSwitchUITests
 ./scripts/verify.sh
 ```
 
-结果：`ThemeManagerTests` 执行 7 个测试、0 失败，覆盖自定义背景图写入/修正、五层 token 暗/亮取值、主色派生前景矩阵和商业固定色独立性；`ThemeSwitchUITests` 执行 7 个测试、0 失败，覆盖切换亮/暗、主色、背景纹理、自定义背景图、图片展示模式、新增外观页真实预览同步，以及设置/外观任务容器在 sheet 已挂载时跟随模式更新；最终 `./scripts/verify.sh` 全部通过。
+结果：`ThemeManagerTests` 执行 7 个测试、0 失败，覆盖自定义背景图写入/修正、五层 token 暗/亮取值、主色派生前景矩阵和商业固定色独立性；`ThemeSwitchUITests` 执行 9 个测试、0 失败，覆盖切换亮/暗、主色、主色 swatch 不溢出屏幕、主色驱动模式总览同步、背景纹理、自定义背景图、图片展示模式，以及设置/外观任务容器在 sheet 已挂载时跟随模式更新；最终 `./scripts/verify.sh` 全部通过。
 
 ## P0 验证事实
 

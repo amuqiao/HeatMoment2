@@ -44,6 +44,51 @@ final class ThemeSwitchUITests: XCTestCase {
         )
     }
 
+    /// 主色区域必须是响应式网格，不能因为固定间距或固定总宽度把最后一个 swatch 顶出屏幕。
+    func testAccentSwatchesStayInsideVisibleBounds() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTestReset"]
+        app.launch()
+
+        XCTAssertTrue(app.buttons["新建时刻"].waitForExistence(timeout: 10))
+        openAppearanceThemeView(app)
+
+        let visibleBounds = app.frame.insetBy(dx: 16, dy: 0)
+        for option in ["purple", "red", "orange", "green", "cyan", "violet"] {
+            let swatch = app.buttons["appearanceAccentOption-\(option)"]
+            XCTAssertTrue(swatch.waitForExistence(timeout: 5), "主色 \(option) 应在外观页可见")
+            XCTAssertTrue(
+                visibleBounds.contains(swatch.frame),
+                "主色 \(option) 不应溢出屏幕可见边界：\(swatch.frame)"
+            )
+        }
+    }
+
+    /// 模式区是当前主题总览：切主色时，同一张模式卡内的 FAB/强调色预览应同步重绘。
+    func testSwitchingAccentColorUpdatesModeOverviewPreviewRendering() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTestReset"]
+        app.launch()
+
+        XCTAssertTrue(app.buttons["新建时刻"].waitForExistence(timeout: 10))
+        openAppearanceThemeView(app)
+
+        let darkOption = app.buttons["appearanceModeOption-dark"]
+        XCTAssertTrue(darkOption.waitForExistence(timeout: 5))
+        let colorBeforeSwitch = averageColor(of: darkOption)
+
+        let greenOption = app.buttons["appearanceAccentOption-green"]
+        XCTAssertTrue(greenOption.waitForExistence(timeout: 5))
+        greenOption.tap()
+
+        XCTAssertTrue(greenOption.isSelected)
+        let colorAfterSwitch = averageColor(of: darkOption)
+        XCTAssertTrue(
+            colorDistance(colorBeforeSwitch, colorAfterSwitch) > 0.015,
+            "切主色后同一张模式总览卡应同步更新 FAB/强调色预览"
+        )
+    }
+
     /// 切**模式**（暗→亮）→ 立即生效：`AppearanceThemeView` 选中态随之切换；当前主色槽位
     /// （选中的仍是同一个 `AccentColorOption`）不因切模式而改变——只是该主色解析出的具体
     /// RGB 值随模式切到其亮/暗两态（05 §5.3.2），这与「心情色随模式切换」是同一层语义
@@ -115,8 +160,8 @@ final class ThemeSwitchUITests: XCTestCase {
         )
     }
 
-    /// 外观页真实预览消费同一套主题 token：切暗/亮模式后，预览区域应同步发生可见变化。
-    func testSwitchingModeUpdatesAppearancePreviewRendering() {
+    /// 外观页模式总览卡消费同一套主题 token：暗/亮两张卡应稳定呈现可见差异。
+    func testSwitchingModeUpdatesModeOptionCardRendering() {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTestReset"]
         app.launch()
@@ -124,18 +169,19 @@ final class ThemeSwitchUITests: XCTestCase {
         XCTAssertTrue(app.buttons["新建时刻"].waitForExistence(timeout: 10))
         openAppearanceThemeView(app)
 
-        let preview = app.otherElements["appearanceThemePreview"]
-        XCTAssertTrue(preview.waitForExistence(timeout: 5))
-        let colorBeforeSwitch = averageColor(of: preview)
+        let darkOption = app.buttons["appearanceModeOption-dark"]
+        XCTAssertTrue(darkOption.waitForExistence(timeout: 5))
+        let colorBeforeSwitch = averageColor(of: darkOption)
 
         let lightOption = app.buttons["appearanceModeOption-light"]
         XCTAssertTrue(lightOption.waitForExistence(timeout: 5))
         lightOption.tap()
 
-        let colorAfterSwitch = averageColor(of: preview)
+        XCTAssertTrue(lightOption.isSelected)
+        let colorAfterSwitch = averageColor(of: lightOption)
         XCTAssertTrue(
             colorDistance(colorBeforeSwitch, colorAfterSwitch) > 0.12,
-            "切模式后外观页真实预览应同步变化"
+            "切模式后外观页模式缩略卡应同步变化"
         )
     }
 
