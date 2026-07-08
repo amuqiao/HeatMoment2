@@ -48,7 +48,7 @@ struct YearHeatmapView: View {
         .padding(.top, 12)
         .padding(.bottom, 14)
         .frame(maxWidth: .infinity)
-        .background(theme.canvasBackground)
+        .background(HomeSceneBackgroundView())
         .overlay(alignment: .bottom) {
             Rectangle()
                 .fill(theme.timelineRail.opacity(0.55))

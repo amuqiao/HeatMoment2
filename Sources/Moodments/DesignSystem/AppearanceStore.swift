@@ -20,6 +20,34 @@ enum AppearanceStoreError: Error, Equatable {
     case saveFailed
 }
 
+struct CustomBackgroundImageWriteTarget: Sendable, Equatable {
+    let directoryURL: URL
+    let fileURL: URL
+    let simulateSaveFailure: Bool
+
+    func save(_ data: Data) throws {
+        guard !simulateSaveFailure else { throw AppearanceStoreError.saveFailed }
+        try FileManager.default.createDirectory(
+            at: directoryURL,
+            withIntermediateDirectories: true
+        )
+        try data.write(to: fileURL, options: [.atomic])
+    }
+
+    func saveInBackground(_ data: Data) async throws {
+        guard !simulateSaveFailure else { throw AppearanceStoreError.saveFailed }
+        let directoryURL = directoryURL
+        let fileURL = fileURL
+        try await Task.detached(priority: .utility) {
+            try FileManager.default.createDirectory(
+                at: directoryURL,
+                withIntermediateDirectories: true
+            )
+            try data.write(to: fileURL, options: [.atomic])
+        }.value
+    }
+}
+
 /// `AppearancePreference` 的 UserDefaults 持久化（见 07 §6：非 SwiftData `@Model`，避免把
 /// 展示层偏好卷入 CloudKit 冲突解决范围；不跨设备同步，见 13-open-questions.md #3）。
 ///
@@ -34,13 +62,21 @@ struct AppearanceStore {
         static let imageDisplayMode = "com.moodments.appearance.imageDisplayMode"
     }
 
+    private static let customBackgroundImageFileName = "custom-background.jpg"
+
     private let defaults: UserDefaults
+    private let customBackgroundImageDirectoryURL: URL
     /// 仅供测试注入必失败场景（见 `UITestSupport` 的 `-uiTestFailAppearanceSave`，
     /// 05 §5.3.7 异常反馈验收），生产路径恒为 `false`。
     private let simulateSaveFailure: Bool
 
-    init(defaults: UserDefaults = .standard, simulateSaveFailure: Bool = false) {
+    init(
+        defaults: UserDefaults = .standard,
+        customBackgroundImageDirectoryURL: URL = Self.defaultCustomBackgroundImageDirectoryURL(),
+        simulateSaveFailure: Bool = false
+    ) {
         self.defaults = defaults
+        self.customBackgroundImageDirectoryURL = customBackgroundImageDirectoryURL
         self.simulateSaveFailure = simulateSaveFailure
     }
 
@@ -56,6 +92,21 @@ struct AppearanceStore {
         defaults.set(preference.imageDisplayMode.rawValue, forKey: Key.imageDisplayMode)
     }
 
+    func saveCustomBackgroundImageData(_ data: Data) throws {
+        try customBackgroundImageWriteTarget().save(data)
+    }
+
+    func saveCustomBackgroundImageDataInBackground(_ data: Data) async throws {
+        try await customBackgroundImageWriteTarget().saveInBackground(data)
+    }
+
+    func loadCustomBackgroundImageData() throws -> Data? {
+        guard FileManager.default.fileExists(atPath: customBackgroundImageFileURL.path) else {
+            return nil
+        }
+        return try Data(contentsOf: customBackgroundImageFileURL)
+    }
+
     /// 逐轴读取：缺失 key（如首次启动）直接用默认值，不计入「已修正」——那是正常的初始态，
     /// 不是坏配置；只有「key 存在但 rawValue 无法解析」才视为坏配置，**立即回写该轴默认值**
     /// （自愈，避免下次冷启动对同一份坏数据重复判定、重复计数、重复展示「已修正」提示）并计数
@@ -64,7 +115,10 @@ struct AppearanceStore {
     func load() -> (preference: AppearancePreference, correctedCount: Int) {
         var correctedCount = 0
 
-        func resolve<T: RawRepresentable>(_ key: String, default defaultValue: T) -> T where T.RawValue == String {
+        func resolve<T: RawRepresentable>(
+            _ key: String,
+            default defaultValue: T
+        ) -> T where T.RawValue == String {
             guard let raw = defaults.string(forKey: key) else { return defaultValue }
             guard let resolved = T(rawValue: raw) else {
                 correctedCount += 1
@@ -76,7 +130,10 @@ struct AppearanceStore {
 
         let preference = AppearancePreference(
             mode: resolve(Key.mode, default: AppearancePreference.default.mode),
-            accentColor: resolve(Key.accentColor, default: AppearancePreference.default.accentColor),
+            accentColor: resolve(
+                Key.accentColor,
+                default: AppearancePreference.default.accentColor
+            ),
             backgroundTexture: resolve(
                 Key.backgroundTexture, default: AppearancePreference.default.backgroundTexture
             ),
@@ -85,5 +142,25 @@ struct AppearanceStore {
             )
         )
         return (preference, correctedCount)
+    }
+
+    var customBackgroundImageFileURL: URL {
+        customBackgroundImageDirectoryURL.appendingPathComponent(Self.customBackgroundImageFileName)
+    }
+
+    func customBackgroundImageWriteTarget() -> CustomBackgroundImageWriteTarget {
+        CustomBackgroundImageWriteTarget(
+            directoryURL: customBackgroundImageDirectoryURL,
+            fileURL: customBackgroundImageFileURL,
+            simulateSaveFailure: simulateSaveFailure
+        )
+    }
+
+    private static func defaultCustomBackgroundImageDirectoryURL() -> URL {
+        let baseURL = FileManager.default.urls(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask
+        )[0]
+        return baseURL.appendingPathComponent("Appearance", isDirectory: true)
     }
 }

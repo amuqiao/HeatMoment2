@@ -135,12 +135,14 @@ final class MomentImage {
 struct AppearancePreference: Codable {
     var colorScheme: ColorSchemeOption   // .dark / .light
     var accentColorID: AccentColorOption // 紫色/红色/橙色/绿色/青色/紫罗兰，默认紫罗兰
-    var backgroundGridStyle: GridStyleOption   // 网格线/点阵/无
+    var backgroundStyle: BackgroundStyleOption // 网格线/点阵/无/自定义图片
     var photoDisplayStyle: PhotoDisplayOption  // 滚动/轮播
 }
 ```
 
 主题参数的语义与取色见 `05-design-system.md`；外观偏好写入需返回成功/失败结果，供 UI 层在不回滚视觉的前提下展示保存失败提示（乐观更新交互见 `05-design-system.md`）。外观偏好已采纳默认：不跨设备同步（设备本地偏好），追溯见 `13-open-questions.md`。
+
+自定义首页背景图片是外观偏好的本地设备级附属文件，固定写入 Application Support 下的外观目录；文件只存单张压缩后图片，不进入 SwiftData / CloudKit，也不作为 `MomentImage` 内容数据同步。若图片写入失败，外观偏好不得切到自定义图片；若已保存的自定义图片文件丢失或损坏，启动时回到默认背景并提示外观偏好异常。
 
 ---
 

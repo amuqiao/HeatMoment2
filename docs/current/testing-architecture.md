@@ -44,11 +44,12 @@ UI 测试通过 DEBUG-only `UITestSupport` 使用隔离内存容器、固定种�
 | `-uiTestSeedMomentQuota` | 使用内存容器并预置免费 Moment 额度已满 |
 | `-uiTestSkipDefaultTags` | 使用内存容器并跳过默认标签，验证标签新增正常路径 |
 | `-uiTestPhotoInjection` | 展示照片调试注入入口，绕开系统 `PhotosPicker` |
+| `-uiTestBackgroundImageInjection` | 展示自定义背景图调试注入入口，绕开系统 `PhotosPicker` |
 | `-uiTestForcePrivacyLockEnabled` | 强制隐私锁开启 |
 | `-uiTestBiometricAlwaysSucceed` / `-uiTestBiometricAlwaysFail` | 伪造生物识别结果 |
 | `-uiTestFailAppearanceSave` | 注入外观保存失败 |
 
-任意 `-uiTest*` 场景会重置语言偏好、默认标签首启标记，并让外观偏好使用隔离 suite。只有 `-uiTestReset`、`-uiTestSeedMoments`、`-uiTestSeedMomentQuota`、`-uiTestSkipDefaultTags` 会切到内存 SwiftData 容器；其他参数是否需要同时带 `-uiTestReset` 由测试场景决定。
+任意 `-uiTest*` 场景会重置语言偏好、默认标签首启标记，并让外观偏好使用隔离 suite；自定义背景图文件也写入临时隔离目录。只有 `-uiTestReset`、`-uiTestSeedMoments`、`-uiTestSeedMomentQuota`、`-uiTestSkipDefaultTags` 会切到内存 SwiftData 容器；其他参数是否需要同时带 `-uiTestReset` 由测试场景决定。
 
 ## UI 测试当前写法
 

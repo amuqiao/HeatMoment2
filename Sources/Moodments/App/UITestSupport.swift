@@ -17,6 +17,7 @@
     ///   在免费额度未占满时验收。
     /// - `-uiTestPhotoInjection`：编辑器照片区额外展示一个调试注入按钮，直接把合成 JPEG
     ///   写入草稿（见阶段 3 计划决策1：系统 `PhotosPicker` 不在 App 无障碍树内、无法可靠自动化）。
+    /// - `-uiTestBackgroundImageInjection`：外观页额外展示自定义背景图调试注入按钮，绕过系统相册 UI。
     enum UITestSupport {
         /// 是否应改用内存容器（测试隔离，不落盘、不需 iCloud 能力）。
         static var wantsInMemoryContainer: Bool {
@@ -31,6 +32,11 @@
         /// 是否展示编辑器照片区的调试注入入口（见类型头部说明）。
         static var wantsPhotoInjectionHook: Bool {
             ProcessInfo.processInfo.arguments.contains("-uiTestPhotoInjection")
+        }
+
+        /// 是否展示外观页自定义背景图的调试注入入口。
+        static var wantsBackgroundImageInjectionHook: Bool {
+            ProcessInfo.processInfo.arguments.contains("-uiTestBackgroundImageInjection")
         }
 
         /// 标签管理 UI 测试专用：在隔离内存容器中跳过默认 3 标签预置，便于覆盖免费额度未满时的
@@ -111,8 +117,19 @@
             let suiteName = appearanceTestSuiteName
             let defaults = UserDefaults(suiteName: suiteName) ?? .standard
             defaults.removePersistentDomain(forName: suiteName)
+            let customBackgroundImageDirectoryURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent(suiteName, isDirectory: true)
+                .appendingPathComponent("Appearance", isDirectory: true)
+            if FileManager.default.fileExists(atPath: customBackgroundImageDirectoryURL.path) {
+                do {
+                    try FileManager.default.removeItem(at: customBackgroundImageDirectoryURL)
+                } catch {
+                    assertionFailure("UITest 自定义背景图目录清理失败：\(error)")
+                }
+            }
             let store = AppearanceStore(
                 defaults: defaults,
+                customBackgroundImageDirectoryURL: customBackgroundImageDirectoryURL,
                 simulateSaveFailure: wantsAppearanceSaveFailure
             )
             if wantsImageDisplayCarousel {
@@ -142,6 +159,25 @@
             }
             guard let data = image.jpegData(compressionQuality: 0.8) else {
                 assertionFailure("合成测试图片编码失败")
+                return Data()
+            }
+            return data
+        }
+
+        /// 生成一张色块明显的合成 JPEG，供外观页自定义背景 UI 测试注入，不依赖相册权限/内容。
+        static func makeSyntheticBackgroundImageData() -> Data {
+            let size = CGSize(width: 96, height: 96)
+            let renderer = UIGraphicsImageRenderer(size: size)
+            let image = renderer.image { context in
+                UIColor.systemTeal.setFill()
+                context.fill(CGRect(origin: .zero, size: size))
+                UIColor.systemOrange.setFill()
+                context.fill(CGRect(x: 0, y: 0, width: 48, height: 48))
+                UIColor.systemPink.setFill()
+                context.fill(CGRect(x: 48, y: 48, width: 48, height: 48))
+            }
+            guard let data = image.jpegData(compressionQuality: 0.9) else {
+                assertionFailure("合成测试背景图编码失败")
                 return Data()
             }
             return data

@@ -1,5 +1,6 @@
 import Observation
 import SwiftUI
+import UIKit
 
 /// 外观模式（暗/亮），见 05-design-system.md §5.3.1。
 ///
@@ -16,6 +17,7 @@ enum BackgroundTexture: String, CaseIterable, Sendable {
     case grid
     case dot
     case none
+    case customImage
 }
 
 /// 图片展示方式（见 05 §5.3.4）：内容行为偏好，与模式/主色/纹理三条外观轴独立，
@@ -45,6 +47,8 @@ final class ThemeManager {
     private(set) var accentColor: AccentColorOption
     private(set) var backgroundTexture: BackgroundTexture
     private(set) var imageDisplayMode: ImageDisplayMode
+    private(set) var customBackgroundImageURL: URL?
+    private(set) var customBackgroundImageRevision = 0
 
     /// 载入时坏配置被回落默认值的轴数（见 05 §5.3.7「已修正 N 项本地偏好配置」）；
     /// `AppearanceThemeView` 据此展示一次性页内提示，不走全局 `.alert`。
@@ -52,10 +56,14 @@ final class ThemeManager {
 
     /// 主色/模式/纹理保存失败标记（见 05 §5.3.7：与照片显示保存失败分开反馈）。
     private(set) var appearanceSaveFailed = false
+    /// 自定义背景图文件不可用时的本地修正提示，不复用“保存失败”语义。
+    private(set) var customBackgroundImageRecovered = false
     /// 图片展示保存失败标记（见 05 §5.3.7：单独反馈，不与上面合并）。
     private(set) var photoDisplaySaveFailed = false
 
     private let store: AppearanceStore
+    private var isCustomBackgroundImageImporting = false
+    private var pendingCustomBackgroundImageData: Data?
 
     init(store: AppearanceStore = AppearanceStore()) {
         let (preference, correctedCount) = store.load()
@@ -65,6 +73,7 @@ final class ThemeManager {
         self.backgroundTexture = preference.backgroundTexture
         self.imageDisplayMode = preference.imageDisplayMode
         self.correctedPreferenceCount = correctedCount
+        restoreCustomBackgroundImageIfNeeded(preference.backgroundTexture)
     }
 
     // MARK: - 乐观更新语义 setter（见类型头部说明）
@@ -80,8 +89,55 @@ final class ThemeManager {
     }
 
     func setBackgroundTexture(_ newValue: BackgroundTexture) {
+        if newValue == .customImage, customBackgroundImageURL == nil {
+            appearanceSaveFailed = true
+            return
+        }
         backgroundTexture = newValue
         persistCore()
+    }
+
+    func setCustomBackgroundImageData(_ data: Data) async {
+        if isCustomBackgroundImageImporting {
+            pendingCustomBackgroundImageData = data
+            return
+        }
+        isCustomBackgroundImageImporting = true
+        var nextData: Data? = data
+        while let currentData = nextData {
+            pendingCustomBackgroundImageData = nil
+            await importCustomBackgroundImageData(currentData)
+            nextData = pendingCustomBackgroundImageData
+        }
+        isCustomBackgroundImageImporting = false
+    }
+
+    private func importCustomBackgroundImageData(_ data: Data) async {
+        do {
+            let compressed = try await Task.detached(priority: .userInitiated) {
+                try ImageCompressor.compressToJPEG(
+                    data,
+                    configuration: .init(
+                        maxDimension: 2048,
+                        jpegQuality: 0.82,
+                        maxByteSize: 900 * 1024
+                    )
+                )
+            }.value
+            let writeTarget = store.customBackgroundImageWriteTarget()
+            try await writeTarget.saveInBackground(compressed)
+            customBackgroundImageURL = writeTarget.fileURL
+            customBackgroundImageRevision += 1
+            backgroundTexture = .customImage
+            customBackgroundImageRecovered = false
+            persistCore()
+        } catch {
+            appearanceSaveFailed = true
+        }
+    }
+
+    func markAppearanceSaveFailed() {
+        appearanceSaveFailed = true
     }
 
     func setImageDisplayMode(_ newValue: ImageDisplayMode) {
@@ -91,7 +147,9 @@ final class ThemeManager {
 
     private var currentPreference: AppearancePreference {
         AppearancePreference(
-            mode: mode, accentColor: accentColor, backgroundTexture: backgroundTexture,
+            mode: mode,
+            accentColor: accentColor,
+            backgroundTexture: backgroundTexture,
             imageDisplayMode: imageDisplayMode
         )
     }
@@ -112,6 +170,33 @@ final class ThemeManager {
         } catch {
             photoDisplaySaveFailed = true
         }
+    }
+
+    private func restoreCustomBackgroundImageIfNeeded(_ texture: BackgroundTexture) {
+        guard texture == .customImage else { return }
+        do {
+            guard
+                let data = try store.loadCustomBackgroundImageData(),
+                UIImage(data: data) != nil
+            else {
+                correctUnavailableCustomBackgroundImage()
+                return
+            }
+            customBackgroundImageURL = store.customBackgroundImageFileURL
+        } catch {
+            correctUnavailableCustomBackgroundImage()
+        }
+    }
+
+    private func correctUnavailableCustomBackgroundImage() {
+        customBackgroundImageURL = nil
+        backgroundTexture = AppearancePreference.default.backgroundTexture
+        do {
+            try store.save(currentPreference)
+        } catch {
+            assertionFailure("自定义背景图片不可用后的外观偏好修正保存失败：\(error)")
+        }
+        customBackgroundImageRecovered = true
     }
 
     /// 当前主色，解析自 `accentColor` + `mode`（见 05 §5.3.2 Any/Dark 双值机制）。

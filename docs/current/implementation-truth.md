@@ -103,7 +103,7 @@ TimelineHomeView.timelineFilterSheet
 ```text
 模式
 颜色
-网格
+背景
 图片
 ```
 
@@ -114,7 +114,8 @@ TimelineHomeView.timelineFilterSheet
 - 模式、主色会影响已接入 `ThemeManager` 的背景、文字、气泡、chip、热力图空格、顶栏图标描边等。
 - 心情色通过 `theme.moodColor(_:)` 解析，不读取主色。
 - 危险色通过 `theme.danger` 解析，不读取主色。
-- `backgroundTexture` 已有 UI、状态和持久化，但首页背景当前只使用 `theme.canvasBackground`，没有实际绘制网格/点阵。
+- `backgroundTexture` 已驱动首页主场景背景，`HomeSceneBackgroundView` 统一渲染网格线、点阵、无和自定义图片；作用范围包括时间轴背后区域、顶部 chrome 展开态和首页热力图上下文，不作用于设置页、编辑器 sheet、气泡卡片或其它页面。
+- 自定义背景图片由 `AppearanceThemeView` 通过系统 `PhotosPicker` 选择，`ThemeManager` 在后台压缩后写入 `AppearanceStore` 暴露的 Application Support 固定文件；写入成功后才切到 `.customImage`，写入失败不改变当前背景。UI 测试下使用 `-uiTestBackgroundImageInjection` 暴露调试注入按钮。
 - `imageDisplayMode` 已有 UI、状态和持久化，并驱动时间轴气泡图片区在横向缩略图布局和轮播布局之间切换；它只改变照片展示行为，不改变主题颜色语义。
 
 ## 与设计层的已知漂移
@@ -122,7 +123,6 @@ TimelineHomeView.timelineFilterSheet
 | 漂移 | 当前事实 | 当前影响 |
 | --- | --- | --- |
 | 外观页预览 | 代码当前是 `List` 行 + 勾选。 | 主题效果主要通过文字行表达，缺少真实预览。 |
-| 背景纹理 | 已有设置轴，未驱动首页纹理渲染。 | UI 选项和实际效果不闭环。 |
 | 亮色心情色 | 亮色下除 `.normal` 外仍沿用暗色推导值。 | 不影响主色独立性；亮色效果缺少独立取色事实。 |
 
 ## P0 验证事实

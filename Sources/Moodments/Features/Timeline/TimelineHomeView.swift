@@ -11,7 +11,6 @@ import SwiftUI
 /// 时间轴与热力图共享同一实例。
 struct TimelineHomeView: View {
     @Environment(AppRouter.self) private var router
-    @Environment(ThemeManager.self) private var theme
     @Environment(TimelineModel.self) private var timelineModel
     @Environment(\.modelContext) private var modelContext
     @Environment(ErrorPresenter.self) private var errorPresenter
@@ -28,7 +27,7 @@ struct TimelineHomeView: View {
         @Bindable var timelineModel = timelineModel
 
         ZStack {
-            theme.canvasBackground.ignoresSafeArea()
+            HomeSceneBackgroundView().ignoresSafeArea()
 
             TimelineViewportView(
                 filter: timelineModel.activeFilter,

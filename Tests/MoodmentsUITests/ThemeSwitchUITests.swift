@@ -9,6 +9,7 @@ import XCTest
 /// 心情色/危险色独立于主色的结构性保证已由 `MoodColorPaletteTests`（单元级，签名不含
 /// `AccentColorOption` 参数）覆盖；本文件在真实运行时 UI 层面复核主色确实驱动了强调色
 /// （FAB 颜色随之改变），并确认外观选项的即时生效（乐观更新：点选后立即反映为选中态）。
+@MainActor
 final class ThemeSwitchUITests: XCTestCase {
     /// 切主色 → `AppearanceThemeView` 选中态立即从旧选项移到新选项（即时生效，无需保存按钮）；
     /// 关闭设置回到时间轴后，FAB 的渲染颜色应随之改变（真实视觉验证「主色驱动强调色」）。
@@ -95,6 +96,48 @@ final class ThemeSwitchUITests: XCTestCase {
         XCTAssertFalse(gridOption.isSelected)
     }
 
+    /// 自定义背景图走设置闭环：从外观页注入图片后选中态立即切到「自定义图片」；
+    /// 关闭设置回到首页后，主场景背景渲染应有可见变化。热力图上下文也属于首页主场景，
+    /// 展开后仍应继承同一背景语义。
+    func testInjectingCustomBackgroundImageSelectsCustomTextureAndChangesHomeBackground() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTestReset", "-uiTestBackgroundImageInjection"]
+        app.launch()
+
+        XCTAssertTrue(app.buttons["新建时刻"].waitForExistence(timeout: 10))
+        let colorBeforeInjection = averageColor(of: app)
+
+        openAppearanceThemeView(app)
+
+        let customOption = app.buttons["appearanceTextureOption-customImage"]
+        scrollUntilVisible(customOption, app: app)
+        XCTAssertTrue(customOption.waitForExistence(timeout: 5))
+
+        let injectButton = app.buttons["appearanceCustomBackgroundInjectButton"]
+        scrollUntilVisible(injectButton, app: app)
+        XCTAssertTrue(injectButton.waitForExistence(timeout: 5))
+        injectButton.tap()
+
+        XCTAssertTrue(waitUntilSelected(customOption), "注入自定义背景图后应立即选中自定义图片")
+
+        closeSettings(app)
+
+        XCTAssertTrue(app.buttons["新建时刻"].waitForExistence(timeout: 5))
+        let colorAfterInjection = averageColor(of: app)
+        XCTAssertTrue(
+            colorDistance(colorBeforeInjection, colorAfterInjection) > 0.05,
+            "自定义背景图应改变首页主场景背景渲染"
+        )
+
+        app.buttons["年度心情热力图"].tap()
+        XCTAssertTrue(app.buttons["heatmapCloseButton"].waitForExistence(timeout: 5))
+        let colorWithHeatmapExpanded = averageColor(of: app)
+        XCTAssertTrue(
+            colorDistance(colorBeforeInjection, colorWithHeatmapExpanded) > 0.05,
+            "热力图上下文展开后仍应继承首页主场景背景"
+        )
+    }
+
     /// 切图片展示方式（滚动→轮播）即时生效：选中态立即切换，无需保存按钮。
     func testSwitchingImageDisplayModeUpdatesSelectionImmediately() {
         let app = XCUIApplication()
@@ -137,6 +180,12 @@ final class ThemeSwitchUITests: XCTestCase {
         for _ in 0..<3 { app.swipeUp() }
     }
 
+    private func scrollUntilVisible(_ element: XCUIElement, app: XCUIApplication) {
+        for _ in 0..<3 where !element.exists {
+            app.swipeUp()
+        }
+    }
+
     private func closeSettings(_ app: XCUIApplication) {
         // 外观主题是设置栈内的子页，需先返回设置根页，再使用系统下滑关闭设置 sheet。
         if app.navigationBars.buttons.element(boundBy: 0).exists {
@@ -147,6 +196,12 @@ final class ThemeSwitchUITests: XCTestCase {
             from: app.buttons["settingsAppearanceRow"],
             expectedHomeButtonLabel: "新建时刻"
         )
+    }
+
+    private func waitUntilSelected(_ element: XCUIElement, timeout: TimeInterval = 5) -> Bool {
+        let predicate = NSPredicate(format: "isSelected == true")
+        let selectionExpectation = expectation(for: predicate, evaluatedWith: element)
+        return XCTWaiter.wait(for: [selectionExpectation], timeout: timeout) == .completed
     }
 
     /// 对给定元素截屏并取整体平均颜色（`CIAreaAverage`，避免猜测单点像素坐标/字节序）。

@@ -1,4 +1,9 @@
+import PhotosUI
 import SwiftUI
+
+private enum BackgroundImageLoadError: Error {
+    case emptyData
+}
 
 /// 外观主题子页（见 `docs/design/04-screen-specs.md` §4.15、05-design-system.md §5.3/§5.7）：
 /// 模式 / 颜色（主色）/ 网格（背景纹理）/ 图片（图片展示）4 个分组，**乐观更新即时生效**——
@@ -10,6 +15,7 @@ import SwiftUI
 /// 载入时坏配置回落默认值的计数展示「已修正 N 项本地偏好配置」。
 struct AppearanceThemeView: View {
     @Environment(ThemeManager.self) private var theme
+    @State private var customBackgroundPickerItem: PhotosPickerItem?
 
     var body: some View {
         List {
@@ -29,6 +35,15 @@ struct AppearanceThemeView: View {
                     inlineNotice(
                         text: "外观设置保存失败，请稍后重试",
                         identifier: "appearanceSaveFailedNotice",
+                        color: theme.danger
+                    )
+                }
+            }
+            if theme.customBackgroundImageRecovered {
+                Section {
+                    inlineNotice(
+                        text: "自定义背景图片不可用，已恢复默认背景",
+                        identifier: "customBackgroundImageRecoveredNotice",
                         color: theme.danger
                     )
                 }
@@ -54,10 +69,23 @@ struct AppearanceThemeView: View {
                 }
             }
 
-            Section("网格") {
+            Section("背景") {
                 textureRow(.grid, label: "网格线")
                 textureRow(.dot, label: "点阵")
                 textureRow(.none, label: "无")
+                customBackgroundImageRow
+                #if DEBUG
+                    if UITestSupport.wantsBackgroundImageInjectionHook {
+                        Button("注入测试背景图") {
+                            Task {
+                                await theme.setCustomBackgroundImageData(
+                                    UITestSupport.makeSyntheticBackgroundImageData()
+                                )
+                            }
+                        }
+                        .accessibilityIdentifier("appearanceCustomBackgroundInjectButton")
+                    }
+                #endif
             }
 
             Section("图片") {
@@ -69,6 +97,13 @@ struct AppearanceThemeView: View {
         .scrollContentBackground(.hidden)
         .background(theme.canvasBackground.ignoresSafeArea())
         .navigationTitle("主题颜色")
+        .onChange(of: customBackgroundPickerItem) { _, newItem in
+            guard let newItem else { return }
+            Task {
+                await importCustomBackgroundImage(from: newItem)
+                customBackgroundPickerItem = nil
+            }
+        }
     }
 
     private func inlineNotice(text: String, identifier: String, color: Color) -> some View {
@@ -132,6 +167,25 @@ struct AppearanceThemeView: View {
         }
     }
 
+    private var customBackgroundImageRow: some View {
+        let isSelected = theme.backgroundTexture == .customImage
+        let primaryText = theme.primaryText
+        let accent = theme.accent
+
+        return PhotosPicker(selection: $customBackgroundPickerItem, matching: .images) {
+            HStack {
+                Text("自定义图片").foregroundStyle(primaryText)
+                Spacer()
+                if isSelected {
+                    Image(systemName: "checkmark").foregroundStyle(accent)
+                }
+            }
+        }
+        .accessibilityIdentifier("appearanceTextureOption-customImage")
+        .accessibilityLabel(Text("背景纹理：自定义图片"))
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
+    }
+
     private func optionRow(
         label: String, isSelected: Bool, identifier: String, accessibilityLabel: String,
         action: @escaping () -> Void
@@ -158,6 +212,20 @@ struct AppearanceThemeView: View {
         case .green: "绿色"
         case .cyan: "青色"
         case .violet: "紫罗兰"
+        }
+    }
+
+    private func importCustomBackgroundImage(from item: PhotosPickerItem) async {
+        do {
+            guard let data = try await item.loadTransferable(type: Data.self) else {
+                theme.markAppearanceSaveFailed()
+                assertionFailure("自定义背景图片读取失败：\(BackgroundImageLoadError.emptyData)")
+                return
+            }
+            await theme.setCustomBackgroundImageData(data)
+        } catch {
+            theme.markAppearanceSaveFailed()
+            assertionFailure("自定义背景图片读取失败：\(error)")
         }
     }
 }
