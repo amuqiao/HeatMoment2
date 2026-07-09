@@ -2,40 +2,41 @@ import XCTest
 @testable import Moodments
 
 final class TimelineLayoutResolverTests: XCTestCase {
-    func testFirstMomentTopBreathingDirectlyControlsLeadIn() {
+    func testRailTopToFirstMomentTopGapDirectlyControlsLeadIn() {
         let scene = TimelineSceneMetrics.responsive(
             for: 390,
-            layoutTokens: TimelineLayoutTokens(firstMomentTopBreathing: 2)
+            layoutTokens: TimelineLayoutTokens(railTopToFirstMomentTopGap: 2)
         )
-        let geometry = scene.layout.geometry
+        let viewport = scene.layout.viewport
 
-        XCTAssertEqual(geometry.railLeadInHeight, 2)
-        XCTAssertEqual(geometry.nodeCenterY, 24)
-        XCTAssertEqual(geometry.firstNodeCenterYOffsetFromRailTop, 26)
+        XCTAssertEqual(viewport.railTopToFirstMomentTopGap, 2)
+        XCTAssertEqual(viewport.restingFirstReadingUnitTopY, 52)
+        XCTAssertEqual(scene.layout.geometry.nodeCenterY, 24)
     }
 
-    func testNodeCenterYDoesNotOwnFirstMomentBreathing() {
+    func testNodeCenterYDoesNotOwnFirstMomentContainerGap() {
         let scene = TimelineSceneMetrics.responsive(
             for: 390,
             layoutTokens: TimelineLayoutTokens(
-                nodeCenterYInRow: 30,
-                firstMomentTopBreathing: 6
+                nodeCenterYInMoment: 30,
+                railTopToFirstMomentTopGap: 6
             )
         )
         let geometry = scene.layout.geometry
+        let viewport = scene.layout.viewport
 
-        XCTAssertEqual(geometry.railLeadInHeight, 6)
+        XCTAssertEqual(viewport.railTopToFirstMomentTopGap, 6)
         XCTAssertEqual(geometry.nodeCenterY, 30)
-        XCTAssertEqual(geometry.firstNodeCenterYOffsetFromRailTop, 36)
+        XCTAssertEqual(viewport.restingFirstReadingUnitTopY, 56)
         XCTAssertEqual(geometry.nodeTopPadding, 20)
     }
 
-    func testViewportMetricsDerivesFirstNodePositionFromResolvedGeometry() {
+    func testTitleToRailTopGapMovesRailWithoutChangingMomentInternalGeometry() {
         let scene = TimelineSceneMetrics.responsive(
             for: 390,
             layoutTokens: TimelineLayoutTokens(
-                nodeCenterYInRow: 30,
-                firstMomentTopBreathing: 2
+                railTopToFirstMomentTopGap: 6,
+                titleToRailTopGap: 2
             )
         )
         let metrics = TimelineViewportMetrics(
@@ -44,7 +45,27 @@ final class TimelineLayoutResolverTests: XCTestCase {
             sceneLayout: scene.layout
         )
 
-        XCTAssertEqual(scene.layout.geometry.firstNodeCenterYOffsetFromRailTop, 32)
+        XCTAssertEqual(scene.layout.viewport.restingRailTopY, 46)
+        XCTAssertEqual(scene.layout.viewport.railTopToFirstMomentTopGap, 6)
+        XCTAssertEqual(scene.layout.geometry.nodeCenterY, 24)
+        XCTAssertEqual(metrics.restingFirstNodeCenterY, 76)
+    }
+
+    func testViewportMetricsDerivesFirstNodePositionFromSceneAndMomentGeometry() {
+        let scene = TimelineSceneMetrics.responsive(
+            for: 390,
+            layoutTokens: TimelineLayoutTokens(
+                nodeCenterYInMoment: 30,
+                railTopToFirstMomentTopGap: 2
+            )
+        )
+        let metrics = TimelineViewportMetrics(
+            viewportSize: CGSize(width: 430, height: 760),
+            scrollOffsetY: 0,
+            sceneLayout: scene.layout
+        )
+
+        XCTAssertEqual(scene.layout.viewport.restingFirstReadingUnitTopY, 52)
         XCTAssertEqual(metrics.restingFirstNodeCenterY, 82)
     }
 

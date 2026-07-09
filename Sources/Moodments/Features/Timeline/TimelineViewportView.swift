@@ -129,16 +129,17 @@ struct TimelineViewportView: View {
                     }
 
                     List {
-                        expandedTitle(style: scene.style.title)
-                            .padding(.top, scene.layout.viewport.expandedTitleTopPadding)
-                            .padding(.bottom, scene.layout.viewport.titleToRailTopSpacing)
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear)
-                            .listRowInsets(scene.layout.geometry.rowInsets)
-                            .accessibilityHidden(suppressAccessibility)
+                        timelineExpandedTitleRow(
+                            geometry: scene.layout.geometry,
+                            layout: scene.layout.viewport,
+                            style: scene.style.title
+                        )
 
                         if railVisibility.showsRail {
-                            timelineLeadIn(geometry: scene.layout.geometry)
+                            timelineFirstMomentLeadIn(
+                                geometry: scene.layout.geometry,
+                                layout: scene.layout.viewport
+                            )
                         }
 
                         if isFilteredEmpty {
@@ -176,6 +177,7 @@ struct TimelineViewportView: View {
                         }
                     }
                     .listStyle(.plain)
+                    .environment(\.defaultMinListRowHeight, 0)
                     .listRowSpacing(0)
                     .scrollContentBackground(.hidden)
                     .contentMargins(.horizontal, 0, for: .scrollContent)
@@ -198,9 +200,30 @@ struct TimelineViewportView: View {
         }
     }
 
-    private func timelineLeadIn(geometry: TimelineGeometry) -> some View {
+    private func timelineExpandedTitleRow(
+        geometry: TimelineGeometry,
+        layout: TimelineViewportLayout,
+        style: TimelineTitleStyle
+    ) -> some View {
+        expandedTitle(style: style)
+            .frame(
+                height: layout.expandedTitleContentSlotHeight,
+                alignment: .bottomLeading
+            )
+            .padding(.top, layout.expandedTitleTopPadding)
+            .padding(.bottom, layout.titleToRailTopGap)
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+            .listRowInsets(geometry.rowInsets)
+            .accessibilityHidden(suppressAccessibility)
+    }
+
+    private func timelineFirstMomentLeadIn(
+        geometry: TimelineGeometry,
+        layout: TimelineViewportLayout
+    ) -> some View {
         Color.clear
-            .frame(height: geometry.railLeadInHeight)
+            .frame(height: layout.railTopToFirstMomentTopGap)
             .listRowSeparator(.hidden)
             .listRowBackground(Color.clear)
             .listRowInsets(geometry.rowInsets)

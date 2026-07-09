@@ -3,7 +3,7 @@ import CoreGraphics
 /// 首页 Timeline 的设计意图 token。
 ///
 /// 本类型是后续调布局和接皮肤时的入口：只放“希望看到什么”的语义值，不放
-/// `railLeadInHeight`、`bubbleTailHorizontalOffset` 这类需要由布局系统推导的结果。
+/// `restingFirstNodeCenterY`、`bubbleTailHorizontalOffset` 这类需要由布局系统推导的结果。
 struct TimelineLayoutTokens: Equatable {
     static let standard = TimelineLayoutTokens()
 
@@ -12,15 +12,15 @@ struct TimelineLayoutTokens: Equatable {
     let columnSpacing: CGFloat
     let nodeColumnWidth: CGFloat
     let nodeDiameter: CGFloat
-    let nodeCenterYInRow: CGFloat
-    let firstMomentTopBreathing: CGFloat
+    let nodeCenterYInMoment: CGFloat
+    let railTopToFirstMomentTopGap: CGFloat
     let momentGap: CGFloat
     let nodeToBubbleTailGap: CGFloat
     let railWidth: CGFloat
     let bubbleTailSize: CGSize
     let expandedTitleSlotBottomY: CGFloat
     let expandedTitleTopPadding: CGFloat
-    let titleToRailTopSpacing: CGFloat
+    let titleToRailTopGap: CGFloat
     let railBottomOvershoot: CGFloat
     let topChromeHorizontalPadding: CGFloat
     let topChromeVerticalPadding: CGFloat
@@ -35,15 +35,15 @@ struct TimelineLayoutTokens: Equatable {
         columnSpacing: CGFloat = 6,  // 日期、节点、气泡之间的横向间距
         nodeColumnWidth: CGFloat = 24,  // 心情节点列宽；越大节点列更宽，气泡起点更靠右
         nodeDiameter: CGFloat = 20,  // 心情节点外圈直径；越大时间轴上的圆点越大
-        nodeCenterYInRow: CGFloat = 24,  // 节点在单条 moment 行内的垂直中心
-        firstMomentTopBreathing: CGFloat = 6,  // 时间轴顶点到第一条记录前的引入留白
+        nodeCenterYInMoment: CGFloat = 24,  // 节点在每条 moment 容器内的垂直中心
+        railTopToFirstMomentTopGap: CGFloat = 2,  // 时间轴顶点到第一条 moment 容器顶部的距离
         momentGap: CGFloat = 20,  // moment 与 moment 之间的垂直呼吸间隔
         nodeToBubbleTailGap: CGFloat = 5,  // 心情节点右缘到气泡尖角的水平间隔
         railWidth: CGFloat = 2,  // 时间轴竖线宽度
         bubbleTailSize: CGSize = CGSize(width: 8, height: 14),  // 气泡尖角尺寸
         expandedTitleSlotBottomY: CGFloat = 44,  // 展开态标题槽底部位置
         expandedTitleTopPadding: CGFloat = 0,  // 展开态标题顶部补偿
-        titleToRailTopSpacing: CGFloat = 6,  // 标题槽底部到时间轴顶点的间隔
+        titleToRailTopGap: CGFloat = 6,  // “时刻”标题底部到时间轴顶点的呼吸间隔
         railBottomOvershoot: CGFloat = 48,  // 时间轴底部额外延伸；越大底部留白和轨道延伸越多
         topChromeHorizontalPadding: CGFloat = 18,  // 顶部日历/设置区左右边距
         topChromeVerticalPadding: CGFloat = 8,  // 顶部日历/设置区上下边距
@@ -53,7 +53,8 @@ struct TimelineLayoutTokens: Equatable {
         fabVisualProtectionInset: CGFloat = 8  // 新建按钮视觉保护余量（含阴影）
     ) {
         Self.validate(
-            firstMomentTopBreathing: firstMomentTopBreathing,
+            railTopToFirstMomentTopGap: railTopToFirstMomentTopGap,
+            titleToRailTopGap: titleToRailTopGap,
             momentGap: momentGap,
             nodeToBubbleTailGap: nodeToBubbleTailGap,
             fabVisualProtectionInset: fabVisualProtectionInset
@@ -64,15 +65,15 @@ struct TimelineLayoutTokens: Equatable {
         self.columnSpacing = columnSpacing
         self.nodeColumnWidth = nodeColumnWidth
         self.nodeDiameter = nodeDiameter
-        self.nodeCenterYInRow = nodeCenterYInRow
-        self.firstMomentTopBreathing = firstMomentTopBreathing
+        self.nodeCenterYInMoment = nodeCenterYInMoment
+        self.railTopToFirstMomentTopGap = railTopToFirstMomentTopGap
         self.momentGap = momentGap
         self.nodeToBubbleTailGap = nodeToBubbleTailGap
         self.railWidth = railWidth
         self.bubbleTailSize = bubbleTailSize
         self.expandedTitleSlotBottomY = expandedTitleSlotBottomY
         self.expandedTitleTopPadding = expandedTitleTopPadding
-        self.titleToRailTopSpacing = titleToRailTopSpacing
+        self.titleToRailTopGap = titleToRailTopGap
         self.railBottomOvershoot = railBottomOvershoot
         self.topChromeHorizontalPadding = topChromeHorizontalPadding
         self.topChromeVerticalPadding = topChromeVerticalPadding
@@ -83,12 +84,17 @@ struct TimelineLayoutTokens: Equatable {
     }
 
     private static func validate(
-        firstMomentTopBreathing: CGFloat,
+        railTopToFirstMomentTopGap: CGFloat,
+        titleToRailTopGap: CGFloat,
         momentGap: CGFloat,
         nodeToBubbleTailGap: CGFloat,
         fabVisualProtectionInset: CGFloat
     ) {
-        precondition(firstMomentTopBreathing >= 0, "firstMomentTopBreathing must be non-negative")
+        precondition(
+            railTopToFirstMomentTopGap >= 0,
+            "railTopToFirstMomentTopGap must be non-negative"
+        )
+        precondition(titleToRailTopGap >= 0, "titleToRailTopGap must be non-negative")
         precondition(momentGap >= 0, "momentGap must be non-negative")
         precondition(nodeToBubbleTailGap >= 0, "nodeToBubbleTailGap must be non-negative")
         precondition(fabVisualProtectionInset >= 0, "fabVisualProtectionInset must be non-negative")
@@ -121,8 +127,7 @@ enum TimelineLayoutResolver {
             scale.horizontal(tokens.nodeColumnWidth),
             nodeDiameter + scale.horizontal(2)
         )
-        let nodeCenterY = scale.vertical(tokens.nodeCenterYInRow)
-        let firstMomentTopBreathing = scale.vertical(tokens.firstMomentTopBreathing)
+        let nodeCenterY = scale.vertical(tokens.nodeCenterYInMoment)
         let nodeToBubbleTailGap = scale.horizontal(tokens.nodeToBubbleTailGap)
         let bubbleTailHorizontalOffset = resolveBubbleTailHorizontalOffset(
             dateColumnWidth: dateColumnWidth,
@@ -139,7 +144,6 @@ enum TimelineLayoutResolver {
             nodeColumnWidth: nodeColumnWidth,
             nodeDiameter: nodeDiameter,
             nodeCenterY: nodeCenterY,
-            railLeadInHeight: firstMomentTopBreathing,
             rowGapHeight: scale.vertical(tokens.momentGap),
             railWidth: scale.component(tokens.railWidth),
             bubbleTailSize: CGSize(
@@ -171,7 +175,8 @@ enum TimelineLayoutResolver {
         TimelineViewportLayout(
             expandedTitleSlotBottomY: scale.vertical(tokens.expandedTitleSlotBottomY),
             expandedTitleTopPadding: scale.vertical(tokens.expandedTitleTopPadding),
-            titleToRailTopSpacing: scale.vertical(tokens.titleToRailTopSpacing),
+            titleToRailTopGap: scale.vertical(tokens.titleToRailTopGap),
+            railTopToFirstMomentTopGap: scale.vertical(tokens.railTopToFirstMomentTopGap),
             railBottomOvershoot: scale.vertical(tokens.railBottomOvershoot)
         )
     }

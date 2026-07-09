@@ -11,23 +11,43 @@ struct TimelineViewportLayout: Equatable {
 
     let expandedTitleSlotBottomY: CGFloat
     let expandedTitleTopPadding: CGFloat
-    let titleToRailTopSpacing: CGFloat
+    let titleToRailTopGap: CGFloat
+    let railTopToFirstMomentTopGap: CGFloat
     let railBottomOvershoot: CGFloat
 
     init(
         expandedTitleSlotBottomY: CGFloat,
         expandedTitleTopPadding: CGFloat,
-        titleToRailTopSpacing: CGFloat,
+        titleToRailTopGap: CGFloat,
+        railTopToFirstMomentTopGap: CGFloat,
         railBottomOvershoot: CGFloat
     ) {
+        precondition(
+            expandedTitleSlotBottomY >= expandedTitleTopPadding,
+            "expandedTitleSlotBottomY must be greater than or equal to expandedTitleTopPadding"
+        )
+        precondition(titleToRailTopGap >= 0, "titleToRailTopGap must be non-negative")
+        precondition(
+            railTopToFirstMomentTopGap >= 0,
+            "railTopToFirstMomentTopGap must be non-negative"
+        )
         self.expandedTitleSlotBottomY = expandedTitleSlotBottomY
         self.expandedTitleTopPadding = expandedTitleTopPadding
-        self.titleToRailTopSpacing = titleToRailTopSpacing
+        self.titleToRailTopGap = titleToRailTopGap
+        self.railTopToFirstMomentTopGap = railTopToFirstMomentTopGap
         self.railBottomOvershoot = railBottomOvershoot
     }
 
     var restingRailTopY: CGFloat {
-        expandedTitleSlotBottomY + titleToRailTopSpacing
+        expandedTitleSlotBottomY + titleToRailTopGap
+    }
+
+    var expandedTitleContentSlotHeight: CGFloat {
+        expandedTitleSlotBottomY - expandedTitleTopPadding
+    }
+
+    var restingFirstReadingUnitTopY: CGFloat {
+        restingRailTopY + railTopToFirstMomentTopGap
     }
 }
 
@@ -63,8 +83,11 @@ struct TimelineViewportMetrics: Equatable {
         TimelineRailSceneBounds(topY: railTopY, bottomY: railBottomY)
     }
 
+    var restingFirstReadingUnitTopY: CGFloat {
+        sceneLayout.viewport.restingFirstReadingUnitTopY
+    }
+
     var restingFirstNodeCenterY: CGFloat {
-        sceneLayout.viewport.restingRailTopY
-            + sceneLayout.geometry.firstNodeCenterYOffsetFromRailTop
+        restingFirstReadingUnitTopY + sceneLayout.geometry.nodeCenterY
     }
 }

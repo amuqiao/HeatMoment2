@@ -4,29 +4,34 @@ import XCTest
 final class TimelineGeometryTests: XCTestCase {
     func testRailTopIsAboveFirstNodeWithBreathingSpaceBetweenThem() {
         let geometry = TimelineGeometry.standard
-        let railTopY: CGFloat = 180
-        let firstNodeCenterY = geometry.firstNodeCenterY(railTopY: railTopY)
+        let layout = TimelineViewportLayout.standard
+        let metrics = TimelineViewportMetrics(
+            viewportSize: CGSize(width: 430, height: 760),
+            scrollOffsetY: 0,
+            sceneLayout: sceneLayout(viewport: layout, geometry: geometry)
+        )
 
-        XCTAssertLessThan(railTopY, firstNodeCenterY)
+        XCTAssertLessThan(metrics.railTopY, metrics.restingFirstReadingUnitTopY)
+        XCTAssertLessThan(metrics.restingFirstReadingUnitTopY, metrics.restingFirstNodeCenterY)
         XCTAssertEqual(
-            firstNodeCenterY - railTopY,
-            geometry.firstNodeCenterYOffsetFromRailTop
+            metrics.restingFirstReadingUnitTopY - metrics.railTopY,
+            layout.railTopToFirstMomentTopGap
+        )
+        XCTAssertEqual(
+            metrics.restingFirstNodeCenterY - metrics.restingFirstReadingUnitTopY,
+            geometry.nodeCenterY
         )
         XCTAssertGreaterThan(
-            firstNodeCenterY - railTopY,
+            metrics.restingFirstNodeCenterY - metrics.railTopY,
             geometry.nodeDiameter
-        )
-        XCTAssertGreaterThanOrEqual(
-            firstNodeCenterY - geometry.nodeDiameter / 2 - railTopY,
-            20
         )
     }
 
-    func testLeadInRemainsVisibleBeforeFirstReadingUnit() {
-        let geometry = TimelineGeometry.standard
+    func testRailTopToFirstMomentTopGapRemainsCompactByDefault() {
+        let layout = TimelineViewportLayout.standard
 
-        XCTAssertGreaterThanOrEqual(geometry.railLeadInHeight, 4)
-        XCTAssertLessThanOrEqual(geometry.railLeadInHeight, 10)
+        XCTAssertGreaterThanOrEqual(layout.railTopToFirstMomentTopGap, 0)
+        XCTAssertLessThanOrEqual(layout.railTopToFirstMomentTopGap, 10)
     }
 
     func testViewportLayoutOwnsBreathingSpaceBelowExpandedTitle() {
@@ -38,10 +43,10 @@ final class TimelineGeometryTests: XCTestCase {
             sceneLayout: sceneLayout(viewport: layout, geometry: geometry)
         )
 
-        XCTAssertGreaterThanOrEqual(layout.titleToRailTopSpacing, 6)
+        XCTAssertGreaterThanOrEqual(layout.titleToRailTopGap, 6)
         XCTAssertEqual(
             metrics.railTopY,
-            layout.expandedTitleSlotBottomY + layout.titleToRailTopSpacing
+            layout.expandedTitleSlotBottomY + layout.titleToRailTopGap
         )
         XCTAssertLessThan(metrics.railTopY, metrics.restingFirstNodeCenterY)
     }
@@ -56,38 +61,49 @@ final class TimelineGeometryTests: XCTestCase {
         )
 
         XCTAssertEqual(layout.expandedTitleTopPadding, 0)
+        XCTAssertEqual(layout.expandedTitleContentSlotHeight, 44)
         XCTAssertEqual(metrics.railTopY, 50)
-        XCTAssertEqual(metrics.restingFirstNodeCenterY, 80)
+        XCTAssertEqual(metrics.restingFirstReadingUnitTopY, 52)
+        XCTAssertEqual(metrics.restingFirstNodeCenterY, 76)
     }
 
     func testSceneRailStartsAboveFirstReadingUnitNode() {
         let geometry = TimelineGeometry.standard
-        let measuredRailTopY: CGFloat = 248
-        let firstNodeCenterY = geometry.firstNodeCenterY(railTopY: measuredRailTopY)
+        let layout = TimelineViewportLayout.standard
+        let metrics = TimelineViewportMetrics(
+            viewportSize: CGSize(width: 430, height: 620),
+            scrollOffsetY: 0,
+            sceneLayout: sceneLayout(viewport: layout, geometry: geometry)
+        )
 
-        XCTAssertLessThan(measuredRailTopY, firstNodeCenterY)
-        XCTAssertGreaterThanOrEqual(
-            firstNodeCenterY - measuredRailTopY,
-            geometry.railLeadInHeight
+        XCTAssertLessThan(metrics.railTopY, metrics.restingFirstNodeCenterY)
+        XCTAssertEqual(
+            metrics.restingFirstNodeCenterY,
+            layout.restingFirstReadingUnitTopY + geometry.nodeCenterY
         )
     }
 
-    func testLeadInHeightPlacesFirstNodeAtConfiguredOffset() {
-        let geometry = TimelineGeometry.standard
+    func testRailTopToFirstMomentTopGapPlacesFirstNodeAtConfiguredOffset() {
+        let layout = TimelineViewportLayout.standard
 
         XCTAssertEqual(
-            geometry.railLeadInHeight + geometry.nodeCenterY,
-            geometry.firstNodeCenterYOffsetFromRailTop
+            layout.restingRailTopY + layout.railTopToFirstMomentTopGap,
+            layout.restingFirstReadingUnitTopY
         )
     }
 
     func testViewportRailStartsAboveFirstNode() {
         let geometry = TimelineGeometry.standard
-        let railTopY: CGFloat = 144
+        let layout = TimelineViewportLayout.standard
+        let metrics = TimelineViewportMetrics(
+            viewportSize: CGSize(width: 430, height: 620),
+            scrollOffsetY: 0,
+            sceneLayout: sceneLayout(viewport: layout, geometry: geometry)
+        )
 
         XCTAssertLessThan(
-            railTopY,
-            geometry.firstNodeCenterY(railTopY: railTopY)
+            metrics.railTopY,
+            metrics.restingFirstNodeCenterY
         )
     }
 
@@ -168,7 +184,8 @@ final class TimelineGeometryTests: XCTestCase {
         let layout = TimelineViewportLayout(
             expandedTitleSlotBottomY: 80,
             expandedTitleTopPadding: 2,
-            titleToRailTopSpacing: 16,
+            titleToRailTopGap: 16,
+            railTopToFirstMomentTopGap: 10,
             railBottomOvershoot: 280
         )
         let metrics = TimelineViewportMetrics(
@@ -179,6 +196,7 @@ final class TimelineGeometryTests: XCTestCase {
 
         XCTAssertEqual(layout.restingRailTopY, 96)
         XCTAssertEqual(layout.expandedTitleTopPadding, 2)
+        XCTAssertEqual(layout.expandedTitleContentSlotHeight, 78)
         XCTAssertEqual(metrics.railTopY, 96)
         XCTAssertEqual(metrics.railBottomY, 900)
     }

@@ -15,7 +15,6 @@ struct TimelineGeometry: Equatable {
     let nodeColumnWidth: CGFloat
     let nodeDiameter: CGFloat
     let nodeCenterY: CGFloat
-    let railLeadInHeight: CGFloat
     let rowGapHeight: CGFloat
     let railWidth: CGFloat
     let bubbleTailSize: CGSize
@@ -28,20 +27,17 @@ struct TimelineGeometry: Equatable {
         nodeColumnWidth: CGFloat,
         nodeDiameter: CGFloat,
         nodeCenterY: CGFloat,
-        railLeadInHeight: CGFloat,
         rowGapHeight: CGFloat,
         railWidth: CGFloat,
         bubbleTailSize: CGSize,
         bubbleTailHorizontalOffset: CGFloat
     ) {
-        precondition(railLeadInHeight >= 0, "railLeadInHeight must be non-negative")
         self.listHorizontalInset = listHorizontalInset
         self.dateColumnWidth = dateColumnWidth
         self.interColumnSpacing = interColumnSpacing
         self.nodeColumnWidth = nodeColumnWidth
         self.nodeDiameter = nodeDiameter
         self.nodeCenterY = nodeCenterY
-        self.railLeadInHeight = railLeadInHeight
         self.rowGapHeight = rowGapHeight
         self.railWidth = railWidth
         self.bubbleTailSize = bubbleTailSize
@@ -50,16 +46,8 @@ struct TimelineGeometry: Equatable {
 
     var bubbleTailCenterY: CGFloat { nodeCenterY }
     var nodeTopPadding: CGFloat { nodeCenterY - nodeDiameter / 2 }
-    var firstNodeCenterYOffsetFromRailTop: CGFloat {
-        railLeadInHeight + nodeCenterY
-    }
     var bubbleTailGeometry: BubbleTailGeometry {
         BubbleTailGeometry(size: bubbleTailSize, horizontalOffset: bubbleTailHorizontalOffset)
-    }
-
-    /// 默认态第一条记录的心情节点中心 y。用于验证“旗杆顶点高于第一面旗”的呼吸空间。
-    func firstNodeCenterY(railTopY: CGFloat) -> CGFloat {
-        railTopY + firstNodeCenterYOffsetFromRailTop
     }
 
     /// 心情节点相对一行阅读单元左边缘的设计 x 坐标。
