@@ -19,9 +19,24 @@ struct TimelineHomeView: View {
     @State private var isTitleCollapsed = false
     @State private var isFilterPresented = false
     @State private var isHeatmapPresented = false
+    @Query private var timelineContentMoments: [Moment]
+
+    private var timelineContentSignature: [MomentContentSignature] {
+        timelineContentMoments.map(MomentContentSignature.init(moment:))
+    }
 
     private var isModalContextPresented: Bool {
         router.rootSheet != nil || isFilterPresented
+    }
+
+    init() {
+        _timelineContentMoments = Query(
+            filter: #Predicate<Moment> { moment in
+                moment.deletedFlag == false
+            },
+            sort: \Moment.occurredAt,
+            order: .reverse
+        )
     }
 
     var body: some View {
@@ -65,6 +80,12 @@ struct TimelineHomeView: View {
             isPresented: $isFilterPresented,
             activeFilter: $timelineModel.activeFilter
         )
+        .onAppear {
+            timelineModel.noteTimelineContentChanged()
+        }
+        .onChange(of: timelineContentSignature) { _, _ in
+            timelineModel.noteTimelineContentChanged()
+        }
     }
 
     /// 顶部三入口 + 上下文标记横条：一起放进同一个 `.safeAreaInset(edge: .top)`，

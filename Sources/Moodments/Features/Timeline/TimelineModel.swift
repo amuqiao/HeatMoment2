@@ -23,6 +23,11 @@ enum HeatmapAnchorGranularity: Equatable {
 @MainActor
 @Observable
 final class TimelineModel {
+    /// 主时间轴内容版本：只表达「未删除 Moment 集合或排序/聚合关键字段发生变化」。
+    /// 首页热力图等派生视图把它纳入 `.task(id:)`，从本地 SwiftData 真相源重新计算年度候选
+    /// 和聚合数据；它不携带筛选/定位语义，避免把「定位 ≠ 筛选」重新耦合。
+    var timelineContentRevision = 0
+
     /// 热力图定位锚点：仅用于驱动 `ScrollViewReader` 滚动目标，绝不影响 `@Query` 谓词（公理2）。
     var heatmapFocusDate: Date? {
         didSet {
@@ -42,6 +47,10 @@ final class TimelineModel {
     var activeFilter: FilterCondition?
 
     init() {}
+
+    func noteTimelineContentChanged() {
+        timelineContentRevision += 1
+    }
 
     /// 派生只读：当前是否处于定位态（上下文标记横条、行高亮据此显示，见 04-screen-specs.md §4.1）。
     /// 只读取 `heatmapFocusDate`，不新增独立存储、不与 `activeFilter`耦合。

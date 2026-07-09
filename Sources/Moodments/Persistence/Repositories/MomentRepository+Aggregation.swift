@@ -7,6 +7,27 @@ import SwiftData
 /// 与 `MomentRepository` 主体一致：在后台 `ModelActor` 内取数，跨隔离域只回传值类型
 /// （`[Int: Mood]` / `[Mood: Int]`，均 `Sendable`），不传 `@Model` 引用（见 08-architecture.md §5）。
 extension MomentRepository {
+    /// 年份选择器候选：来自所有未软删除时刻的 `occurredAt` 年份，并强制合并当前年。
+    /// 无记录时返回 `[currentYear]`，避免年份菜单为空。软删除记录不参与，因为热力图和统计页
+    /// 的年度聚合也只展示主时间轴内的未删除记录。
+    func availableYears(
+        includingCurrentYear currentYear: Int = HeatmapYearRange.currentYear
+    ) throws -> [Int] {
+        let descriptor = FetchDescriptor<Moment>(
+            predicate: #Predicate<Moment> { moment in
+                moment.deletedFlag == false
+            },
+            sortBy: [SortDescriptor(\.occurredAt, order: .forward)]
+        )
+        let calendar = Calendar.current
+        var years = Set<Int>()
+        years.insert(currentYear)
+        for moment in try modelContext.fetch(descriptor) {
+            years.insert(calendar.component(.year, from: moment.occurredAt))
+        }
+        return years.sorted()
+    }
+
     /// 年度「日期 → 当天最后一条时刻的心情」聚合（依公理1心情色一致性：热力图日期格用
     /// 当天最后一条时刻的心情色）。key 为 `dayOfYear`（`Calendar.ordinality(of:.day, in:.year, for:)`，
     /// 1...365/366）。

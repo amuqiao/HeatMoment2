@@ -13,7 +13,7 @@
 
 - 全部界面文案（含 `Mood` 名称、默认标签名、Paywall 权益文案）走 iOS17 推荐的 String Catalog（`.xcstrings`），维护 zh-Hans / en 两套。
 - 设置页「语言」为应用内语言切换，提供 zh-Hans / English / 「跟随系统」三个选项（`13-open-questions.md` 已裁决），通过 `AppStorage` 记录用户选择的 locale 并注入 `.environment(\.locale, ...)`。
-- 日期/时间展示使用 `Date.FormatStyle` 按当前语言环境自动格式化；年度热力图的年份区间（2021–2026）为固定业务范围，不随语言变化。
+- 日期/时间展示使用 `Date.FormatStyle` 按当前语言环境自动格式化；年度热力图与心情统计的年份候选来自真实未删除 Moment 的发生年份，并始终合并当前年。年份值用字符串插值显示，避免被本地化数字分组格式化成 `2,026`；外围文案仍按界面文案本地化。
 
 ## 12.3 测试策略
 

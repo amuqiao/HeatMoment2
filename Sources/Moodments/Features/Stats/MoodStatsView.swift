@@ -8,9 +8,27 @@ import SwiftUI
 struct MoodStatsView: View {
     @Environment(ThemeManager.self) private var theme
     @State private var model: MoodStatsModel
+    @State private var contentRevision = 0
+    @Query private var contentMoments: [Moment]
+
+    private struct LoadKey: Equatable {
+        let year: Int
+        let contentRevision: Int
+    }
+
+    private var contentSignature: [MomentContentSignature] {
+        contentMoments.map(MomentContentSignature.init(moment:))
+    }
 
     init(modelContainer: ModelContainer) {
         _model = State(initialValue: MoodStatsModel(modelContainer: modelContainer))
+        _contentMoments = Query(
+            filter: #Predicate<Moment> { moment in
+                moment.deletedFlag == false
+            },
+            sort: \Moment.occurredAt,
+            order: .reverse
+        )
     }
 
     var body: some View {
@@ -28,36 +46,52 @@ struct MoodStatsView: View {
                 yearPicker
             }
         }
-        .task(id: model.year) {
+        .task(id: LoadKey(year: model.year, contentRevision: contentRevision)) {
             do {
                 try await model.load()
             } catch {
                 assertionFailure("心情统计加载失败：\(error)")
             }
         }
+        .onChange(of: contentSignature) { _, _ in
+            contentRevision += 1
+        }
     }
 
     private var yearPicker: some View {
         Menu {
-            ForEach(HeatmapYearRange.availableYears.reversed(), id: \.self) { year in
-                Button("\(year)") { model.year = year }
+            ForEach(model.availableYears.reversed(), id: \.self) { year in
+                Button {
+                    model.year = year
+                } label: {
+                    Text(verbatim: String(year))
+                }
             }
         } label: {
-            HStack(spacing: 2) {
-                Text("\(model.year)")
+            HStack(spacing: 4) {
+                Text(verbatim: String(model.year))
+                    .font(.subheadline.weight(.semibold))
                 Image(systemName: "chevron.up.chevron.down")
+                    .font(.caption.weight(.semibold))
             }
             .foregroundStyle(theme.accent)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(theme.accent.opacity(0.14))
+            )
         }
         .accessibilityIdentifier("moodStatsYearPicker")
-        .accessibilityLabel(Text("年份，\(model.year)"))
+        .accessibilityLabel(Text("年份，\(String(model.year))"))
         .accessibilityAdjustableAction { direction in
-            guard let index = HeatmapYearRange.availableYears.firstIndex(of: model.year) else { return }
+            let years = model.availableYears
+            guard let index = years.firstIndex(of: model.year) else { return }
             switch direction {
-            case .increment where index + 1 < HeatmapYearRange.availableYears.count:
-                model.year = HeatmapYearRange.availableYears[index + 1]
+            case .increment where index + 1 < years.count:
+                model.year = years[index + 1]
             case .decrement where index > 0:
-                model.year = HeatmapYearRange.availableYears[index - 1]
+                model.year = years[index - 1]
             default:
                 break
             }

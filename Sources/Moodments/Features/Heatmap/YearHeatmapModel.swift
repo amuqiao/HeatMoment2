@@ -13,19 +13,25 @@ import SwiftData
 @Observable
 final class YearHeatmapModel {
     var year: Int
+    var availableYears: [Int]
     var moodByDay: [Int: Mood] = [:]
 
     private let modelContainer: ModelContainer
 
-    init(modelContainer: ModelContainer, year: Int = Calendar.current.component(.year, from: .now)) {
+    init(modelContainer: ModelContainer, year: Int = HeatmapYearRange.currentYear) {
         self.modelContainer = modelContainer
         self.year = year
+        availableYears = [year]
     }
 
     /// 供 `.task(id:)` 调用：按当前 `year` + 传入的 `filter` 重新聚合（后台 `ModelActor`，
     /// 跨隔离域只回传 `[Int: Mood]` 值类型，见 08-architecture.md §5）。
     func load(filter: FilterCondition?) async throws {
         let repository = MomentRepository(modelContainer: modelContainer)
+        availableYears = try await repository.availableYears()
+        if !availableYears.contains(year) {
+            year = HeatmapYearRange.currentYear
+        }
         moodByDay = try await repository.moodByDay(year: year, filter: filter)
     }
 }

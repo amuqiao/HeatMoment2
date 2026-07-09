@@ -26,6 +26,7 @@ struct YearHeatmapView: View {
     private struct LoadKey: Equatable {
         let year: Int
         let filter: FilterCondition?
+        let timelineContentRevision: Int
     }
 
     var body: some View {
@@ -54,7 +55,13 @@ struct YearHeatmapView: View {
                 .fill(theme.heatmapSeparator)
                 .frame(height: 0.5)
         }
-        .task(id: LoadKey(year: heatmapModel.year, filter: timelineModel.activeFilter)) {
+        .task(
+            id: LoadKey(
+                year: heatmapModel.year,
+                filter: timelineModel.activeFilter,
+                timelineContentRevision: timelineModel.timelineContentRevision
+            )
+        ) {
             do {
                 try await heatmapModel.load(filter: timelineModel.activeFilter)
             } catch {
@@ -84,7 +91,7 @@ struct YearHeatmapView: View {
 
     private var yearMenu: some View {
         Menu {
-            ForEach(HeatmapYearRange.availableYears.reversed(), id: \.self) { year in
+            ForEach(heatmapModel.availableYears.reversed(), id: \.self) { year in
                 Button {
                     handleSelectYear(year)
                 } label: {
@@ -100,9 +107,9 @@ struct YearHeatmapView: View {
             .foregroundStyle(theme.accent)
         }
         .accessibilityIdentifier("heatmapYearMenu")
-        .accessibilityLabel(Text("年份，\(heatmapModel.year)"))
+        .accessibilityLabel(Text("年份，\(String(heatmapModel.year))"))
         .accessibilityAdjustableAction { direction in
-            let years = HeatmapYearRange.availableYears
+            let years = heatmapModel.availableYears
             guard let index = years.firstIndex(of: heatmapModel.year) else { return }
             switch direction {
             case .increment where index + 1 < years.count:

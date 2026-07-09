@@ -10,19 +10,25 @@ import SwiftData
 @Observable
 final class MoodStatsModel {
     var year: Int
+    var availableYears: [Int]
     var moodByDay: [Int: Mood] = [:]
     var moodCounts: [Mood: Int] = [:]
 
     private let modelContainer: ModelContainer
 
-    init(modelContainer: ModelContainer, year: Int = Calendar.current.component(.year, from: .now)) {
+    init(modelContainer: ModelContainer, year: Int = HeatmapYearRange.currentYear) {
         self.modelContainer = modelContainer
         self.year = year
+        availableYears = [year]
     }
 
     /// 供 `.task(id: model.year)` 调用：按当前 `year` 重新加载两个卡片的数据（均为全量，无筛选）。
     func load() async throws {
         let repository = MomentRepository(modelContainer: modelContainer)
+        availableYears = try await repository.availableYears()
+        if !availableYears.contains(year) {
+            year = HeatmapYearRange.currentYear
+        }
         moodByDay = try await repository.moodByDay(year: year, filter: nil)
         moodCounts = try await repository.moodCounts(year: year)
     }

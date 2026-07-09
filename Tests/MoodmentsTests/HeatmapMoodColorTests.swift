@@ -117,6 +117,92 @@ final class HeatmapMoodColorTests: XCTestCase {
         XCTAssertNil(counts[.angry])
     }
 
+    /// 年份候选来自真实未删除记录的发生年份，并始终合并当前年。
+    func testAvailableYearsUsesMomentOccurredYearsAndCurrentYear() async throws {
+        _ = try await repository.createMoment(
+            title: "old",
+            bodyText: "",
+            occurredAt: Self.date(year: 2022, month: 3, day: 1, hour: 10),
+            mood: .normal
+        )
+        _ = try await repository.createMoment(
+            title: "recent",
+            bodyText: "",
+            occurredAt: Self.date(year: 2025, month: 9, day: 1, hour: 10),
+            mood: .happy
+        )
+
+        let years = try await repository.availableYears(includingCurrentYear: 2026)
+
+        XCTAssertEqual(years, [2022, 2025, 2026])
+    }
+
+    /// 发生时间允许未来日期，年份候选也应跟随真实记录年份扩展。
+    func testAvailableYearsIncludesFutureOccurredAtYears() async throws {
+        _ = try await repository.createMoment(
+            title: "future",
+            bodyText: "",
+            occurredAt: Self.date(year: 2028, month: 1, day: 1, hour: 10),
+            mood: .motivated
+        )
+
+        let years = try await repository.availableYears(includingCurrentYear: 2026)
+
+        XCTAssertEqual(years, [2026, 2028])
+    }
+
+    /// 无记录时年份菜单不能为空，默认只提供当前年。
+    func testAvailableYearsDefaultsToCurrentYearWhenNoMomentsExist() async throws {
+        let years = try await repository.availableYears(includingCurrentYear: 2026)
+
+        XCTAssertEqual(years, [2026])
+    }
+
+    /// 软删除记录不参与热力图/统计页聚合，也不应撑出一个可选年份。
+    func testAvailableYearsExcludesSoftDeletedOnlyYears() async throws {
+        let deletedID = try await repository.createMoment(
+            title: "deleted",
+            bodyText: "",
+            occurredAt: Self.date(year: 2021, month: 1, day: 1, hour: 10),
+            mood: .sad
+        )
+        try await repository.softDelete(id: deletedID)
+
+        let years = try await repository.availableYears(includingCurrentYear: 2026)
+
+        XCTAssertEqual(years, [2026])
+    }
+
+    /// 派生 model 每次加载都重算候选；选中年份失效时回落到当前年，避免菜单残留空年份。
+    func testHeatmapModelReloadFallsBackWhenSelectedYearDisappears() async throws {
+        let id = try await repository.createMoment(
+            title: "future",
+            bodyText: "",
+            occurredAt: Self.date(year: 2028, month: 1, day: 1, hour: 10),
+            mood: .motivated
+        )
+        let modelContainer = try XCTUnwrap(container)
+        let model = await MainActor.run {
+            YearHeatmapModel(modelContainer: modelContainer, year: 2028)
+        }
+        try await model.load(filter: nil)
+
+        let loadedState = await MainActor.run {
+            (year: model.year, availableYears: model.availableYears)
+        }
+        XCTAssertEqual(loadedState.year, 2028)
+        XCTAssertEqual(loadedState.availableYears, [2026, 2028])
+
+        try await repository.softDelete(id: id)
+        try await model.load(filter: nil)
+
+        let reloadedState = await MainActor.run {
+            (year: model.year, availableYears: model.availableYears)
+        }
+        XCTAssertEqual(reloadedState.year, 2026)
+        XCTAssertEqual(reloadedState.availableYears, [2026])
+    }
+
     private static func date(year: Int, month: Int, day: Int, hour: Int) -> Date {
         var components = DateComponents()
         components.year = year
