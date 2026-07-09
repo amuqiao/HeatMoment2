@@ -130,8 +130,8 @@ struct TimelineViewportView: View {
 
                     List {
                         expandedTitle
-                            .padding(.top, 4)
-                            .padding(.bottom, Self.geometry.titleToRailTopSpacing)
+                            .padding(.top, Self.viewportLayout.expandedTitleTopPadding)
+                            .padding(.bottom, Self.viewportLayout.titleToRailTopSpacing)
                             .listRowSeparator(.hidden)
                             .listRowBackground(Color.clear)
                             .listRowInsets(Self.geometry.rowInsets)

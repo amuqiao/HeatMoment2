@@ -11,6 +11,8 @@ import SwiftUI
 /// 固定在 topBar 之下常驻（由 `TimelineHomeView` 通过 `.safeAreaInset(edge: .top)` 与
 /// topBar 一起放入同一个不随列表滚走的容器）。
 struct TimelineContextMarkerBar: View {
+    let layout: TimelineHomeLayout
+
     @Environment(TimelineModel.self) private var timelineModel
     @Environment(ThemeManager.self) private var theme
 
@@ -64,12 +66,16 @@ struct TimelineContextMarkerBar: View {
                     }
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 8)
+            .padding(.horizontal, layout.topChromeHorizontalPadding)
+            .padding(.vertical, layout.topChromeVerticalPadding)
         }
     }
 
-    private func marker(text: String, identifier: String, onRemove: @escaping () -> Void) -> some View {
+    private func marker(
+        text: String,
+        identifier: String,
+        onRemove: @escaping () -> Void
+    ) -> some View {
         HStack(spacing: 4) {
             Text(text)
                 .font(AppTypography.caption)
@@ -116,7 +122,7 @@ struct TimelineContextMarkerBar: View {
     let model = TimelineModel()
     model.activeFilter = FilterCondition(mood: .happy)
     model.setHeatmapAnchor(.now, granularity: .month)
-    return TimelineContextMarkerBar()
+    return TimelineContextMarkerBar(layout: .standard)
         .environment(ThemeManager())
         .environment(model)
         // swiftlint:disable:next force_try

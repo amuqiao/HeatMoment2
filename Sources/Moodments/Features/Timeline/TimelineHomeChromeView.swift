@@ -6,6 +6,7 @@ import SwiftUI
 /// `TimelineHomeView` 组合的 presenter 决定。这样后续调整入口样式、热力图展开方式或筛选
 /// sheet detent 时，不需要改动时间轴列表和数据查询。
 struct TimelineHomeChromeView: View {
+    let layout: TimelineHomeLayout
     let isTitleCollapsed: Bool
     let isContextPanelPresented: Bool
     let onCalendarTapped: () -> Void
@@ -25,8 +26,8 @@ struct TimelineHomeChromeView: View {
             Spacer()
             HexagonIconButtonView(action: onSettingsTapped)
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 8)
+        .padding(.horizontal, layout.topChromeHorizontalPadding)
+        .padding(.vertical, layout.topChromeVerticalPadding)
         .background { chromeBackground }
         .animation(.easeInOut(duration: 0.2), value: isTitleCollapsed)
     }
@@ -62,6 +63,7 @@ struct TimelineHomeChromeView: View {
 
 #Preview {
     TimelineHomeChromeView(
+        layout: .standard,
         isTitleCollapsed: true,
         isContextPanelPresented: false,
         onCalendarTapped: {},

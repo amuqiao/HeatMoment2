@@ -8,15 +8,18 @@ struct TimelineViewportLayout: Equatable {
     static let standard = TimelineViewportLayout()
 
     let expandedTitleSlotBottomY: CGFloat
+    let expandedTitleTopPadding: CGFloat
     let titleToRailTopSpacing: CGFloat
     let railBottomOvershoot: CGFloat
 
     init(
-        expandedTitleSlotBottomY: CGFloat = 52,
-        titleToRailTopSpacing: CGFloat = TimelineGeometry.standard.titleToRailTopSpacing,
-        railBottomOvershoot: CGFloat = 260
+        expandedTitleSlotBottomY: CGFloat = 48,
+        expandedTitleTopPadding: CGFloat = 0,
+        titleToRailTopSpacing: CGFloat = 8,
+        railBottomOvershoot: CGFloat = 96
     ) {
         self.expandedTitleSlotBottomY = expandedTitleSlotBottomY
+        self.expandedTitleTopPadding = expandedTitleTopPadding
         self.titleToRailTopSpacing = titleToRailTopSpacing
         self.railBottomOvershoot = railBottomOvershoot
     }

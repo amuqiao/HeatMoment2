@@ -10,6 +10,8 @@ import SwiftUI
 /// `TimelineModel` 由 `RootView` 上提持有并注入（见 `TimelineModel` 头部注释「必要重构」），
 /// 时间轴与热力图共享同一实例。
 struct TimelineHomeView: View {
+    private static let layout = TimelineHomeLayout.standard
+
     @Environment(AppRouter.self) private var router
     @Environment(TimelineModel.self) private var timelineModel
     @Environment(\.modelContext) private var modelContext
@@ -38,16 +40,15 @@ struct TimelineHomeView: View {
                 topBarStack
             }
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                // 为悬浮新建按钮（FAB）预留空间，替代原 LazyVStack 尾部的 `.padding(.bottom, 120)`。
-                Color.clear.frame(height: 120)
+                Color.clear.frame(height: Self.layout.bottomActionClearance)
             }
         }
         .accessibilityHidden(isModalContextPresented)
         .overlay(alignment: .bottom) {
-            FABButtonView {
+            FABButtonView(diameter: Self.layout.fabDiameter) {
                 handleNewMomentTapped()
             }
-            .padding(.bottom, 24)
+            .padding(.bottom, Self.layout.fabBottomPadding)
             .accessibilityHidden(isModalContextPresented)
         }
         .timelineFilterSheet(
@@ -61,6 +62,7 @@ struct TimelineHomeView: View {
     private var topBarStack: some View {
         VStack(spacing: 0) {
             TimelineHomeChromeView(
+                layout: Self.layout,
                 isTitleCollapsed: isTitleCollapsed,
                 isContextPanelPresented: isHeatmapPresented,
                 onCalendarTapped: {
@@ -79,7 +81,7 @@ struct TimelineHomeView: View {
                 }
             }
             if timelineModel.hasFilter || timelineModel.isLocated {
-                TimelineContextMarkerBar()
+                TimelineContextMarkerBar(layout: Self.layout)
             }
         }
         .animation(.easeInOut(duration: 0.2), value: isHeatmapPresented)
