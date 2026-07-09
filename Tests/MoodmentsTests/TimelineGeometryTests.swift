@@ -14,15 +14,19 @@ final class TimelineGeometryTests: XCTestCase {
         )
         XCTAssertGreaterThan(
             firstNodeCenterY - railTopY,
-            geometry.nodeCenterY + geometry.nodeDiameter
+            geometry.nodeDiameter
+        )
+        XCTAssertGreaterThanOrEqual(
+            firstNodeCenterY - geometry.nodeDiameter / 2 - railTopY,
+            20
         )
     }
 
     func testLeadInRemainsVisibleBeforeFirstReadingUnit() {
         let geometry = TimelineGeometry.standard
 
-        XCTAssertGreaterThanOrEqual(geometry.railLeadInHeight, 24)
-        XCTAssertLessThanOrEqual(geometry.railLeadInHeight, 36)
+        XCTAssertGreaterThanOrEqual(geometry.railLeadInHeight, 4)
+        XCTAssertLessThanOrEqual(geometry.railLeadInHeight, 10)
     }
 
     func testViewportLayoutOwnsBreathingSpaceBelowExpandedTitle() {
@@ -54,8 +58,8 @@ final class TimelineGeometryTests: XCTestCase {
         )
 
         XCTAssertEqual(layout.expandedTitleTopPadding, 0)
-        XCTAssertEqual(metrics.railTopY, 56)
-        XCTAssertEqual(metrics.restingFirstNodeCenterY, 116)
+        XCTAssertEqual(metrics.railTopY, 58)
+        XCTAssertEqual(metrics.restingFirstNodeCenterY, 88)
     }
 
     func testSceneRailStartsAboveFirstReadingUnitNode() {

@@ -15,8 +15,6 @@ import SwiftUI
 /// 标签 AND 交集（`@Query` 谓词表达不了的部分）在 `matchedMoments` 里用
 /// `FilterCondition.matches` 内存过滤（见 04-screen-specs.md §4.2）。
 struct TimelineViewportView: View {
-    private static let geometry = TimelineGeometry.standard
-    private static let viewportLayout = TimelineViewportLayout.standard
     // 折叠阈值取接近大标题实际高度：仅当展开态大标题大体滚出后才切收起态，
     // 避免小阈值下「时刻 ⌄」与仍完整可见的大标题同屏并存（见阶段2 code review）。
     private static let collapseThreshold: CGFloat = -44
@@ -26,6 +24,7 @@ struct TimelineViewportView: View {
     private static let locateHighlightOpacity: Double = 0.14
 
     let filter: FilterCondition?
+    let scene: TimelineSceneMetrics
     let suppressAccessibility: Bool
     @Binding var isTitleCollapsed: Bool
 
@@ -40,10 +39,13 @@ struct TimelineViewportView: View {
     @Query private var moments: [Moment]
 
     init(
-        filter: FilterCondition?, suppressAccessibility: Bool = false,
+        filter: FilterCondition?,
+        scene: TimelineSceneMetrics,
+        suppressAccessibility: Bool = false,
         isTitleCollapsed: Binding<Bool>
     ) {
         self.filter = filter
+        self.scene = scene
         self.suppressAccessibility = suppressAccessibility
         _isTitleCollapsed = isTitleCollapsed
         _moments = Query(
@@ -114,44 +116,45 @@ struct TimelineViewportView: View {
                 let viewportMetrics = TimelineViewportMetrics(
                     viewportSize: viewportProxy.size,
                     scrollOffsetY: scrollOffsetY,
-                    layout: Self.viewportLayout,
+                    layout: scene.layout.viewport,
                     firstNodeCenterYOffsetFromRailTop:
-                        Self.geometry.firstNodeCenterYOffsetFromRailTop
+                        scene.layout.geometry.firstNodeCenterYOffsetFromRailTop
                 )
 
                 ZStack(alignment: .topLeading) {
                     if railVisibility.showsRail {
                         TimelineRailSceneLayer(
-                            geometry: Self.geometry,
+                            geometry: scene.layout.geometry,
                             metrics: viewportMetrics
                         )
                         .zIndex(0)
                     }
 
                     List {
-                        expandedTitle
-                            .padding(.top, Self.viewportLayout.expandedTitleTopPadding)
-                            .padding(.bottom, Self.viewportLayout.titleToRailTopSpacing)
+                        expandedTitle(style: scene.style.title)
+                            .padding(.top, scene.layout.viewport.expandedTitleTopPadding)
+                            .padding(.bottom, scene.layout.viewport.titleToRailTopSpacing)
                             .listRowSeparator(.hidden)
                             .listRowBackground(Color.clear)
-                            .listRowInsets(Self.geometry.rowInsets)
+                            .listRowInsets(scene.layout.geometry.rowInsets)
                             .accessibilityHidden(suppressAccessibility)
 
                         if railVisibility.showsRail {
-                            timelineLeadIn
+                            timelineLeadIn(geometry: scene.layout.geometry)
                         }
 
                         if isFilteredEmpty {
                             filteredEmptyState
                                 .listRowSeparator(.hidden)
                                 .listRowBackground(Color.clear)
-                                .listRowInsets(Self.geometry.rowInsets)
+                                .listRowInsets(scene.layout.geometry.rowInsets)
                                 .accessibilityHidden(suppressAccessibility)
                         } else {
                             ForEach(viewportEntries) { entry in
                                 TimelineRowView(
                                     entry: entry,
-                                    geometry: Self.geometry,
+                                    geometry: scene.layout.geometry,
+                                    style: scene.style,
                                     onTap: {
                                         if let momentID = entry.momentID {
                                             router.rootSheet = .preview(momentID)
@@ -162,12 +165,15 @@ struct TimelineViewportView: View {
                                 .id(entry.id)
                                 .listRowSeparator(.hidden)
                                 .listRowBackground(rowBackground(for: entry))
-                                .listRowInsets(Self.geometry.rowInsets)
+                                .listRowInsets(scene.layout.geometry.rowInsets)
                                 .accessibilityHidden(suppressAccessibility)
                             }
 
                             if railVisibility.showsRail {
-                                timelineBottomOvershoot
+                                timelineBottomOvershoot(
+                                    geometry: scene.layout.geometry,
+                                    layout: scene.layout.viewport
+                                )
                             }
                         }
                     }
@@ -194,21 +200,24 @@ struct TimelineViewportView: View {
         }
     }
 
-    private var timelineLeadIn: some View {
+    private func timelineLeadIn(geometry: TimelineGeometry) -> some View {
         Color.clear
-            .frame(height: Self.geometry.railLeadInHeight)
+            .frame(height: geometry.railLeadInHeight)
             .listRowSeparator(.hidden)
             .listRowBackground(Color.clear)
-            .listRowInsets(Self.geometry.rowInsets)
+            .listRowInsets(geometry.rowInsets)
             .accessibilityHidden(true)
     }
 
-    private var timelineBottomOvershoot: some View {
+    private func timelineBottomOvershoot(
+        geometry: TimelineGeometry,
+        layout: TimelineViewportLayout
+    ) -> some View {
         Color.clear
-            .frame(height: Self.viewportLayout.railBottomOvershoot)
+            .frame(height: layout.railBottomOvershoot)
             .listRowSeparator(.hidden)
             .listRowBackground(Color.clear)
-            .listRowInsets(Self.geometry.rowInsets)
+            .listRowInsets(geometry.rowInsets)
             .accessibilityHidden(true)
     }
 
@@ -254,9 +263,9 @@ struct TimelineViewportView: View {
     // MARK: - 标题两态（见 04-screen-specs.md §4.1）
 
     /// 展开态：滚到顶时的大标题，纯场景标识，不可点、不触发筛选。
-    private var expandedTitle: some View {
+    private func expandedTitle(style: TimelineTitleStyle) -> some View {
         Text("时刻")
-            .font(AppTypography.pageTitle)
+            .font(style.font)
             .foregroundStyle(theme.primaryText)
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityIdentifier("timelineExpandedTitle")
@@ -268,12 +277,16 @@ struct TimelineViewportView: View {
 }
 
 #Preview {
-    TimelineViewportView(filter: nil, isTitleCollapsed: .constant(false))
-        .environment(AppRouter())
-        .environment(ThemeManager())
-        .environment(TimelineModel())
-        .environment(ErrorPresenter())
-        .environment(SyncStatusService(cloudKitEnabled: false))
-        // swiftlint:disable:next force_try
-        .modelContainer(try! ModelContainerConfig.makeInMemoryContainer())
+    TimelineViewportView(
+        filter: nil,
+        scene: TimelineSceneMetrics.responsive(for: 390),
+        isTitleCollapsed: .constant(false)
+    )
+    .environment(AppRouter())
+    .environment(ThemeManager())
+    .environment(TimelineModel())
+    .environment(ErrorPresenter())
+    .environment(SyncStatusService(cloudKitEnabled: false))
+    // swiftlint:disable:next force_try
+    .modelContainer(try! ModelContainerConfig.makeInMemoryContainer())
 }

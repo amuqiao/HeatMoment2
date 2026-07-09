@@ -118,7 +118,11 @@ struct MomentPreviewView: View {
     private func header(for moment: Moment) -> some View {
         HStack(spacing: 12) {
             HStack(spacing: 6) {
-                MoodNodeView(mood: moment.mood, diameter: 14)
+                MoodNodeView(
+                    mood: moment.mood,
+                    diameter: 14,
+                    style: TimelineMoodNodeStyle(innerDiameterRatio: 0.5, outerOpacity: 0.38)
+                )
                 Text("\(moment.mood.emoji) \(moment.mood.displayName)")
                     .font(AppTypography.body)
                     .foregroundStyle(theme.primaryText)

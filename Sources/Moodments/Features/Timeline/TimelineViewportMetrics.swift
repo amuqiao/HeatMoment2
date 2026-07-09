@@ -15,7 +15,7 @@ struct TimelineViewportLayout: Equatable {
     init(
         expandedTitleSlotBottomY: CGFloat = 48,
         expandedTitleTopPadding: CGFloat = 0,
-        titleToRailTopSpacing: CGFloat = 8,
+        titleToRailTopSpacing: CGFloat = 10,
         railBottomOvershoot: CGFloat = 96
     ) {
         self.expandedTitleSlotBottomY = expandedTitleSlotBottomY

@@ -10,10 +10,9 @@ import SwiftUI
 /// `TimelineModel` 由 `RootView` 上提持有并注入（见 `TimelineModel` 头部注释「必要重构」），
 /// 时间轴与热力图共享同一实例。
 struct TimelineHomeView: View {
-    private static let layout = TimelineHomeLayout.standard
-
     @Environment(AppRouter.self) private var router
     @Environment(TimelineModel.self) private var timelineModel
+    @Environment(ThemeManager.self) private var theme
     @Environment(\.modelContext) private var modelContext
     @Environment(ErrorPresenter.self) private var errorPresenter
     @Environment(SubscriptionService.self) private var subscriptionService
@@ -28,28 +27,39 @@ struct TimelineHomeView: View {
     var body: some View {
         @Bindable var timelineModel = timelineModel
 
-        ZStack {
-            HomeSceneBackgroundView().ignoresSafeArea()
-
-            TimelineViewportView(
-                filter: timelineModel.activeFilter,
-                suppressAccessibility: isModalContextPresented,
-                isTitleCollapsed: $isTitleCollapsed
+        GeometryReader { proxy in
+            let scene = TimelineSceneMetrics.responsive(
+                for: proxy.size.width,
+                baseStyle: theme.timelineSceneStyle
             )
-            .safeAreaInset(edge: .top, spacing: 0) {
-                topBarStack
+
+            ZStack {
+                HomeSceneBackgroundView().ignoresSafeArea()
+
+                TimelineViewportView(
+                    filter: timelineModel.activeFilter,
+                    scene: scene,
+                    suppressAccessibility: isModalContextPresented,
+                    isTitleCollapsed: $isTitleCollapsed
+                )
+                .safeAreaInset(edge: .top, spacing: 0) {
+                    topBarStack(layout: scene.layout.home, style: scene.style.chromeIcon)
+                }
+                .safeAreaInset(edge: .bottom, spacing: 0) {
+                    Color.clear.frame(height: scene.layout.home.bottomActionClearance)
+                }
             }
-            .safeAreaInset(edge: .bottom, spacing: 0) {
-                Color.clear.frame(height: Self.layout.bottomActionClearance)
-            }
-        }
-        .accessibilityHidden(isModalContextPresented)
-        .overlay(alignment: .bottom) {
-            FABButtonView(diameter: Self.layout.fabDiameter) {
-                handleNewMomentTapped()
-            }
-            .padding(.bottom, Self.layout.fabBottomPadding)
             .accessibilityHidden(isModalContextPresented)
+            .overlay(alignment: .bottom) {
+                FABButtonView(
+                    diameter: scene.layout.home.fabDiameter,
+                    style: scene.style.fab
+                ) {
+                    handleNewMomentTapped()
+                }
+                .padding(.bottom, scene.layout.home.fabBottomPadding)
+                .accessibilityHidden(isModalContextPresented)
+            }
         }
         .timelineFilterSheet(
             isPresented: $isFilterPresented,
@@ -59,10 +69,11 @@ struct TimelineHomeView: View {
 
     /// 顶部三入口 + 上下文标记横条：一起放进同一个 `.safeAreaInset(edge: .top)`，
     /// 使二者都固定在列表之外、不随内容滚走（见 04-screen-specs.md §4.1「上下文标记」）。
-    private var topBarStack: some View {
+    private func topBarStack(layout: TimelineHomeLayout, style: HomeChromeIconStyle) -> some View {
         VStack(spacing: 0) {
             TimelineHomeChromeView(
-                layout: Self.layout,
+                layout: layout,
+                style: style,
                 isTitleCollapsed: isTitleCollapsed,
                 isContextPanelPresented: isHeatmapPresented,
                 onCalendarTapped: {
@@ -81,7 +92,7 @@ struct TimelineHomeView: View {
                 }
             }
             if timelineModel.hasFilter || timelineModel.isLocated {
-                TimelineContextMarkerBar(layout: Self.layout)
+                TimelineContextMarkerBar(layout: layout)
             }
         }
         .animation(.easeInOut(duration: 0.2), value: isHeatmapPresented)

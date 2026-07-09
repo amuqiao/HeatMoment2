@@ -9,15 +9,24 @@ import SwiftUI
 /// 统一在卡片上给出完整 label。
 struct MoodNodeView: View {
     let mood: Mood
-    var diameter: CGFloat = 13
+    var diameter: CGFloat = TimelineGeometry.standard.nodeDiameter
+    var style: TimelineMoodNodeStyle = .standard
 
     @Environment(ThemeManager.self) private var theme
 
     var body: some View {
-        Circle()
-            .fill(theme.moodColor(mood))
-            .frame(width: diameter, height: diameter)
-            .accessibilityHidden(true)
+        let innerDiameter = diameter * style.innerDiameterRatio
+
+        ZStack {
+            Circle()
+                .fill(theme.moodColor(mood).opacity(style.outerOpacity))
+                .frame(width: diameter, height: diameter)
+            Circle()
+                .fill(theme.moodColor(mood))
+                .frame(width: innerDiameter, height: innerDiameter)
+        }
+        .frame(width: diameter, height: diameter)
+        .accessibilityHidden(true)
     }
 }
 

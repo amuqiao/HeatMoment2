@@ -3,6 +3,7 @@ import SwiftUI
 /// 顶部栏左侧：方形圆角徽标，内嵌当日日期数字，点击展开 `YearHeatmapView`（见 05 §5.6）。
 /// 线性描边、中性色，不跟随主色着色。
 struct CalendarIconButtonView: View {
+    var style: HomeChromeIconStyle = .standard
     let action: () -> Void
 
     @Environment(ThemeManager.self) private var theme
@@ -13,9 +14,9 @@ struct CalendarIconButtonView: View {
 
     var body: some View {
         Button(action: action) {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(theme.neutralIconStroke, lineWidth: 1.5)
-                .frame(width: 32, height: 32)
+            RoundedRectangle(cornerRadius: style.calendarCornerRadius, style: .continuous)
+                .stroke(theme.neutralIconStroke, lineWidth: style.strokeWidth)
+                .frame(width: style.calendarSize.width, height: style.calendarSize.height)
                 .overlay(
                     Text(dayNumber)
                         .font(.caption.bold())
@@ -29,6 +30,7 @@ struct CalendarIconButtonView: View {
 /// 顶部栏右侧：六边形描边图标，点击打开 `SettingsSheetView`（见 05 §5.6）。
 /// 线性描边、中性色，不跟随主色着色。
 struct HexagonIconButtonView: View {
+    var style: HomeChromeIconStyle = .standard
     let action: () -> Void
 
     @Environment(ThemeManager.self) private var theme
@@ -36,8 +38,8 @@ struct HexagonIconButtonView: View {
     var body: some View {
         Button(action: action) {
             HexagonShape()
-                .stroke(theme.neutralIconStroke, lineWidth: 1.5)
-                .frame(width: 28, height: 28)
+                .stroke(theme.neutralIconStroke, lineWidth: style.strokeWidth)
+                .frame(width: style.settingsSize.width, height: style.settingsSize.height)
         }
         .accessibilityLabel(Text("设置"))
     }

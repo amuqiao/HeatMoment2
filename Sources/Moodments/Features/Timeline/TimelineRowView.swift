@@ -11,6 +11,7 @@ import SwiftUI
 struct TimelineRowView: View {
     let entry: TimelineEntry
     let geometry: TimelineGeometry
+    let style: TimelineSceneStyle
     let onTap: () -> Void
     var onDelete: (() -> Void)?
 
@@ -23,6 +24,7 @@ struct TimelineRowView: View {
             TimelineReadingUnitView(
                 entry: entry,
                 geometry: geometry,
+                style: style,
                 onTap: onTap
             )
 
@@ -46,12 +48,13 @@ struct TimelineRowView: View {
 private struct TimelineReadingUnitView: View {
     let entry: TimelineEntry
     let geometry: TimelineGeometry
+    let style: TimelineSceneStyle
     let onTap: () -> Void
 
     var body: some View {
         HStack(alignment: .top, spacing: geometry.interColumnSpacing) {
-            TimelineDateColumn(entry: entry, geometry: geometry)
-            TimelineMoodAnchorColumn(mood: entry.mood, geometry: geometry)
+            TimelineDateColumn(entry: entry, geometry: geometry, style: style.dateStamp)
+            TimelineMoodAnchorColumn(mood: entry.mood, geometry: geometry, style: style.node)
             BubbleCardView(
                 title: entry.title,
                 bodyText: entry.bodyText,
@@ -59,7 +62,8 @@ private struct TimelineReadingUnitView: View {
                 placeholderImageHexColors: entry.placeholderImageHexColors,
                 imageIDs: entry.imageIDs,
                 tailCenterY: geometry.bubbleTailCenterY,
-                tailGeometry: geometry.bubbleTailGeometry
+                tailGeometry: geometry.bubbleTailGeometry,
+                style: style.bubble
             )
             .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
             .layoutPriority(1)
@@ -77,19 +81,20 @@ private struct TimelineReadingUnitView: View {
 private struct TimelineDateColumn: View {
     let entry: TimelineEntry
     let geometry: TimelineGeometry
+    let style: TimelineDateStampStyle
 
     @Environment(ThemeManager.self) private var theme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack(alignment: .firstTextBaseline, spacing: 2) {
-                Text(dayText).font(AppTypography.timelineDayNumber)
-                Text(monthText).font(AppTypography.timelineMonth)
+        VStack(alignment: .leading, spacing: style.verticalSpacing) {
+            HStack(alignment: .firstTextBaseline, spacing: style.monthSpacing) {
+                Text(dayText).font(style.dayFont)
+                Text(monthText).font(style.monthFont)
             }
             .foregroundStyle(theme.primaryText)
 
             Text(timeText)
-                .font(AppTypography.timelineTime)
+                .font(style.timeFont)
                 .foregroundStyle(theme.bubbleBodyText)
         }
         .frame(width: geometry.dateColumnWidth, alignment: .leading)
@@ -119,9 +124,10 @@ private struct TimelineDateColumn: View {
 private struct TimelineMoodAnchorColumn: View {
     let mood: Mood
     let geometry: TimelineGeometry
+    let style: TimelineMoodNodeStyle
 
     var body: some View {
-        MoodNodeView(mood: mood, diameter: geometry.nodeDiameter)
+        MoodNodeView(mood: mood, diameter: geometry.nodeDiameter, style: style)
             .padding(.top, geometry.nodeTopPadding)
             .frame(width: geometry.nodeColumnWidth, alignment: .top)
     }

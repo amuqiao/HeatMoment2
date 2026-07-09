@@ -13,6 +13,7 @@ struct ThumbnailStripView: View {
     let imageIDs: [UUID]
     var displayMode: ImageDisplayMode = .scroll
     var usesMomentPhotoRailLayout = false
+    var timelineImageGalleryStyle: TimelineImageGalleryStyle = .standard
     var preferredSizesByID: [UUID: CGSize] = [:]
     var allowsImageInteraction = true
     var onTapImage: ((Int) -> Void)?
@@ -51,7 +52,7 @@ struct ThumbnailStripView: View {
                 ForEach(Array(imageIDs.enumerated()), id: \.element) { index, imageID in
                     thumbnail(for: imageID)
                         .frame(maxWidth: .infinity)
-                        .frame(height: MomentCardLayout.carouselHeight)
+                        .frame(height: timelineImageGalleryStyle.carouselHeight)
                         .onTapGesture { onTapImage?(index) }
                         .accessibilityLabel(Text("照片，第\(index + 1)张，共\(imageIDs.count)张"))
                         .accessibilityIdentifier("thumbnailStripImage-\(imageID.uuidString)")
@@ -59,7 +60,7 @@ struct ThumbnailStripView: View {
             }
             .tabViewStyle(.page(indexDisplayMode: imageIDs.count > 1 ? .automatic : .never))
             .accessibilityIdentifier("thumbnailStrip")
-            .frame(height: MomentCardLayout.imageSectionHeight(for: .carousel))
+            .frame(height: timelineImageGalleryStyle.imageSectionHeight(for: .carousel))
         }
     }
 
@@ -104,7 +105,7 @@ struct ThumbnailStripView: View {
 
     private func preferredItemSize(for imageID: UUID) -> CGSize {
         guard usesMomentPhotoRailLayout else {
-            return MomentCardLayout.thumbnailSize
+            return timelineImageGalleryStyle.thumbnailSize
         }
         if let preferredSize = preferredSizesByID[imageID] {
             return preferredSize
@@ -121,19 +122,19 @@ struct ThumbnailStripView: View {
     private var scrollItemHeight: CGFloat {
         usesMomentPhotoRailLayout
             ? MomentPhotoRailLayout.itemHeight
-            : MomentCardLayout.imageSectionHeight(for: .scroll)
+            : timelineImageGalleryStyle.imageSectionHeight(for: .scroll)
     }
 
     private var scrollItemSpacing: CGFloat {
         usesMomentPhotoRailLayout
             ? MomentPhotoRailLayout.itemSpacing
-            : MomentCardLayout.thumbnailSpacing
+            : timelineImageGalleryStyle.thumbnailSpacing
     }
 
     private var scrollItemCornerRadius: CGFloat {
         usesMomentPhotoRailLayout
             ? MomentPhotoRailLayout.itemCornerRadius
-            : MomentCardLayout.thumbnailCornerRadius
+            : timelineImageGalleryStyle.thumbnailCornerRadius
     }
 
     @ViewBuilder

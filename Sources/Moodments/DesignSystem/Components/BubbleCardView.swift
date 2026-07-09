@@ -14,21 +14,22 @@ struct BubbleCardView: View {
     var imageIDs: [UUID] = []
     /// 气泡尾巴中心相对卡片顶部的 y 坐标；由时间轴行传入，用来和心情节点中心建立几何绑定。
     var tailCenterY: CGFloat = 30
-    /// 气泡尾巴自身的几何参数。时间轴阅读单元会从 `TimelineGeometry` 传入，避免尾巴
-    /// 尺寸/偏移和节点/轨道坐标分散维护。
+    /// 气泡尾巴几何由时间轴坐标系统传入，不由视觉皮肤反推节点锚点。
     var tailGeometry: BubbleTailGeometry = .timelineDefault
+    /// 气泡视觉样式。未来皮肤替换气泡形状、图片区、标签 chip 时从这里进入。
+    var style: TimelineBubbleStyle = .standard
 
     @Environment(ThemeManager.self) private var theme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: style.contentSpacing) {
             textBlock(for: contentKind)
 
             if !placeholderImageHexColors.isEmpty {
                 PlaceholderImageGalleryView(
                     hexColors: placeholderImageHexColors,
                     displayMode: theme.imageDisplayMode,
-                    allowsImageInteraction: MomentCardLayout.timelineImageGalleryAllowsHitTesting
+                    style: style.imageGallery
                 )
             } else if !imageIDs.isEmpty {
                 // 图片区是媒体交互区：横向滚动/轮播优先，不把图片上的左滑解释成删除。
@@ -36,27 +37,31 @@ struct BubbleCardView: View {
                 ThumbnailStripView(
                     imageIDs: imageIDs,
                     displayMode: theme.imageDisplayMode,
-                    allowsImageInteraction: MomentCardLayout.timelineImageGalleryAllowsHitTesting
+                    timelineImageGalleryStyle: style.imageGallery,
+                    allowsImageInteraction: style.imageGallery.allowsHitTesting
                 )
             }
 
             if !tagNames.isEmpty {
-                HStack(spacing: 6) {
+                HStack(spacing: style.tagSpacing) {
                     ForEach(tagNames, id: \.self) { name in
-                        TagChipView(name: name)
+                        TagChipView(name: name, style: style.tagChip)
                     }
                 }
             }
         }
-        .padding(16)
+        .padding(style.contentPadding)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
+            RoundedRectangle(cornerRadius: style.cornerRadius, style: .continuous)
                 .fill(theme.bubbleBackground)
                 .overlay(alignment: .topLeading) {
                     BubbleTailShape()
                         .fill(theme.bubbleBackground)
-                        .frame(width: tailGeometry.size.width, height: tailGeometry.size.height)
+                        .frame(
+                            width: tailGeometry.size.width,
+                            height: tailGeometry.size.height
+                        )
                         .offset(
                             x: tailGeometry.horizontalOffset,
                             y: tailCenterY + tailGeometry.centerYOffset
@@ -142,19 +147,15 @@ enum MomentCardContentKind: Equatable {
 ///
 /// 图片数量、原图比例、滚动/轮播模式都不能反向撑开气泡宽度；只允许决定图片区高度。
 struct MomentCardLayout {
-    static let thumbnailSize = CGSize(width: 72, height: 72)
-    static let thumbnailSpacing: CGFloat = 8
-    static let thumbnailCornerRadius: CGFloat = 12
-    static let carouselHeight: CGFloat = 132
-    static let timelineImageGalleryAllowsHitTesting = true
+    static let thumbnailSize = TimelineImageGalleryStyle.standard.thumbnailSize
+    static let thumbnailSpacing = TimelineImageGalleryStyle.standard.thumbnailSpacing
+    static let thumbnailCornerRadius = TimelineImageGalleryStyle.standard.thumbnailCornerRadius
+    static let carouselHeight = TimelineImageGalleryStyle.standard.carouselHeight
+    static let timelineImageGalleryAllowsHitTesting =
+        TimelineImageGalleryStyle.standard.allowsHitTesting
 
     static func imageSectionHeight(for mode: ImageDisplayMode) -> CGFloat {
-        switch mode {
-        case .scroll:
-            thumbnailSize.height
-        case .carousel:
-            carouselHeight
-        }
+        TimelineImageGalleryStyle.standard.imageSectionHeight(for: mode)
     }
 }
 
@@ -188,11 +189,11 @@ private struct BubbleTailShape: Shape {
 private struct PlaceholderImageGalleryView: View {
     let hexColors: [UInt32]
     let displayMode: ImageDisplayMode
-    let allowsImageInteraction: Bool
+    let style: TimelineImageGalleryStyle
 
     var body: some View {
         imageGallery
-            .allowsHitTesting(allowsImageInteraction)
+            .allowsHitTesting(style.allowsHitTesting)
     }
 
     @ViewBuilder
@@ -200,34 +201,34 @@ private struct PlaceholderImageGalleryView: View {
         switch displayMode {
         case .scroll:
             ScrollView(.horizontal) {
-                LazyHStack(spacing: MomentCardLayout.thumbnailSpacing) {
+                LazyHStack(spacing: style.thumbnailSpacing) {
                     ForEach(Array(hexColors.enumerated()), id: \.offset) { _, hex in
                         placeholder(hex)
                             .frame(
-                                width: MomentCardLayout.thumbnailSize.width,
-                                height: MomentCardLayout.thumbnailSize.height
+                                width: style.thumbnailSize.width,
+                                height: style.thumbnailSize.height
                             )
                     }
                 }
             }
             .scrollIndicators(.hidden)
-            .frame(height: MomentCardLayout.imageSectionHeight(for: .scroll))
+            .frame(height: style.imageSectionHeight(for: .scroll))
             .frame(maxWidth: .infinity, alignment: .leading)
         case .carousel:
             TabView {
                 ForEach(Array(hexColors.enumerated()), id: \.offset) { _, hex in
                     placeholder(hex)
                         .frame(maxWidth: .infinity)
-                        .frame(height: MomentCardLayout.carouselHeight)
+                        .frame(height: style.carouselHeight)
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: hexColors.count > 1 ? .automatic : .never))
-            .frame(height: MomentCardLayout.imageSectionHeight(for: .carousel))
+            .frame(height: style.imageSectionHeight(for: .carousel))
         }
     }
 
     private func placeholder(_ hex: UInt32) -> some View {
-        RoundedRectangle(cornerRadius: MomentCardLayout.thumbnailCornerRadius, style: .continuous)
+        RoundedRectangle(cornerRadius: style.thumbnailCornerRadius, style: .continuous)
             .fill(Color(hex: hex))
     }
 }
@@ -235,17 +236,18 @@ private struct PlaceholderImageGalleryView: View {
 /// 标签 chip（见 05 §5.6）：前缀「#」使用当前主色着色，其余文字为中性次级色。
 struct TagChipView: View {
     let name: String
+    var style: TimelineTagChipStyle = .standard
 
     @Environment(ThemeManager.self) private var theme
 
     var body: some View {
-        HStack(spacing: 2) {
+        HStack(spacing: style.spacing) {
             Text("#").foregroundStyle(theme.accent)
             Text(name).foregroundStyle(theme.bubbleBodyText)
         }
         .font(.footnote)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 4)
+        .padding(.horizontal, style.horizontalPadding)
+        .padding(.vertical, style.verticalPadding)
         .background(Capsule().fill(theme.chipFill))
     }
 }

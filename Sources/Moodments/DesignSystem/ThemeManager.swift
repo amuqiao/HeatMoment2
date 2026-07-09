@@ -202,6 +202,10 @@ final class ThemeManager {
     /// 当前模式 + 主色解析后的稳定运行时 token。新增颜色消费优先经此对象理解语义边界。
     var tokens: AppThemeTokens { AppThemeTokens.resolve(mode: mode, accentColor: accentColor) }
 
+    /// 首页时间轴场景样式入口。当前返回默认样式；未来皮肤管理应从这里切换样式包，
+    /// 而不是让 timeline 子视图各自读取皮肤配置。
+    var timelineSceneStyle: TimelineSceneStyle { .standard }
+
     /// 当前应用主题对应的系统 `ColorScheme`。任务容器页必须显式消费它，避免 SwiftUI
     /// 已呈现 sheet 中的 `List` / `NavigationBar` 和 token 模式脱节。
     var colorScheme: ColorScheme { mode.colorScheme }

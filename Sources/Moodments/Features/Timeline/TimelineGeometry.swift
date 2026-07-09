@@ -5,7 +5,7 @@ import SwiftUI
 /// 它是首页时间轴的坐标系统，而不是某条竖线的样式对象：场景轨道、日期列、心情节点
 /// 和 Moment 气泡都从这里读取锚点。后续移动时间轴、调整日期列宽度、节点尺寸或气泡
 /// 尖角关系时，应优先修改本类型，而不是在各个子视图里散写数值。
-struct TimelineGeometry {
+struct TimelineGeometry: Equatable {
     static let standard = TimelineGeometry()
 
     let listHorizontalInset: CGFloat
@@ -21,15 +21,15 @@ struct TimelineGeometry {
     let bubbleTailHorizontalOffset: CGFloat
 
     init(
-        listHorizontalInset: CGFloat = 20,
-        dateColumnWidth: CGFloat = 64,
-        interColumnSpacing: CGFloat = 12,
-        nodeColumnWidth: CGFloat = 24,
-        nodeDiameter: CGFloat = 13,
-        nodeCenterY: CGFloat = 30,
-        rowGapHeight: CGFloat = 20,
-        firstNodeCenterYOffsetFromRailTop: CGFloat = 60,
-        railWidth: CGFloat = 1,
+        listHorizontalInset: CGFloat = 16,
+        dateColumnWidth: CGFloat = 38,
+        interColumnSpacing: CGFloat = 4,
+        nodeColumnWidth: CGFloat = 22,
+        nodeDiameter: CGFloat = 20,
+        nodeCenterY: CGFloat = 24,
+        rowGapHeight: CGFloat = 10,
+        firstNodeCenterYOffsetFromRailTop: CGFloat = 30,
+        railWidth: CGFloat = 2,
         bubbleTailSize: CGSize = CGSize(width: 8, height: 14),
         bubbleTailHorizontalOffset: CGFloat = -6
     ) {
@@ -65,6 +65,11 @@ struct TimelineGeometry {
     /// 该值只用于阅读单元内部布局和测试约束；轨道绘制必须使用真实节点锚点。
     var nodeCenterXInReadingUnit: CGFloat {
         dateColumnWidth + interColumnSpacing + nodeColumnWidth / 2
+    }
+
+    /// 气泡卡片相对阅读单元左边缘的起点；对应行内 HStack 中日期列、节点列之后的位置。
+    var bubbleLeadingXInReadingUnit: CGFloat {
+        dateColumnWidth + interColumnSpacing + nodeColumnWidth + interColumnSpacing
     }
 
     /// 轨道在首页 viewport 坐标里的 x 坐标。

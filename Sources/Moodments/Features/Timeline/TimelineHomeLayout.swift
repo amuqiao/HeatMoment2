@@ -4,7 +4,7 @@ import CoreGraphics
 ///
 /// 它只描述主页固定 chrome、FAB 和时间轴滚动尾部避让，不进入时间轴阅读单元内部坐标；
 /// 阅读单元仍由 `TimelineGeometry` 管。
-struct TimelineHomeLayout {
+struct TimelineHomeLayout: Equatable {
     static let standard = TimelineHomeLayout()
 
     let topChromeHorizontalPadding: CGFloat
@@ -14,7 +14,7 @@ struct TimelineHomeLayout {
     let fabSafetyGap: CGFloat
 
     init(
-        topChromeHorizontalPadding: CGFloat = 20,
+        topChromeHorizontalPadding: CGFloat = 18,
         topChromeVerticalPadding: CGFloat = 8,
         fabDiameter: CGFloat = FABButtonMetrics.diameter,
         fabBottomPadding: CGFloat = 24,
