@@ -58,21 +58,21 @@ struct MomentEditorView: View {
 
     var body: some View {
         TaskSheetScaffold {
-            VStack(spacing: 0) {
-                TaskSheetHeaderBar(
-                    cancellation: TaskSheetAction(
-                        "取消",
-                        accessibilityIdentifier: "editorCancelButton",
-                        handler: handleCancel
-                    ),
-                    confirmation: TaskSheetAction(
-                        "保存",
-                        accessibilityIdentifier: "editorSaveButton",
-                        isDisabled: !model.isLoaded || !model.canSave,
-                        isProminent: true,
-                        handler: handleSave
-                    )
-                ) {
+            Group {
+                if model.isLoaded {
+                    content
+                } else {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("取消", action: handleCancel)
+                        .accessibilityIdentifier("editorCancelButton")
+                }
+
+                ToolbarItem(placement: .principal) {
                     if model.isLoaded {
                         HStack(spacing: 8) {
                             dateChip
@@ -81,11 +81,11 @@ struct MomentEditorView: View {
                     }
                 }
 
-                if model.isLoaded {
-                    content
-                } else {
-                    ProgressView()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("保存", action: handleSave)
+                        .fontWeight(.semibold)
+                        .disabled(!model.isLoaded || !model.canSave)
+                        .accessibilityIdentifier("editorSaveButton")
                 }
             }
         }
