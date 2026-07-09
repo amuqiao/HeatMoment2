@@ -131,7 +131,7 @@ struct MomentPreviewView: View {
                     .foregroundStyle(theme.primaryText)
             }
             Spacer()
-            Text(Self.dateFormatter.string(from: moment.occurredAt))
+            Text(MomentPreviewDateFormatters.occurredAtText(for: moment.occurredAt))
                 .font(AppTypography.caption)
                 .foregroundStyle(theme.secondaryText)
         }
@@ -154,11 +154,16 @@ struct MomentPreviewView: View {
         )
     }
 
-    private static let dateFormatter: DateFormatter = {
+}
+
+enum MomentPreviewDateFormatters {
+    static func occurredAtText(for date: Date, timeZone: TimeZone = .current) -> String {
         let formatter = DateFormatter()
-        formatter.dateFormat = "M月d日 HH:mm"
-        return formatter
-    }()
+        formatter.locale = Locale(identifier: "zh_Hans_CN")
+        formatter.timeZone = timeZone
+        formatter.dateFormat = "M月d日 E HH:mm"
+        return formatter.string(from: date)
+    }
 }
 
 /// 预览内「编辑」的第二层任务卡片呈现上下文（`.sheet(item:)` 驱动，不进 `AppRouter`，
