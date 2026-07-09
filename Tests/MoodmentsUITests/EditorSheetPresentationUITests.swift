@@ -17,7 +17,13 @@ final class EditorSheetPresentationUITests: XCTestCase {
         XCTAssertTrue(app.buttons["editorMoodRow"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["editorTagRow"].exists)
         XCTAssertTrue(app.buttons["editorCancelButton"].exists)
-        XCTAssertTrue(app.buttons["editorSaveButton"].exists)
+        XCTAssertTrue(app.buttons["editorDateChip"].exists)
+        XCTAssertTrue(app.buttons["editorTimeChip"].exists)
+
+        let saveButton = app.buttons["editorSaveButton"]
+        XCTAssertTrue(saveButton.exists)
+        XCTAssertFalse(saveButton.isEnabled)
+        XCTAssertFalse(app.navigationBars.element.exists, "编辑页应只使用自定义顶部栏，不应暴露系统导航栏")
     }
 
     func testEditorCancelShowsDiscardConfirmationAfterDirtyEdit() {

@@ -58,36 +58,8 @@ struct MomentEditorView: View {
 
     var body: some View {
         TaskSheetScaffold {
-            Group {
-                if model.isLoaded {
-                    content
-                } else {
-                    ProgressView()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-            }
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("取消", action: handleCancel)
-                        .accessibilityIdentifier("editorCancelButton")
-                }
-
-                ToolbarItem(placement: .principal) {
-                    if model.isLoaded {
-                        HStack(spacing: 8) {
-                            dateChip
-                            timeChip
-                        }
-                    }
-                }
-
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("保存", action: handleSave)
-                        .fontWeight(.semibold)
-                        .disabled(!model.isLoaded || !model.canSave)
-                        .accessibilityIdentifier("editorSaveButton")
-                }
-            }
+            editorRoot
+                .toolbar(.hidden, for: .navigationBar)
         }
         .alert("放弃编辑？", isPresented: $isDiscardAlertPresented) {
             Button("放弃编辑", role: .destructive) { dismiss() }
@@ -107,32 +79,64 @@ struct MomentEditorView: View {
         }
     }
 
-    private var content: some View {
-        TaskPageScrollView(
-            spacing: EditorLayout.contentGroupSpacing,
-            contentInsets: EditorLayout.contentInsets
-        ) {
-            moodAndTagRow
-            editorTextPanel
-            EditorPhotoSection(model: model, editorPaywallTrigger: $editorPaywallTrigger)
+    private var editorRoot: some View {
+        GeometryReader { proxy in
+            let layout = MomentEditorLayoutResolver.resolve(
+                scale: TimelineResponsiveScale(viewportWidth: proxy.size.width)
+            )
+
+            VStack(spacing: 0) {
+                MomentEditorTopChrome(
+                    layout: layout,
+                    isLoaded: model.isLoaded,
+                    canSave: model.canSave,
+                    occurredAt: occurredAtBinding,
+                    isDatePickerPresented: $isDatePickerPresented,
+                    isTimePickerPresented: $isTimePickerPresented,
+                    onCancel: handleCancel,
+                    onSave: handleSave
+                )
+                if model.isLoaded {
+                    editorScrollContent(layout: layout)
+                } else {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(theme.sheetBackground.ignoresSafeArea())
+                }
+            }
+        }
+    }
+
+    private func editorScrollContent(layout: MomentEditorLayoutMetrics) -> some View {
+        ScrollView {
+            TaskResponsiveContent(spacing: 0, contentInsets: layout.contentInsets) {
+                VStack(alignment: .leading, spacing: 0) {
+                    moodAndTagRow(layout: layout)
+                    editorTextPanel(layout: layout)
+                        .padding(.top, layout.selectorToTextPanelGap)
+                    EditorPhotoSection(model: model, editorPaywallTrigger: $editorPaywallTrigger)
+                        .padding(.top, layout.textPanelToPhotoSectionGap)
+                }
+            }
         }
         .scrollDismissesKeyboard(.interactively)
+        .background(theme.sheetBackground.ignoresSafeArea())
     }
 
     // MARK: - 情绪 + 标签行（同一行左右布局，见 05-design-system.md §5.7）
 
-    private var moodAndTagRow: some View {
-        HStack(spacing: 12) {
-            moodButton
-            tagButton
+    private func moodAndTagRow(layout: MomentEditorLayoutMetrics) -> some View {
+        HStack(spacing: layout.selectorRowGap) {
+            moodButton(layout: layout)
+            tagButton(layout: layout)
         }
     }
 
-    private var moodButton: some View {
+    private func moodButton(layout: MomentEditorLayoutMetrics) -> some View {
         Button {
             isMoodPickerPresented = true
         } label: {
-            EditorSelectorButton {
+            EditorSelectorButton(layout: layout) {
                 Image(systemName: "heart.fill")
                     .foregroundStyle(theme.accent)
             } summary: {
@@ -155,16 +159,16 @@ struct MomentEditorView: View {
         }
     }
 
-    private var tagButton: some View {
+    private func tagButton(layout: MomentEditorLayoutMetrics) -> some View {
         Button {
             isTagPickerPresented = true
         } label: {
-            EditorSelectorButton {
+            EditorSelectorButton(layout: layout) {
                 Text("#")
                     .font(.system(size: 28, weight: .regular))
                     .foregroundStyle(theme.accent)
             } summary: {
-                EditorTagSelectionSummary(selectedNames: selectedTagNames)
+                EditorTagSelectionSummary(selectedNames: selectedTagNames, layout: layout)
             }
         }
         .buttonStyle(.plain)
@@ -193,56 +197,14 @@ struct MomentEditorView: View {
         return selectedNames.joined(separator: " ")
     }
 
-    // MARK: - 日期 / 时间 chip（见 04-screen-specs.md §4.4/§4.8）
-
-    private var dateChip: some View {
-        Button {
-            isDatePickerPresented = true
-        } label: {
-            Text(EditorDateTimeFormatters.date.string(from: model.occurredAt))
-                .font(AppTypography.body)
-                .foregroundStyle(theme.primaryText)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-                .background(Capsule().fill(theme.chipFill))
-        }
-        .accessibilityIdentifier("editorDateChip")
-        .popover(isPresented: $isDatePickerPresented, arrowEdge: .top) {
-            DatePickerSheetView(
-                occurredAt: Binding(get: { model.occurredAt }, set: { model.occurredAt = $0 })
-            )
-            .presentationCompactAdaptation(.popover)
-        }
-    }
-
-    private var timeChip: some View {
-        Button {
-            isTimePickerPresented = true
-        } label: {
-            Text(EditorDateTimeFormatters.time.string(from: model.occurredAt))
-                .font(AppTypography.body)
-                .foregroundStyle(theme.primaryText)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-                .background(Capsule().fill(theme.chipFill))
-        }
-        .accessibilityIdentifier("editorTimeChip")
-        .popover(isPresented: $isTimePickerPresented, arrowEdge: .top) {
-            TimePickerSheetView(
-                occurredAt: Binding(get: { model.occurredAt }, set: { model.occurredAt = $0 })
-            )
-            .presentationCompactAdaptation(.popover)
-        }
-    }
-
     // MARK: - 标题 / 正文
 
-    private var editorTextPanel: some View {
+    private func editorTextPanel(layout: MomentEditorLayoutMetrics) -> some View {
         TaskSurfacePanel {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: layout.textPanelFieldSpacing) {
                 titleField
                 Divider()
-                bodyField
+                bodyField(layout: layout)
             }
         }
         .taskSurfaceMeasurementIdentifier("editorTextPanel")
@@ -255,12 +217,12 @@ struct MomentEditorView: View {
             .accessibilityIdentifier("editorTitleField")
     }
 
-    private var bodyField: some View {
+    private func bodyField(layout: MomentEditorLayoutMetrics) -> some View {
         TextField("正文", text: bodyBinding, axis: .vertical)
             .font(AppTypography.body)
             .foregroundStyle(theme.primaryText)
             .lineLimit(5...8)
-            .frame(minHeight: EditorLayout.bodyMinHeight, alignment: .topLeading)
+            .frame(minHeight: layout.bodyMinHeight, alignment: .topLeading)
             .accessibilityIdentifier("editorBodyField")
     }
 
@@ -270,6 +232,10 @@ struct MomentEditorView: View {
 
     private var bodyBinding: Binding<String> {
         Binding(get: { model.bodyText }, set: { model.bodyText = $0 })
+    }
+
+    private var occurredAtBinding: Binding<Date> {
+        Binding(get: { model.occurredAt }, set: { model.occurredAt = $0 })
     }
 
     // MARK: - 取消 / 保存（见 03-user-flows.md §3.1）

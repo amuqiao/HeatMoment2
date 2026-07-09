@@ -131,13 +131,6 @@ final class TimelineGeometryTests: XCTestCase {
         XCTAssertEqual(layout.bottomActionClearance, 94)
     }
 
-    func testEditorUsesCompactInsetsWithoutChangingGlobalTaskPageInsets() {
-        XCTAssertEqual(TaskSurfaceMetrics.pageVerticalInset, 20)
-        XCTAssertEqual(TaskSurfaceMetrics.pageBottomInset, 56)
-        XCTAssertEqual(EditorLayout.contentTopInset, 10)
-        XCTAssertEqual(EditorLayout.contentGroupSpacing, 20)
-    }
-
     func testViewportRailBoundsDoNotDependOnListRowPreferences() {
         let geometry = TimelineGeometry.standard
         let layout = TimelineViewportLayout.standard

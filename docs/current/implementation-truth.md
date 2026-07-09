@@ -80,7 +80,7 @@ TimelineHomeView.timelineFilterSheet
 
 ## 编辑页局部选择
 
-`MomentEditorView` 是任务卡片栈第一层。编辑器使用全局 `TaskSheetScaffold + TaskSheetHeaderBar` 承载取消、日期 chip、时间 chip 和保存按钮；顶部 header 与编辑内容加载态解耦，加载中仍保留取消/保存槽位，避免按钮随 `model.isLoaded` 分支消失。正文区仍用 `TaskPageScrollView`，但通过 `EditorLayout.contentInsets` 使用编辑器专属紧凑顶部 inset，不改全局任务页 `TaskSurfaceMetrics.pageVerticalInset`。情绪、标签、日期和时间选择当前由 SwiftUI 代码实现为局部选择：
+`MomentEditorView` 是任务卡片栈第一层。编辑器使用全局 `TaskSheetScaffold` 承载 sheet 宿主，但不再把取消、日期 chip、时间 chip 和保存按钮放进系统 `toolbar(.principal)`；编辑页内部用自定义 top chrome 与 `MomentEditorLayoutTokens -> MomentEditorLayoutResolver -> MomentEditorLayoutMetrics` 管理顶部栏、心情/标签行、正文区和图片区的垂直呼吸间隔。顶部 chrome 与编辑内容加载态解耦，加载中仍保留取消/保存槽位，日期/时间 chip 在模型加载后显示，保存加载前禁用。情绪、标签、日期和时间选择当前由 SwiftUI 代码实现为局部选择：
 
 - 情绪行打开 `MoodPickerView`。
 - 标签行打开 `TagPickerView`，只选择已有标签，不提供新增入口。
@@ -102,14 +102,14 @@ TimelineHomeView.timelineFilterSheet
 
 ```text
 TaskSurfaceMetrics
-  -> TaskSheetScaffold / taskSheetChrome / TaskSheetHeaderBar
+  -> TaskSheetScaffold / taskSheetChrome / feature-owned top chrome
   -> TaskPageScrollView
       -> TaskSurfaceSection
           -> TaskSurfacePanel
               -> TaskSurfaceRow / feature content
 ```
 
-`TaskSheetScaffold` 只治理任务型 sheet 的宿主 `NavigationStack`、背景和色彩模式；`taskSheetChrome` 负责适合系统导航栏的任务页动作槽位，`TaskSheetHeaderBar` 负责编辑器这类需要稳定内容起点的任务页顶部动作区。内容区域仍由 `TaskPageScrollView`、功能视图或商业页自身负责。当前已接入 `MomentEditorView`、`MomentPreviewView` 和 `ProPaywallView`。`FilterPanelView`、设置栈内子页、标签创建 sheet 仍保留各自导航语义，不强制套入任务卡片 chrome。
+`TaskSheetScaffold` 只治理任务型 sheet 的宿主 `NavigationStack`、背景和色彩模式；`taskSheetChrome` 负责适合系统导航栏的任务页动作槽位；需要稳定内容起点的功能页可以在自身内部提供 top chrome，例如 `MomentEditorView` 的编辑顶部栏。内容区域仍由 `TaskPageScrollView`、`TaskResponsiveContent`、功能视图或商业页自身负责。当前已接入 `MomentEditorView`、`MomentPreviewView` 和 `ProPaywallView`。`FilterPanelView`、设置栈内子页、标签创建 sheet 仍保留各自导航语义，不强制套入任务卡片 chrome。
 
 `TaskSurfaceMetrics` 定义任务页内容列的水平边距、最大可读宽度、分组间距、panel 圆角、panel padding 和 row 最小高度。`TaskPageScrollView` 负责 sheet 背景、滚动和底部安全余量；`TaskResponsiveContent` 只负责内容列居中、最大宽度和页边距，因此可被统计页等非 sheet 背景场景借用；`TaskSurfaceSection` 负责可选标题和 panel 边界；`TaskSurfacePanel` 只表达任务容器面板；`TaskSurfaceRow` 表达设置类行。用于 UI 验证的 section measurement identifier 是 1pt 透明边界标记，不覆盖整块内容，避免抢走按钮命中区域。
 

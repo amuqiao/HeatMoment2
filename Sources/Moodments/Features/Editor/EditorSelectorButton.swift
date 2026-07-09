@@ -1,61 +1,41 @@
 import SwiftUI
 
-enum EditorLayout {
-    static let selectorMinHeight: CGFloat = 46
-    static let selectorIconWidth: CGFloat = 28
-    static let selectorChevronWidth: CGFloat = 22
-    static let selectorCornerRadius: CGFloat = 14
-    static let selectorContentSpacing: CGFloat = 8
-    static let tagChipCornerRadius: CGFloat = 7
-    static let tagChipHorizontalPadding: CGFloat = 8
-    static let tagChipVerticalPadding: CGFloat = 3
-    static let bodyMinHeight: CGFloat = 170
-    static let contentTopInset: CGFloat = 10
-    static let contentGroupSpacing: CGFloat = 20
-
-    static var contentInsets: EdgeInsets {
-        EdgeInsets(
-            top: contentTopInset,
-            leading: TaskSurfaceMetrics.pageHorizontalInset,
-            bottom: TaskSurfaceMetrics.pageBottomInset,
-            trailing: TaskSurfaceMetrics.pageHorizontalInset
-        )
-    }
-}
-
 struct EditorSelectorButton<Leading: View, Summary: View>: View {
     @Environment(ThemeManager.self) private var theme
 
+    let layout: MomentEditorLayoutMetrics
     @ViewBuilder private let leading: Leading
     @ViewBuilder private let summary: Summary
 
     init(
+        layout: MomentEditorLayoutMetrics,
         @ViewBuilder leading: () -> Leading,
         @ViewBuilder summary: () -> Summary
     ) {
+        self.layout = layout
         self.leading = leading()
         self.summary = summary()
     }
 
     var body: some View {
-        HStack(spacing: EditorLayout.selectorContentSpacing) {
+        HStack(spacing: layout.selectorContentSpacing) {
             leading
-                .frame(width: EditorLayout.selectorIconWidth, alignment: .leading)
+                .frame(width: layout.selectorIconWidth, alignment: .leading)
             GeometryReader { proxy in
                 summary
                     .frame(width: proxy.size.width, height: proxy.size.height, alignment: .leading)
                     .clipped()
             }
-            .frame(maxWidth: .infinity, minHeight: EditorLayout.selectorMinHeight)
+            .frame(maxWidth: .infinity, minHeight: layout.selectorMinHeight)
             Image(systemName: "chevron.down")
                 .font(.body.weight(.semibold))
                 .foregroundStyle(theme.secondaryText)
-                .frame(width: EditorLayout.selectorChevronWidth, alignment: .trailing)
+                .frame(width: layout.selectorChevronWidth, alignment: .trailing)
         }
-        .padding(.horizontal, TaskSurfaceMetrics.rowHorizontalPadding)
-        .frame(maxWidth: .infinity, minHeight: EditorLayout.selectorMinHeight, alignment: .leading)
+        .padding(.horizontal, layout.selectorHorizontalPadding)
+        .frame(maxWidth: .infinity, minHeight: layout.selectorMinHeight, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: EditorLayout.selectorCornerRadius, style: .continuous)
+            RoundedRectangle(cornerRadius: layout.selectorCornerRadius, style: .continuous)
                 .fill(theme.sheetPanelBackground)
         )
         .contentShape(Rectangle())
@@ -64,6 +44,7 @@ struct EditorSelectorButton<Leading: View, Summary: View>: View {
 
 struct EditorTagSelectionSummary: View {
     let selectedNames: [String]
+    let layout: MomentEditorLayoutMetrics
 
     @Environment(ThemeManager.self) private var theme
 
@@ -97,7 +78,7 @@ struct EditorTagSelectionSummary: View {
     }
 
     private func tagChipRow(names: [String], overflowCount: Int) -> some View {
-        HStack(spacing: 6) {
+        HStack(spacing: layout.tagChipSpacing) {
             ForEach(Array(names.enumerated()), id: \.offset) { _, name in
                 tagChip(name)
             }
@@ -113,10 +94,10 @@ struct EditorTagSelectionSummary: View {
             .foregroundStyle(theme.primaryText)
             .lineLimit(1)
             .truncationMode(.tail)
-            .padding(.horizontal, EditorLayout.tagChipHorizontalPadding)
-            .padding(.vertical, EditorLayout.tagChipVerticalPadding)
+            .padding(.horizontal, layout.tagChipHorizontalPadding)
+            .padding(.vertical, layout.tagChipVerticalPadding)
             .background(
-                RoundedRectangle(cornerRadius: EditorLayout.tagChipCornerRadius, style: .continuous)
+                RoundedRectangle(cornerRadius: layout.tagChipCornerRadius, style: .continuous)
                     .fill(theme.selectionFill)
             )
     }
