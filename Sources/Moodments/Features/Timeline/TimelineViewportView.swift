@@ -116,9 +116,7 @@ struct TimelineViewportView: View {
                 let viewportMetrics = TimelineViewportMetrics(
                     viewportSize: viewportProxy.size,
                     scrollOffsetY: scrollOffsetY,
-                    layout: scene.layout.viewport,
-                    firstNodeCenterYOffsetFromRailTop:
-                        scene.layout.geometry.firstNodeCenterYOffsetFromRailTop
+                    sceneLayout: scene.layout
                 )
 
                 ZStack(alignment: .topLeading) {

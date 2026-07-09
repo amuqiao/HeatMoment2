@@ -11,12 +11,13 @@ struct TimelineSceneMetrics: Equatable {
 
     static func responsive(
         for viewportWidth: CGFloat,
-        baseStyle: TimelineSceneStyle = .standard
+        baseStyle: TimelineSceneStyle = .standard,
+        layoutTokens: TimelineLayoutTokens = .standard
     ) -> Self {
         let scale = TimelineResponsiveScale(viewportWidth: viewportWidth)
         let style = baseStyle.scaled(with: scale)
         return TimelineSceneMetrics(
-            layout: TimelineSceneLayout.responsive(with: scale),
+            layout: TimelineLayoutResolver.resolve(tokens: layoutTokens, scale: scale),
             style: style
         )
     }
@@ -27,51 +28,4 @@ struct TimelineSceneLayout: Equatable {
     let home: TimelineHomeLayout
     let viewport: TimelineViewportLayout
     let geometry: TimelineGeometry
-
-    static func responsive(with scale: TimelineResponsiveScale) -> Self {
-        let baseGeometry = TimelineGeometry.standard
-        let baseHome = TimelineHomeLayout.standard
-        let baseViewport = TimelineViewportLayout.standard
-        let nodeDiameter = scale.component(baseGeometry.nodeDiameter)
-        let nodeColumnWidth = max(
-            scale.horizontal(baseGeometry.nodeColumnWidth),
-            nodeDiameter + scale.horizontal(2)
-        )
-        let geometry = TimelineGeometry(
-            listHorizontalInset: scale.horizontal(baseGeometry.listHorizontalInset),
-            dateColumnWidth: scale.horizontal(baseGeometry.dateColumnWidth),
-            interColumnSpacing: scale.horizontal(baseGeometry.interColumnSpacing),
-            nodeColumnWidth: nodeColumnWidth,
-            nodeDiameter: nodeDiameter,
-            nodeCenterY: scale.vertical(baseGeometry.nodeCenterY),
-            rowGapHeight: scale.vertical(baseGeometry.rowGapHeight),
-            firstNodeCenterYOffsetFromRailTop: scale.vertical(
-                baseGeometry.firstNodeCenterYOffsetFromRailTop
-            ),
-            railWidth: scale.component(baseGeometry.railWidth),
-            bubbleTailSize: CGSize(
-                width: scale.horizontal(baseGeometry.bubbleTailSize.width),
-                height: scale.vertical(baseGeometry.bubbleTailSize.height)
-            ),
-            bubbleTailHorizontalOffset: (baseGeometry.bubbleTailHorizontalOffset < 0 ? -1 : 1)
-                * scale.horizontal(abs(baseGeometry.bubbleTailHorizontalOffset))
-        )
-
-        return TimelineSceneLayout(
-            home: TimelineHomeLayout(
-                topChromeHorizontalPadding: scale.horizontal(baseHome.topChromeHorizontalPadding),
-                topChromeVerticalPadding: scale.vertical(baseHome.topChromeVerticalPadding),
-                fabDiameter: scale.component(baseHome.fabDiameter),
-                fabBottomPadding: scale.vertical(baseHome.fabBottomPadding),
-                fabSafetyGap: scale.vertical(baseHome.fabSafetyGap)
-            ),
-            viewport: TimelineViewportLayout(
-                expandedTitleSlotBottomY: scale.vertical(baseViewport.expandedTitleSlotBottomY),
-                expandedTitleTopPadding: baseViewport.expandedTitleTopPadding,
-                titleToRailTopSpacing: scale.vertical(baseViewport.titleToRailTopSpacing),
-                railBottomOvershoot: scale.vertical(baseViewport.railBottomOvershoot)
-            ),
-            geometry: geometry
-        )
-    }
 }

@@ -1,12 +1,13 @@
 import SwiftUI
 
-/// 首页时间轴布局契约。
+/// 首页时间轴的 resolved 坐标契约。
 ///
-/// 它是首页时间轴的坐标系统，而不是某条竖线的样式对象：场景轨道、日期列、心情节点
-/// 和 Moment 气泡都从这里读取锚点。后续移动时间轴、调整日期列宽度、节点尺寸或气泡
-/// 尖角关系时，应优先修改本类型，而不是在各个子视图里散写数值。
+/// 它是 `TimelineLayoutResolver` 的输出，不是人工调参入口。后续移动时间轴、调整日期列宽度、
+/// 节点尺寸或气泡尖角关系时，应优先修改 `TimelineLayoutTokens`，再由 resolver 派生本类型。
 struct TimelineGeometry: Equatable {
-    static let standard = TimelineGeometry()
+    static let standard = TimelineLayoutResolver.resolve(
+        scale: TimelineResponsiveScale(viewportWidth: 390)
+    ).geometry
 
     let listHorizontalInset: CGFloat
     let dateColumnWidth: CGFloat
@@ -14,33 +15,34 @@ struct TimelineGeometry: Equatable {
     let nodeColumnWidth: CGFloat
     let nodeDiameter: CGFloat
     let nodeCenterY: CGFloat
+    let railLeadInHeight: CGFloat
     let rowGapHeight: CGFloat
-    let firstNodeCenterYOffsetFromRailTop: CGFloat
     let railWidth: CGFloat
     let bubbleTailSize: CGSize
     let bubbleTailHorizontalOffset: CGFloat
 
     init(
-        listHorizontalInset: CGFloat = 16,
-        dateColumnWidth: CGFloat = 38,
-        interColumnSpacing: CGFloat = 4,
-        nodeColumnWidth: CGFloat = 22,
-        nodeDiameter: CGFloat = 20,
-        nodeCenterY: CGFloat = 24,
-        rowGapHeight: CGFloat = 10,
-        firstNodeCenterYOffsetFromRailTop: CGFloat = 30,
-        railWidth: CGFloat = 2,
-        bubbleTailSize: CGSize = CGSize(width: 8, height: 14),
-        bubbleTailHorizontalOffset: CGFloat = -6
+        listHorizontalInset: CGFloat,
+        dateColumnWidth: CGFloat,
+        interColumnSpacing: CGFloat,
+        nodeColumnWidth: CGFloat,
+        nodeDiameter: CGFloat,
+        nodeCenterY: CGFloat,
+        railLeadInHeight: CGFloat,
+        rowGapHeight: CGFloat,
+        railWidth: CGFloat,
+        bubbleTailSize: CGSize,
+        bubbleTailHorizontalOffset: CGFloat
     ) {
+        precondition(railLeadInHeight >= 0, "railLeadInHeight must be non-negative")
         self.listHorizontalInset = listHorizontalInset
         self.dateColumnWidth = dateColumnWidth
         self.interColumnSpacing = interColumnSpacing
         self.nodeColumnWidth = nodeColumnWidth
         self.nodeDiameter = nodeDiameter
         self.nodeCenterY = nodeCenterY
+        self.railLeadInHeight = railLeadInHeight
         self.rowGapHeight = rowGapHeight
-        self.firstNodeCenterYOffsetFromRailTop = firstNodeCenterYOffsetFromRailTop
         self.railWidth = railWidth
         self.bubbleTailSize = bubbleTailSize
         self.bubbleTailHorizontalOffset = bubbleTailHorizontalOffset
@@ -48,8 +50,8 @@ struct TimelineGeometry: Equatable {
 
     var bubbleTailCenterY: CGFloat { nodeCenterY }
     var nodeTopPadding: CGFloat { nodeCenterY - nodeDiameter / 2 }
-    var railLeadInHeight: CGFloat {
-        firstNodeCenterYOffsetFromRailTop - nodeCenterY
+    var firstNodeCenterYOffsetFromRailTop: CGFloat {
+        railLeadInHeight + nodeCenterY
     }
     var bubbleTailGeometry: BubbleTailGeometry {
         BubbleTailGeometry(size: bubbleTailSize, horizontalOffset: bubbleTailHorizontalOffset)

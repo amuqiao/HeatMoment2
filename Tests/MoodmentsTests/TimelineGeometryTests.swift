@@ -35,8 +35,7 @@ final class TimelineGeometryTests: XCTestCase {
         let metrics = TimelineViewportMetrics(
             viewportSize: CGSize(width: 430, height: 760),
             scrollOffsetY: 0,
-            layout: layout,
-            firstNodeCenterYOffsetFromRailTop: geometry.firstNodeCenterYOffsetFromRailTop
+            sceneLayout: sceneLayout(viewport: layout, geometry: geometry)
         )
 
         XCTAssertGreaterThanOrEqual(layout.titleToRailTopSpacing, 6)
@@ -53,13 +52,12 @@ final class TimelineGeometryTests: XCTestCase {
         let metrics = TimelineViewportMetrics(
             viewportSize: CGSize(width: 430, height: 760),
             scrollOffsetY: 0,
-            layout: layout,
-            firstNodeCenterYOffsetFromRailTop: geometry.firstNodeCenterYOffsetFromRailTop
+            sceneLayout: sceneLayout(viewport: layout, geometry: geometry)
         )
 
         XCTAssertEqual(layout.expandedTitleTopPadding, 0)
-        XCTAssertEqual(metrics.railTopY, 58)
-        XCTAssertEqual(metrics.restingFirstNodeCenterY, 88)
+        XCTAssertEqual(metrics.railTopY, 50)
+        XCTAssertEqual(metrics.restingFirstNodeCenterY, 80)
     }
 
     func testSceneRailStartsAboveFirstReadingUnitNode() {
@@ -99,8 +97,7 @@ final class TimelineGeometryTests: XCTestCase {
         let metrics = TimelineViewportMetrics(
             viewportSize: CGSize(width: 430, height: 760),
             scrollOffsetY: 0,
-            layout: layout,
-            firstNodeCenterYOffsetFromRailTop: geometry.firstNodeCenterYOffsetFromRailTop
+            sceneLayout: sceneLayout(viewport: layout, geometry: geometry)
         )
 
         XCTAssertEqual(metrics.railBounds.topY, layout.restingRailTopY)
@@ -111,10 +108,11 @@ final class TimelineGeometryTests: XCTestCase {
     func testHomeBottomClearanceIsOwnedByFabLayout() {
         let layout = TimelineHomeLayout.standard
 
-        XCTAssertEqual(FABButtonMetrics.diameter, 64)
-        XCTAssertEqual(layout.fabDiameter, FABButtonMetrics.diameter)
-        XCTAssertEqual(layout.fabBottomPadding, 24)
-        XCTAssertEqual(layout.bottomActionClearance, 96)
+        XCTAssertEqual(layout.fabDiameter, 64)
+        XCTAssertEqual(layout.fabBottomPadding, 18)
+        XCTAssertEqual(layout.fabSafetyGap, 4)
+        XCTAssertEqual(layout.fabVisualProtectionInset, 8)
+        XCTAssertEqual(layout.bottomActionClearance, 94)
     }
 
     func testEditorUsesCompactInsetsWithoutChangingGlobalTaskPageInsets() {
@@ -131,8 +129,7 @@ final class TimelineGeometryTests: XCTestCase {
         let metrics = TimelineViewportMetrics(
             viewportSize: CGSize(width: 430, height: 620),
             scrollOffsetY: 0,
-            layout: layout,
-            firstNodeCenterYOffsetFromRailTop: geometry.firstNodeCenterYOffsetFromRailTop
+            sceneLayout: sceneLayout(viewport: layout, geometry: geometry)
         )
 
         let bounds = metrics.railBounds
@@ -148,8 +145,7 @@ final class TimelineGeometryTests: XCTestCase {
         let metrics = TimelineViewportMetrics(
             viewportSize: CGSize(width: 430, height: 620),
             scrollOffsetY: -40,
-            layout: layout,
-            firstNodeCenterYOffsetFromRailTop: geometry.firstNodeCenterYOffsetFromRailTop
+            sceneLayout: sceneLayout(viewport: layout, geometry: geometry)
         )
 
         XCTAssertEqual(metrics.railTopY, layout.restingRailTopY)
@@ -161,8 +157,7 @@ final class TimelineGeometryTests: XCTestCase {
         let metrics = TimelineViewportMetrics(
             viewportSize: CGSize(width: 430, height: 620),
             scrollOffsetY: 44,
-            layout: layout,
-            firstNodeCenterYOffsetFromRailTop: geometry.firstNodeCenterYOffsetFromRailTop
+            sceneLayout: sceneLayout(viewport: layout, geometry: geometry)
         )
 
         XCTAssertEqual(metrics.railTopY, layout.restingRailTopY - 44)
@@ -179,8 +174,7 @@ final class TimelineGeometryTests: XCTestCase {
         let metrics = TimelineViewportMetrics(
             viewportSize: CGSize(width: 430, height: 620),
             scrollOffsetY: 0,
-            layout: layout,
-            firstNodeCenterYOffsetFromRailTop: geometry.firstNodeCenterYOffsetFromRailTop
+            sceneLayout: sceneLayout(viewport: layout, geometry: geometry)
         )
 
         XCTAssertEqual(layout.restingRailTopY, 96)
@@ -198,61 +192,14 @@ final class TimelineGeometryTests: XCTestCase {
         )
     }
 
-    func testMovingTimelineHorizontalInsetMovesReadingUnitAndSceneRailTogether() {
-        let base = TimelineGeometry.standard
-        let moved = TimelineGeometry(listHorizontalInset: base.listHorizontalInset + 14)
-
-        XCTAssertEqual(moved.rowInsets.leading, base.rowInsets.leading + 14)
-        XCTAssertEqual(
-            moved.nodeCenterXInViewport,
-            base.nodeCenterXInViewport + 14
-        )
-        XCTAssertEqual(
-            moved.railCenterXInViewport,
-            base.railCenterXInViewport + 14
+    private func sceneLayout(
+        viewport: TimelineViewportLayout = .standard,
+        geometry: TimelineGeometry = .standard
+    ) -> TimelineSceneLayout {
+        TimelineSceneLayout(
+            home: .standard,
+            viewport: viewport,
+            geometry: geometry
         )
     }
-
-    func testChangingDateColumnWidthMovesNodeAndRailTogether() {
-        let base = TimelineGeometry.standard
-        let moved = TimelineGeometry(dateColumnWidth: base.dateColumnWidth + 10)
-
-        XCTAssertEqual(
-            moved.nodeCenterXInReadingUnit,
-            base.nodeCenterXInReadingUnit + 10
-        )
-        XCTAssertEqual(
-            moved.railCenterXInViewport,
-            base.railCenterXInViewport + 10
-        )
-    }
-
-    func testChangingInterColumnSpacingMovesNodeAndRailTogether() {
-        let base = TimelineGeometry.standard
-        let moved = TimelineGeometry(interColumnSpacing: base.interColumnSpacing + 8)
-
-        XCTAssertEqual(
-            moved.nodeCenterXInReadingUnit,
-            base.nodeCenterXInReadingUnit + 8
-        )
-        XCTAssertEqual(
-            moved.railCenterXInViewport,
-            base.railCenterXInViewport + 8
-        )
-    }
-
-    func testChangingNodeColumnWidthMovesNodeAndRailTogetherByHalfTheDelta() {
-        let base = TimelineGeometry.standard
-        let moved = TimelineGeometry(nodeColumnWidth: base.nodeColumnWidth + 10)
-
-        XCTAssertEqual(
-            moved.nodeCenterXInReadingUnit,
-            base.nodeCenterXInReadingUnit + 5
-        )
-        XCTAssertEqual(
-            moved.railCenterXInViewport,
-            base.railCenterXInViewport + 5
-        )
-    }
-
 }

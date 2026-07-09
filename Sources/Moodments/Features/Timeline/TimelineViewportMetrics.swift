@@ -1,11 +1,13 @@
 import SwiftUI
 
-/// 首页时间轴 viewport 的场景布局合同。
+/// 首页时间轴 viewport 的 resolved 场景布局合同。
 ///
-/// 这里描述的是首页首屏场景的稳定槽位，不测量 `List` row 或 `Text` 像素高度。
-/// 后续调整顶部 chrome、展开标题和轨道呼吸空间时，修改本类型而不是改行内组件。
+/// 这里描述的是首页首屏场景的稳定槽位，不测量 `List` row 或 `Text` 像素高度。调整顶部
+/// chrome、展开标题和轨道呼吸空间时，修改 `TimelineLayoutTokens`，不要直接改本类型。
 struct TimelineViewportLayout: Equatable {
-    static let standard = TimelineViewportLayout()
+    static let standard = TimelineLayoutResolver.resolve(
+        scale: TimelineResponsiveScale(viewportWidth: 390)
+    ).viewport
 
     let expandedTitleSlotBottomY: CGFloat
     let expandedTitleTopPadding: CGFloat
@@ -13,10 +15,10 @@ struct TimelineViewportLayout: Equatable {
     let railBottomOvershoot: CGFloat
 
     init(
-        expandedTitleSlotBottomY: CGFloat = 48,
-        expandedTitleTopPadding: CGFloat = 0,
-        titleToRailTopSpacing: CGFloat = 10,
-        railBottomOvershoot: CGFloat = 96
+        expandedTitleSlotBottomY: CGFloat,
+        expandedTitleTopPadding: CGFloat,
+        titleToRailTopSpacing: CGFloat,
+        railBottomOvershoot: CGFloat
     ) {
         self.expandedTitleSlotBottomY = expandedTitleSlotBottomY
         self.expandedTitleTopPadding = expandedTitleTopPadding
@@ -36,28 +38,25 @@ struct TimelineViewportLayout: Equatable {
 struct TimelineViewportMetrics: Equatable {
     let viewportSize: CGSize
     let scrollOffsetY: CGFloat
-    let layout: TimelineViewportLayout
-    let firstNodeCenterYOffsetFromRailTop: CGFloat
+    let sceneLayout: TimelineSceneLayout
 
     init(
         viewportSize: CGSize,
         scrollOffsetY: CGFloat,
-        layout: TimelineViewportLayout = .standard,
-        firstNodeCenterYOffsetFromRailTop: CGFloat
+        sceneLayout: TimelineSceneLayout
     ) {
         self.viewportSize = viewportSize
         self.scrollOffsetY = scrollOffsetY
-        self.layout = layout
-        self.firstNodeCenterYOffsetFromRailTop = firstNodeCenterYOffsetFromRailTop
+        self.sceneLayout = sceneLayout
     }
 
     /// 下拉时轨道不被拉低；上滑时轨道随时间轴内容向上进入顶部 chrome。
     var railTopY: CGFloat {
-        layout.restingRailTopY - max(0, scrollOffsetY)
+        sceneLayout.viewport.restingRailTopY - max(0, scrollOffsetY)
     }
 
     var railBottomY: CGFloat {
-        max(railTopY, viewportSize.height + layout.railBottomOvershoot)
+        max(railTopY, viewportSize.height + sceneLayout.viewport.railBottomOvershoot)
     }
 
     var railBounds: TimelineRailSceneBounds {
@@ -65,6 +64,7 @@ struct TimelineViewportMetrics: Equatable {
     }
 
     var restingFirstNodeCenterY: CGFloat {
-        layout.restingRailTopY + firstNodeCenterYOffsetFromRailTop
+        sceneLayout.viewport.restingRailTopY
+            + sceneLayout.geometry.firstNodeCenterYOffsetFromRailTop
     }
 }
