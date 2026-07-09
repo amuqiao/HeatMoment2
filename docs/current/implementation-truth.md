@@ -102,14 +102,14 @@ TimelineHomeView.timelineFilterSheet
 
 ```text
 TaskSurfaceMetrics
-  -> TaskSheetScaffold / taskSheetChrome / feature-owned top chrome
+  -> TaskSheetScaffold / taskSheetChrome
   -> TaskPageScrollView
       -> TaskSurfaceSection
           -> TaskSurfacePanel
               -> TaskSurfaceRow / feature content
 ```
 
-`TaskSheetScaffold` 只治理任务型 sheet 的宿主 `NavigationStack`、背景和色彩模式；`taskSheetChrome` 负责适合系统导航栏的任务页动作槽位；需要稳定内容起点的功能页可以在自身内部提供 top chrome，例如 `MomentEditorView` 的编辑顶部栏。内容区域仍由 `TaskPageScrollView`、`TaskResponsiveContent`、功能视图或商业页自身负责。当前已接入 `MomentEditorView`、`MomentPreviewView` 和 `ProPaywallView`。`FilterPanelView`、设置栈内子页、标签创建 sheet 仍保留各自导航语义，不强制套入任务卡片 chrome。
+`TaskSheetScaffold` 只治理任务型 sheet 的宿主 `NavigationStack`、背景和色彩模式；`taskSheetChrome` 负责适合系统导航栏的任务页动作槽位，`MomentEditorView` 的「取消 / 保存」与 `MomentPreviewView` 的「关闭 / 编辑」共用这套任务页 chrome，编辑页日期/时间 chip 放在 principal 槽位。内容区域仍由 `TaskPageScrollView`、`TaskResponsiveContent`、功能视图或商业页自身负责。当前已接入 `MomentEditorView`、`MomentPreviewView` 和 `ProPaywallView`。`FilterPanelView`、设置栈内子页、标签创建 sheet 仍保留各自导航语义，不强制套入任务卡片 chrome。
 
 `TaskSurfaceMetrics` 定义任务页内容列的水平边距、最大可读宽度、分组间距、panel 圆角、panel padding 和 row 最小高度。`TaskPageScrollView` 负责 sheet 背景、滚动和底部安全余量；`TaskResponsiveContent` 只负责内容列居中、最大宽度和页边距，因此可被统计页等非 sheet 背景场景借用；`TaskSurfaceSection` 负责可选标题和 panel 边界；`TaskSurfacePanel` 只表达任务容器面板；`TaskSurfaceRow` 表达设置类行。用于 UI 验证的 section measurement identifier 是 1pt 透明边界标记，不覆盖整块内容，避免抢走按钮命中区域。
 

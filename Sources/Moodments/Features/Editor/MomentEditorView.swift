@@ -59,7 +59,30 @@ struct MomentEditorView: View {
     var body: some View {
         TaskSheetScaffold {
             editorRoot
-                .toolbar(.hidden, for: .navigationBar)
+                .taskSheetChrome(
+                    cancellation: TaskSheetAction(
+                        "取消",
+                        accessibilityIdentifier: "editorCancelButton"
+                    ) {
+                        handleCancel()
+                    },
+                    confirmation: TaskSheetAction(
+                        "保存",
+                        accessibilityIdentifier: "editorSaveButton",
+                        isDisabled: !model.isLoaded || !model.canSave,
+                        isProminent: true
+                    ) {
+                        handleSave()
+                    }
+                ) {
+                    MomentEditorTopChrome(
+                        layout: MomentEditorLayoutMetrics.standard,
+                        isLoaded: model.isLoaded,
+                        occurredAt: occurredAtBinding,
+                        isDatePickerPresented: $isDatePickerPresented,
+                        isTimePickerPresented: $isTimePickerPresented
+                    )
+                }
         }
         .alert("放弃编辑？", isPresented: $isDiscardAlertPresented) {
             Button("放弃编辑", role: .destructive) { dismiss() }
@@ -86,16 +109,6 @@ struct MomentEditorView: View {
             )
 
             VStack(spacing: 0) {
-                MomentEditorTopChrome(
-                    layout: layout,
-                    isLoaded: model.isLoaded,
-                    canSave: model.canSave,
-                    occurredAt: occurredAtBinding,
-                    isDatePickerPresented: $isDatePickerPresented,
-                    isTimePickerPresented: $isTimePickerPresented,
-                    onCancel: handleCancel,
-                    onSave: handleSave
-                )
                 if model.isLoaded {
                     editorScrollContent(layout: layout)
                 } else {

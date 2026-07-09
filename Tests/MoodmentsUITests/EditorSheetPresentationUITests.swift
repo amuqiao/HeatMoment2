@@ -23,7 +23,7 @@ final class EditorSheetPresentationUITests: XCTestCase {
         let saveButton = app.buttons["editorSaveButton"]
         XCTAssertTrue(saveButton.exists)
         XCTAssertFalse(saveButton.isEnabled)
-        XCTAssertFalse(app.navigationBars.element.exists, "编辑页应只使用自定义顶部栏，不应暴露系统导航栏")
+        XCTAssertTrue(app.navigationBars.element.exists, "编辑页应使用和预览页一致的系统任务页导航栏")
     }
 
     func testEditorCancelShowsDiscardConfirmationAfterDirtyEdit() {
