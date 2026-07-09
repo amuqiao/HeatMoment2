@@ -1,6 +1,6 @@
 # 测试架构真相
 
-本文记录当前 SwiftUI 版 Moodments 已落地的测试入口、数据隔离方式和维护边界。测试目标仍以设计层 [`../design/12-quality-assurance.md`](../design/12-quality-assurance.md) 为准；尚未落地的快照、CloudKit 自动化等不在本文伪装成现状。
+本文记录当前 SwiftUI 版 Moodments 已落地的测试入口、数据隔离方式和维护边界。尚未落地的快照、真实 CloudKit 自动化、备份恢复演练和导出验收不在本文伪装成现状；这些缺口进入 [`../plans/implementation-plan.md`](../plans/implementation-plan.md)。
 
 ## 入口模型
 
@@ -28,6 +28,7 @@ MoodmentsUITests    XCUITest 用户流程和交互契约
 单元测试当前由各测试文件自己构造数据：
 
 - SwiftData 相关测试使用内存容器或测试专用临时目录。
+- `SyncStatusServiceTests` 只验证同步状态的纯逻辑推导，不证明真实 iCloud 同步、CloudKit 事件处理或多设备收敛。
 - `UserDefaults` 相关测试使用独立 suite，并在 teardown 清理。
 - StoreKit 测试使用 `Config/Moodments.storekit`，已知 `storekitagent` 环境握手失败时转为显式 `XCTSkip`。
 

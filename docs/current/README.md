@@ -1,10 +1,10 @@
 # 当前实现真相
 
-本文是 SwiftUI 版 Moodments 的 current 入口，只记录当前代码已经落地的事实、已知偏离和验证基线。设计目标与产品契约仍以 [`../product-mental-model.md`](../product-mental-model.md) 和 [`../design/`](../design/README.md) 为准；尚未实现的优化进入 [`../plans/implementation-plan.md`](../plans/implementation-plan.md)。
+本文是 SwiftUI 版 Moodments 的 current 入口，只记录当前代码已经落地的事实、已知偏离和验证基线。产品公理以 [`../product-mental-model.md`](../product-mental-model.md) 为准；数据生命周期、备份、恢复、导出和 iCloud 同步的目标架构进入 [`../plans/implementation-plan.md`](../plans/implementation-plan.md)。
 
 ## 文档边界
 
-`current` 回答“现在实际怎么实现”。它不承诺未来优化，不替代设计层，也不把 Flutter 版实现细节当作 SwiftUI 事实。
+`current` 回答“现在实际怎么实现”。它不承诺未来优化，不替代计划层，也不把 Flutter 版实现细节当作 SwiftUI 事实。当前 SwiftData 路径是已实现事实和过渡实现，不是目标架构里的最终数据权威。
 
 | 文件 | 职责 |
 | --- | --- |
@@ -23,6 +23,7 @@
 | 热力图定位 | 已落地。热力图由首页局部状态在导航栏下方原位展开，作为顶部上下文区参与主页布局；点日/点有记录的月份只写时间 anchor，不改筛选条件。选中月份用主色低透明蒙层标记。 | `TimelineHomeView.swift`、`YearHeatmapView.swift`、`HeatmapGridView.swift`、`TimelineViewportView.swift` |
 | 筛选 | 已落地。当前是首页局部半屏/大屏 `FilterPanelView` sheet，不进 `AppRouter.rootSheet`，标签/心情以紧凑网格选择，提供“全部心情”和“清除全部”，点选即时生效且选择后不自动关闭；筛选 sheet 只选择已有标签，不提供标签新增入口。 | `TimelineHomeView.swift`、`FilterPanelView.swift` |
 | 标签创建归属 | 已落地。编辑器 `TagPickerView` 和首页筛选 `FilterPanelView` 只消费已有标签，不临时创建标签；标签新增、重命名、删除统一归属设置页 `TagManageView`。 | `MomentEditorView.swift`、`TagPickerView.swift`、`FilterPanelView.swift`、`TagManageView.swift` |
+| 数据持久化 | 已落地但属于过渡形态。当前使用 SwiftData `Moment` / `Tag` / `MomentImage`，生产启动路径会尝试 SwiftData + CloudKit 私有库容器，不可用时回退本地容器；同步状态仅由 CloudKit 是否启用、网络可达性和最近本地写入时间启发式推导。目标数据生命周期见计划层，不把当前 SwiftData 模型定义为最终权威。 | `ModelContainer+Config.swift`、`MoodmentsApp.swift`、`Moment.swift`、`Tag.swift`、`MomentImage.swift`、`SyncStatusService.swift` |
 | 上下文标记 | 已落地。筛选标记和时间定位标记可并存、可分别移除。 | `TimelineContextMarkerBar.swift`、`TimelineModel.swift` |
 | 编辑页日期/时间选择 | 已落地。日期和时间由局部 `.popover` 打开系统 `DatePicker`，即时回写 `occurredAt`；日期/时间 popover 打开与 `OccurredAtComposer` 合成语义已有窄测试覆盖，时间 picker 只替换时/分并保留不可见秒。 | `MomentEditorView.swift`、`DateTimePopovers.swift` |
 | 任务页骨架 | 已落地。设置、外观、编辑、预览等任务型 sheet 共享 `TaskSurfaceMetrics` / `TaskPageScrollView` / `TaskSurfaceSection` / `TaskSurfacePanel` 的响应式内容列；Pro 横幅、设置分组、外观分组、编辑输入面板和添加照片 CTA 统一横向边界。首页气泡、时间轴、筛选 popover、标签创建 sheet 不混入这套任务内容列。 | `TaskContainerStyle.swift`、`SettingsSheetView.swift`、`AppearanceThemeView.swift`、`MomentEditorView.swift`、`MomentPreviewView.swift` |

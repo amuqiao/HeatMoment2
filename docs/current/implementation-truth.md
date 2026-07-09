@@ -78,9 +78,19 @@ TimelineHomeView.timelineFilterSheet
 
 `TimelineContextMarkerBar` 同时显示筛选标记和时间定位标记。移除筛选标记改变 `activeFilter`，移除时间标记清空 `heatmapFocusDate` 与 `heatmapAnchorGranularity`。日 anchor 显示为 `M月d日`，月 anchor 显示为 `M月`。
 
+## 当前持久化与同步状态
+
+当前代码使用 SwiftData 作为已落地的持久化实现，但这只是 current 事实和过渡路径，不是目标数据生命周期里的最终权威模型。当前 schema 由 `ModelContainerConfig.schema` 注册 `Moment`、`Tag`、`MomentImage`。`Moment` 承载标题、正文、发生时间、创建/更新时间、心情 raw value、标签关系、图片关系和删除生命周期字段；`Tag` 是归类对象；`MomentImage.imageData` 使用 SwiftData `externalStorage` 存原图数据。业务层没有独立 CoreData 栈、自定义 CloudKit record mapper、同步 coordinator、备份恢复 coordinator 或导入导出服务。
+
+当前写入集中在 `@ModelActor` repository：`MomentRepository` 负责创建、编辑、软删除、恢复、彻底删除、分页、额度计数、图片读取和年度聚合；`TagRepository` 负责标签查重、创建、重命名、删除、列表和额度计数。跨 actor 传递使用 `MomentSnapshot`、`MomentEditingPayload`、`MomentImageData`、`TagSnapshot` 等值类型，不把 `@Model` 引用传出仓库边界。
+
+生产启动路径调用 `ModelContainerConfig.makeProductionContainer()`：先用 `FileManager.default.ubiquityIdentityToken` 判断 iCloud 能力，不可用时直接使用本地 SwiftData 容器；具备能力时尝试 SwiftData `ModelConfiguration(cloudKitDatabase: .private(...))`，初始化失败再回退本地容器。`Config/Moodments.entitlements` 已声明 CloudKit 私有库，`Project.yml` 已接入 entitlements。当前同步状态由 `SyncStatusService` 根据 `cloudKitEnabled`、网络可达性和最近本地写入时间推导 `offline / syncing / synced`，不读取真实 CloudKit import/export 事件，不表达冲突、重试队列、服务器变更 token 或错误详情。
+
+当前本地文件分层如下：Moment 原图归 SwiftData `MomentImage.imageData`；缩略图在 `Caches/thumbnails`，可从原图重建，不参与同步；外观自定义背景图在 Application Support 的外观目录，不进入 SwiftData 或 CloudKit；语言、隐私锁、订阅缓存、默认标签首启标记和外观偏好使用 `UserDefaults`。当前没有用户可触发的备份包、恢复流程、Markdown 导出或 PDF 导出。
+
 ## 编辑页局部选择
 
-`MomentEditorView` 是任务卡片栈第一层。编辑器使用全局 `TaskSheetScaffold` 承载 sheet 宿主，但不再把取消、日期 chip、时间 chip 和保存按钮放进系统 `toolbar(.principal)`；编辑页内部用自定义 top chrome 与 `MomentEditorLayoutTokens -> MomentEditorLayoutResolver -> MomentEditorLayoutMetrics` 管理顶部栏、心情/标签行、正文区和图片区的垂直呼吸间隔。顶部 chrome 与编辑内容加载态解耦，加载中仍保留取消/保存槽位，日期/时间 chip 在模型加载后显示，保存加载前禁用。情绪、标签、日期和时间选择当前由 SwiftUI 代码实现为局部选择：
+`MomentEditorView` 是任务卡片栈第一层。编辑器使用全局 `TaskSheetScaffold` 承载 sheet 宿主，`取消 / 保存` 通过 `taskSheetChrome` 进入和预览页一致的系统任务页导航栏槽位，日期/时间 chip 放在 principal 槽位。编辑内容区域仍由 `MomentEditorLayoutTokens -> MomentEditorLayoutResolver -> MomentEditorLayoutMetrics` 管理心情/标签行、正文区和图片区的垂直呼吸间隔。保存按钮在模型加载前或草稿不可保存时禁用。情绪、标签、日期和时间选择当前由 SwiftUI 代码实现为局部选择：
 
 - 情绪行打开 `MoodPickerView`。
 - 标签行打开 `TagPickerView`，只选择已有标签，不提供新增入口。
