@@ -12,7 +12,9 @@ enum MomentPhotoRailLayout {
     static let minimumAspectRatio: CGFloat = 0.54
     static let maximumAspectRatio: CGFloat = 1.60
     static let fallbackAspectRatio: CGFloat = 0.72
-    static let deleteBadgeDiameter: CGFloat = 28
+    static let deleteBadgeDiameter: CGFloat = 24
+    static let deleteBadgeOffset: CGFloat = 10
+    static let deleteBadgeBorderWidth: CGFloat = 1
 
     static var fallbackItemSize: CGSize {
         CGSize(width: itemHeight * fallbackAspectRatio, height: itemHeight)

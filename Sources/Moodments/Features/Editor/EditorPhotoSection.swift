@@ -134,17 +134,28 @@ struct EditorPhotoSection: View {
                 model.removePhoto(id: photo.id)
             } label: {
                 Image(systemName: "minus")
-                    .font(.system(size: 14, weight: .bold))
+                    .font(.system(size: 12, weight: .bold))
                     .foregroundStyle(theme.onDangerText)
                     .frame(
                         width: MomentPhotoRailLayout.deleteBadgeDiameter,
                         height: MomentPhotoRailLayout.deleteBadgeDiameter
                     )
                     .background(Circle().fill(theme.danger))
-                    .frame(width: 44, height: 44)
+                    .overlay {
+                        Circle()
+                            .strokeBorder(
+                                Color.black,
+                                lineWidth: MomentPhotoRailLayout.deleteBadgeBorderWidth
+                            )
+                    }
+                    .clipShape(Circle())
+                    .contentShape(Circle())
             }
             .buttonStyle(.plain)
-            .offset(x: 12, y: -12)
+            .offset(
+                x: MomentPhotoRailLayout.deleteBadgeOffset,
+                y: -MomentPhotoRailLayout.deleteBadgeOffset
+            )
             .accessibilityLabel(Text("删除该照片"))
             .accessibilityAction(named: Text("删除该照片")) {
                 model.removePhoto(id: photo.id)

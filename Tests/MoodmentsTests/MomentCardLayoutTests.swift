@@ -71,6 +71,12 @@ final class MomentCardLayoutTests: XCTestCase {
         )
     }
 
+    func testMomentPhotoRailDeleteBadgeUsesVisibleHitShapeSize() {
+        XCTAssertEqual(MomentPhotoRailLayout.deleteBadgeDiameter, 24)
+        XCTAssertEqual(MomentPhotoRailLayout.deleteBadgeOffset, 10)
+        XCTAssertEqual(MomentPhotoRailLayout.deleteBadgeBorderWidth, 1)
+    }
+
     func testThumbnailStripDefaultRemainsCompactTimelineLayout() {
         let strip = ThumbnailStripView(imageIDs: [])
 
