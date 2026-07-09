@@ -57,15 +57,38 @@ struct MomentEditorView: View {
     }
 
     var body: some View {
-        Group {
-            if model.isLoaded {
-                editorScaffold
-            } else {
-                ProgressView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+        TaskSheetScaffold {
+            VStack(spacing: 0) {
+                TaskSheetHeaderBar(
+                    cancellation: TaskSheetAction(
+                        "取消",
+                        accessibilityIdentifier: "editorCancelButton",
+                        handler: handleCancel
+                    ),
+                    confirmation: TaskSheetAction(
+                        "保存",
+                        accessibilityIdentifier: "editorSaveButton",
+                        isDisabled: !model.isLoaded || !model.canSave,
+                        isProminent: true,
+                        handler: handleSave
+                    )
+                ) {
+                    if model.isLoaded {
+                        HStack(spacing: 8) {
+                            dateChip
+                            timeChip
+                        }
+                    }
+                }
+
+                if model.isLoaded {
+                    content
+                } else {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
             }
         }
-        .background(theme.sheetBackground.ignoresSafeArea())
         .alert("放弃编辑？", isPresented: $isDiscardAlertPresented) {
             Button("放弃编辑", role: .destructive) { dismiss() }
             Button("继续编辑", role: .cancel) {}
@@ -74,7 +97,6 @@ struct MomentEditorView: View {
             ProPaywallView(trigger: trigger)
         }
         .userFacingErrorAlert(errorPresenter)
-        .themedTaskContainer(theme)
         .task {
             guard case .edit = mode else { return }
             do {
@@ -82,20 +104,6 @@ struct MomentEditorView: View {
             } catch {
                 await errorPresenter.report(message: "加载时刻失败，请稍后重试。", underlying: error)
             }
-        }
-    }
-
-    private var editorScaffold: some View {
-        VStack(spacing: 0) {
-            EditorSheetChrome(
-                canSave: model.canSave,
-                onCancel: handleCancel,
-                onSave: handleSave
-            ) {
-                dateChip
-                timeChip
-            }
-            content
         }
     }
 

@@ -156,6 +156,35 @@ final class DeleteRestorePurgeUITests: XCTestCase {
         XCTAssertTrue(app.buttons["新建时刻"].waitForExistence(timeout: 5), "关闭预览卡片后应回到时间轴主场景（FAB 仍在）")
     }
 
+    func testPreviewEditButtonPresentsNestedEditor() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTestSeedMoments"]
+        app.launch()
+
+        let row = app.buttons
+            .matching(NSPredicate(format: "label CONTAINS %@", targetLabelFragment))
+            .firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        row.tap()
+
+        XCTAssertTrue(app.scrollViews["momentPreviewCard"].waitForExistence(timeout: 5))
+        let editButton = app.buttons["momentPreviewEditButton"]
+        XCTAssertTrue(editButton.waitForExistence(timeout: 5), "预览卡片应提供编辑入口")
+        editButton.tap()
+
+        XCTAssertTrue(app.buttons["editorCancelButton"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["editorSaveButton"].exists)
+        let titleField = app.textFields["editorTitleField"]
+        XCTAssertTrue(titleField.waitForExistence(timeout: 5))
+        XCTAssertEqual(titleField.value as? String, "测试时刻 1", "预览编辑入口应打开当前时刻的 edit 模式")
+
+        app.buttons["editorCancelButton"].tap()
+        XCTAssertTrue(
+            app.scrollViews["momentPreviewCard"].waitForExistence(timeout: 5),
+            "关闭二层编辑器后应回到原预览卡片，而不是回到时间轴根层"
+        )
+    }
+
     // MARK: - Helpers
 
     private func swipeDeleteTargetRow(_ app: XCUIApplication) {

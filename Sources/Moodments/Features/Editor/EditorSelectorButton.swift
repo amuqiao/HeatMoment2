@@ -10,11 +10,6 @@ enum EditorLayout {
     static let tagChipHorizontalPadding: CGFloat = 8
     static let tagChipVerticalPadding: CGFloat = 3
     static let bodyMinHeight: CGFloat = 170
-    static let chromeHorizontalPadding: CGFloat = 16
-    static let chromeVerticalPadding: CGFloat = 10
-    static let chromeMinHeight: CGFloat = 56
-    static let chromeActionSlotWidth: CGFloat = 64
-    static let chromeItemSpacing: CGFloat = 8
     static let contentTopInset: CGFloat = 10
     static let contentGroupSpacing: CGFloat = 20
 

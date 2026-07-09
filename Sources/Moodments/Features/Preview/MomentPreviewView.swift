@@ -25,7 +25,7 @@ struct MomentPreviewView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        TaskSheetScaffold {
             Group {
                 if let moment = moments.first {
                     content(for: moment)
@@ -34,23 +34,16 @@ struct MomentPreviewView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
-            .background(theme.sheetBackground.ignoresSafeArea())
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("关闭") { dismiss() }
-                        .accessibilityIdentifier("momentPreviewCloseButton")
-                }
-                if let moment = moments.first {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("编辑") {
-                            editorPresentation = EditorPresentation(mode: .edit(moment.id))
-                        }
-                        .accessibilityIdentifier("momentPreviewEditButton")
-                    }
-                }
-            }
+            .taskSheetChrome(
+                cancellation: TaskSheetAction(
+                    "关闭",
+                    accessibilityIdentifier: "momentPreviewCloseButton"
+                ) {
+                    dismiss()
+                },
+                confirmation: previewEditAction
+            )
         }
-        .themedTaskContainer(theme)
         // 阅读卡片对底层已下沉的时间轴做 VoiceOver 模态隔离，防焦点穿透（见 04 §4.9）。
         .accessibilityAddTraits(.isModal)
         .sheet(item: $editorPresentation) { presentation in
@@ -61,6 +54,16 @@ struct MomentPreviewView: View {
         }
         .fullScreenCover(item: $viewerContext) { context in
             ImageViewerView(momentID: momentID, startIndex: context.startIndex)
+        }
+    }
+
+    private var previewEditAction: TaskSheetAction? {
+        guard let moment = moments.first else { return nil }
+        return TaskSheetAction(
+            "编辑",
+            accessibilityIdentifier: "momentPreviewEditButton"
+        ) {
+            editorPresentation = EditorPresentation(mode: .edit(moment.id))
         }
     }
 

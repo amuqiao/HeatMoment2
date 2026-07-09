@@ -80,7 +80,7 @@ TimelineHomeView.timelineFilterSheet
 
 ## 编辑页局部选择
 
-`MomentEditorView` 是任务卡片栈第一层。编辑器使用自绘 `EditorSheetChrome` 承载取消、日期 chip、时间 chip 和保存按钮，不依赖 `NavigationStack.toolbar` 的系统导航栏高度来决定内容起点；正文区仍用 `TaskPageScrollView`，但通过 `EditorLayout.contentInsets` 使用编辑器专属紧凑顶部 inset，不改全局任务页 `TaskSurfaceMetrics.pageVerticalInset`。情绪、标签、日期和时间选择当前由 SwiftUI 代码实现为局部选择：
+`MomentEditorView` 是任务卡片栈第一层。编辑器使用全局 `TaskSheetScaffold + TaskSheetHeaderBar` 承载取消、日期 chip、时间 chip 和保存按钮；顶部 header 与编辑内容加载态解耦，加载中仍保留取消/保存槽位，避免按钮随 `model.isLoaded` 分支消失。正文区仍用 `TaskPageScrollView`，但通过 `EditorLayout.contentInsets` 使用编辑器专属紧凑顶部 inset，不改全局任务页 `TaskSurfaceMetrics.pageVerticalInset`。情绪、标签、日期和时间选择当前由 SwiftUI 代码实现为局部选择：
 
 - 情绪行打开 `MoodPickerView`。
 - 标签行打开 `TagPickerView`，只选择已有标签，不提供新增入口。
@@ -98,15 +98,18 @@ TimelineHomeView.timelineFilterSheet
 
 `SettingsSheetView` 是根级第一层 sheet，内部使用 `NavigationStack + TaskPageScrollView`。根页不提供显式关闭按钮，依赖系统 sheet 下滑关闭；设置子页包括统计、标签、垃圾箱、语言、外观、关于，均在设置栈内 push 并保留系统返回；Pro 横幅使用设置内部局部 `.sheet(item:)` 打开 `ProPaywallView`。
 
-任务页的响应式骨架收口在 `TaskContainerStyle.swift`：
+任务页的响应式骨架收口在 `TaskSheetScaffold.swift` 和 `TaskContainerStyle.swift`：
 
 ```text
 TaskSurfaceMetrics
+  -> TaskSheetScaffold / taskSheetChrome / TaskSheetHeaderBar
   -> TaskPageScrollView
       -> TaskSurfaceSection
           -> TaskSurfacePanel
               -> TaskSurfaceRow / feature content
 ```
+
+`TaskSheetScaffold` 只治理任务型 sheet 的宿主 `NavigationStack`、背景和色彩模式；`taskSheetChrome` 负责适合系统导航栏的任务页动作槽位，`TaskSheetHeaderBar` 负责编辑器这类需要稳定内容起点的任务页顶部动作区。内容区域仍由 `TaskPageScrollView`、功能视图或商业页自身负责。当前已接入 `MomentEditorView`、`MomentPreviewView` 和 `ProPaywallView`。`FilterPanelView`、设置栈内子页、标签创建 sheet 仍保留各自导航语义，不强制套入任务卡片 chrome。
 
 `TaskSurfaceMetrics` 定义任务页内容列的水平边距、最大可读宽度、分组间距、panel 圆角、panel padding 和 row 最小高度。`TaskPageScrollView` 负责 sheet 背景、滚动和底部安全余量；`TaskResponsiveContent` 只负责内容列居中、最大宽度和页边距，因此可被统计页等非 sheet 背景场景借用；`TaskSurfaceSection` 负责可选标题和 panel 边界；`TaskSurfacePanel` 只表达任务容器面板；`TaskSurfaceRow` 表达设置类行。用于 UI 验证的 section measurement identifier 是 1pt 透明边界标记，不覆盖整块内容，避免抢走按钮命中区域。
 
@@ -134,7 +137,7 @@ TaskSurfaceMetrics
 - 危险色通过 `theme.danger` 解析，不读取主色。
 - `ProPaywallView` / `AboutView` 使用固定商业 token，并在本页局部注入 `.light` color scheme：浅色背景、浅色行/面板、固定红和固定商业文字不跟随用户主色或暗/亮模式，也不被设置任务容器的暗色环境污染。Paywall 的月订阅 / 终身买断结构仍按当前 StoreKit 契约展示；双方案视觉样式是否继续改造仍归 Paywall 专项裁决。
 - `ImageViewerView` 使用固定媒体 token：沉浸黑底、白色 chrome 和黑色 chrome scrim，不跟随主题主色。
-- `TaskContainerStyle` 是任务容器层的 SwiftUI 封装：设置、外观、语言、标签、垃圾箱、编辑器、预览和筛选等任务面板统一注入 `theme.colorScheme`、导航栏色彩方案和 `theme.accent`。任务内容列使用 `TaskPageScrollView` / `TaskSurfacePanel` 表达响应式宽度与 panel 语义；统计页只借用 `TaskResponsiveContent` 的内容列，不继承 sheet 背景；仍需系统行级能力的标签和垃圾箱列表保留 `List` / `.swipeActions`，通过 `taskListContentFrame()` 和共享 row inset 对齐同一最大宽度基线。这样避免系统默认浅色 grouped list 在暗色主题下盖住正确文字色，也避免不同任务页各自写死宽度。
+- `TaskSheetScaffold` 是根级任务 sheet 的 SwiftUI 宿主封装：编辑器、预览和 Paywall 统一由它注入任务背景、color scheme、toolbar color scheme 和 tint。`TaskContainerStyle` 保留内容层封装：`TaskPageScrollView` / `TaskSurfacePanel` 表达响应式宽度与 panel 语义；统计页只借用 `TaskResponsiveContent` 的内容列，不继承 sheet 背景；仍需系统行级能力的标签和垃圾箱列表保留 `List` / `.swipeActions`，通过 `taskListContentFrame()` 和共享 row inset 对齐同一最大宽度基线。这样避免系统默认浅色 grouped list 在暗色主题下盖住正确文字色，也避免不同任务页各自写死宽度。
 - `SettingsNavigationChrome` 是设置流专属导航外壳，不并入通用任务容器：设置根页保留系统默认标题样式，设置详情页统一 `.inline` 居中系统标题；导航栏背景保留 SwiftUI / UIKit 系统 scroll-edge 行为，顶部透明、滚动压入内容后由系统 material 接管，不自绘标题、不写死 `UINavigationBarAppearance` 或导航栏背景色。`MoodStatsView`、`TagManageView`、`TrashView`、`LanguageSettingsView`、`AppearanceThemeView`、`AboutView` 都挂同一详情页导航契约；`AppearanceThemeView` 的系统标题与设置入口统一为「外观主题」。
 - 设置栈内的 `TagManageView`、`TrashView`、`LanguageSettingsView` 已归入任务容器语义，背景使用 `sheetBackground`，行/面板使用 `sheetPanelBackground`，文字使用 `primaryText` / `secondaryText`，不再复用首页品牌画布和气泡 token。
 - `backgroundTexture` 已驱动首页主场景背景，`HomeSceneBackgroundView` 统一渲染网格线、点阵、无和自定义图片；作用范围包括时间轴背后区域、顶部 chrome 展开态和首页热力图上下文，不作用于设置页、编辑器 sheet、气泡卡片或其它页面。

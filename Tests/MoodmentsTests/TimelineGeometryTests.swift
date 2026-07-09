@@ -134,7 +134,6 @@ final class TimelineGeometryTests: XCTestCase {
     func testEditorUsesCompactInsetsWithoutChangingGlobalTaskPageInsets() {
         XCTAssertEqual(TaskSurfaceMetrics.pageVerticalInset, 20)
         XCTAssertEqual(TaskSurfaceMetrics.pageBottomInset, 56)
-        XCTAssertEqual(EditorLayout.chromeActionSlotWidth, 64)
         XCTAssertEqual(EditorLayout.contentTopInset, 10)
         XCTAssertEqual(EditorLayout.contentGroupSpacing, 20)
     }

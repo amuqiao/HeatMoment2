@@ -20,7 +20,7 @@ struct ProPaywallView: View {
     @State private var infoMessage: LocalizedStringKey?
 
     var body: some View {
-        NavigationStack {
+        TaskSheetScaffold(style: .commercial) {
             Group {
                 if subscriptionService.isPro {
                     alreadyProContent
@@ -28,16 +28,12 @@ struct ProPaywallView: View {
                     purchaseContent
                 }
             }
-            .background(theme.commercialBackground.ignoresSafeArea())
-            .navigationTitle("Pro 会员")
-            .environment(\.colorScheme, .light)
-            .tint(theme.commercialRed)
-            .toolbarColorScheme(.light, for: .navigationBar)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("关闭") { dismiss() }
+            .taskSheetChrome(
+                title: "Pro 会员",
+                cancellation: TaskSheetAction("关闭") {
+                    dismiss()
                 }
-            }
+            )
             .userFacingErrorAlert(errorPresenter)
             .alert(
                 "提示",
