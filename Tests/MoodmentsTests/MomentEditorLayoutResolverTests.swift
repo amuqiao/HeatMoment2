@@ -30,7 +30,9 @@ final class MomentEditorLayoutResolverTests: XCTestCase {
 
         XCTAssertEqual(layout.pageBottomInset, 56)
         XCTAssertEqual(layout.pageHorizontalInset, 16)
+        XCTAssertEqual(layout.selectorMinHeight, 40)
         XCTAssertEqual(layout.selectorHorizontalPadding, 16)
+        XCTAssertEqual(layout.bodyMinHeight, 132)
         XCTAssertEqual(layout.contentInsets.top, layout.topChromeToSelectorGap)
     }
 

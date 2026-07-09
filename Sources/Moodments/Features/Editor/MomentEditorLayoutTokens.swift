@@ -44,7 +44,7 @@ struct MomentEditorLayoutTokens: Equatable {
         topChromeItemSpacing: CGFloat = 8,  // 顶部操作栏内部元素间距
         topChromeToSelectorGap: CGFloat = 6,  // 顶部操作栏底部到心情/标签行顶部的呼吸间隔
         selectorRowGap: CGFloat = 12,  // 心情容器和标签容器之间的横向间距
-        selectorMinHeight: CGFloat = 46,  // 心情/标签容器最小高度
+        selectorMinHeight: CGFloat = 40,  // 心情/标签容器最小高度
         selectorIconWidth: CGFloat = 28,  // 心情/标签容器左侧图标槽宽
         selectorChevronWidth: CGFloat = 22,  // 心情/标签容器右侧箭头槽宽
         selectorCornerRadius: CGFloat = 14,  // 心情/标签容器圆角
@@ -53,7 +53,7 @@ struct MomentEditorLayoutTokens: Equatable {
         selectorToTextPanelGap: CGFloat = 18,  // 心情/标签行到底部编辑框的呼吸间隔
         textPanelToPhotoSectionGap: CGFloat = 20,  // 编辑框到图片区域的呼吸间隔
         textPanelFieldSpacing: CGFloat = 14,  // 标题、分割线、正文之间的间距
-        bodyMinHeight: CGFloat = 170,  // 正文输入区最小高度
+        bodyMinHeight: CGFloat = 132,  // 正文输入区最小高度
         dateTimeChipHorizontalPadding: CGFloat = 14,  // 日期/时间胶囊左右留白
         dateTimeChipVerticalPadding: CGFloat = 8,  // 日期/时间胶囊上下留白
         tagChipCornerRadius: CGFloat = 7,  // 已选标签小胶囊圆角
