@@ -88,26 +88,27 @@ struct SettingsSheetView: View {
         Button {
             paywallTrigger = .banner
         } label: {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .center, spacing: 4) {
                 Text(subscriptionService.isPro ? "你已是 Pro 会员" : "立即升级成为 Pro 用户")
                     .font(AppTypography.cardTitle)
-                    .foregroundStyle(theme.onAccentText)
+                    .foregroundStyle(theme.onCommercialText)
                 Text(
                     subscriptionService.isPro
                         ? "已解锁无限日记、无限照片、无限标签"
                         : "解锁无限日记、无限照片、无限标签"
                 )
                 .font(AppTypography.caption)
-                .foregroundStyle(theme.onAccentSecondaryText)
+                .foregroundStyle(theme.onCommercialText.opacity(0.86))
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity, alignment: .center)
             .padding(TaskSurfaceMetrics.panelPadding)
             .background(
                 RoundedRectangle(
                     cornerRadius: TaskSurfaceMetrics.panelCornerRadius,
                     style: .continuous
                 )
-                .fill(theme.accent)
+                .fill(theme.commercialRed)
             )
         }
         .buttonStyle(.plain)
