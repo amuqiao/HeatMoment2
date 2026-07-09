@@ -21,10 +21,11 @@ final class TimelineGeometryTests: XCTestCase {
     func testLeadInRemainsVisibleBeforeFirstReadingUnit() {
         let geometry = TimelineGeometry.standard
 
-        XCTAssertGreaterThanOrEqual(geometry.railLeadInHeight, 48)
+        XCTAssertGreaterThanOrEqual(geometry.railLeadInHeight, 24)
+        XCTAssertLessThanOrEqual(geometry.railLeadInHeight, 36)
     }
 
-    func testRailTopKeepsBreathingSpaceBelowExpandedTitle() {
+    func testViewportLayoutOwnsBreathingSpaceBelowExpandedTitle() {
         let geometry = TimelineGeometry.standard
         let layout = TimelineViewportLayout.standard
         let metrics = TimelineViewportMetrics(
@@ -34,13 +35,27 @@ final class TimelineGeometryTests: XCTestCase {
             firstNodeCenterYOffsetFromRailTop: geometry.firstNodeCenterYOffsetFromRailTop
         )
 
-        XCTAssertGreaterThanOrEqual(layout.titleToRailTopSpacing, 8)
-        XCTAssertEqual(layout.titleToRailTopSpacing, geometry.titleToRailTopSpacing)
+        XCTAssertGreaterThanOrEqual(layout.titleToRailTopSpacing, 6)
         XCTAssertEqual(
             metrics.railTopY,
             layout.expandedTitleSlotBottomY + layout.titleToRailTopSpacing
         )
         XCTAssertLessThan(metrics.railTopY, metrics.restingFirstNodeCenterY)
+    }
+
+    func testDefaultViewportLayoutKeepsExpandedTitleAndFirstNodeCompact() {
+        let geometry = TimelineGeometry.standard
+        let layout = TimelineViewportLayout.standard
+        let metrics = TimelineViewportMetrics(
+            viewportSize: CGSize(width: 430, height: 760),
+            scrollOffsetY: 0,
+            layout: layout,
+            firstNodeCenterYOffsetFromRailTop: geometry.firstNodeCenterYOffsetFromRailTop
+        )
+
+        XCTAssertEqual(layout.expandedTitleTopPadding, 0)
+        XCTAssertEqual(metrics.railTopY, 56)
+        XCTAssertEqual(metrics.restingFirstNodeCenterY, 116)
     }
 
     func testSceneRailStartsAboveFirstReadingUnitNode() {
@@ -87,6 +102,23 @@ final class TimelineGeometryTests: XCTestCase {
         XCTAssertEqual(metrics.railBounds.topY, layout.restingRailTopY)
         XCTAssertEqual(metrics.railBounds.bottomY, 760 + layout.railBottomOvershoot)
         XCTAssertGreaterThan(metrics.railBounds.height, 0)
+    }
+
+    func testHomeBottomClearanceIsOwnedByFabLayout() {
+        let layout = TimelineHomeLayout.standard
+
+        XCTAssertEqual(FABButtonMetrics.diameter, 64)
+        XCTAssertEqual(layout.fabDiameter, FABButtonMetrics.diameter)
+        XCTAssertEqual(layout.fabBottomPadding, 24)
+        XCTAssertEqual(layout.bottomActionClearance, 96)
+    }
+
+    func testEditorUsesCompactInsetsWithoutChangingGlobalTaskPageInsets() {
+        XCTAssertEqual(TaskSurfaceMetrics.pageVerticalInset, 20)
+        XCTAssertEqual(TaskSurfaceMetrics.pageBottomInset, 56)
+        XCTAssertEqual(EditorLayout.chromeActionSlotWidth, 64)
+        XCTAssertEqual(EditorLayout.contentTopInset, 10)
+        XCTAssertEqual(EditorLayout.contentGroupSpacing, 20)
     }
 
     func testViewportRailBoundsDoNotDependOnListRowPreferences() {
@@ -136,6 +168,7 @@ final class TimelineGeometryTests: XCTestCase {
         let geometry = TimelineGeometry.standard
         let layout = TimelineViewportLayout(
             expandedTitleSlotBottomY: 80,
+            expandedTitleTopPadding: 2,
             titleToRailTopSpacing: 16,
             railBottomOvershoot: 280
         )
@@ -147,6 +180,7 @@ final class TimelineGeometryTests: XCTestCase {
         )
 
         XCTAssertEqual(layout.restingRailTopY, 96)
+        XCTAssertEqual(layout.expandedTitleTopPadding, 2)
         XCTAssertEqual(metrics.railTopY, 96)
         XCTAssertEqual(metrics.railBottomY, 900)
     }

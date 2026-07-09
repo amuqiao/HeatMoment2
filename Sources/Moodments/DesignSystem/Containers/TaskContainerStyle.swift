@@ -13,6 +13,15 @@ enum TaskSurfaceMetrics {
     static let rowMinHeight: CGFloat = 56
     static let rowHorizontalPadding: CGFloat = 16
     static let listRowVerticalInset: CGFloat = 6
+
+    static var pageInsets: EdgeInsets {
+        EdgeInsets(
+            top: pageVerticalInset,
+            leading: pageHorizontalInset,
+            bottom: pageBottomInset,
+            trailing: pageHorizontalInset
+        )
+    }
 }
 
 extension ThemeMode {
@@ -49,15 +58,18 @@ struct TaskPageScrollView<Content: View>: View {
     @Environment(ThemeManager.self) private var theme
 
     private let spacing: CGFloat
+    private let contentInsets: EdgeInsets
     private let accessibilityIdentifier: String?
     @ViewBuilder private let content: Content
 
     init(
         spacing: CGFloat = TaskSurfaceMetrics.groupSpacing,
+        contentInsets: EdgeInsets = TaskSurfaceMetrics.pageInsets,
         accessibilityIdentifier: String? = nil,
         @ViewBuilder content: () -> Content
     ) {
         self.spacing = spacing
+        self.contentInsets = contentInsets
         self.accessibilityIdentifier = accessibilityIdentifier
         self.content = content()
     }
@@ -65,7 +77,7 @@ struct TaskPageScrollView<Content: View>: View {
     @ViewBuilder
     var body: some View {
         let scrollView = ScrollView {
-            TaskResponsiveContent(spacing: spacing) {
+            TaskResponsiveContent(spacing: spacing, contentInsets: contentInsets) {
                 content
             }
         }
@@ -81,10 +93,16 @@ struct TaskPageScrollView<Content: View>: View {
 
 struct TaskResponsiveContent<Content: View>: View {
     private let spacing: CGFloat
+    private let contentInsets: EdgeInsets
     @ViewBuilder private let content: Content
 
-    init(spacing: CGFloat = TaskSurfaceMetrics.groupSpacing, @ViewBuilder content: () -> Content) {
+    init(
+        spacing: CGFloat = TaskSurfaceMetrics.groupSpacing,
+        contentInsets: EdgeInsets = TaskSurfaceMetrics.pageInsets,
+        @ViewBuilder content: () -> Content
+    ) {
         self.spacing = spacing
+        self.contentInsets = contentInsets
         self.content = content()
     }
 
@@ -92,9 +110,7 @@ struct TaskResponsiveContent<Content: View>: View {
         VStack(alignment: .leading, spacing: spacing) {
             content
         }
-        .padding(.horizontal, TaskSurfaceMetrics.pageHorizontalInset)
-        .padding(.top, TaskSurfaceMetrics.pageVerticalInset)
-        .padding(.bottom, TaskSurfaceMetrics.pageBottomInset)
+        .padding(contentInsets)
         .taskResponsiveFrame()
     }
 }

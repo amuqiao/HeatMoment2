@@ -20,6 +20,29 @@ final class EditorSheetPresentationUITests: XCTestCase {
         XCTAssertTrue(app.buttons["editorSaveButton"].exists)
     }
 
+    func testEditorCancelShowsDiscardConfirmationAfterDirtyEdit() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTestReset"]
+        app.launch()
+
+        let fab = app.buttons["新建时刻"]
+        XCTAssertTrue(fab.waitForExistence(timeout: 10))
+        fab.tap()
+
+        let titleField = app.textFields["editorTitleField"]
+        XCTAssertTrue(titleField.waitForExistence(timeout: 5))
+        titleField.tap()
+        titleField.typeText("临时记录")
+
+        let cancelButton = app.buttons["editorCancelButton"]
+        XCTAssertTrue(cancelButton.waitForExistence(timeout: 5))
+        cancelButton.tap()
+
+        XCTAssertTrue(app.alerts["放弃编辑？"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["继续编辑"].exists)
+        XCTAssertTrue(app.buttons["放弃编辑"].exists)
+    }
+
     func testSettingsRootHasNoExplicitCloseAndChildPageKeepsBackButton() {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTestReset"]

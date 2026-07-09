@@ -35,7 +35,7 @@ TimelineDateColumn
   -> BubbleCardView
 ```
 
-`TimelineGeometry` 是首页时间轴阅读单元坐标系统的单一来源：`listHorizontalInset` 定义整条阅读单元的行内缩进，`dateColumnWidth` / `interColumnSpacing` / `nodeColumnWidth` 定义日期列、节点列和气泡列的横向关系，`readingUnitOriginX` / `nodeCenterXInReadingUnit` / `nodeCenterXInViewport` / `railCenterXInViewport` 定义节点中心与视口轨道的 x 绑定，`firstNodeCenterYOffsetFromRailTop` 定义默认态轨道顶点到第一条 Moment 心情节点中心的向下 y 偏移，`railLeadInHeight` 定义轨道顶点和第一条阅读单元之间的呼吸空间，`nodeCenterY` / `bubbleTailCenterY` 定义心情节点和气泡尾巴之间的纵向锚定关系，`bubbleTailSize` / `bubbleTailHorizontalOffset` 定义气泡尾巴自身几何。`TimelineViewportLayout` 定义首页首屏场景槽位：展开标题槽位底部、标题到轨道顶点的呼吸间隔和轨道底部超出长度；`TimelineViewportMetrics` 消费该 layout、viewport 尺寸和滚动 offset，生成 `TimelineRailSceneBounds`。场景轨道的顶点和底端由 `TimelineRailSceneLayer` 消费 `TimelineViewportMetrics` 绘制，不再反向依赖 `List` 行的 `PreferenceKey` 上报；`List` 是惰性布局，不能作为整条轨道是否存在的真相源。后续如果要移动时间轴横向位置、调整日期列、节点列或气泡尾巴关系，优先改 `TimelineGeometry`；如果要调整轨道首屏 y、标题到轨道顶点间隔或底部超出，优先改 `TimelineViewportLayout`；如果要调整上滑/下拉相位，优先改 `TimelineViewportMetrics`。
+`TimelineGeometry` 是首页时间轴阅读单元坐标系统的单一来源：`listHorizontalInset` 定义整条阅读单元的行内缩进，`dateColumnWidth` / `interColumnSpacing` / `nodeColumnWidth` 定义日期列、节点列和气泡列的横向关系，`readingUnitOriginX` / `nodeCenterXInReadingUnit` / `nodeCenterXInViewport` / `railCenterXInViewport` 定义节点中心与视口轨道的 x 绑定，`firstNodeCenterYOffsetFromRailTop` 定义默认态轨道顶点到第一条 Moment 心情节点中心的向下 y 偏移，`railLeadInHeight` 定义轨道顶点和第一条阅读单元之间的呼吸空间，`nodeCenterY` / `bubbleTailCenterY` 定义心情节点和气泡尾巴之间的纵向锚定关系，`bubbleTailSize` / `bubbleTailHorizontalOffset` 定义气泡尾巴自身几何。`TimelineViewportLayout` 定义首页首屏场景槽位：展开标题槽位底部、展开标题自身顶部 padding、标题到轨道顶点的呼吸间隔和轨道底部超出长度；`TimelineHomeLayout` 定义首页固定 chrome 与 FAB 的场景避让，包括顶部 chrome padding、FAB 直径、FAB 吸底距离和底部操作 clearance。`TimelineViewportMetrics` 消费 viewport layout、viewport 尺寸和滚动 offset，生成 `TimelineRailSceneBounds`。场景轨道的顶点和底端由 `TimelineRailSceneLayer` 消费 `TimelineViewportMetrics` 绘制，不再反向依赖 `List` 行的 `PreferenceKey` 上报；`List` 是惰性布局，不能作为整条轨道是否存在的真相源。后续如果要移动时间轴横向位置、调整日期列、节点列或气泡尾巴关系，优先改 `TimelineGeometry`；如果要调整轨道首屏 y、标题到轨道顶点间隔或底部超出，优先改 `TimelineViewportLayout`；如果要调整顶部 chrome 或 FAB 避让，优先改 `TimelineHomeLayout`；如果要调整上滑/下拉相位，优先改 `TimelineViewportMetrics`。
 
 `TimelineViewportView` 使用 `ScrollViewReader + List` 承载成熟滚动、定位和行级 swipe action。连续轨道由 `TimelineRailSceneLayer` 作为 viewport 场景层绘制，不属于任何 `List` row、阅读单元或气泡；日期列、心情节点和气泡是行前景阅读单元。`TimelineRailVisibility` 决定是否渲染场景轨道：只有存在可见阅读单元时才画轨道；筛选后 0 条命中时只显示空态文案，不渲染轨道或 lead-in / bottom overshoot，避免出现没有日期、节点、气泡归属的孤立竖线。轨道场景层不参与 `List` 行级 `.swipeActions`，因此左滑删除时系统移动日期、节点和气泡这个阅读单元，轨道不会被 row swipe 容器移动、裁剪或切断。滚动监听在 iOS 18+ 使用 SwiftUI `onScrollGeometryChange`，iOS 17 使用挂在 `List` 自身的零尺寸 `TimelineScrollOffsetReader` 读取承载 `UIScrollView`；这条读取链路输出 viewport 滚动相位，用于标题折叠和轨道 y 相位，不反推轨道 x 坐标或节点位置。
 
@@ -78,7 +78,7 @@ TimelineHomeView.timelineFilterSheet
 
 ## 编辑页局部选择
 
-`MomentEditorView` 是任务卡片栈第一层。情绪、标签、日期和时间选择当前由 SwiftUI 代码实现为局部选择：
+`MomentEditorView` 是任务卡片栈第一层。编辑器使用自绘 `EditorSheetChrome` 承载取消、日期 chip、时间 chip 和保存按钮，不依赖 `NavigationStack.toolbar` 的系统导航栏高度来决定内容起点；正文区仍用 `TaskPageScrollView`，但通过 `EditorLayout.contentInsets` 使用编辑器专属紧凑顶部 inset，不改全局任务页 `TaskSurfaceMetrics.pageVerticalInset`。情绪、标签、日期和时间选择当前由 SwiftUI 代码实现为局部选择：
 
 - 情绪行打开 `MoodPickerView`。
 - 标签行打开 `TagPickerView`，只选择已有标签，不提供新增入口。

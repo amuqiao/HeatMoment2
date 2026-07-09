@@ -96,6 +96,31 @@ final class CreateMomentFlowUITests: XCTestCase {
         )
     }
 
+    func testEditorTagPickerSupportsMultipleSelectionWithoutClosing() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTestReset"]
+        app.launch()
+
+        let fab = app.buttons["新建时刻"]
+        XCTAssertTrue(fab.waitForExistence(timeout: 10))
+        fab.tap()
+
+        let tagRow = app.buttons["editorTagRow"]
+        XCTAssertTrue(tagRow.waitForExistence(timeout: 5))
+        tagRow.tap()
+
+        for tagName in ["工作", "生活", "健康"] {
+            let option = app.buttons["tagOption-\(tagName)"]
+            XCTAssertTrue(option.waitForExistence(timeout: 5), "\(tagName) 标签应存在")
+            option.tap()
+            XCTAssertTrue(option.waitForExistence(timeout: 2), "选择 \(tagName) 后标签浮窗不应关闭")
+            XCTAssertEqual(option.value as? String, "已选中", "\(tagName) 标签应进入选中态")
+        }
+
+        dismissAnyPopover(app)
+        XCTAssertTrue(tagRow.waitForExistence(timeout: 5))
+    }
+
     /// 点击浮窗外部收起当前就近浮窗（popover 语义，见 04-screen-specs.md §4.5/§4.6/§4.8）：
     /// 直接命中系统为 `.popover` 自动生成的 `PopoverDismissRegion` 无障碍元素（覆盖浮窗之外的
     /// 整个可交互区域），比对一个猜测的屏幕坐标做 `tap()` 更可靠——曾实测坐标 tap 未必落在

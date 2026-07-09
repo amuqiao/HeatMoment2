@@ -57,26 +57,23 @@ struct MomentEditorView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            Group {
-                if model.isLoaded {
-                    content
-                } else {
-                    ProgressView()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
+        Group {
+            if model.isLoaded {
+                editorScaffold
+            } else {
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .background(theme.sheetBackground.ignoresSafeArea())
-            .toolbar { toolbarContent }
-            .alert("放弃编辑？", isPresented: $isDiscardAlertPresented) {
-                Button("放弃编辑", role: .destructive) { dismiss() }
-                Button("继续编辑", role: .cancel) {}
-            }
-            .sheet(item: $editorPaywallTrigger) { trigger in
-                ProPaywallView(trigger: trigger)
-            }
-            .userFacingErrorAlert(errorPresenter)
         }
+        .background(theme.sheetBackground.ignoresSafeArea())
+        .alert("放弃编辑？", isPresented: $isDiscardAlertPresented) {
+            Button("放弃编辑", role: .destructive) { dismiss() }
+            Button("继续编辑", role: .cancel) {}
+        }
+        .sheet(item: $editorPaywallTrigger) { trigger in
+            ProPaywallView(trigger: trigger)
+        }
+        .userFacingErrorAlert(errorPresenter)
         .themedTaskContainer(theme)
         .task {
             guard case .edit = mode else { return }
@@ -88,33 +85,30 @@ struct MomentEditorView: View {
         }
     }
 
+    private var editorScaffold: some View {
+        VStack(spacing: 0) {
+            EditorSheetChrome(
+                canSave: model.canSave,
+                onCancel: handleCancel,
+                onSave: handleSave
+            ) {
+                dateChip
+                timeChip
+            }
+            content
+        }
+    }
+
     private var content: some View {
-        TaskPageScrollView(spacing: 20) {
+        TaskPageScrollView(
+            spacing: EditorLayout.contentGroupSpacing,
+            contentInsets: EditorLayout.contentInsets
+        ) {
             moodAndTagRow
             editorTextPanel
             EditorPhotoSection(model: model, editorPaywallTrigger: $editorPaywallTrigger)
         }
-    }
-
-    @ToolbarContentBuilder
-    private var toolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .cancellationAction) {
-            Button("取消") { handleCancel() }
-                .accessibilityIdentifier("editorCancelButton")
-        }
-        ToolbarItem(placement: .principal) {
-            HStack(spacing: 8) {
-                dateChip
-                timeChip
-            }
-        }
-        ToolbarItem(placement: .confirmationAction) {
-            Button("保存") { handleSave() }
-                .foregroundStyle(theme.accent)
-                .fontWeight(.semibold)
-                .disabled(!model.canSave)
-                .accessibilityIdentifier("editorSaveButton")
-        }
+        .scrollDismissesKeyboard(.interactively)
     }
 
     // MARK: - 情绪 + 标签行（同一行左右布局，见 05-design-system.md §5.7）
@@ -130,22 +124,15 @@ struct MomentEditorView: View {
         Button {
             isMoodPickerPresented = true
         } label: {
-            HStack(spacing: 6) {
-                Image(systemName: "heart.fill").foregroundStyle(theme.accent)
+            EditorSelectorButton {
+                Image(systemName: "heart.fill")
+                    .foregroundStyle(theme.accent)
+            } summary: {
                 Text("\(model.mood.emoji) \(model.mood.displayName)")
                     .foregroundStyle(theme.primaryText)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.85)
-                Image(systemName: "chevron.down")
-                    .font(.caption)
-                    .foregroundStyle(theme.secondaryText)
+                    .truncationMode(.tail)
             }
-            .padding(.horizontal, TaskSurfaceMetrics.rowHorizontalPadding)
-            .frame(maxWidth: .infinity, minHeight: 46, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(theme.sheetPanelBackground)
-            )
         }
         .buttonStyle(.plain)
         .frame(maxWidth: .infinity)
@@ -164,22 +151,13 @@ struct MomentEditorView: View {
         Button {
             isTagPickerPresented = true
         } label: {
-            HStack(spacing: 6) {
-                Text("#").foregroundStyle(theme.accent)
-                Text(tagSummaryText).foregroundStyle(theme.primaryText)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .minimumScaleFactor(0.85)
-                Image(systemName: "chevron.down")
-                    .font(.caption)
-                    .foregroundStyle(theme.secondaryText)
+            EditorSelectorButton {
+                Text("#")
+                    .font(.system(size: 28, weight: .regular))
+                    .foregroundStyle(theme.accent)
+            } summary: {
+                EditorTagSelectionSummary(selectedNames: selectedTagNames)
             }
-            .padding(.horizontal, TaskSurfaceMetrics.rowHorizontalPadding)
-            .frame(maxWidth: .infinity, minHeight: 46, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(theme.sheetPanelBackground)
-            )
         }
         .buttonStyle(.plain)
         .frame(maxWidth: .infinity)
@@ -195,11 +173,16 @@ struct MomentEditorView: View {
         }
     }
 
+    private var selectedTagNames: [String] {
+        model.selectedTagIDs.compactMap { model.tagNamesByID[$0] }
+    }
+
     private var tagSummaryText: String {
-        guard !model.selectedTagIDs.isEmpty else {
+        let selectedNames = selectedTagNames
+        guard !selectedNames.isEmpty else {
             return LanguagePreference.localizedString("选择标签")
         }
-        return model.selectedTagIDs.compactMap { model.tagNamesByID[$0] }.joined(separator: " ")
+        return selectedNames.joined(separator: " ")
     }
 
     // MARK: - 日期 / 时间 chip（见 04-screen-specs.md §4.4/§4.8）
@@ -208,7 +191,7 @@ struct MomentEditorView: View {
         Button {
             isDatePickerPresented = true
         } label: {
-            Text(dateChipText)
+            Text(EditorDateTimeFormatters.date.string(from: model.occurredAt))
                 .font(AppTypography.body)
                 .foregroundStyle(theme.primaryText)
                 .padding(.horizontal, 14)
@@ -228,7 +211,7 @@ struct MomentEditorView: View {
         Button {
             isTimePickerPresented = true
         } label: {
-            Text(timeChipText)
+            Text(EditorDateTimeFormatters.time.string(from: model.occurredAt))
                 .font(AppTypography.body)
                 .foregroundStyle(theme.primaryText)
                 .padding(.horizontal, 14)
@@ -244,21 +227,6 @@ struct MomentEditorView: View {
         }
     }
 
-    private var dateChipText: String { Self.dateFormatter.string(from: model.occurredAt) }
-    private var timeChipText: String { Self.timeFormatter.string(from: model.occurredAt) }
-
-    private static let dateFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "M月d日"
-        return formatter
-    }()
-
-    private static let timeFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm"
-        return formatter
-    }()
-
     // MARK: - 标题 / 正文
 
     private var editorTextPanel: some View {
@@ -267,7 +235,6 @@ struct MomentEditorView: View {
                 titleField
                 Divider()
                 bodyField
-                    .frame(minHeight: 170, alignment: .topLeading)
             }
         }
         .taskSurfaceMeasurementIdentifier("editorTextPanel")
@@ -284,7 +251,8 @@ struct MomentEditorView: View {
         TextField("正文", text: bodyBinding, axis: .vertical)
             .font(AppTypography.body)
             .foregroundStyle(theme.primaryText)
-            .lineLimit(5...12)
+            .lineLimit(5...8)
+            .frame(minHeight: EditorLayout.bodyMinHeight, alignment: .topLeading)
             .accessibilityIdentifier("editorBodyField")
     }
 
