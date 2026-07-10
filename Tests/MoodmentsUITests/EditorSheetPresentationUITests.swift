@@ -112,6 +112,7 @@ final class EditorSheetPresentationUITests: XCTestCase {
         let app = XCUIApplication()
         openSettings(app)
 
+        assertSettingsDetailTitle(app, rowID: "settingsBackupRestoreRow", title: "备份与恢复")
         assertSettingsDetailTitle(app, rowID: "settingsLanguageRow", title: "语言")
         assertSettingsDetailTitle(app, rowID: "settingsAppearanceRow", title: "外观主题")
         assertSettingsDetailTitle(app, rowID: "settingsAboutRow", title: "关于心绪日记")

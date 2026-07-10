@@ -123,4 +123,44 @@ final class LocalBackupCoordinatorTests: RecoveryPointTestCase {
         XCTAssertEqual(listed.count, 1)
         XCTAssertEqual(listed.first?.id, first?.id)
     }
+
+    func testPrepareRestoreRejectsIncompatibleRecoveryPoint() async throws {
+        let libraryDirectory = try makeSourceDirectory()
+        let descriptor = LocalBackupStoreDescriptor(
+            rootDirectory: libraryDirectory,
+            storeFileName: "Moodments.store",
+            sourceLibraryID: "test-local"
+        )
+        try write("store", to: descriptor.storeURL)
+
+        let manager = try RecoveryPointManager(recoveryDirectory: descriptor.recoveryDirectory)
+        let metadata = try await manager.createRecoveryPoint(
+            from: descriptor.payloadSource(),
+            reason: .stableChanges,
+            counts: RecoveryPointCounts(recordCount: 0, tagCount: 0, assetCount: 0),
+            schemaVersion: 0,
+            appVersion: "0.9.0",
+            sourceLibraryID: descriptor.sourceLibraryID
+        )
+
+        let coordinator = LocalBackupCoordinator(
+            descriptor: descriptor,
+            recoveryPointManager: manager,
+            countsRepository: RecoveryPointCountsRepository(
+                modelContainer: try ModelContainerConfig.makeInMemoryContainer()
+            ),
+            appVersion: "1.0.0",
+            schemaVersion: 1
+        )
+
+        do {
+            try await coordinator.prepareRestore(id: metadata.id)
+            XCTFail("Expected incompatible recovery point to be rejected.")
+        } catch {
+            XCTAssertEqual(error as? RecoveryPointError, .incompatibleRecoveryPoint(metadata.id))
+        }
+        XCTAssertFalse(
+            FileManager.default.fileExists(atPath: descriptor.pendingRestoreDirectory.path)
+        )
+    }
 }

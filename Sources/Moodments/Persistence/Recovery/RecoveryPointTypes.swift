@@ -3,9 +3,12 @@ import Foundation
 enum RecoveryPointError: Error, Equatable {
     case duplicatePayloadPath(String)
     case emptySource(URL)
+    case incompatibleRecoveryPoint(UUID)
     case invalidMaxRecoveryPoints(Int)
     case payloadSourceCannotBeRoot(URL)
+    case pendingRestoreMissingPayload
     case recoveryDirectoryIncluded(URL)
+    case recoveryPointUnavailable(UUID)
     case recoveryPointNotFound(UUID)
     case sourceFileOutsideRoot(file: URL, root: URL)
 }

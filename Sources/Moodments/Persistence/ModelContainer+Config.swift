@@ -152,6 +152,12 @@ enum ModelContainerConfig {
         )
     }
 
+    static func performPendingLocalRestoreIfNeeded() throws -> LocalBackupBootRestoreResult {
+        try LocalBackupRestoreExecutor.performPendingRestoreIfNeeded(
+            descriptor: localBackupStoreDescriptor
+        )
+    }
+
     private static var applicationSupportDirectory: URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
     }

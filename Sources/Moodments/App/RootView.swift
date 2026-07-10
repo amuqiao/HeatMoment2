@@ -11,6 +11,7 @@ import SwiftUI
 /// 共享同一份「定位/筛选」状态，而不是两份互不相干的拷贝。
 struct RootView: View {
     let localBackupCoordinator: LocalBackupCoordinator?
+    let launchRestoreFailure: LocalBackupBootRestoreFailure?
 
     @Environment(AppRouter.self) private var router
     @Environment(\.modelContext) private var modelContext
@@ -18,9 +19,14 @@ struct RootView: View {
     @Environment(SubscriptionService.self) private var subscriptionService
     @Environment(SyncStatusService.self) private var syncStatusService
     @State private var timelineModel = TimelineModel()
+    @State private var didReportLaunchRestoreFailure = false
 
-    init(localBackupCoordinator: LocalBackupCoordinator? = nil) {
+    init(
+        localBackupCoordinator: LocalBackupCoordinator? = nil,
+        launchRestoreFailure: LocalBackupBootRestoreFailure? = nil
+    ) {
         self.localBackupCoordinator = localBackupCoordinator
+        self.launchRestoreFailure = launchRestoreFailure
     }
 
     var body: some View {
@@ -34,7 +40,7 @@ struct RootView: View {
                         mode: mode, modelContainer: modelContext.container,
                         subscriptionService: subscriptionService
                     )
-                case .settings: SettingsSheetView()
+                case .settings: SettingsSheetView(localBackupCoordinator: localBackupCoordinator)
                 case let .paywall(trigger): ProPaywallView(trigger: trigger)
                 }
             }
@@ -48,6 +54,13 @@ struct RootView: View {
             .environment(timelineModel)
             .userFacingErrorAlert(errorPresenter)
             .task {
+                if let launchRestoreFailure, !didReportLaunchRestoreFailure {
+                    didReportLaunchRestoreFailure = true
+                    errorPresenter.report(
+                        message: "本地备份恢复失败，当前数据未被替换。",
+                        underlying: launchRestoreFailure
+                    )
+                }
                 var canCreateLocalBackup = true
                 // 首启默认标签预置（见 07-data-persistence.md §4）：无条件调用（生产与 UI 测试
                 // 均需要），是否真正执行预置由 `DefaultTagSeeder` 内部的持久化「首启已完成」标记

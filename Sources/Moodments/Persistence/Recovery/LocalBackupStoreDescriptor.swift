@@ -26,7 +26,18 @@ struct LocalBackupStoreDescriptor: Sendable, Equatable {
         rootDirectory.appendingPathComponent(recoveryDirectoryName, isDirectory: true)
     }
 
+    var pendingRestoreDirectory: URL {
+        rootDirectory.appendingPathComponent("PendingRestore", isDirectory: true)
+    }
+
     func payloadSource() throws -> RecoveryPointPayloadSource {
+        try RecoveryPointPayloadSource(
+            rootDirectory: rootDirectory,
+            includedURLs: storePayloadURLs()
+        )
+    }
+
+    func storePayloadURLs() throws -> [URL] {
         let payloadURLs = try FileManager.default.contentsOfDirectory(
             at: rootDirectory,
             includingPropertiesForKeys: [.isDirectoryKey],
@@ -35,13 +46,10 @@ struct LocalBackupStoreDescriptor: Sendable, Equatable {
         .filter(isStorePayloadURL)
         .sorted { $0.lastPathComponent < $1.lastPathComponent }
 
-        return RecoveryPointPayloadSource(
-            rootDirectory: rootDirectory,
-            includedURLs: payloadURLs
-        )
+        return payloadURLs
     }
 
-    private func isStorePayloadURL(_ url: URL) -> Bool {
+    func isStorePayloadURL(_ url: URL) -> Bool {
         let name = url.lastPathComponent
         return name == storeFileName
             || name.hasPrefix("\(storeFileName)-")
