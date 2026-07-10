@@ -29,6 +29,10 @@ struct RecoveryPointSnapshotRequest: Sendable, Equatable {
     let appVersion: String
 }
 
+struct RecoveryPointDirectoryReconciliationResult: Sendable, Equatable {
+    let removedDirectoryNames: [String]
+}
+
 struct CanonicalRecoveryPointSnapshotService: Sendable {
     static let snapshotFileName = "Library.sqlite"
 
@@ -70,6 +74,12 @@ struct CanonicalRecoveryPointSnapshotService: Sendable {
     func validateRecoveryPoint(id: UUID) throws -> CanonicalRecoveryPointRecord {
         try operationGate.performSync {
             try validateRecoveryPointWithoutGate(id: id)
+        }
+    }
+
+    func reconcileRecoveryPointDirectories() throws -> RecoveryPointDirectoryReconciliationResult {
+        try operationGate.performSync {
+            try reconcileRecoveryPointDirectoriesWithoutGate()
         }
     }
 }
@@ -338,6 +348,42 @@ private extension CanonicalRecoveryPointSnapshotService {
                 try FileManager.default.removeItem(at: directory)
             }
         }
+    }
+
+    func reconcileRecoveryPointDirectoriesWithoutGate()
+        throws -> RecoveryPointDirectoryReconciliationResult
+    {
+        let fileManager = FileManager.default
+        guard fileManager.fileExists(atPath: recoveryPointDirectoryURL.path) else {
+            return RecoveryPointDirectoryReconciliationResult(removedDirectoryNames: [])
+        }
+
+        let catalogIDs = Set(try recoveryPointStore.listRecoveryPoints().map(\.id))
+        let children = try fileManager.contentsOfDirectory(
+            at: recoveryPointDirectoryURL,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        )
+        var removedNames: [String] = []
+        for child in children.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
+            let values = try child.resourceValues(forKeys: [.isDirectoryKey])
+            guard values.isDirectory == true else { continue }
+
+            let name = child.lastPathComponent
+            if name == "staging" {
+                try fileManager.removeItem(at: child)
+                removedNames.append(name)
+                continue
+            }
+            guard let recoveryPointID = UUID(uuidString: name),
+                  catalogIDs.contains(recoveryPointID)
+            else {
+                try fileManager.removeItem(at: child)
+                removedNames.append(name)
+                continue
+            }
+        }
+        return RecoveryPointDirectoryReconciliationResult(removedDirectoryNames: removedNames)
     }
 
     func absoluteURL(forRelativePath path: String) throws -> URL {

@@ -19,6 +19,31 @@ struct CanonicalStoreDescriptor: Sendable, Equatable {
             isDirectory: true
         )
     }
+
+    var pendingRestoreDirectory: URL {
+        rootDirectory.appendingPathComponent("PendingRestore", isDirectory: true)
+    }
+
+    func storePayloadURLs() throws -> [URL] {
+        guard FileManager.default.fileExists(atPath: rootDirectory.path) else {
+            return []
+        }
+        return try FileManager.default.contentsOfDirectory(
+            at: rootDirectory,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        )
+        .filter(isStorePayloadURL)
+        .sorted { $0.lastPathComponent < $1.lastPathComponent }
+    }
+
+    func isStorePayloadURL(_ url: URL) -> Bool {
+        let databaseFileName = databaseURL.lastPathComponent
+        let name = url.lastPathComponent
+        return name == databaseFileName
+            || name == "\(databaseFileName)-wal"
+            || name == "\(databaseFileName)-shm"
+    }
 }
 
 struct CanonicalLibraryRuntime: Sendable {
