@@ -1,108 +1,6 @@
 import Foundation
 import GRDB
 
-enum CanonicalAssetReachabilityError: Error, Equatable {
-    case cleanupBlocked(CanonicalAssetReachabilityReport)
-    case finalizationBlocked(CanonicalAssetGarbageCollectionPlan)
-    case finalizationRace(expectedAssetRecordIDs: [UUID], deletedAssetRecordIDs: [UUID])
-}
-
-struct CanonicalAssetDatabaseReference: Sendable, Equatable {
-    let contentHash: String
-    let assetRecordCount: Int
-    let linkedAssetCount: Int
-    let totalPinCount: Int
-
-    var isPinned: Bool {
-        totalPinCount > 0
-    }
-}
-
-struct CanonicalUnlinkedAssetRecord: Sendable, Equatable {
-    let assetID: UUID
-    let contentHash: String
-    let pinCount: Int
-}
-
-struct CanonicalAssetReachabilityReport: Sendable, Equatable {
-    let databaseReferences: [CanonicalAssetDatabaseReference]
-    let unlinkedAssetRecords: [CanonicalUnlinkedAssetRecord]
-    let storedContentHashes: [String]
-    let invalidDatabaseContentHashes: [String]
-    let invalidPinCountAssetRecordIDs: [UUID]
-    let invalidStoredAssetPaths: [String]
-    let missingDatabaseContentHashes: [String]
-    let corruptedStoredContentHashes: [String]
-    let orphanStoredContentHashes: [String]
-
-    var databaseContentHashes: [String] {
-        databaseReferences.map(\.contentHash)
-    }
-
-    var linkedContentHashes: [String] {
-        databaseReferences
-            .filter { $0.linkedAssetCount > 0 }
-            .map(\.contentHash)
-    }
-
-    var pinnedContentHashes: [String] {
-        databaseReferences
-            .filter(\.isPinned)
-            .map(\.contentHash)
-    }
-
-    var unpinnedUnlinkedAssetRecords: [CanonicalUnlinkedAssetRecord] {
-        unlinkedAssetRecords.filter { $0.pinCount == 0 }
-    }
-
-    var hasBlockingIssue: Bool {
-        !invalidDatabaseContentHashes.isEmpty
-            || !invalidPinCountAssetRecordIDs.isEmpty
-            || !invalidStoredAssetPaths.isEmpty
-            || !missingDatabaseContentHashes.isEmpty
-            || !corruptedStoredContentHashes.isEmpty
-    }
-
-    var isClean: Bool {
-        !hasBlockingIssue
-            && orphanStoredContentHashes.isEmpty
-            && unpinnedUnlinkedAssetRecords.isEmpty
-    }
-}
-
-struct CanonicalAssetCleanupResult: Sendable, Equatable {
-    let removedContentHashes: [String]
-    let reportBeforeCleanup: CanonicalAssetReachabilityReport
-}
-
-struct CanonicalAssetGarbageCollectionPlan: Sendable, Equatable {
-    let report: CanonicalAssetReachabilityReport
-    let finalizableAssetRecordIDs: [UUID]
-    let currentOrphanBlobContentHashes: [String]
-    let futureRemovableBlobHashes: [String]
-
-    var removableBlobContentHashes: [String] {
-        Array(
-            Set(currentOrphanBlobContentHashes)
-                .union(futureRemovableBlobHashes)
-        )
-        .sorted()
-    }
-
-    var isBlocked: Bool {
-        report.hasBlockingIssue
-    }
-
-    var hasWork: Bool {
-        !finalizableAssetRecordIDs.isEmpty || !removableBlobContentHashes.isEmpty
-    }
-}
-
-struct CanonicalAssetRecordFinalizationResult: Sendable, Equatable {
-    let deletedAssetRecordIDs: [UUID]
-    let planBeforeFinalization: CanonicalAssetGarbageCollectionPlan
-}
-
 struct CanonicalAssetReachabilityService: Sendable {
     let store: CanonicalStore
     let assetStore: FileAssetStore
@@ -120,7 +18,7 @@ struct CanonicalAssetReachabilityService: Sendable {
             ?? CanonicalAssetOperationGate.shared(forAssetRootDirectory: assetStore.rootDirectory)
     }
 
-    func audit() throws -> CanonicalAssetReachabilityReport {
+    func audit(now: Date = .now) throws -> CanonicalAssetReachabilityReport {
         let allDatabaseContentHashes = try databaseContentHashes()
         let validDatabaseContentHashes = allDatabaseContentHashes.filter {
             FileAssetStore.isValidContentHash($0)
@@ -135,32 +33,44 @@ struct CanonicalAssetReachabilityService: Sendable {
         let corruptedStoredContentHashes = try corruptedStoredContentHashes(
             storedContentHashes: listing.contentHashes
         )
+        let assetPinAudit = try CanonicalAssetPinAuditService(store: store).audit(now: now)
+        let activePinnedHashSet = Set(assetPinAudit.activePinnedContentHashes)
 
         let missingDatabaseContentHashes =
             databaseHashSet
             .subtracting(storedHashSet)
             .sorted()
+        let missingPinnedContentHashes =
+            activePinnedHashSet
+            .subtracting(storedHashSet)
+            .sorted()
         let orphanStoredContentHashes =
             storedHashSet
             .subtracting(databaseHashSet)
+            .subtracting(activePinnedHashSet)
             .subtracting(Set(corruptedStoredContentHashes))
             .sorted()
 
         return try CanonicalAssetReachabilityReport(
             databaseReferences: databaseReferences(for: validDatabaseContentHashes),
             unlinkedAssetRecords: unlinkedAssetRecords(validContentHashes: databaseHashSet),
+            activePinnedContentHashes: assetPinAudit.activePinnedContentHashes,
+            expiredAssetPinIDs: assetPinAudit.expiredAssetPinIDs,
             storedContentHashes: listing.contentHashes,
             invalidDatabaseContentHashes: invalidDatabaseContentHashes.sorted(),
+            invalidAssetPinContentHashes: assetPinAudit.invalidContentHashes,
+            invalidAssetPinLeaseIDs: assetPinAudit.invalidLeaseIDs,
             invalidPinCountAssetRecordIDs: try invalidPinCountAssetRecordIDs(),
             invalidStoredAssetPaths: listing.invalidRelativePaths,
             missingDatabaseContentHashes: missingDatabaseContentHashes,
+            missingPinnedContentHashes: missingPinnedContentHashes,
             corruptedStoredContentHashes: corruptedStoredContentHashes,
             orphanStoredContentHashes: orphanStoredContentHashes
         )
     }
 
-    func planGarbageCollection() throws -> CanonicalAssetGarbageCollectionPlan {
-        let report = try audit()
+    func planGarbageCollection(now: Date = .now) throws -> CanonicalAssetGarbageCollectionPlan {
+        let report = try audit(now: now)
         let finalizableAssetRecordIDs = report.unpinnedUnlinkedAssetRecords.map(\.assetID)
         let futureRemovableBlobHashes = futureRemovableBlobHashes(report: report)
 
@@ -191,14 +101,14 @@ struct CanonicalAssetReachabilityService: Sendable {
     }
 
     @discardableResult
-    func cleanupOrphanBlobs() throws -> CanonicalAssetCleanupResult {
+    func cleanupOrphanBlobs(now: Date = .now) throws -> CanonicalAssetCleanupResult {
         try operationGate.performSync {
-            try cleanupOrphanBlobsWithoutGate()
+            try cleanupOrphanBlobsWithoutGate(now: now)
         }
     }
 
-    private func cleanupOrphanBlobsWithoutGate() throws -> CanonicalAssetCleanupResult {
-        let report = try audit()
+    private func cleanupOrphanBlobsWithoutGate(now: Date) throws -> CanonicalAssetCleanupResult {
+        let report = try audit(now: now)
         guard !report.hasBlockingIssue else {
             throw CanonicalAssetReachabilityError.cleanupBlocked(report)
         }
@@ -217,6 +127,7 @@ struct CanonicalAssetReachabilityService: Sendable {
 private extension CanonicalAssetReachabilityService {
     func futureRemovableBlobHashes(report: CanonicalAssetReachabilityReport) -> [String] {
         let storedContentHashes = Set(report.storedContentHashes)
+        let activePinnedContentHashes = Set(report.activePinnedContentHashes)
         let finalizableRecordsByHash = Dictionary(
             grouping: report.unpinnedUnlinkedAssetRecords,
             by: \.contentHash
@@ -228,6 +139,7 @@ private extension CanonicalAssetReachabilityService {
             guard reference.totalPinCount == 0 else { return nil }
             guard reference.assetRecordCount == finalizableRecordCount else { return nil }
             guard storedContentHashes.contains(reference.contentHash) else { return nil }
+            guard !activePinnedContentHashes.contains(reference.contentHash) else { return nil }
             return reference.contentHash
         }
     }

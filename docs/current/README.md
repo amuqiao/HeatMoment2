@@ -183,3 +183,17 @@ rg -n "docs/current|docs/plans|implementation-truth|implementation-plan" CLAUDE.
 ```
 
 结果：通过。`CanonicalAssetReachabilityServiceTests` 扩展到 16 个用例，覆盖 GC dry-run plan、当前 orphan blob 候选、finalize unlinked + unpinned `asset_record`、共享 `content_hash` 时只删无用 record 且保留 blob、pinned unlinked record 保留、negative `pin_count` 作为 blocking issue 报告，以及 blocking issue 阻断 finalizer。当前 finalizer 只删除 DB 中无 link 且 `pin_count == 0` 的 `asset_record`，不删除 blob；blob 删除仍走受保护 orphan cleanup。完整 recovery/export/sync pin 表和自动 GC 调度仍未实现。
+
+2026-07-10 本轮 canonical content-hash pin / pin-aware GC planner 的定向验证：
+
+```sh
+./scripts/gen.sh
+./scripts/test.sh --only MoodmentsTests/CanonicalAssetPinSchemaTests
+./scripts/test.sh --only MoodmentsTests/CanonicalAssetPinStoreTests
+./scripts/test.sh --only MoodmentsTests/CanonicalAssetReachabilityServiceTests
+./scripts/build.sh
+./scripts/lint.sh
+git diff --check
+```
+
+结果：通过。`CanonicalAssetPinSchemaTests` 覆盖 fresh schema 和 v2 -> v3 upgrade 的 `asset_pin_record` 表、`asset_record.content_hash` 索引和 pin 表索引；`CanonicalAssetPinStoreTests` 覆盖 content-hash pin upsert、release、invalid hash、empty owner 和 invalid expiration 快速失败；`CanonicalAssetReachabilityServiceTests` 扩展到 22 个用例，覆盖 active pin 保护当前 orphan blob、active pin 保护 finalizable record 对应 blob、active pin 保护对象缺失 blob 作为 blocking issue、expired pin 不再保护、invalid pin hash / invalid pin expiration 作为 blocking issue。`./scripts/lint.sh` 退出码为 0，但仓库仍有既有 warning。当前 pin 表是 content-hash lease 地基，尚未接入 recovery catalog、restore staging、export job 或 sync job 的真实创建/释放流程，也还没有完整 GC 执行入口。

@@ -46,6 +46,26 @@ struct CanonicalMutationRecord: Sendable, Identifiable, Equatable {
     let recordRevision: Int
 }
 
+enum CanonicalAssetPinOwnerKind: String, Sendable, Equatable, CaseIterable {
+    case recoveryPoint
+    case restoreStaging
+    case exportJob
+    case sync
+}
+
+struct CanonicalAssetPinRecord: Sendable, Identifiable, Equatable {
+    let id: UUID
+    let contentHash: String
+    let ownerKind: CanonicalAssetPinOwnerKind
+    let ownerID: String
+    let createdAt: Date
+    let expiresAt: Date?
+
+    func isActive(at date: Date) -> Bool {
+        expiresAt.map { $0 > date } ?? true
+    }
+}
+
 struct CanonicalLibraryMetadata: Sendable, Equatable {
     let libraryID: UUID
     let schemaVersion: Int

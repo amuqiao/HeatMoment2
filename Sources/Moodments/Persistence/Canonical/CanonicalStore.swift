@@ -2,7 +2,7 @@ import Foundation
 import GRDB
 
 final class CanonicalStore: @unchecked Sendable {
-    static let currentSchemaVersion = 2
+    static let currentSchemaVersion = 3
 
     private let dbQueue: DatabaseQueue
 
@@ -102,7 +102,6 @@ final class CanonicalStore: @unchecked Sendable {
                 table.column("reference_state", .text).notNull()
                 table.column("pin_count", .integer).notNull()
             }
-
             try db.create(table: "moment_asset_link") { table in
                 table.column("moment_id", .text).notNull()
                     .references("moment_record", column: "id", onDelete: .cascade)
@@ -174,6 +173,41 @@ final class CanonicalStore: @unchecked Sendable {
                 table.add(column: "swift_data_imported_at", .double)
                 table.add(column: "swift_data_import_source_fingerprint", .text)
             }
+            try db.execute(
+                sql: "UPDATE library_metadata SET schema_version = ? WHERE id = 1",
+                arguments: [CanonicalStore.currentSchemaVersion]
+            )
+        }
+        migrator.registerMigration("v3_asset_pin_record") { db in
+            try db.create(
+                index: "idx_asset_record_content_hash",
+                on: "asset_record",
+                columns: ["content_hash"]
+            )
+            try db.create(table: "asset_pin_record") { table in
+                table.column("id", .text).primaryKey()
+                table.column("content_hash", .text).notNull()
+                table.column("owner_kind", .text).notNull()
+                table.column("owner_id", .text).notNull()
+                table.column("created_at", .double).notNull()
+                table.column("expires_at", .double)
+                table.uniqueKey(["content_hash", "owner_kind", "owner_id"])
+            }
+            try db.create(
+                index: "idx_asset_pin_record_content_hash",
+                on: "asset_pin_record",
+                columns: ["content_hash"]
+            )
+            try db.create(
+                index: "idx_asset_pin_record_owner",
+                on: "asset_pin_record",
+                columns: ["owner_kind", "owner_id"]
+            )
+            try db.create(
+                index: "idx_asset_pin_record_expires_at",
+                on: "asset_pin_record",
+                columns: ["expires_at"]
+            )
             try db.execute(
                 sql: "UPDATE library_metadata SET schema_version = ? WHERE id = 1",
                 arguments: [CanonicalStore.currentSchemaVersion]

@@ -21,6 +21,7 @@ struct CanonicalLibraryRuntime: Sendable {
     let store: CanonicalStore
     let assetStore: FileAssetStore
     let repository: CanonicalLibraryRepository
+    let assetPinStore: CanonicalAssetPinStore
     let assetReachabilityService: CanonicalAssetReachabilityService
     let assetOperationGate: CanonicalAssetOperationGate
 
@@ -33,6 +34,7 @@ struct CanonicalLibraryRuntime: Sendable {
         store = try CanonicalStore(path: descriptor.databaseURL.path)
         assetStore = FileAssetStore(rootDirectory: descriptor.assetDirectoryURL)
         repository = CanonicalLibraryRepository(store: store)
+        assetPinStore = CanonicalAssetPinStore(store: store)
         assetOperationGate = CanonicalAssetOperationGate.shared(
             forAssetRootDirectory: assetStore.rootDirectory
         )
@@ -48,6 +50,7 @@ struct CanonicalLibraryRuntime: Sendable {
         self.store = store
         self.assetStore = assetStore
         repository = CanonicalLibraryRepository(store: store)
+        assetPinStore = CanonicalAssetPinStore(store: store)
         assetOperationGate = CanonicalAssetOperationGate.shared(
             forAssetRootDirectory: assetStore.rootDirectory
         )

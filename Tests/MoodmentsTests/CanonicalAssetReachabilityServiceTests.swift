@@ -170,6 +170,97 @@ final class CanonicalAssetReachabilityServiceTests: XCTestCase {
         XCTAssertEqual(plan.removableBlobContentHashes, [orphan.contentHash])
     }
 
+    func testGarbageCollectionPlanKeepsPinnedCurrentOrphanBlob() throws {
+        let fixture = try makeFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.assetDirectory) }
+        let orphan = try fixture.assetStore.store(data: Data([0x3A, 0x3B]))
+        _ = try fixture.pinStore.pinContentHash(
+            orphan.contentHash,
+            ownerKind: .restoreStaging,
+            ownerID: "restore-job",
+            createdAt: Date(timeIntervalSince1970: 100)
+        )
+
+        let plan = try fixture.service.planGarbageCollection(
+            now: Date(timeIntervalSince1970: 120)
+        )
+
+        XCTAssertFalse(plan.isBlocked)
+        XCTAssertFalse(plan.hasWork)
+        XCTAssertEqual(plan.report.activePinnedContentHashes, [orphan.contentHash])
+        XCTAssertTrue(plan.currentOrphanBlobContentHashes.isEmpty)
+        XCTAssertTrue(plan.removableBlobContentHashes.isEmpty)
+
+        let cleanupResult = try fixture.service.cleanupOrphanBlobs(
+            now: Date(timeIntervalSince1970: 120)
+        )
+        XCTAssertTrue(cleanupResult.removedContentHashes.isEmpty)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: orphan.fileURL.path))
+    }
+
+    func testGarbageCollectionPlanKeepsFutureBlobWhenContentHashHasActivePin() throws {
+        let fixture = try makeFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.assetDirectory) }
+        let stored = try fixture.assetStore.store(data: Data([0x3B, 0x3C]))
+        let assetID = UUID()
+        try fixture.store.write { db in
+            try insertAssetRecord(
+                id: assetID,
+                contentHash: stored.contentHash,
+                byteCount: stored.byteCount,
+                pinCount: 0,
+                db: db
+            )
+        }
+        _ = try fixture.pinStore.pinContentHash(
+            stored.contentHash,
+            ownerKind: .exportJob,
+            ownerID: "export-job",
+            createdAt: Date(timeIntervalSince1970: 100)
+        )
+
+        let plan = try fixture.service.planGarbageCollection(
+            now: Date(timeIntervalSince1970: 120)
+        )
+
+        XCTAssertFalse(plan.isBlocked)
+        XCTAssertTrue(plan.hasWork)
+        XCTAssertEqual(plan.finalizableAssetRecordIDs, [assetID])
+        XCTAssertTrue(plan.futureRemovableBlobHashes.isEmpty)
+        XCTAssertTrue(plan.removableBlobContentHashes.isEmpty)
+
+        let finalization = try fixture.service.finalizeUnlinkedAssetRecords()
+        XCTAssertEqual(finalization.deletedAssetRecordIDs, [assetID])
+        let cleanupResult = try fixture.service.cleanupOrphanBlobs(
+            now: Date(timeIntervalSince1970: 120)
+        )
+        XCTAssertTrue(cleanupResult.removedContentHashes.isEmpty)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: stored.fileURL.path))
+    }
+
+    func testGarbageCollectionPlanIgnoresExpiredPin() throws {
+        let fixture = try makeFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.assetDirectory) }
+        let orphan = try fixture.assetStore.store(data: Data([0x3D, 0x3E]))
+        let pin = try fixture.pinStore.pinContentHash(
+            orphan.contentHash,
+            ownerKind: .sync,
+            ownerID: "sync-lease",
+            createdAt: Date(timeIntervalSince1970: 100),
+            expiresAt: Date(timeIntervalSince1970: 110)
+        )
+
+        let plan = try fixture.service.planGarbageCollection(
+            now: Date(timeIntervalSince1970: 120)
+        )
+
+        XCTAssertFalse(plan.isBlocked)
+        XCTAssertEqual(plan.report.expiredAssetPinIDs, [pin.id])
+        XCTAssertTrue(plan.report.activePinnedContentHashes.isEmpty)
+        XCTAssertEqual(plan.currentOrphanBlobContentHashes, [orphan.contentHash])
+        XCTAssertEqual(plan.removableBlobContentHashes, [orphan.contentHash])
+    }
+
     func testFinalizeDeletesOnlyUnpinnedUnlinkedRecordsAndKeepsSharedBlob() throws {
         let fixture = try makeFixture()
         defer { try? FileManager.default.removeItem(at: fixture.assetDirectory) }
@@ -342,6 +433,72 @@ final class CanonicalAssetReachabilityServiceTests: XCTestCase {
         XCTAssertEqual(try assetRecordCount(in: fixture.store), 1)
     }
 
+    func testAuditReportsInvalidAssetPinHashAsBlockingIssue() throws {
+        let fixture = try makeFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.assetDirectory) }
+        try fixture.store.write { db in
+            try insertAssetPin(
+                contentHash: "sha256-invalid",
+                ownerKind: .recoveryPoint,
+                ownerID: "recovery-1",
+                createdAt: Date(timeIntervalSince1970: 100),
+                expiresAt: nil,
+                db: db
+            )
+        }
+
+        let plan = try fixture.service.planGarbageCollection()
+
+        XCTAssertTrue(plan.isBlocked)
+        XCTAssertEqual(plan.report.invalidAssetPinContentHashes, ["sha256-invalid"])
+        XCTAssertTrue(plan.removableBlobContentHashes.isEmpty)
+    }
+
+    func testAuditReportsInvalidAssetPinExpirationAsBlockingIssue() throws {
+        let fixture = try makeFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.assetDirectory) }
+        let stored = try fixture.assetStore.store(data: Data([0x43, 0x44]))
+        let pinID = UUID()
+        try fixture.store.write { db in
+            try insertAssetPin(
+                id: pinID,
+                contentHash: stored.contentHash,
+                ownerKind: .exportJob,
+                ownerID: "export-1",
+                createdAt: Date(timeIntervalSince1970: 200),
+                expiresAt: Date(timeIntervalSince1970: 100),
+                db: db
+            )
+        }
+
+        let plan = try fixture.service.planGarbageCollection()
+
+        XCTAssertTrue(plan.isBlocked)
+        XCTAssertEqual(plan.report.invalidAssetPinLeaseIDs, [pinID])
+        XCTAssertEqual(plan.currentOrphanBlobContentHashes, [stored.contentHash])
+    }
+
+    func testAuditReportsMissingPinnedBlobAsBlockingIssue() throws {
+        let fixture = try makeFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.assetDirectory) }
+        let missingHash = String(repeating: "a", count: 64)
+        _ = try fixture.pinStore.pinContentHash(
+            missingHash,
+            ownerKind: .restoreStaging,
+            ownerID: "restore-missing",
+            createdAt: Date(timeIntervalSince1970: 100)
+        )
+
+        let plan = try fixture.service.planGarbageCollection(
+            now: Date(timeIntervalSince1970: 120)
+        )
+
+        XCTAssertTrue(plan.isBlocked)
+        XCTAssertEqual(plan.report.activePinnedContentHashes, [missingHash])
+        XCTAssertEqual(plan.report.missingPinnedContentHashes, [missingHash])
+        XCTAssertTrue(plan.removableBlobContentHashes.isEmpty)
+    }
+
     func testAuditReportsInvalidStoredAssetPath() throws {
         let fixture = try makeFixture()
         defer { try? FileManager.default.removeItem(at: fixture.assetDirectory) }
@@ -441,6 +598,7 @@ final class CanonicalAssetReachabilityServiceTests: XCTestCase {
         return Fixture(
             store: store,
             assetStore: assetStore,
+            pinStore: CanonicalAssetPinStore(store: store),
             service: service,
             assetDirectory: assetDirectory
         )
@@ -517,6 +675,33 @@ final class CanonicalAssetReachabilityServiceTests: XCTestCase {
         )
     }
 
+    // swiftlint:disable:next function_parameter_count
+    private func insertAssetPin(
+        id: UUID = UUID(),
+        contentHash: String,
+        ownerKind: CanonicalAssetPinOwnerKind,
+        ownerID: String,
+        createdAt: Date,
+        expiresAt: Date?,
+        db: Database
+    ) throws {
+        try db.execute(
+            sql: """
+                INSERT INTO asset_pin_record (
+                    id, content_hash, owner_kind, owner_id, created_at, expires_at
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                """,
+            arguments: [
+                id.uuidString,
+                contentHash,
+                ownerKind.rawValue,
+                ownerID,
+                createdAt.timeIntervalSince1970,
+                expiresAt?.timeIntervalSince1970,
+            ]
+        )
+    }
+
     private func assetRecordCount(in store: CanonicalStore) throws -> Int {
         try store.read { db in
             try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM asset_record") ?? 0
@@ -528,6 +713,7 @@ final class CanonicalAssetReachabilityServiceTests: XCTestCase {
 private struct Fixture {
     let store: CanonicalStore
     let assetStore: FileAssetStore
+    let pinStore: CanonicalAssetPinStore
     let service: CanonicalAssetReachabilityService
     let assetDirectory: URL
 }
