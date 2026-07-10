@@ -58,7 +58,8 @@ UI / ViewModel
 - 当前 `SyncStatusService` 只是启发式状态展示：`cloudKitEnabled + 网络可达性 + 最近本地写入时间`，不是 CloudKit import/export 事件，也不表达未登录 iCloud、账号变化、冲突、失败重试或恢复进度。
 - 当前 UI 用户写入入口已有过渡版 `LocalLibraryMutationService`：它仍委托 SwiftData repository，但已收口本地写入标记、稳定恢复点、安全恢复点、缩略图失效和时刻/标签创建额度终判。它是迁往 canonical store 前的应用服务边界，不是最终存储权威。
 - 当前已有 SwiftData 过渡版本机自动恢复点：最多 3 个、设置页列表、恢复预览、pending restore staging、恢复已排队阻断页、冷启动 replace、成功/失败反馈、稳定变更节流触发和高风险操作前安全点。它还不是目标 canonical store 下的最终 recovery catalog / asset pin 方案。
-- 当前没有完整数据生命周期：无 canonical domain store、无持久 outbox、无自定义同步状态机、无 Markdown/PDF 导出任务、无真实 iCloud 多设备验收。
+- 当前已有 GRDB canonical store、repository 骨架、`CanonicalLibraryRuntime` 装配类型，以及 SwiftData -> canonical baseline 导入器测试；当前 App 启动不打开 canonical 持久库，它们尚未切入生产 UI 读写路径，也不做 SwiftData + GRDB 双写。
+- 当前没有完整数据生命周期：无 canonical UI 读写路径、无 canonical recovery catalog、无持久 outbox、无自定义同步状态机、无 Markdown/PDF 导出任务、无真实 iCloud 多设备验收。
 - 当前 SwiftData 是过渡实现和 UI 可用路径，不作为目标架构里的最终数据权威。
 
 ## Mature Choices
@@ -301,10 +302,11 @@ Apple ID / iCloud 边界必须可见：
 
 ## Remaining Gaps
 
-- SQLite/GRDB 依赖决策和首版 schema/repository 骨架已经进入 current；仍需要冻结 SwiftData 迁移边界、rebuild 策略和失败重试策略。
+- SQLite/GRDB 依赖决策、首版 schema/repository 骨架、canonical runtime 类型和 SwiftData baseline 导入器已经进入 current；仍需要把导入器纳入受控 cutover，并补齐失败重试、rebuild 和恢复点协作策略。
 - 需要把已落地的恢复点 retention=3、创建触发器和不可删除 UI 契约迁入 canonical recovery catalog，并补齐 asset pin。
 - 需要在后续独立 iCloud 计划中，把当前 iCloud 三态启发式替换为可区分 Apple ID / 网络 / outbox / conflict 的状态模型。
-- 需要在已落地的本地 canonical store 骨架上补齐 asset store、derived query layer、migration/rebuild path，并接入生产用户路径。
+- 需要在已落地的本地 canonical runtime/importer 上补齐 asset store、derived query layer、受控 cutover/rebuild path，并接入生产用户路径。
+- 现有 SwiftData 过渡版恢复点只覆盖 `Moodments.store*`，不覆盖 `Application Support/Canonical/`；cutover 前必须定义 restore 后 canonical invalidation/rebuild 契约，或采用 wipe + reimport 作为唯一受控流程。
 - 需要将已落地 SwiftData 过渡版恢复点迁入 canonical recovery catalog，并补齐 asset pin、restore job 表和 canonical replace cleanup。
 - 需要实现 Markdown/PDF 导出服务和设置详情页流程。
 - 需要另建 iCloud 独立计划，覆盖 custom zone 同步、outbox、checkpoint、冲突记录、用户可见状态和真机矩阵。
@@ -334,9 +336,9 @@ Apple ID / iCloud 边界必须可见：
 
 ### 2. Canonical Local Core
 
-- 在已落地的本地 SQLite store、迁移框架和 canonical write repository 骨架上继续收敛。
+- 在已落地的本地 SQLite store、迁移框架、canonical write repository、runtime 类型和 SwiftData baseline 导入器上继续收敛。
+- 建立受控 cutover：在切 UI 前执行 SwiftData -> canonical baseline 导入，导入必须携带 source fingerprint；restore 后必须 invalidation/rebuild 或 wipe + reimport，避免当前 SwiftData 恢复点 replace 后出现 stale canonical。
 - 扩展 canonical schema、transaction boundary，并建立 derived query layer。
-- 建立 SwiftData -> canonical 的一次性迁移或重建路径。
 - 将首页、编辑、标签、垃圾箱、统计逐步迁到 repository/query layer。
 - 保证未登录 iCloud、飞行模式、无网络时本地全功能可用。
 
@@ -390,9 +392,11 @@ Apple ID / iCloud 边界必须可见：
 
 ## Verification Matrix
 
+阶段内验证采用风险分层：实现小步优先运行相关单元测试、窄 UI 测试、`build`、`lint` 和 `diff-check`；不要求每个功能点都跑全量 `./scripts/verify.sh`。阶段收口、跨 UI 主流程、发布前或修改共享基础设施时再跑全量 `verify.sh`。这样保留可验证性，同时避免每次局部实现都被长时间 UI 全量回归阻塞。
+
 | 范围 | 必测内容 |
 | --- | --- |
-| Canonical store | schema migration、事务回滚、幂等写入、projection rebuild、SwiftData 迁移重入。 |
+| Canonical store | schema migration、启动 runtime、事务回滚、幂等写入、baseline 导入不写 mutation/tombstone、projection rebuild、SwiftData cutover 重入。 |
 | 删除生命周期 | `active / softDeleted / purgePending / purged`、垃圾箱、旧设备离线编辑不可复活 purged 记录。 |
 | Asset pipeline | hash、引用、pin、GC、恢复点/导出/staging 期间不误删。 |
 | 自动恢复点 | 最多 3 个、按时间淘汰、不可删除、列表可见、恢复预览、恢复失败不破坏现库。 |

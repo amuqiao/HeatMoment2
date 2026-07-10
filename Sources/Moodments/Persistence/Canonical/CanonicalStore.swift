@@ -2,7 +2,7 @@ import Foundation
 import GRDB
 
 final class CanonicalStore: @unchecked Sendable {
-    static let currentSchemaVersion = 1
+    static let currentSchemaVersion = 2
 
     private let dbQueue: DatabaseQueue
 
@@ -167,6 +167,16 @@ final class CanonicalStore: @unchecked Sendable {
                     now,
                     now,
                 ]
+            )
+        }
+        migrator.registerMigration("v2_swift_data_import_marker") { db in
+            try db.alter(table: "library_metadata") { table in
+                table.add(column: "swift_data_imported_at", .double)
+                table.add(column: "swift_data_import_source_fingerprint", .text)
+            }
+            try db.execute(
+                sql: "UPDATE library_metadata SET schema_version = ? WHERE id = 1",
+                arguments: [CanonicalStore.currentSchemaVersion]
             )
         }
         return migrator

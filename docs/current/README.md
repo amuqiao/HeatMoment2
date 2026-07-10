@@ -23,7 +23,7 @@
 | 热力图定位 | 已落地。热力图由首页局部状态在导航栏下方原位展开，作为顶部上下文区参与主页布局；点日/点有记录的月份只写时间 anchor，不改筛选条件。选中月份用主色低透明蒙层标记。 | `TimelineHomeView.swift`、`YearHeatmapView.swift`、`HeatmapGridView.swift`、`TimelineViewportView.swift` |
 | 筛选 | 已落地。当前是首页局部半屏/大屏 `FilterPanelView` sheet，不进 `AppRouter.rootSheet`，标签/心情以紧凑网格选择，提供“全部心情”和“清除全部”，点选即时生效且选择后不自动关闭；筛选 sheet 只选择已有标签，不提供标签新增入口。 | `TimelineHomeView.swift`、`FilterPanelView.swift` |
 | 标签创建归属 | 已落地。编辑器 `TagPickerView` 和首页筛选 `FilterPanelView` 只消费已有标签，不临时创建标签；标签新增、重命名、删除统一归属设置页 `TagManageView`。 | `MomentEditorView.swift`、`TagPickerView.swift`、`FilterPanelView.swift`、`TagManageView.swift` |
-| 数据持久化 | 生产 UI 路径已落地但属于过渡形态。当前用户写入仍使用 SwiftData `Moment` / `Tag` / `MomentImage`，生产启动路径会尝试 SwiftData + CloudKit 私有库容器，不可用时回退本地容器；UI 用户写入入口经 `LocalLibraryMutationService` 编排后再调用 SwiftData repository，同步状态仅由 CloudKit 是否启用、网络可达性和最近本地写入时间启发式推导。本轮新增隔离的 GRDB canonical store 骨架：包含 library metadata、moment/tag records、稳定排序的 moment-tag link、asset/link 占位、tombstone 和 mutation log，并有 repository 事务测试；它尚未接入生产 UI，也不是双写路径。目标数据生命周期见计划层，不把当前 SwiftData 模型定义为最终权威。 | `ModelContainer+Config.swift`、`MoodmentsApp.swift`、`Moment.swift`、`Tag.swift`、`MomentImage.swift`、`LocalLibraryMutationService.swift`、`SyncStatusService.swift`、`CanonicalStore.swift`、`CanonicalLibraryRepository.swift` |
+| 数据持久化 | 生产 UI 路径已落地但属于过渡形态。当前用户写入仍使用 SwiftData `Moment` / `Tag` / `MomentImage`，生产启动路径会尝试 SwiftData + CloudKit 私有库容器，不可用时回退本地容器；UI 用户写入入口经 `LocalLibraryMutationService` 编排后再调用 SwiftData repository，同步状态仅由 CloudKit 是否启用、网络可达性和最近本地写入时间启发式推导。GRDB canonical local core 已有 schema、repository、`CanonicalLibraryRuntime` 装配类型和 SwiftData baseline 导入器；当前 App 启动不打开 canonical 持久库，canonical 尚未接入生产 UI，也不是双写路径。目标数据生命周期见计划层，不把当前 SwiftData 模型定义为最终权威。 | `ModelContainer+Config.swift`、`MoodmentsApp.swift`、`Moment.swift`、`Tag.swift`、`MomentImage.swift`、`LocalLibraryMutationService.swift`、`SyncStatusService.swift`、`CanonicalStore.swift`、`CanonicalLibraryRuntime.swift`、`SwiftDataCanonicalImporter.swift`、`CanonicalLibraryRepository.swift` |
 | 本地自动恢复点 | 已落地最小 SwiftData 过渡版。非 CloudKit 本地容器下，App 自动维护最多 3 个恢复点；普通用户写入后经 `LocalLibraryMutationService` 按稳定变更节流创建恢复点；垃圾箱恢复/彻底删除、标签删除和恢复点 replace restore 前创建操作安全点。设置页提供“备份与恢复”列表和恢复预览；用户可恢复、不可删除恢复点；准备恢复后进入阻断页等待重启，冷启动完成后提示恢复结果。 | `LocalLibraryMutationService.swift`、`LocalBackupCoordinator.swift`、`RecoveryPointManager.swift`、`LocalBackupRestoreExecutor.swift`、`BackupRestoreView.swift`、`PendingLocalRestoreView.swift` |
 | 上下文标记 | 已落地。筛选标记和时间定位标记可并存、可分别移除。 | `TimelineContextMarkerBar.swift`、`TimelineModel.swift` |
 | 编辑页日期/时间选择 | 已落地。日期和时间由局部 `.popover` 打开系统 `DatePicker`，即时回写 `occurredAt`；日期/时间 popover 打开与 `OccurredAtComposer` 合成语义已有窄测试覆盖，时间 picker 只替换时/分并保留不可见秒。 | `MomentEditorView.swift`、`DateTimePopovers.swift` |
@@ -53,6 +53,7 @@
 - `Tests/MoodmentsTests/LocalBackupRestoreExecutorTests.swift`
 - `Tests/MoodmentsTests/LocalLibraryMutationServiceTests.swift`
 - `Tests/MoodmentsTests/CanonicalStoreTests.swift`
+- `Tests/MoodmentsTests/CanonicalRuntimeImportTests.swift`
 - `Tests/MoodmentsTests/ThumbnailCacheInvalidationTests.swift`
 - `Tests/MoodmentsUITests/BackupRestoreUITests.swift`
 - `Tests/MoodmentsUITests/CreateMomentFlowUITests.swift`
@@ -144,3 +145,12 @@ rg -n "docs/current|docs/plans|implementation-truth|implementation-plan" CLAUDE.
 ```
 
 结果：全部通过。`CanonicalStoreTests` 覆盖 GRDB schema migration、现有 store 重开后 metadata 稳定、Moment 创建/软删/恢复/彻底删除进入 `purgePending` 的查询状态与 mutation log、缺失标签时 create/update 事务回滚、多标签稳定排序、标签 create-or-reuse/额度/rename/delete、删除被引用标签时 moment revision 与 mutation 同步、tag tombstone、重名 rename 不产生部分写入，以及 asset link 的排序唯一约束。本轮未切换生产 UI；SwiftData 仍是当前用户路径。
+
+2026-07-10 本轮 canonical runtime 与 SwiftData baseline 导入器的定向验证：
+
+```sh
+./scripts/gen.sh
+./scripts/test.sh --only MoodmentsTests/CanonicalRuntimeImportTests
+```
+
+结果：全部通过。`CanonicalRuntimeImportTests` 覆盖 runtime 落盘建库、SwiftData active/softDeleted Moment、Tag、Image baseline 导入、导入完成标记与 source fingerprint、重复导入跳过、source mismatch 拒绝、异常源数据回滚、非空 canonical 目标或仅有历史表内容时拒绝导入，以及 baseline 导入不写 mutation log。本轮仍未切换生产 UI；SwiftData 仍是当前用户路径。

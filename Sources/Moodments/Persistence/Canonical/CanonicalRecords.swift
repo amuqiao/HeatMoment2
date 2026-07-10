@@ -53,6 +53,8 @@ struct CanonicalLibraryMetadata: Sendable, Equatable {
     let syncEpoch: UUID
     let createdAt: Date
     let updatedAt: Date
+    let swiftDataImportedAt: Date?
+    let swiftDataImportSourceFingerprint: String?
 }
 
 extension Date {
