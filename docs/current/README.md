@@ -175,3 +175,11 @@ rg -n "docs/current|docs/plans|implementation-truth|implementation-plan" CLAUDE.
 ```
 
 结果：全部通过。`CanonicalAssetReachabilityServiceTests` 覆盖 linked asset clean audit、DB 无引用 orphan blob 清理、共享 `content_hash` 时不误删 blob、无 link asset record 报告、DB 引用 blob 缺失报告、invalid DB hash、invalid stored path、corrupt blob、同一 asset root 的 runtime 共享 operation gate，以及存在 blocking issue 时阻断 cleanup。`FileAssetStoreTests` 额外覆盖新增 list / validate / remove blob API。当前 cleanup 与 SwiftData baseline import 按标准化 asset root 路径共享 `CanonicalAssetOperationGate`，只删除 DB 无引用的 orphan blob，不自动删除 `asset_record`，也不是完整 asset GC；recovery/export/sync pin 仍未实现。
+
+2026-07-10 本轮 canonical asset GC dry-run / DB orphan record finalizer 的定向验证：
+
+```sh
+./scripts/test.sh --only MoodmentsTests/CanonicalAssetReachabilityServiceTests
+```
+
+结果：通过。`CanonicalAssetReachabilityServiceTests` 扩展到 16 个用例，覆盖 GC dry-run plan、当前 orphan blob 候选、finalize unlinked + unpinned `asset_record`、共享 `content_hash` 时只删无用 record 且保留 blob、pinned unlinked record 保留、negative `pin_count` 作为 blocking issue 报告，以及 blocking issue 阻断 finalizer。当前 finalizer 只删除 DB 中无 link 且 `pin_count == 0` 的 `asset_record`，不删除 blob；blob 删除仍走受保护 orphan cleanup。完整 recovery/export/sync pin 表和自动 GC 调度仍未实现。

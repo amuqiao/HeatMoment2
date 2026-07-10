@@ -3,6 +3,8 @@ import GRDB
 
 enum CanonicalAssetReachabilityError: Error, Equatable {
     case cleanupBlocked(CanonicalAssetReachabilityReport)
+    case finalizationBlocked(CanonicalAssetGarbageCollectionPlan)
+    case finalizationRace(expectedAssetRecordIDs: [UUID], deletedAssetRecordIDs: [UUID])
 }
 
 struct CanonicalAssetDatabaseReference: Sendable, Equatable {
@@ -27,6 +29,7 @@ struct CanonicalAssetReachabilityReport: Sendable, Equatable {
     let unlinkedAssetRecords: [CanonicalUnlinkedAssetRecord]
     let storedContentHashes: [String]
     let invalidDatabaseContentHashes: [String]
+    let invalidPinCountAssetRecordIDs: [UUID]
     let invalidStoredAssetPaths: [String]
     let missingDatabaseContentHashes: [String]
     let corruptedStoredContentHashes: [String]
@@ -54,6 +57,7 @@ struct CanonicalAssetReachabilityReport: Sendable, Equatable {
 
     var hasBlockingIssue: Bool {
         !invalidDatabaseContentHashes.isEmpty
+            || !invalidPinCountAssetRecordIDs.isEmpty
             || !invalidStoredAssetPaths.isEmpty
             || !missingDatabaseContentHashes.isEmpty
             || !corruptedStoredContentHashes.isEmpty
@@ -69,6 +73,34 @@ struct CanonicalAssetReachabilityReport: Sendable, Equatable {
 struct CanonicalAssetCleanupResult: Sendable, Equatable {
     let removedContentHashes: [String]
     let reportBeforeCleanup: CanonicalAssetReachabilityReport
+}
+
+struct CanonicalAssetGarbageCollectionPlan: Sendable, Equatable {
+    let report: CanonicalAssetReachabilityReport
+    let finalizableAssetRecordIDs: [UUID]
+    let currentOrphanBlobContentHashes: [String]
+    let futureRemovableBlobHashes: [String]
+
+    var removableBlobContentHashes: [String] {
+        Array(
+            Set(currentOrphanBlobContentHashes)
+                .union(futureRemovableBlobHashes)
+        )
+        .sorted()
+    }
+
+    var isBlocked: Bool {
+        report.hasBlockingIssue
+    }
+
+    var hasWork: Bool {
+        !finalizableAssetRecordIDs.isEmpty || !removableBlobContentHashes.isEmpty
+    }
+}
+
+struct CanonicalAssetRecordFinalizationResult: Sendable, Equatable {
+    let deletedAssetRecordIDs: [UUID]
+    let planBeforeFinalization: CanonicalAssetGarbageCollectionPlan
 }
 
 struct CanonicalAssetReachabilityService: Sendable {
@@ -119,11 +151,43 @@ struct CanonicalAssetReachabilityService: Sendable {
             unlinkedAssetRecords: unlinkedAssetRecords(validContentHashes: databaseHashSet),
             storedContentHashes: listing.contentHashes,
             invalidDatabaseContentHashes: invalidDatabaseContentHashes.sorted(),
+            invalidPinCountAssetRecordIDs: try invalidPinCountAssetRecordIDs(),
             invalidStoredAssetPaths: listing.invalidRelativePaths,
             missingDatabaseContentHashes: missingDatabaseContentHashes,
             corruptedStoredContentHashes: corruptedStoredContentHashes,
             orphanStoredContentHashes: orphanStoredContentHashes
         )
+    }
+
+    func planGarbageCollection() throws -> CanonicalAssetGarbageCollectionPlan {
+        let report = try audit()
+        let finalizableAssetRecordIDs = report.unpinnedUnlinkedAssetRecords.map(\.assetID)
+        let futureRemovableBlobHashes = futureRemovableBlobHashes(report: report)
+
+        return CanonicalAssetGarbageCollectionPlan(
+            report: report,
+            finalizableAssetRecordIDs: finalizableAssetRecordIDs,
+            currentOrphanBlobContentHashes: report.orphanStoredContentHashes,
+            futureRemovableBlobHashes: futureRemovableBlobHashes
+        )
+    }
+
+    @discardableResult
+    func finalizeUnlinkedAssetRecords() throws -> CanonicalAssetRecordFinalizationResult {
+        try operationGate.performSync {
+            let plan = try planGarbageCollection()
+            guard !plan.isBlocked else {
+                throw CanonicalAssetReachabilityError.finalizationBlocked(plan)
+            }
+
+            let deletedAssetRecordIDs = try deleteUnlinkedUnpinnedAssetRecords(
+                ids: plan.finalizableAssetRecordIDs
+            )
+            return CanonicalAssetRecordFinalizationResult(
+                deletedAssetRecordIDs: deletedAssetRecordIDs,
+                planBeforeFinalization: plan
+            )
+        }
     }
 
     @discardableResult
@@ -151,6 +215,68 @@ struct CanonicalAssetReachabilityService: Sendable {
 }
 
 private extension CanonicalAssetReachabilityService {
+    func futureRemovableBlobHashes(report: CanonicalAssetReachabilityReport) -> [String] {
+        let storedContentHashes = Set(report.storedContentHashes)
+        let finalizableRecordsByHash = Dictionary(
+            grouping: report.unpinnedUnlinkedAssetRecords,
+            by: \.contentHash
+        )
+
+        return report.databaseReferences.compactMap { reference in
+            let finalizableRecordCount = finalizableRecordsByHash[reference.contentHash]?.count ?? 0
+            guard reference.linkedAssetCount == 0 else { return nil }
+            guard reference.totalPinCount == 0 else { return nil }
+            guard reference.assetRecordCount == finalizableRecordCount else { return nil }
+            guard storedContentHashes.contains(reference.contentHash) else { return nil }
+            return reference.contentHash
+        }
+    }
+
+    func deleteUnlinkedUnpinnedAssetRecords(ids: [UUID]) throws -> [UUID] {
+        guard !ids.isEmpty else { return [] }
+
+        return try store.write { db in
+            var eligibleIDs: [UUID] = []
+            for id in ids {
+                if let row = try eligibleUnlinkedUnpinnedAssetRecord(id: id, db: db) {
+                    eligibleIDs.append(try row.canonicalUUID("id"))
+                }
+            }
+            guard eligibleIDs == ids else {
+                throw CanonicalAssetReachabilityError.finalizationRace(
+                    expectedAssetRecordIDs: ids,
+                    deletedAssetRecordIDs: []
+                )
+            }
+
+            for id in ids {
+                try db.execute(
+                    sql: "DELETE FROM asset_record WHERE id = ?",
+                    arguments: [id.uuidString]
+                )
+            }
+            return ids
+        }
+    }
+
+    func eligibleUnlinkedUnpinnedAssetRecord(id: UUID, db: Database) throws -> Row? {
+        try Row.fetchOne(
+            db,
+            sql: """
+                SELECT id
+                FROM asset_record
+                WHERE id = ?
+                    AND pin_count = 0
+                    AND NOT EXISTS (
+                        SELECT 1
+                        FROM moment_asset_link
+                        WHERE moment_asset_link.asset_id = asset_record.id
+                    )
+                """,
+            arguments: [id.uuidString]
+        )
+    }
+
     func databaseContentHashes() throws -> [String] {
         try store.read { db in
             try String.fetchAll(
@@ -161,6 +287,23 @@ private extension CanonicalAssetReachabilityService {
                     ORDER BY content_hash ASC
                     """
             )
+        }
+    }
+
+    func invalidPinCountAssetRecordIDs() throws -> [UUID] {
+        try store.read { db in
+            let rows = try Row.fetchAll(
+                db,
+                sql: """
+                    SELECT id
+                    FROM asset_record
+                    WHERE pin_count < 0
+                    ORDER BY id ASC
+                    """
+            )
+            return try rows.map { row in
+                try row.canonicalUUID("id")
+            }
         }
     }
 

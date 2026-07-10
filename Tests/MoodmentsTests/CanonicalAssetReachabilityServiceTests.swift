@@ -1,3 +1,5 @@
+// swiftlint:disable file_length
+
 import GRDB
 import XCTest
 @testable import Moodments
@@ -125,6 +127,142 @@ final class CanonicalAssetReachabilityServiceTests: XCTestCase {
         XCTAssertTrue(report.missingDatabaseContentHashes.isEmpty)
     }
 
+    func testGarbageCollectionPlanReportsFinalizableRecordAndFutureBlob() throws {
+        let fixture = try makeFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.assetDirectory) }
+        let stored = try fixture.assetStore.store(data: Data([0x37, 0x38]))
+        let assetID = UUID()
+        try fixture.store.write { db in
+            try insertAssetRecord(
+                id: assetID,
+                contentHash: stored.contentHash,
+                byteCount: stored.byteCount,
+                pinCount: 0,
+                db: db
+            )
+        }
+
+        let plan = try fixture.service.planGarbageCollection()
+
+        XCTAssertFalse(plan.isBlocked)
+        XCTAssertTrue(plan.hasWork)
+        XCTAssertEqual(plan.finalizableAssetRecordIDs, [assetID])
+        XCTAssertTrue(plan.currentOrphanBlobContentHashes.isEmpty)
+        XCTAssertEqual(
+            plan.futureRemovableBlobHashes,
+            [stored.contentHash]
+        )
+        XCTAssertEqual(plan.removableBlobContentHashes, [stored.contentHash])
+    }
+
+    func testGarbageCollectionPlanIncludesCurrentOrphanBlob() throws {
+        let fixture = try makeFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.assetDirectory) }
+        let orphan = try fixture.assetStore.store(data: Data([0x39, 0x3A]))
+
+        let plan = try fixture.service.planGarbageCollection()
+
+        XCTAssertFalse(plan.isBlocked)
+        XCTAssertTrue(plan.hasWork)
+        XCTAssertTrue(plan.finalizableAssetRecordIDs.isEmpty)
+        XCTAssertEqual(plan.currentOrphanBlobContentHashes, [orphan.contentHash])
+        XCTAssertTrue(plan.futureRemovableBlobHashes.isEmpty)
+        XCTAssertEqual(plan.removableBlobContentHashes, [orphan.contentHash])
+    }
+
+    func testFinalizeDeletesOnlyUnpinnedUnlinkedRecordsAndKeepsSharedBlob() throws {
+        let fixture = try makeFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.assetDirectory) }
+        let stored = try fixture.assetStore.store(data: Data([0x3B, 0x3C]))
+        let linkedAssetID = UUID()
+        let unlinkedAssetID = UUID()
+        let momentID = UUID()
+        try fixture.store.write { db in
+            try insertMoment(id: momentID, db: db)
+            try insertAssetRecord(
+                id: linkedAssetID,
+                contentHash: stored.contentHash,
+                byteCount: stored.byteCount,
+                pinCount: 0,
+                db: db
+            )
+            try insertAssetRecord(
+                id: unlinkedAssetID,
+                contentHash: stored.contentHash,
+                byteCount: stored.byteCount,
+                pinCount: 0,
+                db: db
+            )
+            try insertAssetLink(momentID: momentID, assetID: linkedAssetID, db: db)
+        }
+
+        let result = try fixture.service.finalizeUnlinkedAssetRecords()
+        let reportAfterFinalization = try fixture.service.audit()
+
+        XCTAssertEqual(result.deletedAssetRecordIDs, [unlinkedAssetID])
+        XCTAssertEqual(result.planBeforeFinalization.finalizableAssetRecordIDs, [unlinkedAssetID])
+        XCTAssertTrue(
+            result.planBeforeFinalization
+                .futureRemovableBlobHashes
+                .isEmpty
+        )
+        XCTAssertTrue(FileManager.default.fileExists(atPath: stored.fileURL.path))
+        XCTAssertEqual(reportAfterFinalization.databaseReferences.first?.assetRecordCount, 1)
+        XCTAssertTrue(reportAfterFinalization.isClean)
+    }
+
+    func testFinalizeKeepsPinnedUnlinkedRecord() throws {
+        let fixture = try makeFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.assetDirectory) }
+        let stored = try fixture.assetStore.store(data: Data([0x3D, 0x3E]))
+        let assetID = UUID()
+        try fixture.store.write { db in
+            try insertAssetRecord(
+                id: assetID,
+                contentHash: stored.contentHash,
+                byteCount: stored.byteCount,
+                pinCount: 1,
+                db: db
+            )
+        }
+
+        let result = try fixture.service.finalizeUnlinkedAssetRecords()
+        let reportAfterFinalization = try fixture.service.audit()
+
+        XCTAssertTrue(result.deletedAssetRecordIDs.isEmpty)
+        XCTAssertTrue(result.planBeforeFinalization.finalizableAssetRecordIDs.isEmpty)
+        XCTAssertEqual(reportAfterFinalization.unlinkedAssetRecords.map(\.assetID), [assetID])
+        XCTAssertTrue(reportAfterFinalization.unpinnedUnlinkedAssetRecords.isEmpty)
+        XCTAssertTrue(reportAfterFinalization.isClean)
+    }
+
+    func testFinalizeIsBlockedWhenAuditHasBlockingIssue() throws {
+        let fixture = try makeFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.assetDirectory) }
+        let contentHash = FileAssetStore.sha256Hex(Data([0x3F]))
+        let assetID = UUID()
+        try fixture.store.write { db in
+            try insertAssetRecord(
+                id: assetID,
+                contentHash: contentHash,
+                byteCount: 1,
+                pinCount: 0,
+                db: db
+            )
+        }
+
+        do {
+            _ = try fixture.service.finalizeUnlinkedAssetRecords()
+            XCTFail("期望存在 blocking issue 时阻断 finalization")
+        } catch CanonicalAssetReachabilityError.finalizationBlocked(let plan) {
+            XCTAssertEqual(plan.report.missingDatabaseContentHashes, [contentHash])
+            XCTAssertEqual(plan.finalizableAssetRecordIDs, [assetID])
+        } catch {
+            XCTFail("期望 finalizationBlocked，实际抛出 \(error)")
+        }
+        XCTAssertEqual(try assetRecordCount(in: fixture.store), 1)
+    }
+
     func testAuditReportsMissingDatabaseReferencedBlob() throws {
         let fixture = try makeFixture()
         defer { try? FileManager.default.removeItem(at: fixture.assetDirectory) }
@@ -168,6 +306,40 @@ final class CanonicalAssetReachabilityServiceTests: XCTestCase {
         XCTAssertFalse(report.isClean)
         XCTAssertEqual(report.invalidDatabaseContentHashes, ["sha256-invalid"])
         XCTAssertTrue(report.missingDatabaseContentHashes.isEmpty)
+    }
+
+    func testAuditReportsInvalidNegativePinCount() throws {
+        let fixture = try makeFixture()
+        defer { try? FileManager.default.removeItem(at: fixture.assetDirectory) }
+        let stored = try fixture.assetStore.store(data: Data([0x41, 0x42]))
+        let assetID = UUID()
+        try fixture.store.write { db in
+            try insertAssetRecord(
+                id: assetID,
+                contentHash: stored.contentHash,
+                byteCount: stored.byteCount,
+                pinCount: -1,
+                db: db
+            )
+        }
+
+        let report = try fixture.service.audit()
+
+        XCTAssertFalse(report.isClean)
+        XCTAssertTrue(report.hasBlockingIssue)
+        XCTAssertEqual(report.invalidPinCountAssetRecordIDs, [assetID])
+        XCTAssertTrue(report.unpinnedUnlinkedAssetRecords.isEmpty)
+
+        do {
+            _ = try fixture.service.finalizeUnlinkedAssetRecords()
+            XCTFail("期望 negative pin_count 阻断 finalization")
+        } catch CanonicalAssetReachabilityError.finalizationBlocked(let plan) {
+            XCTAssertEqual(plan.report.invalidPinCountAssetRecordIDs, [assetID])
+            XCTAssertTrue(plan.finalizableAssetRecordIDs.isEmpty)
+        } catch {
+            XCTFail("期望 finalizationBlocked，实际抛出 \(error)")
+        }
+        XCTAssertEqual(try assetRecordCount(in: fixture.store), 1)
     }
 
     func testAuditReportsInvalidStoredAssetPath() throws {
@@ -343,6 +515,12 @@ final class CanonicalAssetReachabilityServiceTests: XCTestCase {
                 Date(timeIntervalSince1970: 100).timeIntervalSince1970,
             ]
         )
+    }
+
+    private func assetRecordCount(in store: CanonicalStore) throws -> Int {
+        try store.read { db in
+            try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM asset_record") ?? 0
+        }
     }
 }
 // swiftlint:enable type_body_length
