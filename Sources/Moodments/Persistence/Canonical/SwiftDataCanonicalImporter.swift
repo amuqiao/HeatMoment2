@@ -1,4 +1,3 @@
-import CryptoKit
 import Foundation
 import GRDB
 import SwiftData
@@ -28,74 +27,86 @@ struct SwiftDataCanonicalImportResult: Sendable, Equatable {
 actor SwiftDataCanonicalImporter {
     func importIfNeeded(
         into store: CanonicalStore,
+        assetStore: FileAssetStore,
         importedAt: Date = .now
     ) throws -> SwiftDataCanonicalImportResult {
         let payload = try makePayload()
-        return try store.write { db in
-            if try swiftDataImportedAt(db: db) != nil {
-                let storedFingerprint = try swiftDataImportSourceFingerprint(db: db)
-                guard storedFingerprint == payload.sourceFingerprint else {
-                    throw SwiftDataCanonicalImportError.sourceBaselineMismatch(
-                        expected: storedFingerprint,
-                        actual: payload.sourceFingerprint
+        var storedFileAssets: [StoredFileAsset] = []
+        do {
+            return try store.write { db in
+                if try swiftDataImportedAt(db: db) != nil {
+                    let storedFingerprint = try swiftDataImportSourceFingerprint(db: db)
+                    guard storedFingerprint == payload.sourceFingerprint else {
+                        throw SwiftDataCanonicalImportError.sourceBaselineMismatch(
+                            expected: storedFingerprint,
+                            actual: payload.sourceFingerprint
+                        )
+                    }
+                    return SwiftDataCanonicalImportResult(
+                        didImport: false,
+                        tagCount: 0,
+                        momentCount: 0,
+                        assetCount: 0,
+                        sourceFingerprint: storedFingerprint
                     )
                 }
+                try assertDestinationIsEmpty(db: db)
+
+                for tag in payload.tags {
+                    try insertTag(tag, db: db)
+                }
+                for moment in payload.moments {
+                    try insertMoment(moment, db: db)
+                    for (sortIndex, tagID) in moment.tagIDs.enumerated() {
+                        try insertMomentTagLink(
+                            momentID: moment.id,
+                            tagID: tagID,
+                            sortIndex: sortIndex,
+                            createdAt: importedAt,
+                            db: db
+                        )
+                    }
+                    for asset in moment.assets {
+                        let storedAsset = try assetStore.store(
+                            data: asset.data,
+                            expectedContentHash: asset.contentHash
+                        )
+                        storedFileAssets.append(storedAsset)
+                        try insertAsset(asset, db: db)
+                        try insertMomentAssetLink(
+                            momentID: moment.id,
+                            assetID: asset.id,
+                            sortIndex: asset.sortIndex,
+                            createdAt: importedAt,
+                            db: db
+                        )
+                    }
+                }
+                try db.execute(
+                    sql: """
+                        UPDATE library_metadata
+                        SET swift_data_imported_at = ?,
+                            swift_data_import_source_fingerprint = ?,
+                            updated_at = ?
+                        WHERE id = 1
+                        """,
+                    arguments: [
+                        importedAt.timeIntervalSince1970,
+                        payload.sourceFingerprint,
+                        importedAt.timeIntervalSince1970,
+                    ]
+                )
                 return SwiftDataCanonicalImportResult(
-                    didImport: false,
-                    tagCount: 0,
-                    momentCount: 0,
-                    assetCount: 0,
-                    sourceFingerprint: storedFingerprint
+                    didImport: true,
+                    tagCount: payload.tags.count,
+                    momentCount: payload.moments.count,
+                    assetCount: payload.assetCount,
+                    sourceFingerprint: payload.sourceFingerprint
                 )
             }
-            try assertDestinationIsEmpty(db: db)
-
-            for tag in payload.tags {
-                try insertTag(tag, db: db)
-            }
-            for moment in payload.moments {
-                try insertMoment(moment, db: db)
-                for (sortIndex, tagID) in moment.tagIDs.enumerated() {
-                    try insertMomentTagLink(
-                        momentID: moment.id,
-                        tagID: tagID,
-                        sortIndex: sortIndex,
-                        createdAt: importedAt,
-                        db: db
-                    )
-                }
-                for asset in moment.assets {
-                    try insertAsset(asset, db: db)
-                    try insertMomentAssetLink(
-                        momentID: moment.id,
-                        assetID: asset.id,
-                        sortIndex: asset.sortIndex,
-                        createdAt: importedAt,
-                        db: db
-                    )
-                }
-            }
-            try db.execute(
-                sql: """
-                    UPDATE library_metadata
-                    SET swift_data_imported_at = ?,
-                        swift_data_import_source_fingerprint = ?,
-                        updated_at = ?
-                    WHERE id = 1
-                    """,
-                arguments: [
-                    importedAt.timeIntervalSince1970,
-                    payload.sourceFingerprint,
-                    importedAt.timeIntervalSince1970,
-                ]
-            )
-            return SwiftDataCanonicalImportResult(
-                didImport: true,
-                tagCount: payload.tags.count,
-                momentCount: payload.moments.count,
-                assetCount: payload.assetCount,
-                sourceFingerprint: payload.sourceFingerprint
-            )
+        } catch {
+            try cleanupStoredFileAssets(storedFileAssets, assetStore: assetStore)
+            throw error
         }
     }
 
@@ -188,13 +199,14 @@ actor SwiftDataCanonicalImporter {
                 }
                 return ImportedAsset(
                     id: image.id,
-                    contentHash: Self.sha256Hex(image.imageData),
+                    contentHash: FileAssetStore.sha256Hex(image.imageData),
                     mimeType: "image/jpeg",
                     byteCount: image.imageData.count,
                     width: Int(uiImage.size.width.rounded()),
                     height: Int(uiImage.size.height.rounded()),
                     sortIndex: offset,
-                    createdAt: image.createdAt
+                    createdAt: image.createdAt,
+                    data: image.imageData
                 )
             }
         return ImportedMoment(
@@ -212,11 +224,6 @@ actor SwiftDataCanonicalImporter {
         )
     }
 
-    private static func sha256Hex(_ data: Data) -> String {
-        SHA256.hash(data: data)
-            .map { String(format: "%02x", $0) }
-            .joined()
-    }
 }
 
 private struct ImportPayload: Sendable {
@@ -228,16 +235,52 @@ private struct ImportPayload: Sendable {
     }
 
     var sourceFingerprint: String {
-        let maxMomentUpdatedAt = moments.map(\.updatedAt.timeIntervalSince1970).max() ?? 0
-        let maxTagCreatedAt = tags.map(\.createdAt.timeIntervalSince1970).max() ?? 0
-        return [
-            "swiftdata-baseline-v1",
-            "tags:\(tags.count)",
-            "moments:\(moments.count)",
-            "assets:\(assetCount)",
-            "maxMomentUpdatedAt:\(maxMomentUpdatedAt)",
-            "maxTagCreatedAt:\(maxTagCreatedAt)",
-        ].joined(separator: "|")
+        var lines: [String] = ["swiftdata-baseline-v2"]
+        for tag in tags {
+            lines.append(
+                [
+                    "tag",
+                    tag.id.uuidString,
+                    tag.name,
+                    "\(tag.createdAt.timeIntervalSince1970)",
+                ].joined(separator: "\u{1f}")
+            )
+        }
+        for moment in moments {
+            lines.append(
+                [
+                    "moment",
+                    moment.id.uuidString,
+                    moment.title,
+                    moment.bodyText,
+                    "\(moment.occurredAt.timeIntervalSince1970)",
+                    "\(moment.createdAt.timeIntervalSince1970)",
+                    "\(moment.updatedAt.timeIntervalSince1970)",
+                    "\(moment.mood.rawValue)",
+                    moment.lifecycleState.rawValue,
+                    "\(moment.deletedAt?.timeIntervalSince1970 ?? -1)",
+                    moment.tagIDs.map(\.uuidString).joined(separator: ","),
+                ].joined(separator: "\u{1f}")
+            )
+            for asset in moment.assets {
+                lines.append(
+                    [
+                        "asset",
+                        moment.id.uuidString,
+                        asset.id.uuidString,
+                        asset.contentHash,
+                        asset.mimeType,
+                        "\(asset.byteCount)",
+                        "\(asset.width)",
+                        "\(asset.height)",
+                        "\(asset.sortIndex)",
+                        "\(asset.createdAt.timeIntervalSince1970)",
+                    ].joined(separator: "\u{1f}")
+                )
+            }
+        }
+        let digest = FileAssetStore.sha256Hex(Data(lines.joined(separator: "\u{1e}").utf8))
+        return "swiftdata-baseline-v2|\(digest)"
     }
 }
 
@@ -270,9 +313,19 @@ private struct ImportedAsset: Sendable {
     let height: Int
     let sortIndex: Int
     let createdAt: Date
+    let data: Data
 }
 
 private extension SwiftDataCanonicalImporter {
+    func cleanupStoredFileAssets(
+        _ assets: [StoredFileAsset],
+        assetStore: FileAssetStore
+    ) throws {
+        for asset in assets.reversed() {
+            try assetStore.removeStoredAsset(asset)
+        }
+    }
+
     func swiftDataImportedAt(db: Database) throws -> Date? {
         let timestamp: Double? = try Double.fetchOne(
             db,

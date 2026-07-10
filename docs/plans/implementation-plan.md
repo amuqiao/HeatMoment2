@@ -302,10 +302,10 @@ Apple ID / iCloud 边界必须可见：
 
 ## Remaining Gaps
 
-- SQLite/GRDB 依赖决策、首版 schema/repository 骨架、canonical runtime 类型和 SwiftData baseline 导入器已经进入 current；仍需要把导入器纳入受控 cutover，并补齐失败重试、rebuild 和恢复点协作策略。
+- SQLite/GRDB 依赖决策、首版 schema/repository 骨架、canonical runtime 类型、content-addressed asset store 和 SwiftData baseline 导入器已经进入 current；仍需要把导入器纳入受控 cutover，并补齐失败重试、rebuild 和恢复点协作策略。
 - 需要把已落地的恢复点 retention=3、创建触发器和不可删除 UI 契约迁入 canonical recovery catalog，并补齐 asset pin。
 - 需要在后续独立 iCloud 计划中，把当前 iCloud 三态启发式替换为可区分 Apple ID / 网络 / outbox / conflict 的状态模型。
-- 需要在已落地的本地 canonical runtime/importer 上补齐 asset store、derived query layer、受控 cutover/rebuild path，并接入生产用户路径。
+- 需要在已落地的本地 canonical runtime/importer/asset store 上补齐 derived query layer、受控 cutover/rebuild path，并接入生产用户路径。
 - 现有 SwiftData 过渡版恢复点只覆盖 `Moodments.store*`，不覆盖 `Application Support/Canonical/`；cutover 前必须定义 restore 后 canonical invalidation/rebuild 契约，或采用 wipe + reimport 作为唯一受控流程。
 - 需要将已落地 SwiftData 过渡版恢复点迁入 canonical recovery catalog，并补齐 asset pin、restore job 表和 canonical replace cleanup。
 - 需要实现 Markdown/PDF 导出服务和设置详情页流程。
@@ -346,13 +346,14 @@ Apple ID / iCloud 边界必须可见：
 
 ### 3. Asset Pipeline
 
-- 将 Moment 原图迁移为 content-addressed asset 文件。
-- 记录 hash、MIME、尺寸、字节数、创建时间、引用和 pin。
+- 已落地地基：SwiftData baseline 导入会将 Moment 原图写入 content-addressed asset 文件，并记录 hash、MIME、尺寸、字节数、创建时间和 moment-asset link。
+- 继续补齐 canonical UI 写入路径下的加图/删图/重排 asset 事务。
+- 补齐 asset pin：recovery point、restore staging、export job 和后续 sync pin 不能混入引用计数；因为多个 `asset_record.id` 可以共享同一个 `content_hash` blob，liveness 必须按 `content_hash` 聚合或使用独立 pin 表，不能直接把 record-level `pin_count` 当最终 GC 依据。
 - 缩略图继续作为可丢弃缓存。
 - 实现 asset reachability audit 和 GC。
-- GC 必须尊重 recovery point、restore staging、export job 和 sync pin。
+- GC 必须尊重 recovery point、restore staging、export job 和 sync pin，并清理由崩溃中断留下的 DB 无引用 orphan blob。
 
-验收：加图、删图、恢复、彻底删除、恢复点保留和导出期间都不会误删资产。
+验收：加图、删图、恢复、彻底删除、恢复点保留和导出期间都不会误删资产；baseline import 已能证明 asset metadata 与 content-addressed 文件字节一致，但该阶段还不能关闭，直到 pin/audit/GC 完成。
 
 ### 4. Recovery Point UI And Restore
 

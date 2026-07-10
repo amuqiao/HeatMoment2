@@ -4,6 +4,7 @@ import SwiftData
 struct CanonicalStoreDescriptor: Sendable, Equatable {
     let rootDirectory: URL
     let databaseURL: URL
+    let assetDirectoryURL: URL
 
     init(
         rootDirectory: URL,
@@ -11,12 +12,14 @@ struct CanonicalStoreDescriptor: Sendable, Equatable {
     ) {
         self.rootDirectory = rootDirectory
         databaseURL = rootDirectory.appendingPathComponent(databaseFileName)
+        assetDirectoryURL = rootDirectory.appendingPathComponent("Assets", isDirectory: true)
     }
 }
 
 struct CanonicalLibraryRuntime: Sendable {
     let descriptor: CanonicalStoreDescriptor?
     let store: CanonicalStore
+    let assetStore: FileAssetStore
     let repository: CanonicalLibraryRepository
 
     init(descriptor: CanonicalStoreDescriptor) throws {
@@ -26,12 +29,14 @@ struct CanonicalLibraryRuntime: Sendable {
         )
         self.descriptor = descriptor
         store = try CanonicalStore(path: descriptor.databaseURL.path)
+        assetStore = FileAssetStore(rootDirectory: descriptor.assetDirectoryURL)
         repository = CanonicalLibraryRepository(store: store)
     }
 
-    private init(store: CanonicalStore) {
+    private init(store: CanonicalStore, assetStore: FileAssetStore) {
         descriptor = nil
         self.store = store
+        self.assetStore = assetStore
         repository = CanonicalLibraryRepository(store: store)
     }
 
@@ -41,8 +46,15 @@ struct CanonicalLibraryRuntime: Sendable {
         )
     }
 
-    static func makeInMemoryForTests() throws -> CanonicalLibraryRuntime {
-        try CanonicalLibraryRuntime(store: CanonicalStore.makeInMemory())
+    static func makeInMemoryForTests(
+        assetDirectoryURL: URL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(
+                "MoodmentsCanonicalAssets-\(UUID().uuidString)", isDirectory: true)
+    ) throws -> CanonicalLibraryRuntime {
+        try CanonicalLibraryRuntime(
+            store: CanonicalStore.makeInMemory(),
+            assetStore: FileAssetStore(rootDirectory: assetDirectoryURL)
+        )
     }
 
     @discardableResult
@@ -51,7 +63,11 @@ struct CanonicalLibraryRuntime: Sendable {
         importedAt: Date = .now
     ) async throws -> SwiftDataCanonicalImportResult {
         let importer = SwiftDataCanonicalImporter(modelContainer: modelContainer)
-        return try await importer.importIfNeeded(into: store, importedAt: importedAt)
+        return try await importer.importIfNeeded(
+            into: store,
+            assetStore: assetStore,
+            importedAt: importedAt
+        )
     }
 
     private static var applicationSupportDirectory: URL {

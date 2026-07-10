@@ -20,7 +20,11 @@ final class CanonicalRuntimeImportTests: XCTestCase {
     func testImportsSwiftDataBaselineAndMarksCompletion() async throws {
         let container = try ModelContainerConfig.makeInMemoryContainer()
         let source = try makeSwiftDataSource(in: container)
-        let runtime = try CanonicalLibraryRuntime.makeInMemoryForTests()
+        let assetDirectory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: assetDirectory) }
+        let runtime = try CanonicalLibraryRuntime.makeInMemoryForTests(
+            assetDirectoryURL: assetDirectory
+        )
         let importedAt = Date(timeIntervalSince1970: 1_000)
 
         let result = try await runtime.importFromSwiftDataIfNeeded(
@@ -33,7 +37,7 @@ final class CanonicalRuntimeImportTests: XCTestCase {
         XCTAssertEqual(result.momentCount, 2)
         XCTAssertEqual(result.assetCount, 2)
         let sourceFingerprint = try XCTUnwrap(result.sourceFingerprint)
-        XCTAssertTrue(sourceFingerprint.hasPrefix("swiftdata-baseline-v1|"))
+        XCTAssertTrue(sourceFingerprint.hasPrefix("swiftdata-baseline-v2|"))
         let metadata = try await runtime.repository.metadata()
         XCTAssertEqual(metadata.swiftDataImportedAt, importedAt)
         XCTAssertEqual(metadata.swiftDataImportSourceFingerprint, sourceFingerprint)
@@ -62,7 +66,8 @@ final class CanonicalRuntimeImportTests: XCTestCase {
                 db,
                 sql: """
                     SELECT asset_record.id, asset_record.byte_count, asset_record.width,
-                        asset_record.height, moment_asset_link.sort_index
+                        asset_record.height, asset_record.content_hash,
+                        moment_asset_link.sort_index
                     FROM asset_record
                     INNER JOIN moment_asset_link ON moment_asset_link.asset_id = asset_record.id
                     WHERE moment_asset_link.moment_id = ?
@@ -78,6 +83,11 @@ final class CanonicalRuntimeImportTests: XCTestCase {
             [source.imageByteCount, source.imageByteCount])
         XCTAssertEqual(assetRows.map { $0["width"] as Int }, [4, 4])
         XCTAssertEqual(assetRows.map { $0["height"] as Int }, [4, 4])
+        let contentHashes = assetRows.map { $0["content_hash"] as String }
+        XCTAssertEqual(contentHashes, [source.imageContentHash, source.imageContentHash])
+        XCTAssertEqual(
+            try runtime.assetStore.data(forContentHash: source.imageContentHash), source.imageData)
+        XCTAssertEqual(try storedBlobCount(in: assetDirectory), 1)
 
         let secondResult = try await runtime.importFromSwiftDataIfNeeded(
             modelContainer: container,
@@ -93,7 +103,10 @@ final class CanonicalRuntimeImportTests: XCTestCase {
         XCTAssertEqual(metadataAfterSecondRun.swiftDataImportSourceFingerprint, sourceFingerprint)
 
         let context = ModelContext(container)
-        context.insert(Tag(name: "导入后新增"))
+        let renamedTag = try XCTUnwrap(
+            try context.fetch(FetchDescriptor<Tag>()).first { $0.id == source.workTagID }
+        )
+        renamedTag.name = "工作改名"
         try context.save()
         do {
             _ = try await runtime.importFromSwiftDataIfNeeded(
@@ -109,6 +122,47 @@ final class CanonicalRuntimeImportTests: XCTestCase {
             XCTAssertNotEqual(actual, sourceFingerprint)
         } catch {
             XCTFail("期望 sourceBaselineMismatch，实际抛出 \(error)")
+        }
+    }
+
+    func testImportCleansCreatedAssetFilesWhenDatabaseInsertFailsAfterFileWrite() async throws {
+        let container = try ModelContainerConfig.makeInMemoryContainer()
+        let context = ModelContext(container)
+        let duplicateImageID = UUID()
+        let imageData = Self.makeImageData()
+        let moment = Moment(title: "重复图片 ID", mood: .happy)
+        let firstImage = MomentImage(
+            id: duplicateImageID,
+            sortIndex: 0,
+            imageData: imageData,
+            moment: moment
+        )
+        let secondImage = MomentImage(
+            id: duplicateImageID,
+            sortIndex: 1,
+            imageData: imageData,
+            moment: moment
+        )
+        context.insert(moment)
+        context.insert(firstImage)
+        context.insert(secondImage)
+        moment.images = [firstImage, secondImage]
+        try context.save()
+        let assetDirectory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: assetDirectory) }
+        let runtime = try CanonicalLibraryRuntime.makeInMemoryForTests(
+            assetDirectoryURL: assetDirectory
+        )
+
+        do {
+            _ = try await runtime.importFromSwiftDataIfNeeded(modelContainer: container)
+            XCTFail("期望重复 asset_record 主键导致导入失败")
+        } catch {
+            let metadata = try await runtime.repository.metadata()
+            let totalMomentCount = try await runtime.repository.totalMomentCount()
+            XCTAssertNil(metadata.swiftDataImportedAt)
+            XCTAssertEqual(totalMomentCount, 0)
+            XCTAssertEqual(try storedBlobCount(in: assetDirectory), 0)
         }
     }
 
@@ -254,7 +308,9 @@ final class CanonicalRuntimeImportTests: XCTestCase {
             activeMomentID: activeMomentID,
             deletedMomentID: deletedMomentID,
             imageIDs: [firstImageID, secondImageID],
-            imageByteCount: imageData.count
+            imageByteCount: imageData.count,
+            imageContentHash: FileAssetStore.sha256Hex(imageData),
+            imageData: imageData
         )
     }
 
@@ -278,6 +334,26 @@ final class CanonicalRuntimeImportTests: XCTestCase {
                 "CanonicalRuntimeImportTests-\(UUID().uuidString)", isDirectory: true)
         return directory
     }
+
+    private func storedBlobCount(in directory: URL) throws -> Int {
+        let blobsDirectory = directory.appendingPathComponent("blobs", isDirectory: true)
+        guard
+            let enumerator = FileManager.default.enumerator(
+                at: blobsDirectory,
+                includingPropertiesForKeys: [.isRegularFileKey]
+            )
+        else {
+            return 0
+        }
+        var count = 0
+        for case let url as URL in enumerator {
+            let values = try url.resourceValues(forKeys: [.isRegularFileKey])
+            if values.isRegularFile == true {
+                count += 1
+            }
+        }
+        return count
+    }
 }
 
 private struct SwiftDataSourceFixture {
@@ -287,4 +363,6 @@ private struct SwiftDataSourceFixture {
     let deletedMomentID: UUID
     let imageIDs: [UUID]
     let imageByteCount: Int
+    let imageContentHash: String
+    let imageData: Data
 }
