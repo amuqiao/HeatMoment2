@@ -56,7 +56,7 @@ UI / ViewModel
 - 当前 App 已有 SwiftData `Moment` / `Tag` / `MomentImage` 模型、`@ModelActor` repository、软删除/恢复/彻底删除、照片压缩、缩略图缓存、设置页 iCloud 状态行和基础测试。
 - 当前生产启动路径会尝试 SwiftData + CloudKit 私有库容器，不可用时回退本地 SwiftData 容器。
 - 当前 `SyncStatusService` 只是启发式状态展示：`cloudKitEnabled + 网络可达性 + 最近本地写入时间`，不是 CloudKit import/export 事件，也不表达未登录 iCloud、账号变化、冲突、失败重试或恢复进度。
-- 当前已有 SwiftData 过渡版本机自动恢复点：最多 3 个、设置页列表、恢复预览、pending restore staging、冷启动 replace、稳定变更节流触发和高风险操作前安全点。它还不是目标 canonical store 下的最终 recovery catalog / asset pin 方案。
+- 当前已有 SwiftData 过渡版本机自动恢复点：最多 3 个、设置页列表、恢复预览、pending restore staging、恢复已排队阻断页、冷启动 replace、成功/失败反馈、稳定变更节流触发和高风险操作前安全点。它还不是目标 canonical store 下的最终 recovery catalog / asset pin 方案。
 - 当前没有完整数据生命周期：无 canonical domain store、无持久 outbox、无自定义同步状态机、无 Markdown/PDF 导出任务、无真实 iCloud 多设备验收。
 - 当前 SwiftData 是过渡实现和 UI 可用路径，不作为目标架构里的最终数据权威。
 
@@ -288,6 +288,7 @@ Apple ID / iCloud 边界必须可见：
 - 展示将恢复的恢复点、当前资料库摘要、替换范围和风险说明。
 - 恢复按钮位于摘要之后，并使用危险操作样式和二次确认。
 - 明确说明恢复失败不会破坏当前数据，恢复前会创建安全恢复点。
+- 恢复准备成功后必须进入阻断式“等待重启完成恢复”状态，避免用户继续写入后被下次启动恢复覆盖。
 
 ### 导出详情页
 
@@ -303,7 +304,7 @@ Apple ID / iCloud 边界必须可见：
 - 需要定义 recovery point retention=3、创建触发器、asset pin、不可删除 UI 契约。
 - 需要在后续独立 iCloud 计划中，把当前 iCloud 三态启发式替换为可区分 Apple ID / 网络 / outbox / conflict 的状态模型。
 - 需要实现本地 canonical store、asset store、derived query layer、migration/rebuild path。
-- 需要实现自动恢复点、恢复预览、staging restore、atomic replace、restore job cleanup。
+- 需要将已落地 SwiftData 过渡版恢复点迁入 canonical recovery catalog，并补齐 asset pin、restore job 表和 canonical replace cleanup。
 - 需要实现 Markdown/PDF 导出服务和设置详情页流程。
 - 需要另建 iCloud 独立计划，覆盖 custom zone 同步、outbox、checkpoint、冲突记录、用户可见状态和真机矩阵。
 
@@ -356,9 +357,9 @@ Apple ID / iCloud 边界必须可见：
 - 在 canonical store 下重新实现最多 3 个保留策略、asset pin、恢复点淘汰和资产 GC 协作。
 - 在 destructive schema migration 前创建可校验恢复点。
 - 在 canonical replace restore 后重建 `syncEpoch` 占位、清空旧 outbox/token 占位、重建 projection。
-- 保持已落地用户契约：设置页最多 3 个恢复点、可恢复、不可删除；恢复失败不破坏当前 library。
+- 保持已落地用户契约：设置页最多 3 个恢复点、可恢复、不可删除；准备恢复后阻断继续使用；恢复失败不破坏当前 library。
 
-验收：用户可看到最多 3 个恢复点并恢复；用户不能删除恢复点；连续创建第 4 个恢复点会淘汰最旧项；恢复失败不破坏当前 library。
+验收：用户可看到最多 3 个恢复点并恢复；用户不能删除恢复点；连续创建第 4 个恢复点会淘汰最旧项；准备恢复后不能继续写入；恢复失败不破坏当前 library。
 
 ### 5. Export
 

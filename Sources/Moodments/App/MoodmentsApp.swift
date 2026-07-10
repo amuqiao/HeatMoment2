@@ -12,6 +12,7 @@ struct MoodmentsApp: App {
     @State private var router: AppRouter
     @State private var theme: ThemeManager
     @State private var errorPresenter = ErrorPresenter()
+    @State private var localBackupRestoreState = LocalBackupRestoreState()
     @State private var subscriptionService = SubscriptionService()
     @State private var syncStatusService: SyncStatusService
     /// 冷启动尚未完成过一次 `.active` 激活：用于区分「冷启动」与「后台恢复」两类均需锁定的
@@ -26,7 +27,7 @@ struct MoodmentsApp: App {
     @State private var didEnterBackground = false
     private let container: ModelContainer
     private let localBackupCoordinator: LocalBackupCoordinator?
-    private let launchRestoreFailure: LocalBackupBootRestoreFailure?
+    private let launchRestoreResult: LocalBackupBootRestoreResult
 
     /// 语言偏好（见 `LanguagePreference`、阶段7计划决策4）：与 `LanguageSettingsView` 共享同一
     /// `UserDefaults.standard` key，切换后本 `@AppStorage` 立即失效重算、驱动下方
@@ -45,6 +46,7 @@ struct MoodmentsApp: App {
             // 冷启动都从确定性的默认 `.zhHans` 起步，不受同一模拟器上先前测试运行历史影响。
             UITestSupport.resetLanguagePreferenceIfUITestRun()
             UITestSupport.resetDefaultTagSeedFlagIfUITestRun()
+            UITestSupport.resetLocalBackupDirectoryIfRequested()
         #endif
         // 冷启动锁定用「初始值即锁」而非 `.task` 里异步 mutate：后者会遇 SwiftUI 首帧竞态
         // （body 已用 isLocked=false 求值后 .task 才改，自定义 Binding 的首次 fullScreenCover
@@ -55,8 +57,7 @@ struct MoodmentsApp: App {
                 router.isLocked = BiometricLockPreference.isEnabled()
                 return router
             }())
-        let launchRestoreResult = Self.performPendingLocalRestore()
-        launchRestoreFailure = launchRestoreResult.failure
+        launchRestoreResult = Self.performPendingLocalRestore()
 
         let runtime = Self.makeRuntimeServices()
         container = runtime.container
@@ -76,8 +77,9 @@ struct MoodmentsApp: App {
         WindowGroup {
             RootView(
                 localBackupCoordinator: localBackupCoordinator,
-                launchRestoreFailure: launchRestoreFailure
+                launchRestoreResult: launchRestoreResult
             )
+            .environment(localBackupRestoreState)
             // 隐私锁挂在比 `rootSheet`/应用内上下文层更外层的位置（见 10 §10.1.3、08 §2.2、
             // 阶段7计划必守约束「隐私锁挂最外层盖住 rootSheet/应用内遮罩」）：`.fullScreenCover`
             // 直接挂在 `RootView()` 之上（而非其内部），结构上包裹住 `RootView` 内部自己的
@@ -94,6 +96,15 @@ struct MoodmentsApp: App {
                 )
             ) {
                 PrivacyLockView(onUnlock: { router.isLocked = false })
+                    .interactiveDismissDisabled()
+            }
+            .fullScreenCover(
+                isPresented: Binding(
+                    get: { localBackupRestoreState.isPendingRestoreArmed },
+                    set: { _ in }
+                )
+            ) {
+                PendingLocalRestoreView(context: localBackupRestoreState.pendingContext)
                     .interactiveDismissDisabled()
             }
             // 多任务快照防护（10 §10.1.3）：`scenePhase != .active` 时（含即将进入后台的
@@ -190,8 +201,10 @@ struct MoodmentsApp: App {
     private static func performPendingLocalRestore() -> LocalBackupBootRestoreResult {
         do {
             return try ModelContainerConfig.performPendingLocalRestoreIfNeeded()
-        } catch {
+        } catch let error as LocalBackupRestoreCriticalError {
             fatalError("本地备份恢复回滚失败：\(error)")
+        } catch {
+            return .failed(LocalBackupBootRestoreFailure(underlying: error))
         }
     }
 

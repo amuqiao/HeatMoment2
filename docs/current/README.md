@@ -24,7 +24,7 @@
 | 筛选 | 已落地。当前是首页局部半屏/大屏 `FilterPanelView` sheet，不进 `AppRouter.rootSheet`，标签/心情以紧凑网格选择，提供“全部心情”和“清除全部”，点选即时生效且选择后不自动关闭；筛选 sheet 只选择已有标签，不提供标签新增入口。 | `TimelineHomeView.swift`、`FilterPanelView.swift` |
 | 标签创建归属 | 已落地。编辑器 `TagPickerView` 和首页筛选 `FilterPanelView` 只消费已有标签，不临时创建标签；标签新增、重命名、删除统一归属设置页 `TagManageView`。 | `MomentEditorView.swift`、`TagPickerView.swift`、`FilterPanelView.swift`、`TagManageView.swift` |
 | 数据持久化 | 已落地但属于过渡形态。当前使用 SwiftData `Moment` / `Tag` / `MomentImage`，生产启动路径会尝试 SwiftData + CloudKit 私有库容器，不可用时回退本地容器；同步状态仅由 CloudKit 是否启用、网络可达性和最近本地写入时间启发式推导。目标数据生命周期见计划层，不把当前 SwiftData 模型定义为最终权威。 | `ModelContainer+Config.swift`、`MoodmentsApp.swift`、`Moment.swift`、`Tag.swift`、`MomentImage.swift`、`SyncStatusService.swift` |
-| 本地自动恢复点 | 已落地最小 SwiftData 过渡版。非 CloudKit 本地容器下，App 自动维护最多 3 个恢复点；时刻保存、软删除、标签新增/重命名等成功写入后按稳定变更节流创建恢复点；垃圾箱恢复/彻底删除、标签删除和恢复点 replace restore 前创建操作安全点。设置页提供“备份与恢复”列表和恢复预览；用户可恢复、不可删除恢复点。 | `LocalBackupCoordinator.swift`、`RecoveryPointManager.swift`、`LocalBackupRestoreExecutor.swift`、`BackupRestoreView.swift` |
+| 本地自动恢复点 | 已落地最小 SwiftData 过渡版。非 CloudKit 本地容器下，App 自动维护最多 3 个恢复点；时刻保存、软删除、标签新增/重命名等成功写入后按稳定变更节流创建恢复点；垃圾箱恢复/彻底删除、标签删除和恢复点 replace restore 前创建操作安全点。设置页提供“备份与恢复”列表和恢复预览；用户可恢复、不可删除恢复点；准备恢复后进入阻断页等待重启，冷启动完成后提示恢复结果。 | `LocalBackupCoordinator.swift`、`RecoveryPointManager.swift`、`LocalBackupRestoreExecutor.swift`、`BackupRestoreView.swift`、`PendingLocalRestoreView.swift` |
 | 上下文标记 | 已落地。筛选标记和时间定位标记可并存、可分别移除。 | `TimelineContextMarkerBar.swift`、`TimelineModel.swift` |
 | 编辑页日期/时间选择 | 已落地。日期和时间由局部 `.popover` 打开系统 `DatePicker`，即时回写 `occurredAt`；日期/时间 popover 打开与 `OccurredAtComposer` 合成语义已有窄测试覆盖，时间 picker 只替换时/分并保留不可见秒。 | `MomentEditorView.swift`、`DateTimePopovers.swift` |
 | 任务页骨架 | 已落地。设置、外观、编辑、预览等任务型 sheet 共享 `TaskSurfaceMetrics` / `TaskPageScrollView` / `TaskSurfaceSection` / `TaskSurfacePanel` 的响应式内容列；Pro 横幅、设置分组、外观分组、编辑输入面板和添加照片 CTA 统一横向边界。首页气泡、时间轴、筛选 popover、标签创建 sheet 不混入这套任务内容列。 | `TaskContainerStyle.swift`、`SettingsSheetView.swift`、`AppearanceThemeView.swift`、`MomentEditorView.swift`、`MomentPreviewView.swift` |
@@ -51,6 +51,7 @@
 - `Tests/MoodmentsTests/RecoveryPointManagerValidationTests.swift`
 - `Tests/MoodmentsTests/LocalBackupCoordinatorTests.swift`
 - `Tests/MoodmentsTests/LocalBackupRestoreExecutorTests.swift`
+- `Tests/MoodmentsUITests/BackupRestoreUITests.swift`
 - `Tests/MoodmentsUITests/CreateMomentFlowUITests.swift`
 - `Tests/MoodmentsUITests/TitleCollapseFilterUITests.swift`
 - `Tests/MoodmentsUITests/LocateFilterUITests.swift`
@@ -119,3 +120,15 @@ rg -n "docs/current|docs/plans|implementation-truth|implementation-plan" CLAUDE.
 ```
 
 结果：全部通过。`EditorSheetPresentationUITests` 执行 6 条 UI 测试、0 失败，覆盖设置根页无显式关闭按钮、设置详情页系统标题和系统返回路径、设置任务面板横向边界、编辑任务面板横向边界；`ThemeSwitchUITests` 执行 10 条 UI 测试、0 失败；`LanguageSwitchUITests` 执行 2 条 UI 测试、0 失败。最终 `./scripts/verify.sh` 覆盖 lint、build、144 条单元测试（4 条 skipped）和 49 条 UI 测试；`lint` 仍输出既有非阻断 warning。
+
+2026-07-10 本轮本地备份恢复闭环的定向验证：
+
+```sh
+./scripts/gen.sh
+./scripts/lint.sh
+./scripts/test.sh --only MoodmentsTests/LocalBackupRestoreExecutorTests
+./scripts/test.sh --only MoodmentsUITests/BackupRestoreUITests/testBackupListShowsSystemMaintainedRecoveryPointAndPreview
+./scripts/test.sh --only MoodmentsUITests/BackupRestoreUITests/testPreparedRestoreRunsOnNextLaunchAndShowsSuccess
+```
+
+结果：全部通过。`LocalBackupRestoreExecutorTests` 覆盖 pending restore staging、armed marker、恢复前安全点、恢复点淘汰后仍能从 staged payload 恢复、损坏 pending payload 不替换当前 store。`BackupRestoreUITests` 使用磁盘隔离本地容器覆盖恢复点列表不可删除、恢复预览、准备恢复后的阻断页、终止并冷启动后的 replace restore 成功提示，以及恢复后当前资料库内容被所选恢复点替换。`lint` 仍输出既有非阻断 warning。

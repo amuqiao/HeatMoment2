@@ -18,6 +18,9 @@
     /// - `-uiTestPhotoInjection`：编辑器照片区额外展示一个调试注入按钮，直接把合成 JPEG
     ///   写入草稿（见阶段 3 计划决策1：系统 `PhotosPicker` 不在 App 无障碍树内、无法可靠自动化）。
     /// - `-uiTestBackgroundImageInjection`：外观页额外展示自定义背景图调试注入按钮，绕过系统相册 UI。
+    /// - `-uiTestLocalBackupRestore`：使用磁盘隔离目录而非内存容器，启用真实本地恢复点 coordinator。
+    /// - `-uiTestResetLocalBackupDisk`：清理上方磁盘隔离目录，供本地备份 UI 测试首轮启动使用。
+    /// - `-uiTestSeedLocalRecoveryPoint`：预置 1 个可恢复点，并把当前库改成另一条记录。
     enum UITestSupport {
         /// 是否应改用内存容器（测试隔离，不落盘、不需 iCloud 能力）。
         static var wantsInMemoryContainer: Bool {
@@ -37,6 +40,14 @@
         /// 是否展示外观页自定义背景图的调试注入入口。
         static var wantsBackgroundImageInjectionHook: Bool {
             ProcessInfo.processInfo.arguments.contains("-uiTestBackgroundImageInjection")
+        }
+
+        static var localBackupApplicationSupportDirectory: URL? {
+            UITestLocalBackupSupport.applicationSupportDirectory
+        }
+
+        static func resetLocalBackupDirectoryIfRequested() {
+            UITestLocalBackupSupport.resetDirectoryIfRequested()
         }
 
         /// 是否暴露任务页骨架测量 marker。只用于 UI 测试读取响应式边界；
@@ -112,6 +123,7 @@
         /// 保证每次冷启动都从确定性的「真正首启」状态起步。
         static func resetDefaultTagSeedFlagIfUITestRun() {
             guard isAnyUITestRun else { return }
+            guard localBackupApplicationSupportDirectory == nil else { return }
             UserDefaults.standard.removeObject(forKey: DefaultTagSeeder.hasCompletedFirstSeedKey)
         }
 
@@ -279,6 +291,86 @@
                 try context.save()
             } catch {
                 assertionFailure("UITest 配额预置失败：\(error)")
+            }
+        }
+
+        @MainActor
+        static func seedLocalRecoveryPointIfRequested(
+            _ context: ModelContext,
+            coordinator: LocalBackupCoordinator?
+        ) async {
+            await UITestLocalBackupSupport.seedRecoveryPointIfRequested(
+                context,
+                coordinator: coordinator
+            )
+        }
+    }
+
+    private enum UITestLocalBackupSupport {
+        private static let runIDEnvironmentKey = "MOODMENTS_UI_TEST_LOCAL_BACKUP_RUN_ID"
+
+        static var applicationSupportDirectory: URL? {
+            guard ProcessInfo.processInfo.arguments.contains("-uiTestLocalBackupRestore") else {
+                return nil
+            }
+            let environment = ProcessInfo.processInfo.environment
+            let runID = environment[runIDEnvironmentKey] ?? "default"
+            return FileManager.default.temporaryDirectory
+                .appendingPathComponent("MoodmentsLocalBackupUITests", isDirectory: true)
+                .appendingPathComponent(runID, isDirectory: true)
+        }
+
+        static func resetDirectoryIfRequested() {
+            guard
+                ProcessInfo.processInfo.arguments.contains("-uiTestResetLocalBackupDisk"),
+                let directory = applicationSupportDirectory
+            else { return }
+            do {
+                if FileManager.default.fileExists(atPath: directory.path) {
+                    try FileManager.default.removeItem(at: directory)
+                }
+            } catch {
+                assertionFailure("UITest 本地备份目录清理失败：\(error)")
+            }
+        }
+
+        @MainActor
+        static func seedRecoveryPointIfRequested(
+            _ context: ModelContext,
+            coordinator: LocalBackupCoordinator?
+        ) async {
+            guard ProcessInfo.processInfo.arguments.contains("-uiTestSeedLocalRecoveryPoint") else {
+                return
+            }
+            guard let coordinator else {
+                assertionFailure("UITest 本地备份恢复预置需要 LocalBackupCoordinator")
+                return
+            }
+            do {
+                let existing = try context.fetchCount(FetchDescriptor<Moment>())
+                guard existing == 0 else { return }
+
+                let backupMoment = Moment()
+                backupMoment.title = "备份里的时刻"
+                backupMoment.bodyText = "用于验证本地备份恢复后的资料库内容。"
+                backupMoment.occurredAt = Date(timeIntervalSince1970: 1_800)
+                context.insert(backupMoment)
+                try context.save()
+
+                try await coordinator.createRecoveryPoint(
+                    reason: .stableChanges,
+                    createdAt: Date(timeIntervalSince1970: 2_000)
+                )
+
+                context.delete(backupMoment)
+                let currentMoment = Moment()
+                currentMoment.title = "当前未恢复时刻"
+                currentMoment.bodyText = "用于验证恢复前后资料库已被替换。"
+                currentMoment.occurredAt = Date(timeIntervalSince1970: 2_400)
+                context.insert(currentMoment)
+                try context.save()
+            } catch {
+                assertionFailure("UITest 本地恢复点预置失败：\(error)")
             }
         }
     }

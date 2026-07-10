@@ -98,7 +98,7 @@ actor LocalBackupCoordinator {
     }
 
     @discardableResult
-    func prepareRestore(id: UUID) async throws -> RecoveryPointMetadata {
+    func prepareRestore(id: UUID) async throws -> LocalBackupPendingRestoreContext {
         let metadata = try await validateRecoveryPoint(id: id)
         guard metadata.status == .available else {
             throw RecoveryPointError.recoveryPointUnavailable(id)
@@ -110,16 +110,20 @@ actor LocalBackupCoordinator {
             descriptor: descriptor
         )
         do {
-            try await createRecoveryPoint(reason: .restoreSafety)
+            let restoreSafetyMetadata = try await createRecoveryPoint(reason: .restoreSafety)
             try LocalBackupRestoreExecutor.armStagedRestore(
                 metadata: metadata,
-                descriptor: descriptor
+                descriptor: descriptor,
+                restoreSafetyMetadata: restoreSafetyMetadata
+            )
+            return LocalBackupPendingRestoreContext(
+                selected: metadata,
+                restoreSafety: restoreSafetyMetadata
             )
         } catch {
             try LocalBackupRestoreExecutor.clearPendingRestore(descriptor: descriptor)
             throw error
         }
-        return metadata
     }
 
     private func assertCompatibleForRestore(_ metadata: RecoveryPointMetadata) throws {

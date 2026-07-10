@@ -11,7 +11,7 @@ import SwiftUI
 /// 共享同一份「定位/筛选」状态，而不是两份互不相干的拷贝。
 struct RootView: View {
     let localBackupCoordinator: LocalBackupCoordinator?
-    let launchRestoreFailure: LocalBackupBootRestoreFailure?
+    let launchRestoreResult: LocalBackupBootRestoreResult
 
     @Environment(AppRouter.self) private var router
     @Environment(\.modelContext) private var modelContext
@@ -19,14 +19,16 @@ struct RootView: View {
     @Environment(SubscriptionService.self) private var subscriptionService
     @Environment(SyncStatusService.self) private var syncStatusService
     @State private var timelineModel = TimelineModel()
-    @State private var didReportLaunchRestoreFailure = false
+    @State private var didHandleLaunchRestoreResult = false
+    @State private var showsLaunchRestoreSuccess = false
+    @State private var launchRestoreSuccessMessage = ""
 
     init(
         localBackupCoordinator: LocalBackupCoordinator? = nil,
-        launchRestoreFailure: LocalBackupBootRestoreFailure? = nil
+        launchRestoreResult: LocalBackupBootRestoreResult = .none
     ) {
         self.localBackupCoordinator = localBackupCoordinator
-        self.launchRestoreFailure = launchRestoreFailure
+        self.launchRestoreResult = launchRestoreResult
     }
 
     var body: some View {
@@ -52,14 +54,29 @@ struct RootView: View {
                 }
             }
             .environment(timelineModel)
+            .alert("本地备份恢复完成", isPresented: $showsLaunchRestoreSuccess) {
+                Button("好的", role: .cancel) {}
+            } message: {
+                Text(launchRestoreSuccessMessage)
+            }
             .userFacingErrorAlert(errorPresenter)
             .task {
-                if let launchRestoreFailure, !didReportLaunchRestoreFailure {
-                    didReportLaunchRestoreFailure = true
-                    errorPresenter.report(
-                        message: "本地备份恢复失败，当前数据未被替换。",
-                        underlying: launchRestoreFailure
-                    )
+                if !didHandleLaunchRestoreResult {
+                    didHandleLaunchRestoreResult = true
+                    switch launchRestoreResult {
+                    case .none:
+                        break
+                    case let .restored(context):
+                        launchRestoreSuccessMessage = Self.launchRestoreSuccessMessage(
+                            context: context
+                        )
+                        showsLaunchRestoreSuccess = true
+                    case let .failed(failure):
+                        errorPresenter.report(
+                            message: "本地备份恢复失败，当前数据未被替换。",
+                            underlying: failure
+                        )
+                    }
                 }
                 // 首启默认标签预置（见 07-data-persistence.md §4）：无条件调用（生产与 UI 测试
                 // 均需要），是否真正执行预置由 `DefaultTagSeeder` 内部的持久化「首启已完成」标记
@@ -87,7 +104,27 @@ struct RootView: View {
                     UITestSupport.seedIfRequested(modelContext)
                     UITestSupport.seedImageMomentIfRequested(modelContext)
                     UITestSupport.seedMomentQuotaIfRequested(modelContext)
+                    await UITestSupport.seedLocalRecoveryPointIfRequested(
+                        modelContext,
+                        coordinator: localBackupCoordinator
+                    )
                 #endif
             }
     }
+
+    private static func launchRestoreSuccessMessage(
+        context: LocalBackupPendingRestoreContext
+    ) -> String {
+        var message = "已恢复到 \(dateFormatter.string(from: context.selectedCreatedAt)) 的本机资料库。"
+        if let safetyCreatedAt = context.restoreSafetyCreatedAt {
+            message += " 恢复前安全点已保留在 \(dateFormatter.string(from: safetyCreatedAt))。"
+        }
+        return message
+    }
+
+    private static let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy年M月d日 HH:mm"
+        return formatter
+    }()
 }

@@ -32,9 +32,11 @@ struct BackupRestoreView: View {
                 Text("App 会自动保留最近 3 个本机恢复点。")
                     .font(AppTypography.body)
                     .foregroundStyle(theme.primaryText)
+                    .accessibilityIdentifier("backupRestoreRetentionText")
                 Text("恢复点由系统自动维护，你可以查看和恢复，不能手动删除。")
                     .font(AppTypography.caption)
                     .foregroundStyle(theme.secondaryText)
+                    .accessibilityIdentifier("backupRestoreSystemManagedText")
             }
             .padding(.horizontal, TaskSurfaceMetrics.rowHorizontalPadding)
             .padding(.vertical, 12)
@@ -90,6 +92,7 @@ struct BackupRestoreView: View {
                         Text(Self.dateFormatter.string(from: metadata.createdAt))
                             .font(AppTypography.body)
                             .foregroundStyle(theme.primaryText)
+                            .accessibilityIdentifier("recoveryPointCreatedAtText")
                         if metadata.status == .invalid {
                             Text("不可恢复")
                                 .font(AppTypography.caption)
@@ -102,6 +105,7 @@ struct BackupRestoreView: View {
                         .font(AppTypography.caption)
                         .foregroundStyle(theme.secondaryText)
                         .lineLimit(2)
+                        .accessibilityIdentifier("recoveryPointSummaryText")
                 }
             } trailing: {
                 if metadata.status == .available {
@@ -140,11 +144,11 @@ private struct RecoveryPointRestorePreviewView: View {
 
     @Environment(ThemeManager.self) private var theme
     @Environment(ErrorPresenter.self) private var errorPresenter
+    @Environment(LocalBackupRestoreState.self) private var restoreState
 
     @State private var currentCounts: RecoveryPointCounts?
     @State private var isPreparingRestore = false
     @State private var showsConfirmation = false
-    @State private var showsPreparedMessage = false
 
     var body: some View {
         TaskPageScrollView(accessibilityIdentifier: "recoveryPointPreviewScrollView") {
@@ -172,9 +176,11 @@ private struct RecoveryPointRestorePreviewView: View {
                     Text("恢复会用此备份替换当前本机资料库。")
                         .font(AppTypography.body)
                         .foregroundStyle(theme.primaryText)
+                        .accessibilityIdentifier("recoveryPointRestoreReplaceWarning")
                     Text("确认后会先创建一个恢复前安全点，然后准备恢复。请完全退出并重新打开 App，恢复会在下次启动时完成。")
                         .font(AppTypography.caption)
                         .foregroundStyle(theme.secondaryText)
+                        .accessibilityIdentifier("recoveryPointRestoreRestartInstruction")
                 }
                 .padding(.horizontal, TaskSurfaceMetrics.rowHorizontalPadding)
                 .padding(.vertical, 12)
@@ -212,12 +218,20 @@ private struct RecoveryPointRestorePreviewView: View {
             .accessibilityIdentifier("recoveryPointRestoreConfirmButton")
             Button("取消", role: .cancel) {}
         } message: {
-            Text("当前本机资料库会在下次启动时被此备份替换。")
+            Text(
+                "当前本机资料库会在下次启动时恢复到 "
+                    + "\(BackupRestoreView.dateFormatter.string(from: metadata.createdAt))。"
+                    + "确认后请不要继续创建、编辑或删除内容；这些新改动会被恢复覆盖。"
+            )
         }
-        .alert("恢复已准备好", isPresented: $showsPreparedMessage) {
-            Button("好的", role: .cancel) {}
-        } message: {
-            Text("请完全退出并重新打开 App，恢复会在下次启动时完成。")
+        .fullScreenCover(
+            isPresented: Binding(
+                get: { restoreState.isPendingRestoreArmed },
+                set: { _ in }
+            )
+        ) {
+            PendingLocalRestoreView(context: restoreState.pendingContext)
+                .interactiveDismissDisabled()
         }
         .userFacingErrorAlert(errorPresenter)
     }
@@ -251,10 +265,10 @@ private struct RecoveryPointRestorePreviewView: View {
     private func prepareRestore() {
         guard !isPreparingRestore else { return }
         isPreparingRestore = true
-        Task {
+        Task { @MainActor in
             do {
-                try await localBackupCoordinator.prepareRestore(id: metadata.id)
-                showsPreparedMessage = true
+                let context = try await localBackupCoordinator.prepareRestore(id: metadata.id)
+                restoreState.markPendingRestoreArmed(context: context)
             } catch {
                 errorPresenter.report(message: "准备恢复失败，请稍后重试。", underlying: error)
             }

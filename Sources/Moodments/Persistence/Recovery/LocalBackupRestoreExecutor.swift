@@ -3,7 +3,7 @@ import Foundation
 
 enum LocalBackupBootRestoreResult: Equatable {
     case none
-    case restored
+    case restored(LocalBackupPendingRestoreContext)
     case failed(LocalBackupBootRestoreFailure)
 
     var failure: LocalBackupBootRestoreFailure? {
@@ -16,9 +16,11 @@ enum LocalBackupBootRestoreResult: Equatable {
 
 struct LocalBackupBootRestoreFailure: Error, Equatable, CustomStringConvertible {
     let underlyingDescription: String
+    let context: LocalBackupPendingRestoreContext?
 
-    init(underlying: Error) {
+    init(underlying: Error, context: LocalBackupPendingRestoreContext? = nil) {
         underlyingDescription = String(describing: underlying)
+        self.context = context
     }
 
     var description: String {
@@ -30,8 +32,26 @@ enum LocalBackupRestoreCriticalError: Error {
     case rollbackFailed(Error)
 }
 
+struct LocalBackupPendingRestoreContext: Codable, Sendable, Equatable {
+    let selectedRecoveryPointID: UUID
+    let selectedCreatedAt: Date
+    let restoreSafetyPointID: UUID?
+    let restoreSafetyCreatedAt: Date?
+
+    init(
+        selected: RecoveryPointMetadata,
+        restoreSafety: RecoveryPointMetadata? = nil
+    ) {
+        selectedRecoveryPointID = selected.id
+        selectedCreatedAt = selected.createdAt
+        restoreSafetyPointID = restoreSafety?.id
+        restoreSafetyCreatedAt = restoreSafety?.createdAt
+    }
+}
+
 enum LocalBackupRestoreExecutor {
     private static let armedFileName = "armed"
+    private static let contextFileName = "context.json"
     private static let metadataFileName = "metadata.json"
     private static let payloadDirectoryName = "payload"
 
@@ -72,7 +92,8 @@ enum LocalBackupRestoreExecutor {
 
     static func armStagedRestore(
         metadata: RecoveryPointMetadata,
-        descriptor: LocalBackupStoreDescriptor
+        descriptor: LocalBackupStoreDescriptor,
+        restoreSafetyMetadata: RecoveryPointMetadata? = nil
     ) throws {
         let pendingDirectory = descriptor.pendingRestoreDirectory
         let payloadDirectory = pendingDirectory.appendingPathComponent(
@@ -80,6 +101,13 @@ enum LocalBackupRestoreExecutor {
             isDirectory: true
         )
         try validatePayload(metadata: metadata, payloadDirectory: payloadDirectory)
+        try writeContext(
+            LocalBackupPendingRestoreContext(
+                selected: metadata,
+                restoreSafety: restoreSafetyMetadata
+            ),
+            to: pendingDirectory.appendingPathComponent(contextFileName)
+        )
         try Data(metadata.id.uuidString.utf8).write(
             to: pendingDirectory.appendingPathComponent(armedFileName),
             options: [.atomic]
@@ -103,10 +131,16 @@ enum LocalBackupRestoreExecutor {
             return .none
         }
 
+        var pendingContext: LocalBackupPendingRestoreContext?
         do {
             let metadata = try readMetadata(
                 from: pendingDirectory.appendingPathComponent(metadataFileName)
             )
+            let context = try readContextIfPresent(
+                in: pendingDirectory,
+                selected: metadata
+            )
+            pendingContext = context
             let payloadDirectory = pendingDirectory.appendingPathComponent(
                 payloadDirectoryName,
                 isDirectory: true
@@ -114,12 +148,14 @@ enum LocalBackupRestoreExecutor {
             try validatePayload(metadata: metadata, payloadDirectory: payloadDirectory)
             try replaceStorePayload(from: payloadDirectory, descriptor: descriptor)
             try FileManager.default.removeItem(at: pendingDirectory)
-            return .restored
+            return .restored(context)
         } catch let error as LocalBackupRestoreCriticalError {
             throw error
         } catch {
             try? clearPendingRestore(descriptor: descriptor)
-            return .failed(LocalBackupBootRestoreFailure(underlying: error))
+            return .failed(
+                LocalBackupBootRestoreFailure(underlying: error, context: pendingContext)
+            )
         }
     }
 }
@@ -228,6 +264,30 @@ private extension LocalBackupRestoreExecutor {
     static func removeDirectoryIfExists(_ url: URL) throws {
         guard FileManager.default.fileExists(atPath: url.path) else { return }
         try FileManager.default.removeItem(at: url)
+    }
+
+    static func readContextIfPresent(
+        in pendingDirectory: URL,
+        selected: RecoveryPointMetadata
+    ) throws -> LocalBackupPendingRestoreContext {
+        let contextURL = pendingDirectory.appendingPathComponent(contextFileName)
+        guard FileManager.default.fileExists(atPath: contextURL.path) else {
+            return LocalBackupPendingRestoreContext(selected: selected)
+        }
+        let data = try Data(contentsOf: contextURL)
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try decoder.decode(LocalBackupPendingRestoreContext.self, from: data)
+    }
+
+    static func writeContext(
+        _ context: LocalBackupPendingRestoreContext,
+        to url: URL
+    ) throws {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        try encoder.encode(context).write(to: url, options: [.atomic])
     }
 
     static func validatePayload(

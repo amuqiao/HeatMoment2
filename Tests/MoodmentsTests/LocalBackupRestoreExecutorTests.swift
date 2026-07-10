@@ -40,7 +40,7 @@ final class LocalBackupRestoreExecutorTests: RecoveryPointTestCase {
             descriptor: descriptor
         )
 
-        XCTAssertEqual(result, .restored)
+        XCTAssertRestored(result, selectedRecoveryPointID: metadata.id)
         XCTAssertEqual(try readText(from: descriptor.storeURL), "backup")
         XCTAssertEqual(
             try readText(from: libraryDirectory.appendingPathComponent("Moodments.store-wal")),
@@ -177,8 +177,85 @@ final class LocalBackupRestoreExecutorTests: RecoveryPointTestCase {
             descriptor: descriptor
         )
 
-        XCTAssertEqual(result, .restored)
+        XCTAssertRestored(result, selectedRecoveryPointID: created[0].id)
         XCTAssertEqual(try readText(from: descriptor.storeURL), "backup-0")
+    }
+
+    func testPrepareRestoreCreatesRestoreSafetyPointAndArmsPendingRestore() async throws {
+        let libraryDirectory = try makeSourceDirectory()
+        let descriptor = LocalBackupStoreDescriptor(
+            rootDirectory: libraryDirectory,
+            storeFileName: "Moodments.store",
+            sourceLibraryID: "test-local"
+        )
+        let manager = try RecoveryPointManager(recoveryDirectory: descriptor.recoveryDirectory)
+
+        try write("backup", to: descriptor.storeURL)
+        let metadata = try await manager.createRecoveryPoint(
+            from: descriptor.payloadSource(),
+            reason: .stableChanges,
+            counts: RecoveryPointCounts(recordCount: 1, tagCount: 0, assetCount: 0),
+            schemaVersion: 1,
+            appVersion: "1.0.0",
+            sourceLibraryID: descriptor.sourceLibraryID,
+            createdAt: Date(timeIntervalSince1970: 100)
+        )
+        try write("current", to: descriptor.storeURL)
+
+        let coordinator = LocalBackupCoordinator(
+            descriptor: descriptor,
+            recoveryPointManager: manager,
+            countsRepository: RecoveryPointCountsRepository(
+                modelContainer: try ModelContainerConfig.makeInMemoryContainer()
+            ),
+            appVersion: "1.0.0",
+            schemaVersion: 1
+        )
+
+        let context = try await coordinator.prepareRestore(id: metadata.id)
+
+        let listed = try await manager.listRecoveryPoints()
+        let restoreSafety = try XCTUnwrap(listed.first { $0.reason == .restoreSafety })
+        XCTAssertEqual(context.selectedRecoveryPointID, metadata.id)
+        XCTAssertEqual(context.restoreSafetyPointID, restoreSafety.id)
+        let result = try LocalBackupRestoreExecutor.performPendingRestoreIfNeeded(
+            descriptor: descriptor
+        )
+        XCTAssertRestored(
+            result,
+            selectedRecoveryPointID: metadata.id,
+            restoreSafetyPointID: restoreSafety.id,
+            checksRestoreSafetyPointID: true
+        )
+        XCTAssertEqual(try readText(from: descriptor.storeURL), "backup")
+    }
+
+    private func XCTAssertRestored(
+        _ result: LocalBackupBootRestoreResult,
+        selectedRecoveryPointID: UUID,
+        restoreSafetyPointID: UUID? = nil,
+        checksRestoreSafetyPointID: Bool = false,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        guard case let .restored(context) = result else {
+            XCTFail("Expected restored result, got \(result)", file: file, line: line)
+            return
+        }
+        XCTAssertEqual(
+            context.selectedRecoveryPointID,
+            selectedRecoveryPointID,
+            file: file,
+            line: line
+        )
+        if checksRestoreSafetyPointID {
+            XCTAssertEqual(
+                context.restoreSafetyPointID,
+                restoreSafetyPointID,
+                file: file,
+                line: line
+            )
+        }
     }
 
     private func readText(from url: URL) throws -> String {

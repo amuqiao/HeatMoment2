@@ -88,7 +88,7 @@ TimelineHomeView.timelineFilterSheet
 
 非 CloudKit 本地容器下，当前已有最小本机自动恢复点能力。`LocalBackupCoordinator` 封装 `RecoveryPointManager`、SwiftData store payload 范围、当前记录/标签/照片计数、App/schema version 和 `sourceLibraryID`；`RecoveryPointManager` 负责复制 SwiftData store 文件族、写 metadata、校验文件 manifest，并按 `createdAt` 最多保留 3 个恢复点。时刻保存、软删除、标签新增/重命名等成功写入后通过 `LocalBackupWriteRecorder` 请求稳定变更恢复点，`LocalBackupCoordinator` 用 5 分钟节流避免连续编辑刷满 3 个恢复点。垃圾箱恢复、彻底删除、标签删除以及从恢复点执行 replace restore 前会先创建操作安全点；安全点创建失败时对应高风险操作中止并走 `ErrorPresenter`。
 
-设置页已有“备份与恢复”详情页：用户可查看最多 3 个恢复点，列表显示时间、记录/标签/照片计数、创建原因和 App version；点选后进入恢复预览。恢复采用 staging + armed marker + 下次冷启动 replace 的路径：未 armed 的 staged payload 不会在启动时替换当前 store；armed payload 校验失败会清理 pending 并提示当前数据未被替换；replace/rollback 发生不可恢复错误时启动快速失败，不继续用半替换 store 构建 `ModelContainer`。用户不能手动删除恢复点，也不能把恢复点导出为备份包。
+设置页已有“备份与恢复”详情页：用户可查看最多 3 个恢复点，列表显示时间、记录/标签/照片计数、创建原因和 App version；点选后进入恢复预览。恢复采用 staging + armed marker + pending context + 下次冷启动 replace 的路径：未 armed 的 staged payload 不会在启动时替换当前 store；准备恢复成功后记录所选恢复点和恢复前安全点信息，并立即展示不可交互的阻断页，要求用户完全退出并重新打开 App，避免当前会话继续写入后又被冷启动恢复覆盖；冷启动成功后提示已恢复到的时间点和恢复前安全点。armed payload 校验失败会清理 pending 并提示当前数据未被替换；replace 失败但 rollback 成功时同样提示失败且保留当前 store；replace/rollback 发生不可恢复错误时启动快速失败，不继续用半替换 store 构建 `ModelContainer`。用户不能手动删除恢复点，也不能把恢复点导出为备份包。
 
 当前本地文件分层如下：Moment 原图归 SwiftData `MomentImage.imageData`；缩略图在 `Caches/thumbnails`，可从原图重建，不参与同步；外观自定义背景图在 Application Support 的外观目录，不进入 SwiftData 或 CloudKit；语言、隐私锁、订阅缓存、默认标签首启标记和外观偏好使用 `UserDefaults`。当前没有用户可触发的外部备份包、Markdown 导出或 PDF 导出。
 

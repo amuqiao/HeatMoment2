@@ -102,7 +102,12 @@ enum ModelContainerConfig {
     /// 缺一不可的防线：前者挡住会直接崩溃的「完全无签名」场景，后者兜住会优雅抛错的
     /// 「已签名但暂不可用」场景。
     private static var hasICloudCapability: Bool {
-        FileManager.default.ubiquityIdentityToken != nil
+        #if DEBUG
+            if UITestSupport.localBackupApplicationSupportDirectory != nil {
+                return false
+            }
+        #endif
+        return FileManager.default.ubiquityIdentityToken != nil
     }
 
     /// 生产启动路径（`MoodmentsApp` 非 UI 测试场景使用，见阶段7计划决策2）：优先尝试启用
@@ -159,7 +164,12 @@ enum ModelContainerConfig {
     }
 
     private static var applicationSupportDirectory: URL {
-        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        #if DEBUG
+            if let directory = UITestSupport.localBackupApplicationSupportDirectory {
+                return directory
+            }
+        #endif
+        return FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
     }
 
     private static var appVersion: String {
