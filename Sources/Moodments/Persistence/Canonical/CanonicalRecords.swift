@@ -66,6 +66,67 @@ struct CanonicalAssetPinRecord: Sendable, Identifiable, Equatable {
     }
 }
 
+enum CanonicalRecoveryPointReason: String, Sendable, Equatable, CaseIterable {
+    case mutationSafety
+    case schemaMigration
+    case restoreSafety
+    case stableChanges
+}
+
+enum CanonicalRecoveryPointStatus: String, Sendable, Equatable, CaseIterable {
+    case available
+    case invalid
+}
+
+struct CanonicalRecoveryPointCounts: Sendable, Equatable {
+    let recordCount: Int
+    let tagCount: Int
+    let assetCount: Int
+}
+
+struct CanonicalRecoveryPointSnapshot: Sendable, Equatable {
+    let relativePath: String
+    let byteCount: Int64
+    let sha256: String
+}
+
+struct CanonicalRecoveryPointRecord: Sendable, Identifiable, Equatable {
+    let id: UUID
+    let createdAt: Date
+    let reason: CanonicalRecoveryPointReason
+    let status: CanonicalRecoveryPointStatus
+    let schemaVersion: Int
+    let appVersion: String
+    let sourceLibraryID: UUID
+    let sqliteSnapshot: CanonicalRecoveryPointSnapshot
+    let counts: CanonicalRecoveryPointCounts
+}
+
+struct CanonicalRecoveryPointAssetRecord: Sendable, Equatable {
+    let recoveryPointID: UUID
+    let assetID: UUID
+    let contentHash: String
+    let byteCount: Int64
+    let relativePath: String
+}
+
+struct CanonicalRecoveryPointCreationRequest: Sendable, Equatable {
+    let id: UUID
+    let reason: CanonicalRecoveryPointReason
+    let createdAt: Date
+    let schemaVersion: Int
+    let appVersion: String
+    let sourceLibraryID: UUID
+    let sqliteSnapshot: CanonicalRecoveryPointSnapshot
+    let counts: CanonicalRecoveryPointCounts
+    let assetManifest: [CanonicalRecoveryPointAssetRecord]
+}
+
+struct CanonicalRecoveryPointCreationResult: Sendable, Equatable {
+    let recoveryPoint: CanonicalRecoveryPointRecord
+    let evictedRecoveryPointIDs: [UUID]
+}
+
 struct CanonicalLibraryMetadata: Sendable, Equatable {
     let libraryID: UUID
     let schemaVersion: Int

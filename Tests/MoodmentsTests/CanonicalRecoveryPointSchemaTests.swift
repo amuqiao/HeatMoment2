@@ -2,18 +2,19 @@ import GRDB
 import XCTest
 @testable import Moodments
 
-final class CanonicalAssetPinSchemaTests: XCTestCase {
-    func testMigrationCreatesAssetPinTableAndIndexes() throws {
+final class CanonicalRecoveryPointSchemaTests: XCTestCase {
+    func testMigrationCreatesRecoveryPointCatalogTablesAndIndexes() throws {
         let store = try CanonicalStore.makeInMemory()
 
-        XCTAssertEqual(try assetPinTableCount(in: store), 1)
-        XCTAssertEqual(try assetPinIndexNames(in: store), expectedAssetPinIndexNames)
+        XCTAssertEqual(try tableCount(named: "recovery_point_record", in: store), 1)
+        XCTAssertEqual(try tableCount(named: "recovery_point_asset_record", in: store), 1)
+        XCTAssertEqual(try recoveryPointIndexNames(in: store), expectedRecoveryPointIndexNames)
     }
 
-    func testMigrationUpgradesV2StoreToAssetPinSchema() throws {
+    func testMigrationUpgradesV3StoreToRecoveryPointCatalog() throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent(
-                "CanonicalAssetPinSchemaTests-\(UUID().uuidString)",
+                "CanonicalRecoveryPointSchemaTests-\(UUID().uuidString)",
                 isDirectory: true
             )
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -21,7 +22,7 @@ final class CanonicalAssetPinSchemaTests: XCTestCase {
 
         let dbURL = directory.appendingPathComponent("Library.sqlite")
         _ = try CanonicalStore(path: dbURL.path)
-        try simulateV2Store(at: dbURL)
+        try simulateV3Store(at: dbURL)
 
         let upgradedStore = try CanonicalStore(path: dbURL.path)
         let schemaVersion = try upgradedStore.read { db in
@@ -35,36 +36,37 @@ final class CanonicalAssetPinSchemaTests: XCTestCase {
         }
 
         XCTAssertEqual(schemaVersion, CanonicalStore.currentSchemaVersion)
-        XCTAssertTrue(appliedMigrations.contains("v3_asset_pin_record"))
         XCTAssertTrue(appliedMigrations.contains("v4_recovery_point_catalog"))
-        XCTAssertEqual(try assetPinTableCount(in: upgradedStore), 1)
-        XCTAssertEqual(try assetPinIndexNames(in: upgradedStore), expectedAssetPinIndexNames)
+        XCTAssertEqual(try tableCount(named: "recovery_point_record", in: upgradedStore), 1)
+        XCTAssertEqual(try tableCount(named: "recovery_point_asset_record", in: upgradedStore), 1)
+        XCTAssertEqual(
+            try recoveryPointIndexNames(in: upgradedStore),
+            expectedRecoveryPointIndexNames
+        )
     }
 
-    private var expectedAssetPinIndexNames: Set<String> {
+    private var expectedRecoveryPointIndexNames: Set<String> {
         [
-            "idx_asset_record_content_hash",
-            "idx_asset_pin_record_content_hash",
-            "idx_asset_pin_record_owner",
-            "idx_asset_pin_record_expires_at"
+            "idx_recovery_point_record_created_at",
+            "idx_recovery_point_asset_record_content_hash"
         ]
     }
 
-    private func assetPinTableCount(in store: CanonicalStore) throws -> Int {
-        let tableCount = try store.read { db in
+    private func tableCount(named tableName: String, in store: CanonicalStore) throws -> Int {
+        try store.read { db in
             try Int.fetchOne(
                 db,
                 sql: """
                     SELECT COUNT(*)
                     FROM sqlite_master
-                    WHERE type = 'table' AND name = 'asset_pin_record'
-                    """
+                    WHERE type = 'table' AND name = ?
+                    """,
+                arguments: [tableName]
             ) ?? 0
         }
-        return tableCount
     }
 
-    private func assetPinIndexNames(in store: CanonicalStore) throws -> Set<String> {
+    private func recoveryPointIndexNames(in store: CanonicalStore) throws -> Set<String> {
         try store.read { db in
             try Set(
                 String.fetchAll(
@@ -74,10 +76,8 @@ final class CanonicalAssetPinSchemaTests: XCTestCase {
                         FROM sqlite_master
                         WHERE type = 'index'
                             AND name IN (
-                                'idx_asset_record_content_hash',
-                                'idx_asset_pin_record_content_hash',
-                                'idx_asset_pin_record_owner',
-                                'idx_asset_pin_record_expires_at'
+                                'idx_recovery_point_record_created_at',
+                                'idx_recovery_point_asset_record_content_hash'
                             )
                         """
                 )
@@ -85,19 +85,14 @@ final class CanonicalAssetPinSchemaTests: XCTestCase {
         }
     }
 
-    private func simulateV2Store(at dbURL: URL) throws {
+    private func simulateV3Store(at dbURL: URL) throws {
         let dbQueue = try DatabaseQueue(path: dbURL.path)
         try dbQueue.write { db in
             try db.execute(sql: "DROP TABLE IF EXISTS recovery_point_asset_record")
             try db.execute(sql: "DROP TABLE IF EXISTS recovery_point_record")
-            try db.execute(sql: "DROP TABLE IF EXISTS asset_pin_record")
-            try db.execute(sql: "DROP INDEX IF EXISTS idx_asset_record_content_hash")
-            try db.execute(sql: "UPDATE library_metadata SET schema_version = 2 WHERE id = 1")
+            try db.execute(sql: "UPDATE library_metadata SET schema_version = 3 WHERE id = 1")
             try db.execute(
                 sql: "DELETE FROM grdb_migrations WHERE identifier = 'v4_recovery_point_catalog'"
-            )
-            try db.execute(
-                sql: "DELETE FROM grdb_migrations WHERE identifier = 'v3_asset_pin_record'"
             )
         }
     }
