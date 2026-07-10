@@ -58,8 +58,8 @@ UI / ViewModel
 - 当前 `SyncStatusService` 只是启发式状态展示：`cloudKitEnabled + 网络可达性 + 最近本地写入时间`，不是 CloudKit import/export 事件，也不表达未登录 iCloud、账号变化、冲突、失败重试或恢复进度。
 - 当前 UI 用户写入入口已有过渡版 `LocalLibraryMutationService`：它仍委托 SwiftData repository，但已收口本地写入标记、稳定恢复点、安全恢复点、缩略图失效和时刻/标签创建额度终判。它是迁往 canonical store 前的应用服务边界，不是最终存储权威。
 - 当前已有 SwiftData 过渡版本机自动恢复点：最多 3 个、设置页列表、恢复预览、pending restore staging、恢复已排队阻断页、冷启动 replace、成功/失败反馈、稳定变更节流触发和高风险操作前安全点。它还不是目标 canonical store 下的最终 recovery catalog / asset pin 方案。
-- 当前已有 GRDB canonical store、repository 骨架、`CanonicalLibraryRuntime` 装配类型、SwiftData -> canonical baseline 导入器测试，以及内部 canonical recovery point catalog / asset manifest / recoveryPoint pin 生命周期测试；当前 App 启动不打开 canonical 持久库，它们尚未切入生产 UI 读写路径，也不做 SwiftData + GRDB 双写。
-- 当前没有完整数据生命周期：无 canonical UI 读写路径、无真实 SQLite snapshot 创建与 canonical restore 执行、无持久 outbox、无自定义同步状态机、无 Markdown/PDF 导出任务、无真实 iCloud 多设备验收。
+- 当前已有 GRDB canonical store、repository 骨架、`CanonicalLibraryRuntime` 装配类型、SwiftData -> canonical baseline 导入器测试，以及内部 canonical recovery point catalog / asset manifest / recoveryPoint pin / 真实 SQLite snapshot 创建与校验测试；当前 App 启动不打开 canonical 持久库，它们尚未切入生产 UI 读写路径，也不做 SwiftData + GRDB 双写。
+- 当前没有完整数据生命周期：无 canonical UI 读写路径、无 canonical restore 执行、无持久 outbox、无自定义同步状态机、无 Markdown/PDF 导出任务、无真实 iCloud 多设备验收。
 - 当前 SwiftData 是过渡实现和 UI 可用路径，不作为目标架构里的最终数据权威。
 
 ## Mature Choices
@@ -303,11 +303,11 @@ Apple ID / iCloud 边界必须可见：
 ## Remaining Gaps
 
 - SQLite/GRDB 依赖决策、首版 schema/repository 骨架、canonical runtime 类型、content-addressed asset store 和 SwiftData baseline 导入器已经进入 current；仍需要把导入器纳入受控 cutover，并补齐失败重试、rebuild 和恢复点协作策略。
-- 已将 canonical recovery catalog、asset manifest、retention=3 和 recoveryPoint content-hash pin 的内部地基迁入 GRDB；仍需要把 SwiftData 过渡版创建触发器、不可删除 UI 契约、真实 SQLite snapshot 和 restore replace 路径迁入 canonical。
+- 已将 canonical recovery catalog、asset manifest、retention=3、recoveryPoint content-hash pin、真实 SQLite snapshot 创建和 snapshot/asset 校验的内部地基迁入 GRDB；仍需要把 SwiftData 过渡版创建触发器、不可删除 UI 契约、迁移前安全点闸门和 restore replace 路径迁入 canonical。
 - 需要在后续独立 iCloud 计划中，把当前 iCloud 三态启发式替换为可区分 Apple ID / 网络 / outbox / conflict 的状态模型。
 - 需要在已落地的本地 canonical runtime/importer/asset store 上补齐 derived query layer、受控 cutover/rebuild path，并接入生产用户路径。
 - 现有 SwiftData 过渡版恢复点只覆盖 `Moodments.store*`，不覆盖 `Application Support/Canonical/`；cutover 前必须定义 restore 后 canonical invalidation/rebuild 契约，或采用 wipe + reimport 作为唯一受控流程。
-- 需要将已落地 SwiftData 过渡版恢复点的真实 snapshot 创建、校验、UI 列表/预览和 replace restore 迁入 canonical，并补齐 restore job 表和 canonical replace cleanup。
+- 需要将已落地 SwiftData 过渡版恢复点的 UI 列表/预览、触发器、安全点闸门和 replace restore 迁入 canonical，并补齐 restore job 表和 canonical replace cleanup。
 - 需要实现 Markdown/PDF 导出服务和设置详情页流程。
 - 需要另建 iCloud 独立计划，覆盖 custom zone 同步、outbox、checkpoint、冲突记录、用户可见状态和真机矩阵。
 
@@ -328,12 +328,12 @@ Apple ID / iCloud 边界必须可见：
 
 - 已落地内部 `recovery_point` catalog 与 asset manifest：v4 `recovery_point_record` / `recovery_point_asset_record` 记录 SQLite snapshot 相对路径/字节数/hash、schema/app version、source library、原因、状态和记录/标签/照片计数。
 - 已落地内部最多 3 个保留策略和 recoveryPoint asset pin：创建恢复点在单个 GRDB 写事务内写 catalog、manifest 和 `owner_kind = recoveryPoint` content-hash pin；第 4 个恢复点会淘汰最旧项并释放对应 pin。
-- 继续实现真实 SQLite 快照文件创建，确保快照与 catalog 同步落盘。
+- 已落地真实 SQLite snapshot 创建与校验：使用 GRDB online backup 写入 staging，从 snapshot 自身读取 metadata/count/asset manifest，校验 asset blob，atomic move 后写 catalog；snapshot hash / byte count / schema version / asset blob 校验失败会把 catalog status 标为 `invalid`；第 4 个恢复点会同步删除被淘汰的 snapshot 目录。
 - 实现迁移前恢复点创建，创建失败则中止 destructive migration。
-- 实现恢复点完整性校验和不可恢复状态展示。
+- 实现恢复点不可恢复状态展示。
 - 先提供内部 service 和测试，不必完成全部设置 UI。
 
-验收：在任何 SwiftData -> canonical 迁移或 destructive schema migration 前，都能先创建一个可校验恢复点；连续创建第 4 个恢复点会淘汰最旧项并释放对应 pin；用户路径不存在删除入口。当前 catalog / manifest / pin / retention 已有内部测试证据，但真实 snapshot 创建、校验和迁移闸门仍未完成。
+验收：在任何 SwiftData -> canonical 迁移或 destructive schema migration 前，都能先创建一个可校验恢复点；连续创建第 4 个恢复点会淘汰最旧项并释放对应 pin；用户路径不存在删除入口。当前 catalog / manifest / pin / retention / 真实 snapshot 创建与校验已有内部测试证据，但迁移闸门和用户可见不可恢复状态仍未完成。
 
 ### 2. Canonical Local Core
 
@@ -361,7 +361,7 @@ Apple ID / iCloud 边界必须可见：
 
 ### 4. Recovery Point UI And Restore
 
-- 将 SwiftData 过渡版恢复点触发器、真实 snapshot 创建、设置列表/预览和恢复执行迁入 canonical `recovery_point` catalog。
+- 将 SwiftData 过渡版恢复点触发器、设置列表/预览和恢复执行迁入 canonical `recovery_point` catalog。
 - 在 canonical store 下继续实现恢复点淘汰后的文件清理、restore staging pin、资产 GC 协作。
 - 在 destructive schema migration 前创建可校验恢复点。
 - 在 canonical replace restore 后重建 `syncEpoch` 占位、清空旧 outbox/token 占位、重建 projection。

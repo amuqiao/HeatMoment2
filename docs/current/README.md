@@ -23,9 +23,9 @@
 | 热力图定位 | 已落地。热力图由首页局部状态在导航栏下方原位展开，作为顶部上下文区参与主页布局；点日/点有记录的月份只写时间 anchor，不改筛选条件。选中月份用主色低透明蒙层标记。 | `TimelineHomeView.swift`、`YearHeatmapView.swift`、`HeatmapGridView.swift`、`TimelineViewportView.swift` |
 | 筛选 | 已落地。当前是首页局部半屏/大屏 `FilterPanelView` sheet，不进 `AppRouter.rootSheet`，标签/心情以紧凑网格选择，提供“全部心情”和“清除全部”，点选即时生效且选择后不自动关闭；筛选 sheet 只选择已有标签，不提供标签新增入口。 | `TimelineHomeView.swift`、`FilterPanelView.swift` |
 | 标签创建归属 | 已落地。编辑器 `TagPickerView` 和首页筛选 `FilterPanelView` 只消费已有标签，不临时创建标签；标签新增、重命名、删除统一归属设置页 `TagManageView`。 | `MomentEditorView.swift`、`TagPickerView.swift`、`FilterPanelView.swift`、`TagManageView.swift` |
-| 数据持久化 | 生产 UI 路径已落地但属于过渡形态。当前用户写入仍使用 SwiftData `Moment` / `Tag` / `MomentImage`，生产启动路径会尝试 SwiftData + CloudKit 私有库容器，不可用时回退本地容器；UI 用户写入入口经 `LocalLibraryMutationService` 编排后再调用 SwiftData repository，同步状态仅由 CloudKit 是否启用、网络可达性和最近本地写入时间启发式推导。GRDB canonical local core 已有 schema、repository、`CanonicalLibraryRuntime` 装配类型、content-addressed `FileAssetStore`、SwiftData baseline 导入器、content-hash pin 表和内部 recovery point catalog store；导入器已把 SwiftData 原图字节写入 asset store，并用 SQLite `asset_record` 保存 hash/MIME/尺寸/字节数 metadata。当前 App 启动不打开 canonical 持久库，canonical 尚未接入生产 UI，也不是双写路径。目标数据生命周期见计划层，不把当前 SwiftData 模型定义为最终权威。 | `ModelContainer+Config.swift`、`MoodmentsApp.swift`、`Moment.swift`、`Tag.swift`、`MomentImage.swift`、`LocalLibraryMutationService.swift`、`SyncStatusService.swift`、`CanonicalStore.swift`、`CanonicalLibraryRuntime.swift`、`FileAssetStore.swift`、`SwiftDataCanonicalImporter.swift`、`CanonicalLibraryRepository.swift`、`CanonicalRecoveryPointStore.swift` |
+| 数据持久化 | 生产 UI 路径已落地但属于过渡形态。当前用户写入仍使用 SwiftData `Moment` / `Tag` / `MomentImage`，生产启动路径会尝试 SwiftData + CloudKit 私有库容器，不可用时回退本地容器；UI 用户写入入口经 `LocalLibraryMutationService` 编排后再调用 SwiftData repository，同步状态仅由 CloudKit 是否启用、网络可达性和最近本地写入时间启发式推导。GRDB canonical local core 已有 schema、repository、`CanonicalLibraryRuntime` 装配类型、content-addressed `FileAssetStore`、SwiftData baseline 导入器、content-hash pin 表、内部 recovery point catalog store 和真实 SQLite snapshot service；导入器已把 SwiftData 原图字节写入 asset store，并用 SQLite `asset_record` 保存 hash/MIME/尺寸/字节数 metadata。当前 App 启动不打开 canonical 持久库，canonical 尚未接入生产 UI，也不是双写路径。目标数据生命周期见计划层，不把当前 SwiftData 模型定义为最终权威。 | `ModelContainer+Config.swift`、`MoodmentsApp.swift`、`Moment.swift`、`Tag.swift`、`MomentImage.swift`、`LocalLibraryMutationService.swift`、`SyncStatusService.swift`、`CanonicalStore.swift`、`CanonicalLibraryRuntime.swift`、`FileAssetStore.swift`、`SwiftDataCanonicalImporter.swift`、`CanonicalLibraryRepository.swift`、`CanonicalRecoveryPointStore.swift`、`CanonicalRecoveryPointSnapshotService.swift` |
 | 本地自动恢复点 | 已落地最小 SwiftData 过渡版。非 CloudKit 本地容器下，App 自动维护最多 3 个恢复点；普通用户写入后经 `LocalLibraryMutationService` 按稳定变更节流创建恢复点；垃圾箱恢复/彻底删除、标签删除和恢复点 replace restore 前创建操作安全点。设置页提供“备份与恢复”列表和恢复预览；用户可恢复、不可删除恢复点；准备恢复后进入阻断页等待重启，冷启动完成后提示恢复结果。 | `LocalLibraryMutationService.swift`、`LocalBackupCoordinator.swift`、`RecoveryPointManager.swift`、`LocalBackupRestoreExecutor.swift`、`BackupRestoreView.swift`、`PendingLocalRestoreView.swift` |
-| Canonical 恢复点地基 | 已落地内部 store，不接 UI。v4 schema 新增 `recovery_point_record` 与 `recovery_point_asset_record`，记录恢复点原因、状态、schema/app version、source library、SQLite 快照相对路径/字节数/hash、记录/标签/照片计数和 asset manifest；`CanonicalRecoveryPointStore` 在单个 GRDB 写事务内创建 catalog、写入 asset manifest、写入 `owner_kind = recoveryPoint` 的 content-hash pin，并在超过 3 个时淘汰最旧恢复点和释放对应 pin。当前还没有真实 SQLite 快照文件创建、完整性校验 UI、restore staging 或 canonical replace restore。 | `CanonicalStore.swift`、`CanonicalRecords.swift`、`CanonicalRecoveryPointStore.swift`、`CanonicalLibraryRuntime.swift` |
+| Canonical 恢复点地基 | 已落地内部 store/service，不接 UI。v4 schema 新增 `recovery_point_record` 与 `recovery_point_asset_record`，记录恢复点原因、状态、schema/app version、source library、SQLite 快照相对路径/字节数/hash、记录/标签/照片计数和 asset manifest；`CanonicalRecoveryPointStore` 在单个 GRDB 写事务内创建 catalog、写入 asset manifest、写入 `owner_kind = recoveryPoint` 的 content-hash pin，并在超过 3 个时淘汰最旧恢复点和释放对应 pin。`CanonicalRecoveryPointSnapshotService` 使用 GRDB online backup 创建真实 SQLite snapshot，先写 staging，按 snapshot 自身读取 metadata/count/asset manifest，校验 asset blob，atomic move 到 `RecoveryPoints/<id>/Library.sqlite` 后写 catalog；catalog 失败会清理 snapshot 目录，淘汰旧恢复点会同步删除旧 snapshot 目录，校验失败会把恢复点标为 `invalid`。当前还没有设置页 canonical 恢复点 UI、restore staging、canonical replace restore、迁移前安全点闸门或启动期 orphan snapshot 目录 reconciliation。 | `CanonicalStore.swift`、`CanonicalRecords.swift`、`CanonicalRecoveryPointStore.swift`、`CanonicalRecoveryPointSnapshotService.swift`、`CanonicalLibraryRuntime.swift` |
 | 上下文标记 | 已落地。筛选标记和时间定位标记可并存、可分别移除。 | `TimelineContextMarkerBar.swift`、`TimelineModel.swift` |
 | 编辑页日期/时间选择 | 已落地。日期和时间由局部 `.popover` 打开系统 `DatePicker`，即时回写 `occurredAt`；日期/时间 popover 打开与 `OccurredAtComposer` 合成语义已有窄测试覆盖，时间 picker 只替换时/分并保留不可见秒。 | `MomentEditorView.swift`、`DateTimePopovers.swift` |
 | 任务页骨架 | 已落地。设置、外观、编辑、预览等任务型 sheet 共享 `TaskSurfaceMetrics` / `TaskPageScrollView` / `TaskSurfaceSection` / `TaskSurfacePanel` 的响应式内容列；Pro 横幅、设置分组、外观分组、编辑输入面板和添加照片 CTA 统一横向边界。首页气泡、时间轴、筛选 popover、标签创建 sheet 不混入这套任务内容列。 | `TaskContainerStyle.swift`、`SettingsSheetView.swift`、`AppearanceThemeView.swift`、`MomentEditorView.swift`、`MomentPreviewView.swift` |
@@ -57,6 +57,7 @@
 - `Tests/MoodmentsTests/CanonicalRuntimeImportTests.swift`
 - `Tests/MoodmentsTests/CanonicalRecoveryPointSchemaTests.swift`
 - `Tests/MoodmentsTests/CanonicalRecoveryPointStoreTests.swift`
+- `Tests/MoodmentsTests/CanonicalRecoveryPointSnapshotServiceTests.swift`
 - `Tests/MoodmentsTests/ThumbnailCacheInvalidationTests.swift`
 - `Tests/MoodmentsUITests/BackupRestoreUITests.swift`
 - `Tests/MoodmentsUITests/CreateMomentFlowUITests.swift`
@@ -215,3 +216,17 @@ git diff --check
 ```
 
 结果：通过。`CanonicalRecoveryPointSchemaTests` 覆盖 fresh schema 和 v3 -> v4 upgrade 的 `recovery_point_record`、`recovery_point_asset_record` 与索引；`CanonicalRecoveryPointStoreTests` 覆盖创建恢复点时写 catalog、asset manifest、recoveryPoint content-hash pin，超过 3 个恢复点时淘汰最旧项并释放对应 pin，且不会删除同 hash 的其他 owner pin；`CanonicalRecoveryPointValidationTests` 覆盖非法 app version、snapshot path、负计数、asset count mismatch、invalid asset hash、重复 asset ID 在写入前快速失败。`CanonicalAssetPinSchemaTests` 已更新为 v2 store 重新应用 v3/v4 的迁移场景。`./scripts/lint.sh` 退出码为 0，但仓库仍有既有 warning，本阶段新增文件也有非阻断 complexity / file length / formatter warning，留待统一 lint 规则整理或后续小步拆分。当前只完成 canonical 内部恢复点目录、资产清单和 pin 生命周期地基；真实 SQLite 快照文件创建、恢复点完整性校验 UI、restore staging、canonical replace restore、导出和 iCloud 同步仍未实现。
+
+2026-07-10 本轮 canonical recovery point 真实 SQLite snapshot / 校验的定向验证：
+
+```sh
+./scripts/gen.sh
+./scripts/test.sh --only MoodmentsTests/RecoveryPointSnapshotServiceTests
+./scripts/test.sh --only MoodmentsTests/CanonicalRecoveryPointStoreTests
+./scripts/test.sh --only MoodmentsTests/CanonicalRecoveryPointValidationTests
+./scripts/build.sh
+./scripts/lint.sh
+git diff --check
+```
+
+结果：通过。`RecoveryPointSnapshotServiceTests` 覆盖 GRDB online backup 生成真实 SQLite snapshot、catalog/count/manifest 从 snapshot 自身读取、snapshot 不包含后续 live store 写入、snapshot hash 损坏标记 `invalid`、asset blob 缺失标记 `invalid`、catalog count 与 snapshot 漂移时标记 `invalid`、第 4 个恢复点淘汰最旧 snapshot 目录，以及 catalog 写入失败时清理 snapshot 目录。`./scripts/lint.sh` 退出码为 0，但仓库仍有既有 warning；本阶段新增 snapshot service / tests 仍有非阻断 function body length warning，暂不为消 warning 拆散流程。当前仍未实现 canonical 设置页恢复点 UI、迁移前安全点闸门、restore staging、canonical replace restore 和启动期 orphan snapshot 目录 reconciliation。

@@ -5,6 +5,7 @@ struct CanonicalStoreDescriptor: Sendable, Equatable {
     let rootDirectory: URL
     let databaseURL: URL
     let assetDirectoryURL: URL
+    let recoveryPointDirectoryURL: URL
 
     init(
         rootDirectory: URL,
@@ -13,6 +14,10 @@ struct CanonicalStoreDescriptor: Sendable, Equatable {
         self.rootDirectory = rootDirectory
         databaseURL = rootDirectory.appendingPathComponent(databaseFileName)
         assetDirectoryURL = rootDirectory.appendingPathComponent("Assets", isDirectory: true)
+        recoveryPointDirectoryURL = rootDirectory.appendingPathComponent(
+            "RecoveryPoints",
+            isDirectory: true
+        )
     }
 }
 
@@ -23,6 +28,7 @@ struct CanonicalLibraryRuntime: Sendable {
     let repository: CanonicalLibraryRepository
     let assetPinStore: CanonicalAssetPinStore
     let recoveryPointStore: CanonicalRecoveryPointStore
+    let recoveryPointSnapshotService: CanonicalRecoveryPointSnapshotService
     let assetReachabilityService: CanonicalAssetReachabilityService
     let assetOperationGate: CanonicalAssetOperationGate
 
@@ -36,9 +42,18 @@ struct CanonicalLibraryRuntime: Sendable {
         assetStore = FileAssetStore(rootDirectory: descriptor.assetDirectoryURL)
         repository = CanonicalLibraryRepository(store: store)
         assetPinStore = CanonicalAssetPinStore(store: store)
-        recoveryPointStore = CanonicalRecoveryPointStore(store: store)
+        let recoveryPointStore = CanonicalRecoveryPointStore(store: store)
+        self.recoveryPointStore = recoveryPointStore
         assetOperationGate = CanonicalAssetOperationGate.shared(
             forAssetRootDirectory: assetStore.rootDirectory
+        )
+        recoveryPointSnapshotService = CanonicalRecoveryPointSnapshotService(
+            store: store,
+            recoveryPointStore: recoveryPointStore,
+            assetStore: assetStore,
+            operationGate: assetOperationGate,
+            rootDirectory: descriptor.rootDirectory,
+            recoveryPointDirectoryURL: descriptor.recoveryPointDirectoryURL
         )
         assetReachabilityService = CanonicalAssetReachabilityService(
             store: store,
@@ -53,9 +68,22 @@ struct CanonicalLibraryRuntime: Sendable {
         self.assetStore = assetStore
         repository = CanonicalLibraryRepository(store: store)
         assetPinStore = CanonicalAssetPinStore(store: store)
-        recoveryPointStore = CanonicalRecoveryPointStore(store: store)
+        let recoveryPointStore = CanonicalRecoveryPointStore(store: store)
+        self.recoveryPointStore = recoveryPointStore
+        let rootDirectory = assetStore.rootDirectory.deletingLastPathComponent()
         assetOperationGate = CanonicalAssetOperationGate.shared(
             forAssetRootDirectory: assetStore.rootDirectory
+        )
+        recoveryPointSnapshotService = CanonicalRecoveryPointSnapshotService(
+            store: store,
+            recoveryPointStore: recoveryPointStore,
+            assetStore: assetStore,
+            operationGate: assetOperationGate,
+            rootDirectory: rootDirectory,
+            recoveryPointDirectoryURL: rootDirectory.appendingPathComponent(
+                "RecoveryPoints",
+                isDirectory: true
+            )
         )
         assetReachabilityService = CanonicalAssetReachabilityService(
             store: store,

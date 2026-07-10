@@ -81,6 +81,36 @@ struct CanonicalRecoveryPointStore: Sendable {
             return try rows.map(makeAssetRecord(row:))
         }
     }
+
+    func recoveryPoint(id: UUID) throws -> CanonicalRecoveryPointRecord? {
+        try store.read { db in
+            let row = try Row.fetchOne(
+                db,
+                sql: "SELECT * FROM recovery_point_record WHERE id = ?",
+                arguments: [id.uuidString]
+            )
+            return try row.map(makeRecoveryPointRecord(row:))
+        }
+    }
+
+    @discardableResult
+    func updateStatus(
+        _ status: CanonicalRecoveryPointStatus,
+        for id: UUID
+    ) throws -> CanonicalRecoveryPointRecord? {
+        try store.write { db in
+            try db.execute(
+                sql: "UPDATE recovery_point_record SET status = ? WHERE id = ?",
+                arguments: [status.rawValue, id.uuidString]
+            )
+            let row = try Row.fetchOne(
+                db,
+                sql: "SELECT * FROM recovery_point_record WHERE id = ?",
+                arguments: [id.uuidString]
+            )
+            return try row.map(makeRecoveryPointRecord(row:))
+        }
+    }
 }
 
 private extension CanonicalRecoveryPointStore {

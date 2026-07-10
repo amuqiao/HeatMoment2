@@ -257,3 +257,18 @@ final class CanonicalStore: @unchecked Sendable {
         return migrator
     }
 }
+
+extension CanonicalStore {
+    func backup(to destinationURL: URL) throws {
+        let fileManager = FileManager.default
+        try fileManager.createDirectory(
+            at: destinationURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        if fileManager.fileExists(atPath: destinationURL.path) {
+            try fileManager.removeItem(at: destinationURL)
+        }
+        let destination = try DatabaseQueue(path: destinationURL.path)
+        try dbQueue.backup(to: destination)
+    }
+}
