@@ -47,6 +47,22 @@ final class TagRepositoryTests: XCTestCase {
         XCTAssertEqual(total, 1)
     }
 
+    func testCreateOrReuseTagIsAtomicForConcurrentSameName() async throws {
+        let repository = try XCTUnwrap(repository)
+        let quotaService = QuotaService(
+            entitlementProvider: SubscriptionEntitlementProvider(isPro: false)
+        )
+
+        async let first = repository.createOrReuseTag(name: "旅行", quotaService: quotaService)
+        async let second = repository.createOrReuseTag(name: "旅行", quotaService: quotaService)
+        let results = try await [first, second]
+
+        XCTAssertEqual(Set(results.map(\.id)).count, 1)
+        XCTAssertEqual(results.filter(\.didCreate).count, 1)
+        let total = try await repository.totalTagCount()
+        XCTAssertEqual(total, 1)
+    }
+
     func testTotalTagCountReflectsRowCount() async throws {
         try await repository.createTag(name: "工作")
         try await repository.createTag(name: "生活")

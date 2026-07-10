@@ -10,4 +10,6 @@ enum RepositoryError: Error, Equatable {
     /// 重命名标签撞名（见 `TagRepository.renameTag(id:newName:)`，阶段6：应用层查重，
     /// CloudKit 不支持 `.unique`，与 `createTag` 前置查重同一约束）。
     case tagNameConflict(String)
+    /// 创建写入超过免费额度。UI/application service 可据此打开对应 Paywall，不静默创建。
+    case quotaExceeded(QuotaKind)
 }

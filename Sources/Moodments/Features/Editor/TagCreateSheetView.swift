@@ -5,10 +5,9 @@ import SwiftUI
 /// 第二层（从 `TagManageView` 打开，见 08-architecture.md §2.2），供标签管理新增/重命名
 /// 共用同一实现（阶段6：`editing` 非 `nil` 即重命名态，预填原名）。
 ///
-/// **创建态**：保存时应用层查重（`TagRepository.findTag(named:)`，CloudKit 不支持 `.unique`，
-/// 见 07-data-persistence.md §2）——命中已存在同名标签则直接复用回填，不重复创建；未命中先复核
-/// 标签额度，仍允许时才新建。
-/// **重命名态**：保存分流到 `TagRepository.renameTag(id:newName:)`（应用层查重撞名抛
+/// **创建态**：保存时由 `LocalLibraryMutationService` 做同名复用、标签额度终判和新建写入；
+/// 命中已存在同名标签则直接复用回填，不重复创建。
+/// **重命名态**：保存分流到 `LocalLibraryMutationService.renameTag(id:newName:)`（仓储层查重撞名抛
 /// `tagNameConflict`）。空输入禁用保存；写失败改走统一 `ErrorPresenter`（用户可见、不中止进程、
 /// 不 dismiss——保留输入内容供重试，见阶段6计划决策3）。
 struct TagCreateSheetView: View {
@@ -22,6 +21,7 @@ struct TagCreateSheetView: View {
     @Environment(ThemeManager.self) private var theme
     @Environment(ErrorPresenter.self) private var errorPresenter
     @Environment(SubscriptionService.self) private var subscriptionService
+    @Environment(SyncStatusService.self) private var syncStatusService
     @Environment(\.localBackupCoordinator) private var localBackupCoordinator
     @State private var name: String
     @State private var isSaving = false
@@ -138,39 +138,26 @@ struct TagCreateSheetView: View {
         guard !trimmedName.isEmpty else { return }
         isSaving = true
         defer { isSaving = false }
-        let repository = TagRepository(modelContainer: modelContainer)
         do {
             if let editing {
-                try await repository.renameTag(id: editing.id, newName: trimmedName)
-                LocalBackupWriteRecorder.recordStableChanges(
-                    using: localBackupCoordinator,
-                    errorPresenter: errorPresenter
-                )
+                try await mutationService.renameTag(id: editing.id, newName: trimmedName)
                 onCreated(editing.id, trimmedName)
                 dismiss()
                 return
             }
-            if let existing = try await repository.findTag(named: trimmedName) {
-                onCreated(existing.id, existing.name)
-                dismiss()
-                return
-            }
-            guard try await canCreateTag(repository: repository) else {
-                paywallTrigger = .quotaTag
-                return
-            }
-            let id = try await repository.createTag(name: trimmedName)
-            LocalBackupWriteRecorder.recordStableChanges(
-                using: localBackupCoordinator,
-                errorPresenter: errorPresenter
+            let result = try await mutationService.createOrReuseTag(
+                name: trimmedName,
+                quotaService: await quotaService()
             )
-            onCreated(id, trimmedName)
+            onCreated(result.id, result.name)
             dismiss()
         } catch RepositoryError.tagNameConflict(let conflictingName) {
             await errorPresenter.report(
                 message: "标签名「\(conflictingName)」已存在，请换一个名称。",
                 underlying: RepositoryError.tagNameConflict(conflictingName)
             )
+        } catch LocalLibraryMutationError.quotaExceeded(.tags) {
+            paywallTrigger = .quotaTag
         } catch {
             let message: String.LocalizationValue =
                 editing == nil ? "创建标签失败，请稍后重试。" : "重命名标签失败，请稍后重试。"
@@ -178,12 +165,19 @@ struct TagCreateSheetView: View {
         }
     }
 
-    private func canCreateTag(repository: TagRepository) async throws -> Bool {
-        let count = try await repository.totalTagCount()
+    private func quotaService() async -> QuotaService {
         let isPro = await subscriptionService.currentEntitlementIsPro()
-        let quotaService = QuotaService(
+        return QuotaService(
             entitlementProvider: SubscriptionEntitlementProvider(isPro: isPro)
         )
-        return quotaService.checkCanCreateTag(currentTagCount: count) == .allowed
+    }
+
+    private var mutationService: LocalLibraryMutationService {
+        LocalLibraryMutationService(
+            modelContainer: modelContainer,
+            localBackupCoordinator: localBackupCoordinator,
+            syncStatusService: syncStatusService,
+            errorPresenter: errorPresenter
+        )
     }
 }

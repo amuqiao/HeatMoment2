@@ -269,24 +269,28 @@ struct MomentEditorView: View {
         Task {
             defer { isSaving = false }
             do {
-                try await model.save()
-                // 保存成功即一次本地写入，驱动设置页 iCloud 行短暂展示「同步中」三态
-                // （见 `SyncStatusService.noteLocalWrite()` 头部说明，阶段7 review 建议9）。
-                syncStatusService.noteLocalWrite()
-                LocalBackupWriteRecorder.recordStableChanges(
-                    using: localBackupCoordinator,
-                    errorPresenter: errorPresenter
-                )
+                try await model.save(using: mutationService)
                 if case .create = mode {
                     lastUsedMood = model.mood
                 }
                 dismiss()
+            } catch LocalLibraryMutationError.quotaExceeded(.moments) {
+                editorPaywallTrigger = .quotaMoment
             } catch {
                 // 保存失败不 dismiss——草稿留在编辑器内供用户重试，不假装保存成功
                 // （见阶段6计划决策3：可恢复写失败改走统一错误通道，不伪造成功）。
                 await errorPresenter.report(message: "保存时刻失败，请稍后重试。", underlying: error)
             }
         }
+    }
+
+    private var mutationService: LocalLibraryMutationService {
+        LocalLibraryMutationService(
+            modelContainer: modelContainer,
+            localBackupCoordinator: localBackupCoordinator,
+            syncStatusService: syncStatusService,
+            errorPresenter: errorPresenter
+        )
     }
 
 }

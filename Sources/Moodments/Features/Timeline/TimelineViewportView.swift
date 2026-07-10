@@ -269,21 +269,22 @@ struct TimelineViewportView: View {
         guard let momentID = entry.momentID else { return }
         Task {
             do {
-                let repository = MomentRepository(modelContainer: modelContext.container)
-                try await repository.softDelete(id: momentID)
-                // 软删除也是一次本地写入，驱动设置页 iCloud 行短暂展示「同步中」三态
-                // （见 `SyncStatusService.noteLocalWrite()` 头部说明，阶段7 review 建议9）。
-                syncStatusService.noteLocalWrite()
-                LocalBackupWriteRecorder.recordStableChanges(
-                    using: localBackupCoordinator,
-                    errorPresenter: errorPresenter
-                )
+                try await mutationService.softDeleteMoment(id: momentID)
             } catch {
                 // `@Query` 是真相源：删除失败时它本就不会反映出该行已消失，不需要额外回滚
                 // 本地状态（见阶段6计划决策3：可恢复写失败改走统一错误通道）。
                 errorPresenter.report(message: "删除失败，请稍后重试。", underlying: error)
             }
         }
+    }
+
+    private var mutationService: LocalLibraryMutationService {
+        LocalLibraryMutationService(
+            modelContainer: modelContext.container,
+            localBackupCoordinator: localBackupCoordinator,
+            syncStatusService: syncStatusService,
+            errorPresenter: errorPresenter
+        )
     }
 
     // MARK: - 标题两态（见 04-screen-specs.md §4.1）

@@ -117,22 +117,13 @@ struct TrashView: View {
     private func handleRestore(_ item: MomentSnapshot) {
         Task {
             do {
-                try await LocalBackupWriteRecorder.createMutationSafetyPoint(
-                    using: localBackupCoordinator
-                )
-            } catch {
+                try await mutationService.restoreMoment(id: item.id)
+                await reload()
+            } catch LocalLibraryMutationError.mutationSafetyPointFailed(let underlying) {
                 await errorPresenter.report(
                     message: "创建操作前安全备份失败，请稍后重试。",
-                    underlying: error
+                    underlying: underlying
                 )
-                return
-            }
-            do {
-                try await MomentRepository(modelContainer: modelContext.container).restore(
-                    id: item.id)
-                // 恢复也是一次本地写入，驱动设置页 iCloud 行短暂展示「同步中」三态
-                // （见 `SyncStatusService.noteLocalWrite()` 头部说明，阶段7 review 建议9）。
-                syncStatusService.noteLocalWrite()
                 await reload()
             } catch {
                 await errorPresenter.report(message: "恢复失败，请稍后重试。", underlying: error)
@@ -147,31 +138,28 @@ struct TrashView: View {
     private func handlePurge(_ item: MomentSnapshot) {
         Task {
             do {
-                try await LocalBackupWriteRecorder.createMutationSafetyPoint(
-                    using: localBackupCoordinator
-                )
-            } catch {
+                try await mutationService.purgeMoment(id: item.id, imageIDs: item.imageIDs)
+                await reload()
+            } catch LocalLibraryMutationError.mutationSafetyPointFailed(let underlying) {
                 await errorPresenter.report(
                     message: "创建操作前安全备份失败，请稍后重试。",
-                    underlying: error
+                    underlying: underlying
                 )
-                return
-            }
-            do {
-                try await MomentRepository(modelContainer: modelContext.container).purge(
-                    id: item.id)
-                for imageID in item.imageIDs {
-                    await ThumbnailCache.shared.removeThumbnail(for: imageID)
-                }
-                // 彻底删除同样是一次本地写入，驱动设置页 iCloud 行短暂展示「同步中」三态
-                // （见 `SyncStatusService.noteLocalWrite()` 头部说明，阶段7 review 建议9）。
-                syncStatusService.noteLocalWrite()
                 await reload()
             } catch {
                 await errorPresenter.report(message: "彻底删除失败，请稍后重试。", underlying: error)
                 await reload()
             }
         }
+    }
+
+    private var mutationService: LocalLibraryMutationService {
+        LocalLibraryMutationService(
+            modelContainer: modelContext.container,
+            localBackupCoordinator: localBackupCoordinator,
+            syncStatusService: syncStatusService,
+            errorPresenter: errorPresenter
+        )
     }
 
     private static let dateFormatter: DateFormatter = {

@@ -81,8 +81,17 @@ final class ThumbnailCacheInvalidationTests: XCTestCase {
         let model = MomentEditorModel(
             mode: .edit(momentID), modelContainer: container, subscriptionService: SubscriptionService()
         )
+        let mutationService = LocalLibraryMutationService(
+            modelContainer: container,
+            localBackupCoordinator: nil,
+            syncStatusService: SyncStatusService(
+                cloudKitEnabled: false,
+                reachabilityChecker: ImmediateReachabilityChecker()
+            ),
+            errorPresenter: ErrorPresenter()
+        )
         try await model.load()
-        try await model.save()
+        try await model.save(using: mutationService)
 
         let hasCachedAfterSave = await ThumbnailCache.shared.hasMemoryCachedThumbnail(for: originalImageID)
         XCTAssertFalse(hasCachedAfterSave, "编辑保存后旧 imageID 的缩略图缓存应已被失效")
@@ -102,4 +111,8 @@ final class ThumbnailCacheInvalidationTests: XCTestCase {
 private actor CallCounter {
     private(set) var value = 0
     func increment() { value += 1 }
+}
+
+private struct ImmediateReachabilityChecker: NetworkReachabilityChecking {
+    func isReachable() async -> Bool { true }
 }

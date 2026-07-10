@@ -216,29 +216,26 @@ final class MomentEditorModel {
 
     // MARK: - 保存
 
-    /// 组装当前草稿并写入仓库。`.edit` 态始终传入 `imageDatas`（即便照片未改动也按当前顺序
+    /// 组装当前草稿并写入资料库。`.edit` 态始终传入 `imageDatas`（即便照片未改动也按当前顺序
     /// 重建）——仓库层无法区分「未改动」与「改动为同样内容」，重建代价对最多 3 张照片可接受
     /// （见阶段 3 计划决策2）。
-    /// - Throws: 仓库写入失败时抛出（如 `.edit` 态 id 已不存在），调用方不吞错。
-    func save() async throws {
+    /// - Throws: 写入失败时抛出（如 `.edit` 态 id 已不存在），调用方不吞错。
+    func save(using mutationService: LocalLibraryMutationService) async throws {
         let tagIDs = selectedTagIDs
         let photoDatas = draftPhotos.map(\.jpegData)
         switch mode {
         case .create:
-            try await repository.createMoment(
+            let quotaService = await makeCurrentQuotaService()
+            try await mutationService.createMoment(
                 title: title, bodyText: bodyText, occurredAt: occurredAt, mood: mood,
-                tagIDs: tagIDs, imageDatas: photoDatas
+                tagIDs: tagIDs, imageDatas: photoDatas, quotaService: quotaService
             )
         case let .edit(id):
-            try await repository.updateMoment(
+            try await mutationService.updateMoment(
                 id: id, title: title, bodyText: bodyText, occurredAt: occurredAt, mood: mood,
-                tagIDs: tagIDs, imageDatas: photoDatas
+                tagIDs: tagIDs, imageDatas: photoDatas,
+                replacingOriginalImageIDs: originalImageIDs
             )
-            // 旧 MomentImage 已被级联删除、按新顺序重建为全新 id（见 originalImageIDs 注释），
-            // 逐个失效对应的缩略图缓存键，避免孤儿缓存永久占用（07 §5）。
-            for imageID in originalImageIDs {
-                await ThumbnailCache.shared.removeThumbnail(for: imageID)
-            }
         }
     }
 }

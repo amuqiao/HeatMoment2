@@ -56,6 +56,7 @@ UI / ViewModel
 - 当前 App 已有 SwiftData `Moment` / `Tag` / `MomentImage` 模型、`@ModelActor` repository、软删除/恢复/彻底删除、照片压缩、缩略图缓存、设置页 iCloud 状态行和基础测试。
 - 当前生产启动路径会尝试 SwiftData + CloudKit 私有库容器，不可用时回退本地 SwiftData 容器。
 - 当前 `SyncStatusService` 只是启发式状态展示：`cloudKitEnabled + 网络可达性 + 最近本地写入时间`，不是 CloudKit import/export 事件，也不表达未登录 iCloud、账号变化、冲突、失败重试或恢复进度。
+- 当前 UI 用户写入入口已有过渡版 `LocalLibraryMutationService`：它仍委托 SwiftData repository，但已收口本地写入标记、稳定恢复点、安全恢复点、缩略图失效和时刻/标签创建额度终判。它是迁往 canonical store 前的应用服务边界，不是最终存储权威。
 - 当前已有 SwiftData 过渡版本机自动恢复点：最多 3 个、设置页列表、恢复预览、pending restore staging、恢复已排队阻断页、冷启动 replace、成功/失败反馈、稳定变更节流触发和高风险操作前安全点。它还不是目标 canonical store 下的最终 recovery catalog / asset pin 方案。
 - 当前没有完整数据生命周期：无 canonical domain store、无持久 outbox、无自定义同步状态机、无 Markdown/PDF 导出任务、无真实 iCloud 多设备验收。
 - 当前 SwiftData 是过渡实现和 UI 可用路径，不作为目标架构里的最终数据权威。
@@ -301,7 +302,7 @@ Apple ID / iCloud 边界必须可见：
 ## Remaining Gaps
 
 - 需要冻结 SQLite/GRDB 依赖决策、schema、迁移策略和 SwiftData 迁移边界。
-- 需要定义 recovery point retention=3、创建触发器、asset pin、不可删除 UI 契约。
+- 需要把已落地的恢复点 retention=3、创建触发器和不可删除 UI 契约迁入 canonical recovery catalog，并补齐 asset pin。
 - 需要在后续独立 iCloud 计划中，把当前 iCloud 三态启发式替换为可区分 Apple ID / 网络 / outbox / conflict 的状态模型。
 - 需要实现本地 canonical store、asset store、derived query layer、migration/rebuild path。
 - 需要将已落地 SwiftData 过渡版恢复点迁入 canonical recovery catalog，并补齐 asset pin、restore job 表和 canonical replace cleanup。

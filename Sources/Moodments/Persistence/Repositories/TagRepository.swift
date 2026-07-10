@@ -14,6 +14,12 @@ struct TagSnapshot: Sendable, Identifiable, Equatable {
     }
 }
 
+struct TagCreateOrReuseResult: Sendable, Equatable {
+    let id: UUID
+    let name: String
+    let didCreate: Bool
+}
+
 /// `Tag` 的后台写入仓库（`ModelActor`）：应用层查重、增删、额度计数。
 /// 唯一性由应用层保存前查重保证（CloudKit 不支持 `.unique`，见 `docs/design/07-data-persistence.md` §2）。
 @ModelActor
@@ -32,6 +38,35 @@ actor TagRepository {
         modelContext.insert(tag)
         try modelContext.save()
         return tag.id
+    }
+
+    /// 原子地完成“同名复用 + 额度终判 + 创建”。该方法刻意留在同一个 `ModelActor`
+    /// 临界区内，避免 UI/service 层跨多次 `await` 拆开后并发创建重复标签或绕过额度。
+    func createOrReuseTag(
+        name: String,
+        quotaService: QuotaService
+    ) throws -> TagCreateOrReuseResult {
+        if let existing = try findTag(named: name) {
+            return TagCreateOrReuseResult(
+                id: existing.id,
+                name: existing.name,
+                didCreate: false
+            )
+        }
+        switch quotaService.checkCanCreateTag(currentTagCount: try totalTagCount()) {
+        case .allowed:
+            break
+        case .exceeded(let kind):
+            throw RepositoryError.quotaExceeded(kind)
+        }
+        let tag = Tag(name: name)
+        modelContext.insert(tag)
+        try modelContext.save()
+        return TagCreateOrReuseResult(
+            id: tag.id,
+            name: tag.name,
+            didCreate: true
+        )
     }
 
     /// 重命名标签（见 04-screen-specs.md §4.13：`TagManageView` 列表项点击进入重命名）：
