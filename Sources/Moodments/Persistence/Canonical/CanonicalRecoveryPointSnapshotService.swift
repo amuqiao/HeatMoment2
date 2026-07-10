@@ -63,10 +63,14 @@ struct CanonicalRecoveryPointSnapshotService: Sendable {
 
     @discardableResult
     func createRecoveryPoint(
-        _ request: RecoveryPointSnapshotRequest
+        _ request: RecoveryPointSnapshotRequest,
+        enforcesRetention: Bool = true
     ) throws -> CanonicalRecoveryPointCreationResult {
         try operationGate.performSync {
-            try createRecoveryPointWithoutGate(request)
+            try createRecoveryPointWithoutGate(
+                request,
+                enforcesRetention: enforcesRetention
+            )
         }
     }
 
@@ -82,6 +86,26 @@ struct CanonicalRecoveryPointSnapshotService: Sendable {
             try reconcileRecoveryPointDirectoriesWithoutGate()
         }
     }
+
+    @discardableResult
+    func enforceRecoveryPointRetention() throws -> [UUID] {
+        try operationGate.performSync {
+            let evictedIDs = try recoveryPointStore.evictOverflowRecoveryPoints()
+            try removeEvictedRecoveryPointDirectories(evictedIDs)
+            return evictedIDs
+        }
+    }
+
+    func deleteRecoveryPoint(id: UUID) throws {
+        try operationGate.performSync {
+            let deleted = try recoveryPointStore.deleteRecoveryPoint(id: id)
+            guard deleted else { return }
+            let directory = directory(for: id)
+            if FileManager.default.fileExists(atPath: directory.path) {
+                try FileManager.default.removeItem(at: directory)
+            }
+        }
+    }
 }
 
 private extension CanonicalRecoveryPointSnapshotService {
@@ -93,7 +117,8 @@ private extension CanonicalRecoveryPointSnapshotService {
     }
 
     func createRecoveryPointWithoutGate(
-        _ request: RecoveryPointSnapshotRequest
+        _ request: RecoveryPointSnapshotRequest,
+        enforcesRetention: Bool
     ) throws -> CanonicalRecoveryPointCreationResult {
         let fileManager = FileManager.default
         try fileManager.createDirectory(
@@ -103,7 +128,8 @@ private extension CanonicalRecoveryPointSnapshotService {
 
         let pointDirectory = directory(for: request.id)
         guard !fileManager.fileExists(atPath: pointDirectory.path) else {
-            throw RecoveryPointSnapshotServiceError
+            throw
+                RecoveryPointSnapshotServiceError
                 .recoveryPointDirectoryAlreadyExists(pointDirectory.path)
         }
 
@@ -154,7 +180,8 @@ private extension CanonicalRecoveryPointSnapshotService {
                     sqliteSnapshot: snapshot,
                     counts: catalog.counts,
                     assetManifest: catalog.assetManifest
-                )
+                ),
+                enforcesRetention: enforcesRetention
             )
             try removeEvictedRecoveryPointDirectories(creationResult.evictedRecoveryPointIDs)
             return creationResult
@@ -192,14 +219,16 @@ private extension CanonicalRecoveryPointSnapshotService {
     ) throws -> CatalogInput {
         let snapshotQueue = try DatabaseQueue(path: snapshotURL.path)
         return try snapshotQueue.read { db in
-            guard let metadata = try Row.fetchOne(
-                db,
-                sql: """
-                    SELECT library_id, schema_version
-                    FROM library_metadata
-                    WHERE id = 1
-                    """
-            ) else {
+            guard
+                let metadata = try Row.fetchOne(
+                    db,
+                    sql: """
+                        SELECT library_id, schema_version
+                        FROM library_metadata
+                        WHERE id = 1
+                        """
+                )
+            else {
                 throw DatabaseError(message: "Missing canonical library metadata")
             }
             let sourceLibraryID = try metadata.canonicalUUID("library_id")
@@ -248,7 +277,8 @@ private extension CanonicalRecoveryPointSnapshotService {
     func validate(_ record: CanonicalRecoveryPointRecord) throws {
         let snapshotURL = try absoluteURL(forRelativePath: record.sqliteSnapshot.relativePath)
         guard FileManager.default.fileExists(atPath: snapshotURL.path) else {
-            throw RecoveryPointSnapshotServiceError
+            throw
+                RecoveryPointSnapshotServiceError
                 .missingSnapshotFile(snapshotURL.path)
         }
 
@@ -350,9 +380,7 @@ private extension CanonicalRecoveryPointSnapshotService {
         }
     }
 
-    func reconcileRecoveryPointDirectoriesWithoutGate()
-        throws -> RecoveryPointDirectoryReconciliationResult
-    {
+    func reconcileRecoveryPointDirectoriesWithoutGate() throws -> RecoveryPointDirectoryReconciliationResult {
         let fileManager = FileManager.default
         guard fileManager.fileExists(atPath: recoveryPointDirectoryURL.path) else {
             return RecoveryPointDirectoryReconciliationResult(removedDirectoryNames: [])
@@ -376,7 +404,7 @@ private extension CanonicalRecoveryPointSnapshotService {
                 continue
             }
             guard let recoveryPointID = UUID(uuidString: name),
-                  catalogIDs.contains(recoveryPointID)
+                catalogIDs.contains(recoveryPointID)
             else {
                 try fileManager.removeItem(at: child)
                 removedNames.append(name)

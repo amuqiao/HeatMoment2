@@ -21,7 +21,8 @@ struct CanonicalRecoveryPointStore: Sendable {
     let store: CanonicalStore
 
     func createRecoveryPoint(
-        _ request: CanonicalRecoveryPointCreationRequest
+        _ request: CanonicalRecoveryPointCreationRequest,
+        enforcesRetention: Bool = true
     ) throws -> CanonicalRecoveryPointCreationResult {
         let record = CanonicalRecoveryPointRecord(
             id: request.id,
@@ -44,11 +45,50 @@ struct CanonicalRecoveryPointStore: Sendable {
                 createdAt: request.createdAt,
                 db: db
             )
-            let evictedIDs = try evictOverflowRecoveryPoints(db: db)
+            let evictedIDs =
+                enforcesRetention
+                ? try evictOverflowRecoveryPoints(db: db)
+                : []
             return CanonicalRecoveryPointCreationResult(
                 recoveryPoint: record,
                 evictedRecoveryPointIDs: evictedIDs
             )
+        }
+    }
+
+    func evictOverflowRecoveryPoints() throws -> [UUID] {
+        try store.write { db in
+            try evictOverflowRecoveryPoints(db: db)
+        }
+    }
+
+    @discardableResult
+    func deleteRecoveryPoint(id: UUID) throws -> Bool {
+        try store.write { db in
+            let exists =
+                try Int.fetchOne(
+                    db,
+                    sql: "SELECT COUNT(*) FROM recovery_point_record WHERE id = ?",
+                    arguments: [id.uuidString]
+                ) ?? 0
+            guard exists > 0 else { return false }
+
+            try db.execute(
+                sql: """
+                    DELETE FROM asset_pin_record
+                    WHERE owner_kind = ? AND owner_id = ?
+                    """,
+                arguments: [CanonicalAssetPinOwnerKind.recoveryPoint.rawValue, id.uuidString]
+            )
+            try db.execute(
+                sql: "DELETE FROM recovery_point_asset_record WHERE recovery_point_id = ?",
+                arguments: [id.uuidString]
+            )
+            try db.execute(
+                sql: "DELETE FROM recovery_point_record WHERE id = ?",
+                arguments: [id.uuidString]
+            )
+            return true
         }
     }
 
