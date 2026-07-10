@@ -80,7 +80,9 @@ TimelineHomeView.timelineFilterSheet
 
 ## 当前持久化与同步状态
 
-当前代码使用 SwiftData 作为已落地的持久化实现，但这只是 current 事实和过渡路径，不是目标数据生命周期里的最终权威模型。当前 schema 由 `ModelContainerConfig.schema` 注册 `Moment`、`Tag`、`MomentImage`。`Moment` 承载标题、正文、发生时间、创建/更新时间、心情 raw value、标签关系、图片关系和删除生命周期字段；`Tag` 是归类对象；`MomentImage.imageData` 使用 SwiftData `externalStorage` 存原图数据。业务层没有独立 CoreData 栈、自定义 CloudKit record mapper、同步 coordinator、Markdown/PDF 导出服务或外部备份包服务。
+当前代码使用 SwiftData 作为已落地的生产持久化实现，但这只是 current 事实和过渡路径，不是目标数据生命周期里的最终权威模型。当前生产 schema 由 `ModelContainerConfig.schema` 注册 `Moment`、`Tag`、`MomentImage`。`Moment` 承载标题、正文、发生时间、创建/更新时间、心情 raw value、标签关系、图片关系和删除生命周期字段；`Tag` 是归类对象；`MomentImage.imageData` 使用 SwiftData `externalStorage` 存原图数据。业务层没有独立 CoreData 栈、自定义 CloudKit record mapper、同步 coordinator、Markdown/PDF 导出服务或外部备份包服务。
+
+本轮新增的 `Sources/Moodments/Persistence/Canonical/` 是隔离的 GRDB canonical local core 骨架，不接入 `MoodmentsApp`、`ModelContainerConfig` 或任何 SwiftUI 用户路径，也不和 SwiftData 双写。它当前包含 SQLite migration、library metadata、moment/tag records、稳定排序的 moment-tag link、asset/link 占位、tombstone、mutation log，以及 `CanonicalLibraryRepository` 的事务边界。定向测试覆盖 schema migration、Moment 生命周期、`purgePending`、标签 create-or-reuse、额度、rename/delete、删除标签时受影响 Moment 的 revision/mutation、tag tombstone、缺失引用回滚、稳定排序约束和重名冲突回滚。它的用途是作为后续 SwiftData -> canonical 迁移、资产管线、恢复点 catalog、导出和 iCloud sync follow-up 的本地权威地基；现阶段用户仍实际使用 SwiftData 路径。
 
 当前 SwiftData 持久化写入仍落在 `@ModelActor` repository：`MomentRepository` 负责创建、编辑、软删除、恢复、彻底删除、分页、额度计数、图片读取和年度聚合；`TagRepository` 负责标签查重、创建、重命名、删除、列表和额度计数。UI 用户写入入口已经通过 `LocalLibraryMutationService` 做轻量编排：创建/编辑/软删除/恢复/彻底删除时刻，以及创建或复用/重命名/删除标签，都先进入该 service；service 再调用 repository，并统一处理本地写入标记、稳定恢复点、安全恢复点、缩略图失效和时刻/标签创建额度终判。跨 actor 传递使用 `MomentSnapshot`、`MomentEditingPayload`、`MomentImageData`、`TagSnapshot` 等值类型，不把 `@Model` 引用传出仓库边界。
 

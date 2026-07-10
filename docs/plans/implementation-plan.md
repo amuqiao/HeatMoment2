@@ -301,10 +301,10 @@ Apple ID / iCloud 边界必须可见：
 
 ## Remaining Gaps
 
-- 需要冻结 SQLite/GRDB 依赖决策、schema、迁移策略和 SwiftData 迁移边界。
+- SQLite/GRDB 依赖决策和首版 schema/repository 骨架已经进入 current；仍需要冻结 SwiftData 迁移边界、rebuild 策略和失败重试策略。
 - 需要把已落地的恢复点 retention=3、创建触发器和不可删除 UI 契约迁入 canonical recovery catalog，并补齐 asset pin。
 - 需要在后续独立 iCloud 计划中，把当前 iCloud 三态启发式替换为可区分 Apple ID / 网络 / outbox / conflict 的状态模型。
-- 需要实现本地 canonical store、asset store、derived query layer、migration/rebuild path。
+- 需要在已落地的本地 canonical store 骨架上补齐 asset store、derived query layer、migration/rebuild path，并接入生产用户路径。
 - 需要将已落地 SwiftData 过渡版恢复点迁入 canonical recovery catalog，并补齐 asset pin、restore job 表和 canonical replace cleanup。
 - 需要实现 Markdown/PDF 导出服务和设置详情页流程。
 - 需要另建 iCloud 独立计划，覆盖 custom zone 同步、outbox、checkpoint、冲突记录、用户可见状态和真机矩阵。
@@ -334,8 +334,8 @@ Apple ID / iCloud 边界必须可见：
 
 ### 2. Canonical Local Core
 
-- 引入本地 SQLite store 和迁移框架。
-- 建立 canonical schema、transaction boundary 和 derived query layer。
+- 在已落地的本地 SQLite store、迁移框架和 canonical write repository 骨架上继续收敛。
+- 扩展 canonical schema、transaction boundary，并建立 derived query layer。
 - 建立 SwiftData -> canonical 的一次性迁移或重建路径。
 - 将首页、编辑、标签、垃圾箱、统计逐步迁到 repository/query layer。
 - 保证未登录 iCloud、飞行模式、无网络时本地全功能可用。
