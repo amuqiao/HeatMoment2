@@ -10,12 +10,18 @@ import SwiftUI
 /// 注入整棵树（含 `TimelineHomeView` 与 `YearHeatmapView`），使时间轴与热力图
 /// 共享同一份「定位/筛选」状态，而不是两份互不相干的拷贝。
 struct RootView: View {
+    let localBackupCoordinator: LocalBackupCoordinator?
+
     @Environment(AppRouter.self) private var router
     @Environment(\.modelContext) private var modelContext
     @Environment(ErrorPresenter.self) private var errorPresenter
     @Environment(SubscriptionService.self) private var subscriptionService
     @Environment(SyncStatusService.self) private var syncStatusService
     @State private var timelineModel = TimelineModel()
+
+    init(localBackupCoordinator: LocalBackupCoordinator? = nil) {
+        self.localBackupCoordinator = localBackupCoordinator
+    }
 
     var body: some View {
         @Bindable var router = router
@@ -42,6 +48,7 @@ struct RootView: View {
             .environment(timelineModel)
             .userFacingErrorAlert(errorPresenter)
             .task {
+                var canCreateLocalBackup = true
                 // 首启默认标签预置（见 07-data-persistence.md §4）：无条件调用（生产与 UI 测试
                 // 均需要），是否真正执行预置由 `DefaultTagSeeder` 内部的持久化「首启已完成」标记
                 // 判定（而非 `Tag` 表是否为空——用户删除默认标签后表可能变空/不完整，若仍按
@@ -62,7 +69,15 @@ struct RootView: View {
                         )
                     }
                 } catch {
-                    await errorPresenter.report(message: "初始化默认标签失败，请重启应用重试。", underlying: error)
+                    canCreateLocalBackup = false
+                    errorPresenter.report(message: "初始化默认标签失败，请重启应用重试。", underlying: error)
+                }
+                if canCreateLocalBackup, let localBackupCoordinator {
+                    do {
+                        try await localBackupCoordinator.createLaunchRecoveryPoint()
+                    } catch {
+                        errorPresenter.report(message: "创建本地备份失败，请稍后重试。", underlying: error)
+                    }
                 }
                 #if DEBUG
                     UITestSupport.seedIfRequested(modelContext)

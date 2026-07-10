@@ -25,6 +25,7 @@ struct MoodmentsApp: App {
     /// `.inactive` 中间态导致的判定失败。
     @State private var didEnterBackground = false
     private let container: ModelContainer
+    private let localBackupCoordinator: LocalBackupCoordinator?
 
     /// 语言偏好（见 `LanguagePreference`、阶段7计划决策4）：与 `LanguageSettingsView` 共享同一
     /// `UserDefaults.standard` key，切换后本 `@AppStorage` 立即失效重算、驱动下方
@@ -38,52 +39,38 @@ struct MoodmentsApp: App {
 
     init() {
         #if DEBUG
-        // UI 测试隔离（见 `UITestSupport`）：清掉上一次测试运行可能残留在 `UserDefaults.standard`
-        // 里的语言偏好（如 `LanguageSwitchUITests` 切换到 English 后未复位），保证每次 UI 测试
-        // 冷启动都从确定性的默认 `.zhHans` 起步，不受同一模拟器上先前测试运行历史影响。
-        UITestSupport.resetLanguagePreferenceIfUITestRun()
-        UITestSupport.resetDefaultTagSeedFlagIfUITestRun()
+            // UI 测试隔离（见 `UITestSupport`）：清掉上一次测试运行可能残留在 `UserDefaults.standard`
+            // 里的语言偏好（如 `LanguageSwitchUITests` 切换到 English 后未复位），保证每次 UI 测试
+            // 冷启动都从确定性的默认 `.zhHans` 起步，不受同一模拟器上先前测试运行历史影响。
+            UITestSupport.resetLanguagePreferenceIfUITestRun()
+            UITestSupport.resetDefaultTagSeedFlagIfUITestRun()
         #endif
         // 冷启动锁定用「初始值即锁」而非 `.task` 里异步 mutate：后者会遇 SwiftUI 首帧竞态
         // （body 已用 isLocked=false 求值后 .task 才改，自定义 Binding 的首次 fullScreenCover
         // present 会被丢弃），导致隐私锁开启时冷启动锁不住（见 code review 修复）。
-        _router = State(initialValue: {
-            let router = AppRouter()
-            router.isLocked = BiometricLockPreference.isEnabled()
-            return router
-        }())
-        #if DEBUG
-        if UITestSupport.wantsInMemoryContainer {
-            do {
-                container = try ModelContainerConfig.makeInMemoryContainer()
-            } catch {
-                // 不做静默兜底：容器无法建立属不可恢复的启动错误，快速暴露（见 CLAUDE.md）。
-                fatalError("ModelContainer 初始化失败：\(error)")
-            }
-            self.syncStatusService = SyncStatusService(cloudKitEnabled: false)
-        } else {
-            let (resolvedContainer, cloudKitEnabled) = ModelContainerConfig.makeProductionContainer()
-            container = resolvedContainer
-            self.syncStatusService = SyncStatusService(cloudKitEnabled: cloudKitEnabled)
-        }
-        #else
-        let (resolvedContainer, cloudKitEnabled) = ModelContainerConfig.makeProductionContainer()
-        container = resolvedContainer
-        self.syncStatusService = SyncStatusService(cloudKitEnabled: cloudKitEnabled)
-        #endif
+        _router = State(
+            initialValue: {
+                let router = AppRouter()
+                router.isLocked = BiometricLockPreference.isEnabled()
+                return router
+            }())
+        let runtime = Self.makeRuntimeServices()
+        container = runtime.container
+        localBackupCoordinator = runtime.localBackupCoordinator
+        self.syncStatusService = runtime.syncStatusService
         // 外观持久化：生产用真实 `UserDefaults.standard`（`AppearanceStore()` 默认）；
         // DEBUG 下 UI 测试改用隔离套件（避免测试间相互污染）+ 按需注入必失败场景
         // （`-uiTestFailAppearanceSave`，见 `UITestSupport`/05 §5.3.7 异常反馈验收）。
         #if DEBUG
-        _theme = State(initialValue: ThemeManager(store: UITestSupport.makeAppearanceStore()))
+            _theme = State(initialValue: ThemeManager(store: UITestSupport.makeAppearanceStore()))
         #else
-        _theme = State(initialValue: ThemeManager())
+            _theme = State(initialValue: ThemeManager())
         #endif
     }
 
     var body: some Scene {
         WindowGroup {
-            RootView()
+            RootView(localBackupCoordinator: localBackupCoordinator)
                 // 隐私锁挂在比 `rootSheet`/应用内上下文层更外层的位置（见 10 §10.1.3、08 §2.2、
                 // 阶段7计划必守约束「隐私锁挂最外层盖住 rootSheet/应用内遮罩」）：`.fullScreenCover`
                 // 直接挂在 `RootView()` 之上（而非其内部），结构上包裹住 `RootView` 内部自己的
@@ -93,10 +80,12 @@ struct MoodmentsApp: App {
                 // 注入之前（更内层）声明，才能让锁屏/遮罩内容继承到 `theme` 等环境值——否则
                 // `PrivacyLockView` 读 `@Environment(ThemeManager.self)` 会因环境缺失而 crash
                 // （SwiftUI present 的内容只继承呈现修饰符所在层的环境，见 code review 修复）。
-                .fullScreenCover(isPresented: Binding(
-                    get: { router.isLocked },
-                    set: { router.isLocked = $0 }
-                )) {
+                .fullScreenCover(
+                    isPresented: Binding(
+                        get: { router.isLocked },
+                        set: { router.isLocked = $0 }
+                    )
+                ) {
                     PrivacyLockView(onUnlock: { router.isLocked = false })
                         .interactiveDismissDisabled()
                 }
@@ -128,7 +117,8 @@ struct MoodmentsApp: App {
                     // 「立即锁定」策略（10 §10.1.3）：只对「真正从后台恢复」触发，不对 `.inactive`
                     // 之间的瞬时切换（如下拉控制中心、系统弹层，从未真正进入 `.background`）
                     // 重复触发。
-                    guard newPhase == .active, hasCompletedInitialActivation, didEnterBackground else { return }
+                    guard newPhase == .active, hasCompletedInitialActivation, didEnterBackground
+                    else { return }
                     if BiometricLockPreference.isEnabled() {
                         router.isLocked = true
                     }
@@ -164,5 +154,57 @@ struct MoodmentsApp: App {
                 .preferredColorScheme(theme.mode == .dark ? .dark : .light)
         }
         .modelContainer(container)
+    }
+
+    private static func makeRuntimeServices() -> RuntimeServices {
+        #if DEBUG
+            if UITestSupport.wantsInMemoryContainer {
+                let container = makeInMemoryContainer()
+                return RuntimeServices(
+                    container: container,
+                    syncStatusService: SyncStatusService(cloudKitEnabled: false),
+                    localBackupCoordinator: nil
+                )
+            }
+        #endif
+
+        let (container, cloudKitEnabled) = ModelContainerConfig.makeProductionContainer()
+        return RuntimeServices(
+            container: container,
+            syncStatusService: SyncStatusService(cloudKitEnabled: cloudKitEnabled),
+            localBackupCoordinator: makeLocalBackupCoordinatorIfNeeded(
+                modelContainer: container,
+                cloudKitEnabled: cloudKitEnabled
+            )
+        )
+    }
+
+    private static func makeInMemoryContainer() -> ModelContainer {
+        do {
+            return try ModelContainerConfig.makeInMemoryContainer()
+        } catch {
+            // 不做静默兜底：容器无法建立属不可恢复的启动错误，快速暴露（见 CLAUDE.md）。
+            fatalError("ModelContainer 初始化失败：\(error)")
+        }
+    }
+
+    private static func makeLocalBackupCoordinatorIfNeeded(
+        modelContainer: ModelContainer,
+        cloudKitEnabled: Bool
+    ) -> LocalBackupCoordinator? {
+        guard !cloudKitEnabled else { return nil }
+        do {
+            return try ModelContainerConfig.makeLocalBackupCoordinator(
+                modelContainer: modelContainer
+            )
+        } catch {
+            fatalError("本地备份初始化失败：\(error)")
+        }
+    }
+
+    private struct RuntimeServices {
+        let container: ModelContainer
+        let syncStatusService: SyncStatusService
+        let localBackupCoordinator: LocalBackupCoordinator?
     }
 }

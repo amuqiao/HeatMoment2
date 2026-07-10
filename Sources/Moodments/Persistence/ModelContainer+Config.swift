@@ -5,15 +5,32 @@ import os
 /// `ModelContainer` 装配。见 `docs/design/07-data-persistence.md` §1（SwiftData 选型）与
 /// `docs/design/08-architecture.md` §0（持久化：SwiftData + CloudKit 私有库）。
 enum ModelContainerConfig {
+    private static let localStoreFileName = "Moodments.store"
+
     /// 全部 `@Model` 类型的 schema，供本地与 CloudKit 两种配置共用。
     static var schema: Schema {
         Schema([Moment.self, Tag.self, MomentImage.self])
     }
 
+    static var localBackupStoreDescriptor: LocalBackupStoreDescriptor {
+        LocalBackupStoreDescriptor(
+            rootDirectory: applicationSupportDirectory,
+            storeFileName: localStoreFileName,
+            sourceLibraryID: "local-primary"
+        )
+    }
+
     /// 本地持久化配置（阶段 1–6 使用）：落盘、不接入 CloudKit。
     /// 阶段 7 接入 entitlements 后可切换到 `makeCloudKitContainer()`。
     static func makeLocalContainer() throws -> ModelContainer {
-        let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+        try FileManager.default.createDirectory(
+            at: applicationSupportDirectory,
+            withIntermediateDirectories: true
+        )
+        let configuration = ModelConfiguration(
+            schema: schema,
+            url: localBackupStoreDescriptor.storeURL
+        )
         return try ModelContainer(for: schema, configurations: [configuration])
     }
 
@@ -119,5 +136,32 @@ enum ModelContainerConfig {
                 fatalError("ModelContainer 本地回退也初始化失败：\(error)")
             }
         }
+    }
+
+    static func makeLocalBackupCoordinator(
+        modelContainer: ModelContainer
+    ) throws -> LocalBackupCoordinator {
+        let descriptor = localBackupStoreDescriptor
+        return try LocalBackupCoordinator(
+            descriptor: descriptor,
+            recoveryPointManager: RecoveryPointManager(
+                recoveryDirectory: descriptor.recoveryDirectory
+            ),
+            countsRepository: RecoveryPointCountsRepository(modelContainer: modelContainer),
+            appVersion: appVersion
+        )
+    }
+
+    private static var applicationSupportDirectory: URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+    }
+
+    private static var appVersion: String {
+        let dictionary = Bundle.main.infoDictionary
+        let marketingVersion = dictionary?["CFBundleShortVersionString"] as? String
+        let buildNumber = dictionary?["CFBundleVersion"] as? String
+        return [marketingVersion, buildNumber]
+            .compactMap { $0 }
+            .joined(separator: " ")
     }
 }
