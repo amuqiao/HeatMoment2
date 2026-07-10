@@ -90,40 +90,6 @@ final class LocalBackupCoordinatorTests: RecoveryPointTestCase {
         XCTAssertEqual(validated.status, .available)
     }
 
-    func testLaunchRecoveryPointOnlyRunsOncePerCoordinator() async throws {
-        let libraryDirectory = try makeSourceDirectory()
-        let descriptor = LocalBackupStoreDescriptor(
-            rootDirectory: libraryDirectory,
-            storeFileName: "Moodments.store",
-            sourceLibraryID: "test-local"
-        )
-
-        try write("store", to: descriptor.storeURL)
-        let container = try ModelContainerConfig.makeInMemoryContainer()
-
-        let manager = try RecoveryPointManager(recoveryDirectory: descriptor.recoveryDirectory)
-        let coordinator = LocalBackupCoordinator(
-            descriptor: descriptor,
-            recoveryPointManager: manager,
-            countsRepository: RecoveryPointCountsRepository(modelContainer: container),
-            appVersion: "1.0.0",
-            schemaVersion: 1
-        )
-
-        let first = try await coordinator.createLaunchRecoveryPoint(
-            createdAt: Date(timeIntervalSince1970: 300)
-        )
-        let second = try await coordinator.createLaunchRecoveryPoint(
-            createdAt: Date(timeIntervalSince1970: 301)
-        )
-
-        XCTAssertNotNil(first)
-        XCTAssertNil(second)
-        let listed = try await manager.listRecoveryPoints()
-        XCTAssertEqual(listed.count, 1)
-        XCTAssertEqual(listed.first?.id, first?.id)
-    }
-
     func testPrepareRestoreRejectsIncompatibleRecoveryPoint() async throws {
         let libraryDirectory = try makeSourceDirectory()
         let descriptor = LocalBackupStoreDescriptor(

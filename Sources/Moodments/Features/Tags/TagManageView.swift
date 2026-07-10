@@ -15,6 +15,7 @@ struct TagManageView: View {
     @Environment(ErrorPresenter.self) private var errorPresenter
     @Environment(TimelineModel.self) private var timelineModel
     @Environment(SubscriptionService.self) private var subscriptionService
+    @Environment(\.localBackupCoordinator) private var localBackupCoordinator
 
     @State private var tags: [TagSnapshot] = []
     @State private var isLoaded = false
@@ -174,6 +175,17 @@ struct TagManageView: View {
     /// 假装已删除。
     private func handleDelete(_ tag: TagSnapshot) {
         Task {
+            do {
+                try await LocalBackupWriteRecorder.createMutationSafetyPoint(
+                    using: localBackupCoordinator
+                )
+            } catch {
+                await errorPresenter.report(
+                    message: "创建操作前安全备份失败，请稍后重试。",
+                    underlying: error
+                )
+                return
+            }
             do {
                 try await TagRepository(modelContainer: modelContainer).deleteTag(id: tag.id)
                 await timelineModel.discardFilterTag(tag.id)

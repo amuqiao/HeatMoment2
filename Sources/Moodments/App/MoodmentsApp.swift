@@ -141,6 +141,7 @@ struct MoodmentsApp: App {
             .environment(errorPresenter)
             .environment(subscriptionService)
             .environment(syncStatusService)
+            .environment(\.localBackupCoordinator, localBackupCoordinator)
             // 语言偏好注入（见 `LanguagePreference`、12-quality-assurance.md §12.2）：
             // `.environment(\.locale, ...)` 随 `languagePreferenceRawValue` 变化自动重算，
             // 驱动整棵树重渲染；`Mood.displayName` 等无法读取 View 环境的纯值类型改用

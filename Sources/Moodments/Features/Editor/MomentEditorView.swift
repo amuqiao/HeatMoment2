@@ -20,6 +20,7 @@ struct MomentEditorView: View {
     @Environment(ThemeManager.self) private var theme
     @Environment(ErrorPresenter.self) private var errorPresenter
     @Environment(SyncStatusService.self) private var syncStatusService
+    @Environment(\.localBackupCoordinator) private var localBackupCoordinator
     @AppStorage(EditorMoodMemory.storageKey) private var lastUsedMood: Mood = .normal
 
     @State private var model: MomentEditorModel
@@ -29,6 +30,7 @@ struct MomentEditorView: View {
     @State private var isTimePickerPresented = false
     @State private var isDiscardAlertPresented = false
     @State private var editorPaywallTrigger: PaywallTrigger?
+    @State private var isSaving = false
 
     /// `subscriptionService` 由调用方（`RootView`）经 `@Environment(SubscriptionService.self)`
     /// 读出后显式传入，而非在本视图内部再读一次 `@Environment`——`init()` 内需要立即构造
@@ -69,7 +71,7 @@ struct MomentEditorView: View {
                     confirmation: TaskSheetAction(
                         "保存",
                         accessibilityIdentifier: "editorSaveButton",
-                        isDisabled: !model.isLoaded || !model.canSave,
+                        isDisabled: !model.isLoaded || !model.canSave || isSaving,
                         isProminent: true
                     ) {
                         handleSave()
@@ -262,13 +264,19 @@ struct MomentEditorView: View {
     }
 
     private func handleSave() {
-        guard model.canSave else { return }
+        guard model.canSave, !isSaving else { return }
+        isSaving = true
         Task {
+            defer { isSaving = false }
             do {
                 try await model.save()
                 // 保存成功即一次本地写入，驱动设置页 iCloud 行短暂展示「同步中」三态
                 // （见 `SyncStatusService.noteLocalWrite()` 头部说明，阶段7 review 建议9）。
                 syncStatusService.noteLocalWrite()
+                LocalBackupWriteRecorder.recordStableChanges(
+                    using: localBackupCoordinator,
+                    errorPresenter: errorPresenter
+                )
                 if case .create = mode {
                     lastUsedMood = model.mood
                 }

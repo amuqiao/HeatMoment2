@@ -61,7 +61,6 @@ struct RootView: View {
                         underlying: launchRestoreFailure
                     )
                 }
-                var canCreateLocalBackup = true
                 // 首启默认标签预置（见 07-data-persistence.md §4）：无条件调用（生产与 UI 测试
                 // 均需要），是否真正执行预置由 `DefaultTagSeeder` 内部的持久化「首启已完成」标记
                 // 判定（而非 `Tag` 表是否为空——用户删除默认标签后表可能变空/不完整，若仍按
@@ -82,15 +81,7 @@ struct RootView: View {
                         )
                     }
                 } catch {
-                    canCreateLocalBackup = false
                     errorPresenter.report(message: "初始化默认标签失败，请重启应用重试。", underlying: error)
-                }
-                if canCreateLocalBackup, let localBackupCoordinator {
-                    do {
-                        try await localBackupCoordinator.createLaunchRecoveryPoint()
-                    } catch {
-                        errorPresenter.report(message: "创建本地备份失败，请稍后重试。", underlying: error)
-                    }
                 }
                 #if DEBUG
                     UITestSupport.seedIfRequested(modelContext)

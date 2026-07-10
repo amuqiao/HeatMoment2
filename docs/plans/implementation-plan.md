@@ -56,7 +56,8 @@ UI / ViewModel
 - 当前 App 已有 SwiftData `Moment` / `Tag` / `MomentImage` 模型、`@ModelActor` repository、软删除/恢复/彻底删除、照片压缩、缩略图缓存、设置页 iCloud 状态行和基础测试。
 - 当前生产启动路径会尝试 SwiftData + CloudKit 私有库容器，不可用时回退本地 SwiftData 容器。
 - 当前 `SyncStatusService` 只是启发式状态展示：`cloudKitEnabled + 网络可达性 + 最近本地写入时间`，不是 CloudKit import/export 事件，也不表达未登录 iCloud、账号变化、冲突、失败重试或恢复进度。
-- 当前没有完整数据生命周期：无 canonical domain store、无自动恢复点列表、无持久 outbox、无自定义同步状态机、无恢复 staging、无 Markdown/PDF 导出任务、无真实 iCloud 多设备验收。
+- 当前已有 SwiftData 过渡版本机自动恢复点：最多 3 个、设置页列表、恢复预览、pending restore staging、冷启动 replace、稳定变更节流触发和高风险操作前安全点。它还不是目标 canonical store 下的最终 recovery catalog / asset pin 方案。
+- 当前没有完整数据生命周期：无 canonical domain store、无持久 outbox、无自定义同步状态机、无 Markdown/PDF 导出任务、无真实 iCloud 多设备验收。
 - 当前 SwiftData 是过渡实现和 UI 可用路径，不作为目标架构里的最终数据权威。
 
 ## Mature Choices
@@ -165,9 +166,10 @@ active
 
 - destructive schema migration 前。
 - replace restore 前。
-- App 判断本地资料库已经有一段稳定变更后，在前台空闲或后台机会中创建。
+- 用户写入成功后按稳定变更节流创建：时刻保存、软删除、标签新增/重命名等普通写入不阻塞业务成功；当前 SwiftData 过渡版阈值为 5 分钟。
+- 高风险操作前创建安全点：replace restore、垃圾箱恢复、彻底删除、标签删除。安全点创建失败时，对应高风险操作中止。
 
-阶段 0 需要冻结“稳定变更”的具体阈值；它只能影响何时多建恢复点，不能影响写入成功与否。
+稳定变更阈值只能影响何时多建恢复点，不能影响普通写入成功与否；安全点属于高风险操作闸门，失败时不得继续执行后续破坏性替换或删除。
 
 #### 恢复点载荷与身份契约
 
@@ -350,11 +352,11 @@ Apple ID / iCloud 边界必须可见：
 
 ### 4. Recovery Point UI And Restore
 
-- 实现 `recovery_point` catalog 和最多 3 个保留策略。
-- 实现自动创建触发器：迁移前、replace restore 前、稳定变更后。
-- 实现自动恢复点详情页列表。
-- 实现恢复预览、staging 校验、atomic replace、restore job cleanup。
-- replace restore 后重建 `syncEpoch` 占位、清空旧 outbox/token 占位、重建 projection。
+- 将 SwiftData 过渡版恢复点能力迁入 canonical `recovery_point` catalog。
+- 在 canonical store 下重新实现最多 3 个保留策略、asset pin、恢复点淘汰和资产 GC 协作。
+- 在 destructive schema migration 前创建可校验恢复点。
+- 在 canonical replace restore 后重建 `syncEpoch` 占位、清空旧 outbox/token 占位、重建 projection。
+- 保持已落地用户契约：设置页最多 3 个恢复点、可恢复、不可删除；恢复失败不破坏当前 library。
 
 验收：用户可看到最多 3 个恢复点并恢复；用户不能删除恢复点；连续创建第 4 个恢复点会淘汰最旧项；恢复失败不破坏当前 library。
 

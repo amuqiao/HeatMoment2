@@ -12,6 +12,7 @@ struct TrashView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(ErrorPresenter.self) private var errorPresenter
     @Environment(SyncStatusService.self) private var syncStatusService
+    @Environment(\.localBackupCoordinator) private var localBackupCoordinator
 
     @State private var items: [MomentSnapshot] = []
     @State private var isLoaded = false
@@ -116,6 +117,17 @@ struct TrashView: View {
     private func handleRestore(_ item: MomentSnapshot) {
         Task {
             do {
+                try await LocalBackupWriteRecorder.createMutationSafetyPoint(
+                    using: localBackupCoordinator
+                )
+            } catch {
+                await errorPresenter.report(
+                    message: "创建操作前安全备份失败，请稍后重试。",
+                    underlying: error
+                )
+                return
+            }
+            do {
                 try await MomentRepository(modelContainer: modelContext.container).restore(
                     id: item.id)
                 // 恢复也是一次本地写入，驱动设置页 iCloud 行短暂展示「同步中」三态
@@ -134,6 +146,17 @@ struct TrashView: View {
     /// 真相源 `reload`，不假装已删除。
     private func handlePurge(_ item: MomentSnapshot) {
         Task {
+            do {
+                try await LocalBackupWriteRecorder.createMutationSafetyPoint(
+                    using: localBackupCoordinator
+                )
+            } catch {
+                await errorPresenter.report(
+                    message: "创建操作前安全备份失败，请稍后重试。",
+                    underlying: error
+                )
+                return
+            }
             do {
                 try await MomentRepository(modelContainer: modelContext.container).purge(
                     id: item.id)

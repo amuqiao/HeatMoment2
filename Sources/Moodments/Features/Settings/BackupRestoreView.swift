@@ -278,6 +278,7 @@ private extension RecoveryPointCounts {
 private extension RecoveryPointReason {
     var displayText: String {
         switch self {
+        case .mutationSafety: "操作前安全点"
         case .restoreSafety: "恢复前安全点"
         case .schemaMigration: "迁移前"
         case .stableChanges: "稳定变更"

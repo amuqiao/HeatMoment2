@@ -80,13 +80,17 @@ TimelineHomeView.timelineFilterSheet
 
 ## 当前持久化与同步状态
 
-当前代码使用 SwiftData 作为已落地的持久化实现，但这只是 current 事实和过渡路径，不是目标数据生命周期里的最终权威模型。当前 schema 由 `ModelContainerConfig.schema` 注册 `Moment`、`Tag`、`MomentImage`。`Moment` 承载标题、正文、发生时间、创建/更新时间、心情 raw value、标签关系、图片关系和删除生命周期字段；`Tag` 是归类对象；`MomentImage.imageData` 使用 SwiftData `externalStorage` 存原图数据。业务层没有独立 CoreData 栈、自定义 CloudKit record mapper、同步 coordinator、备份恢复 coordinator 或导入导出服务。
+当前代码使用 SwiftData 作为已落地的持久化实现，但这只是 current 事实和过渡路径，不是目标数据生命周期里的最终权威模型。当前 schema 由 `ModelContainerConfig.schema` 注册 `Moment`、`Tag`、`MomentImage`。`Moment` 承载标题、正文、发生时间、创建/更新时间、心情 raw value、标签关系、图片关系和删除生命周期字段；`Tag` 是归类对象；`MomentImage.imageData` 使用 SwiftData `externalStorage` 存原图数据。业务层没有独立 CoreData 栈、自定义 CloudKit record mapper、同步 coordinator、Markdown/PDF 导出服务或外部备份包服务。
 
 当前写入集中在 `@ModelActor` repository：`MomentRepository` 负责创建、编辑、软删除、恢复、彻底删除、分页、额度计数、图片读取和年度聚合；`TagRepository` 负责标签查重、创建、重命名、删除、列表和额度计数。跨 actor 传递使用 `MomentSnapshot`、`MomentEditingPayload`、`MomentImageData`、`TagSnapshot` 等值类型，不把 `@Model` 引用传出仓库边界。
 
 生产启动路径调用 `ModelContainerConfig.makeProductionContainer()`：先用 `FileManager.default.ubiquityIdentityToken` 判断 iCloud 能力，不可用时直接使用本地 SwiftData 容器；具备能力时尝试 SwiftData `ModelConfiguration(cloudKitDatabase: .private(...))`，初始化失败再回退本地容器。`Config/Moodments.entitlements` 已声明 CloudKit 私有库，`Project.yml` 已接入 entitlements。当前同步状态由 `SyncStatusService` 根据 `cloudKitEnabled`、网络可达性和最近本地写入时间推导 `offline / syncing / synced`，不读取真实 CloudKit import/export 事件，不表达冲突、重试队列、服务器变更 token 或错误详情。
 
-当前本地文件分层如下：Moment 原图归 SwiftData `MomentImage.imageData`；缩略图在 `Caches/thumbnails`，可从原图重建，不参与同步；外观自定义背景图在 Application Support 的外观目录，不进入 SwiftData 或 CloudKit；语言、隐私锁、订阅缓存、默认标签首启标记和外观偏好使用 `UserDefaults`。当前没有用户可触发的备份包、恢复流程、Markdown 导出或 PDF 导出。
+非 CloudKit 本地容器下，当前已有最小本机自动恢复点能力。`LocalBackupCoordinator` 封装 `RecoveryPointManager`、SwiftData store payload 范围、当前记录/标签/照片计数、App/schema version 和 `sourceLibraryID`；`RecoveryPointManager` 负责复制 SwiftData store 文件族、写 metadata、校验文件 manifest，并按 `createdAt` 最多保留 3 个恢复点。时刻保存、软删除、标签新增/重命名等成功写入后通过 `LocalBackupWriteRecorder` 请求稳定变更恢复点，`LocalBackupCoordinator` 用 5 分钟节流避免连续编辑刷满 3 个恢复点。垃圾箱恢复、彻底删除、标签删除以及从恢复点执行 replace restore 前会先创建操作安全点；安全点创建失败时对应高风险操作中止并走 `ErrorPresenter`。
+
+设置页已有“备份与恢复”详情页：用户可查看最多 3 个恢复点，列表显示时间、记录/标签/照片计数、创建原因和 App version；点选后进入恢复预览。恢复采用 staging + armed marker + 下次冷启动 replace 的路径：未 armed 的 staged payload 不会在启动时替换当前 store；armed payload 校验失败会清理 pending 并提示当前数据未被替换；replace/rollback 发生不可恢复错误时启动快速失败，不继续用半替换 store 构建 `ModelContainer`。用户不能手动删除恢复点，也不能把恢复点导出为备份包。
+
+当前本地文件分层如下：Moment 原图归 SwiftData `MomentImage.imageData`；缩略图在 `Caches/thumbnails`，可从原图重建，不参与同步；外观自定义背景图在 Application Support 的外观目录，不进入 SwiftData 或 CloudKit；语言、隐私锁、订阅缓存、默认标签首启标记和外观偏好使用 `UserDefaults`。当前没有用户可触发的外部备份包、Markdown 导出或 PDF 导出。
 
 ## 编辑页局部选择
 

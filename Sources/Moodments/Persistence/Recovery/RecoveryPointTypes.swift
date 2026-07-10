@@ -14,6 +14,7 @@ enum RecoveryPointError: Error, Equatable {
 }
 
 enum RecoveryPointReason: String, Codable, Sendable, Equatable {
+    case mutationSafety
     case schemaMigration
     case restoreSafety
     case stableChanges

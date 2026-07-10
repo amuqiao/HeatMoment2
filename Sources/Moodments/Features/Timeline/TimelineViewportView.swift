@@ -34,6 +34,7 @@ struct TimelineViewportView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(ErrorPresenter.self) private var errorPresenter
     @Environment(SyncStatusService.self) private var syncStatusService
+    @Environment(\.localBackupCoordinator) private var localBackupCoordinator
     @State private var scrollOffsetY: CGFloat = 0
 
     @Query private var moments: [Moment]
@@ -273,6 +274,10 @@ struct TimelineViewportView: View {
                 // 软删除也是一次本地写入，驱动设置页 iCloud 行短暂展示「同步中」三态
                 // （见 `SyncStatusService.noteLocalWrite()` 头部说明，阶段7 review 建议9）。
                 syncStatusService.noteLocalWrite()
+                LocalBackupWriteRecorder.recordStableChanges(
+                    using: localBackupCoordinator,
+                    errorPresenter: errorPresenter
+                )
             } catch {
                 // `@Query` 是真相源：删除失败时它本就不会反映出该行已消失，不需要额外回滚
                 // 本地状态（见阶段6计划决策3：可恢复写失败改走统一错误通道）。

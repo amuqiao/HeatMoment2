@@ -22,6 +22,7 @@ struct TagCreateSheetView: View {
     @Environment(ThemeManager.self) private var theme
     @Environment(ErrorPresenter.self) private var errorPresenter
     @Environment(SubscriptionService.self) private var subscriptionService
+    @Environment(\.localBackupCoordinator) private var localBackupCoordinator
     @State private var name: String
     @State private var isSaving = false
     @State private var paywallTrigger: PaywallTrigger?
@@ -141,6 +142,10 @@ struct TagCreateSheetView: View {
         do {
             if let editing {
                 try await repository.renameTag(id: editing.id, newName: trimmedName)
+                LocalBackupWriteRecorder.recordStableChanges(
+                    using: localBackupCoordinator,
+                    errorPresenter: errorPresenter
+                )
                 onCreated(editing.id, trimmedName)
                 dismiss()
                 return
@@ -155,6 +160,10 @@ struct TagCreateSheetView: View {
                 return
             }
             let id = try await repository.createTag(name: trimmedName)
+            LocalBackupWriteRecorder.recordStableChanges(
+                using: localBackupCoordinator,
+                errorPresenter: errorPresenter
+            )
             onCreated(id, trimmedName)
             dismiss()
         } catch RepositoryError.tagNameConflict(let conflictingName) {
