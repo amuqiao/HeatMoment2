@@ -21,6 +21,8 @@ struct CanonicalLibraryRuntime: Sendable {
     let store: CanonicalStore
     let assetStore: FileAssetStore
     let repository: CanonicalLibraryRepository
+    let assetReachabilityService: CanonicalAssetReachabilityService
+    let assetOperationGate: CanonicalAssetOperationGate
 
     init(descriptor: CanonicalStoreDescriptor) throws {
         try FileManager.default.createDirectory(
@@ -31,6 +33,14 @@ struct CanonicalLibraryRuntime: Sendable {
         store = try CanonicalStore(path: descriptor.databaseURL.path)
         assetStore = FileAssetStore(rootDirectory: descriptor.assetDirectoryURL)
         repository = CanonicalLibraryRepository(store: store)
+        assetOperationGate = CanonicalAssetOperationGate.shared(
+            forAssetRootDirectory: assetStore.rootDirectory
+        )
+        assetReachabilityService = CanonicalAssetReachabilityService(
+            store: store,
+            assetStore: assetStore,
+            operationGate: assetOperationGate
+        )
     }
 
     private init(store: CanonicalStore, assetStore: FileAssetStore) {
@@ -38,6 +48,14 @@ struct CanonicalLibraryRuntime: Sendable {
         self.store = store
         self.assetStore = assetStore
         repository = CanonicalLibraryRepository(store: store)
+        assetOperationGate = CanonicalAssetOperationGate.shared(
+            forAssetRootDirectory: assetStore.rootDirectory
+        )
+        assetReachabilityService = CanonicalAssetReachabilityService(
+            store: store,
+            assetStore: assetStore,
+            operationGate: assetOperationGate
+        )
     }
 
     static func makeProduction() throws -> CanonicalLibraryRuntime {
@@ -66,6 +84,7 @@ struct CanonicalLibraryRuntime: Sendable {
         return try await importer.importIfNeeded(
             into: store,
             assetStore: assetStore,
+            operationGate: assetOperationGate,
             importedAt: importedAt
         )
     }

@@ -347,13 +347,14 @@ Apple ID / iCloud 边界必须可见：
 ### 3. Asset Pipeline
 
 - 已落地地基：SwiftData baseline 导入会将 Moment 原图写入 content-addressed asset 文件，并记录 hash、MIME、尺寸、字节数、创建时间和 moment-asset link。
+- 已落地维护地基：`CanonicalAssetReachabilityService` 可审计 DB/文件系统 asset 一致性，并在无 blocking issue 且持有按 asset root 共享的 `CanonicalAssetOperationGate` 时清理 DB 无引用 orphan blob。
 - 继续补齐 canonical UI 写入路径下的加图/删图/重排 asset 事务。
 - 补齐 asset pin：recovery point、restore staging、export job 和后续 sync pin 不能混入引用计数；因为多个 `asset_record.id` 可以共享同一个 `content_hash` blob，liveness 必须按 `content_hash` 聚合或使用独立 pin 表，不能直接把 record-level `pin_count` 当最终 GC 依据。
 - 缩略图继续作为可丢弃缓存。
-- 实现 asset reachability audit 和 GC。
-- GC 必须尊重 recovery point、restore staging、export job 和 sync pin，并清理由崩溃中断留下的 DB 无引用 orphan blob。
+- 继续实现 DB orphan `asset_record` finalizer 和完整 asset GC。
+- 完整 GC 必须尊重 recovery point、restore staging、export job 和 sync pin；当前 orphan blob cleanup 只能处理 DB 无引用文件，不能替代完整 GC。后续所有 canonical UI asset 写入必须复用同一 asset root 的 operation gate；如果引入跨进程后台任务，则升级为持久 staging/pin 方案，不能出现“blob 已落盘但 DB metadata 未提交”期间被 cleanup 误删的窗口。
 
-验收：加图、删图、恢复、彻底删除、恢复点保留和导出期间都不会误删资产；baseline import 已能证明 asset metadata 与 content-addressed 文件字节一致，但该阶段还不能关闭，直到 pin/audit/GC 完成。
+验收：加图、删图、恢复、彻底删除、恢复点保留和导出期间都不会误删资产；baseline import 已能证明 asset metadata 与 content-addressed 文件字节一致，reachability audit 已能发现 missing/corrupt/orphan/unlinked 状态，但该阶段还不能关闭，直到 pin、DB record finalizer 和完整 GC 完成。
 
 ### 4. Recovery Point UI And Restore
 

@@ -70,6 +70,30 @@ final class FileAssetStoreTests: XCTestCase {
         }
     }
 
+    func testListValidateAndRemoveBlob() throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = FileAssetStore(rootDirectory: directory)
+        let data = Data([0x11, 0x12])
+        let stored = try store.store(data: data)
+
+        let listing = try store.listStoredAssets()
+        let validated = try store.validateStoredAsset(forContentHash: stored.contentHash)
+
+        XCTAssertEqual(listing.contentHashes, [stored.contentHash])
+        XCTAssertTrue(listing.invalidRelativePaths.isEmpty)
+        XCTAssertEqual(validated.contentHash, stored.contentHash)
+
+        try store.removeBlob(forContentHash: stored.contentHash)
+
+        XCTAssertFalse(FileManager.default.fileExists(atPath: stored.fileURL.path))
+        XCTAssertThrowsError(try store.validateStoredAsset(forContentHash: stored.contentHash)) {
+            // swiftlint:disable:next closure_parameter_position
+            error in
+            XCTAssertEqual(error as? FileAssetStoreError, .missingAsset(stored.contentHash))
+        }
+    }
+
     private func temporaryDirectory() -> URL {
         FileManager.default.temporaryDirectory
             .appendingPathComponent("FileAssetStoreTests-\(UUID().uuidString)", isDirectory: true)

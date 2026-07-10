@@ -28,9 +28,26 @@ actor SwiftDataCanonicalImporter {
     func importIfNeeded(
         into store: CanonicalStore,
         assetStore: FileAssetStore,
+        operationGate: CanonicalAssetOperationGate,
         importedAt: Date = .now
     ) throws -> SwiftDataCanonicalImportResult {
         let payload = try makePayload()
+        return try operationGate.performSync {
+            try importPayload(
+                payload,
+                into: store,
+                assetStore: assetStore,
+                importedAt: importedAt
+            )
+        }
+    }
+
+    private func importPayload(
+        _ payload: ImportPayload,
+        into store: CanonicalStore,
+        assetStore: FileAssetStore,
+        importedAt: Date
+    ) throws -> SwiftDataCanonicalImportResult {
         var storedFileAssets: [StoredFileAsset] = []
         do {
             return try store.write { db in

@@ -5,6 +5,12 @@ enum FileAssetStoreError: Error, Equatable {
     case contentHashMismatch(expected: String, actual: String)
     case missingAsset(String)
     case invalidAssetHash(String)
+    case assetEnumerationUnavailable(String)
+}
+
+struct FileAssetStoreListing: Sendable, Equatable {
+    let contentHashes: [String]
+    let invalidRelativePaths: [String]
 }
 
 struct StoredFileAsset: Sendable, Equatable {
@@ -69,6 +75,14 @@ struct FileAssetStore: Sendable {
         return try Data(contentsOf: url)
     }
 
+    func validateStoredAsset(forContentHash contentHash: String) throws -> StoredFileAsset {
+        let url = try fileURL(forContentHash: contentHash)
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            throw FileAssetStoreError.missingAsset(contentHash)
+        }
+        return try existingStoredAsset(fileURL: url, expectedContentHash: contentHash)
+    }
+
     func removeStoredAsset(_ asset: StoredFileAsset) throws {
         guard asset.didCreateFile else { return }
         if FileManager.default.fileExists(atPath: asset.fileURL.path) {
@@ -76,8 +90,51 @@ struct FileAssetStore: Sendable {
         }
     }
 
+    func removeBlob(forContentHash contentHash: String) throws {
+        let url = try fileURL(forContentHash: contentHash)
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            throw FileAssetStoreError.missingAsset(contentHash)
+        }
+        try FileManager.default.removeItem(at: url)
+    }
+
+    func listStoredAssets() throws -> FileAssetStoreListing {
+        let blobsDirectory = rootDirectory.appendingPathComponent("blobs", isDirectory: true)
+        guard FileManager.default.fileExists(atPath: blobsDirectory.path) else {
+            return FileAssetStoreListing(contentHashes: [], invalidRelativePaths: [])
+        }
+        guard
+            let enumerator = FileManager.default.enumerator(
+                at: blobsDirectory,
+                includingPropertiesForKeys: [.isRegularFileKey]
+            )
+        else {
+            throw FileAssetStoreError.assetEnumerationUnavailable(blobsDirectory.path)
+        }
+
+        var contentHashes: Set<String> = []
+        var invalidRelativePaths: [String] = []
+        for case let url as URL in enumerator {
+            let values = try url.resourceValues(forKeys: [.isRegularFileKey])
+            guard values.isRegularFile == true else { continue }
+
+            let contentHash = url.lastPathComponent
+            let prefix = url.deletingLastPathComponent().lastPathComponent
+            if Self.isValidContentHash(contentHash) && prefix == String(contentHash.prefix(2)) {
+                contentHashes.insert(contentHash)
+            } else {
+                invalidRelativePaths.append(relativePath(for: url))
+            }
+        }
+
+        return FileAssetStoreListing(
+            contentHashes: contentHashes.sorted(),
+            invalidRelativePaths: invalidRelativePaths.sorted()
+        )
+    }
+
     func fileURL(forContentHash contentHash: String) throws -> URL {
-        guard contentHash.count >= 2, contentHash.allSatisfy(\.isHexDigit) else {
+        guard Self.isValidContentHash(contentHash) else {
             throw FileAssetStoreError.invalidAssetHash(contentHash)
         }
         let prefix = String(contentHash.prefix(2))
@@ -92,6 +149,10 @@ struct FileAssetStore: Sendable {
         SHA256.hash(data: data)
             .map { String(format: "%02x", $0) }
             .joined()
+    }
+
+    static func isValidContentHash(_ contentHash: String) -> Bool {
+        contentHash.count == 64 && contentHash.allSatisfy(\.isHexDigit)
     }
 
     private func existingStoredAsset(
@@ -112,5 +173,14 @@ struct FileAssetStore: Sendable {
             fileURL: fileURL,
             didCreateFile: false
         )
+    }
+
+    private func relativePath(for url: URL) -> String {
+        let rootPath = rootDirectory.standardizedFileURL.path
+        let path = url.standardizedFileURL.path
+        guard path.hasPrefix(rootPath + "/") else {
+            return path
+        }
+        return String(path.dropFirst(rootPath.count + 1))
     }
 }

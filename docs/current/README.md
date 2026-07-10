@@ -163,4 +163,15 @@ rg -n "docs/current|docs/plans|implementation-truth|implementation-plan" CLAUDE.
 ./scripts/test.sh --only MoodmentsTests/CanonicalRuntimeImportTests
 ```
 
-结果：全部通过。`FileAssetStoreTests` 覆盖 content-addressed 原图写入、按 hash 读回、相同 bytes 去重，以及 expected hash mismatch 快速失败且不产生 blob；`CanonicalRuntimeImportTests` 扩展覆盖 SwiftData baseline 导入后 `asset_record.content_hash` 与真实 asset store 文件一致、两个相同原图只落一个 content-addressed blob。本轮仍未实现 asset pin、reachability audit、GC、canonical recovery catalog 或导出任务。
+结果：全部通过。`FileAssetStoreTests` 覆盖 content-addressed 原图写入、按 hash 读回、相同 bytes 去重，以及 expected hash mismatch 快速失败且不产生 blob；`CanonicalRuntimeImportTests` 扩展覆盖 SwiftData baseline 导入后 `asset_record.content_hash` 与真实 asset store 文件一致、两个相同原图只落一个 content-addressed blob。该轮尚未实现 asset pin、reachability audit、GC、canonical recovery catalog 或导出任务。
+
+2026-07-10 本轮 canonical asset reachability / orphan cleanup 的定向验证：
+
+```sh
+./scripts/gen.sh
+./scripts/test.sh --only MoodmentsTests/CanonicalAssetReachabilityServiceTests
+./scripts/test.sh --only MoodmentsTests/FileAssetStoreTests
+./scripts/test.sh --only MoodmentsTests/CanonicalRuntimeImportTests
+```
+
+结果：全部通过。`CanonicalAssetReachabilityServiceTests` 覆盖 linked asset clean audit、DB 无引用 orphan blob 清理、共享 `content_hash` 时不误删 blob、无 link asset record 报告、DB 引用 blob 缺失报告、invalid DB hash、invalid stored path、corrupt blob、同一 asset root 的 runtime 共享 operation gate，以及存在 blocking issue 时阻断 cleanup。`FileAssetStoreTests` 额外覆盖新增 list / validate / remove blob API。当前 cleanup 与 SwiftData baseline import 按标准化 asset root 路径共享 `CanonicalAssetOperationGate`，只删除 DB 无引用的 orphan blob，不自动删除 `asset_record`，也不是完整 asset GC；recovery/export/sync pin 仍未实现。
