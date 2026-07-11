@@ -1,19 +1,19 @@
 import SwiftUI
 
 struct BackupRestoreView: View {
-    let localBackupCoordinator: LocalBackupCoordinator?
+    let backupRestoreService: (any BackupRestoreServicing)?
 
     @Environment(ThemeManager.self) private var theme
     @Environment(ErrorPresenter.self) private var errorPresenter
 
-    @State private var recoveryPoints: [RecoveryPointMetadata] = []
+    @State private var recoveryPoints: [BackupRecoveryPoint] = []
     @State private var isLoaded = false
 
     var body: some View {
         TaskPageScrollView(accessibilityIdentifier: "backupRestoreScrollView") {
             summarySection
-            if let localBackupCoordinator {
-                recoveryPointList(localBackupCoordinator)
+            if let backupRestoreService {
+                recoveryPointList(backupRestoreService)
             } else {
                 unavailableSection
             }
@@ -55,7 +55,7 @@ struct BackupRestoreView: View {
     }
 
     private func recoveryPointList(
-        _ localBackupCoordinator: LocalBackupCoordinator
+        _ backupRestoreService: any BackupRestoreServicing
     ) -> some View {
         TaskSurfaceSection(title: "自动恢复点", accessibilityIdentifier: "recoveryPointsSection") {
             if isLoaded && recoveryPoints.isEmpty {
@@ -67,7 +67,7 @@ struct BackupRestoreView: View {
                     .accessibilityIdentifier("recoveryPointsEmptyState")
             } else {
                 ForEach(Array(recoveryPoints.enumerated()), id: \.element.id) { index, metadata in
-                    recoveryPointRow(metadata, coordinator: localBackupCoordinator)
+                    recoveryPointRow(metadata, service: backupRestoreService)
                     if index < recoveryPoints.count - 1 {
                         TaskSurfaceSeparator()
                     }
@@ -77,13 +77,13 @@ struct BackupRestoreView: View {
     }
 
     private func recoveryPointRow(
-        _ metadata: RecoveryPointMetadata,
-        coordinator: LocalBackupCoordinator
+        _ metadata: BackupRecoveryPoint,
+        service: any BackupRestoreServicing
     ) -> some View {
         NavigationLink {
             RecoveryPointRestorePreviewView(
                 metadata: metadata,
-                localBackupCoordinator: coordinator
+                backupRestoreService: service
             )
         } label: {
             TaskSurfaceRow {
@@ -119,12 +119,12 @@ struct BackupRestoreView: View {
     }
 
     private func reload() async {
-        guard let localBackupCoordinator else {
+        guard let backupRestoreService else {
             isLoaded = true
             return
         }
         do {
-            recoveryPoints = try await localBackupCoordinator.listRecoveryPoints()
+            recoveryPoints = try await backupRestoreService.listRecoveryPoints()
         } catch {
             errorPresenter.report(message: "恢复点列表加载失败，请稍后重试。", underlying: error)
         }
@@ -139,14 +139,14 @@ struct BackupRestoreView: View {
 }
 
 private struct RecoveryPointRestorePreviewView: View {
-    let metadata: RecoveryPointMetadata
-    let localBackupCoordinator: LocalBackupCoordinator
+    let metadata: BackupRecoveryPoint
+    let backupRestoreService: any BackupRestoreServicing
 
     @Environment(ThemeManager.self) private var theme
     @Environment(ErrorPresenter.self) private var errorPresenter
     @Environment(LocalBackupRestoreState.self) private var restoreState
 
-    @State private var currentCounts: RecoveryPointCounts?
+    @State private var currentCounts: BackupRecoveryCounts?
     @State private var isPreparingRestore = false
     @State private var showsConfirmation = false
 
@@ -256,7 +256,7 @@ private struct RecoveryPointRestorePreviewView: View {
 
     private func loadCurrentCounts() async {
         do {
-            currentCounts = try await localBackupCoordinator.currentCounts()
+            currentCounts = try await backupRestoreService.currentCounts()
         } catch {
             errorPresenter.report(message: "当前资料库摘要加载失败，请稍后重试。", underlying: error)
         }
@@ -267,7 +267,7 @@ private struct RecoveryPointRestorePreviewView: View {
         isPreparingRestore = true
         Task { @MainActor in
             do {
-                let context = try await localBackupCoordinator.prepareRestore(id: metadata.id)
+                let context = try await backupRestoreService.prepareRestore(id: metadata.id)
                 restoreState.markPendingRestoreArmed(context: context)
             } catch {
                 errorPresenter.report(message: "准备恢复失败，请稍后重试。", underlying: error)
@@ -277,19 +277,19 @@ private struct RecoveryPointRestorePreviewView: View {
     }
 }
 
-private extension RecoveryPointMetadata {
+private extension BackupRecoveryPoint {
     var summaryText: String {
         "\(counts.displayText) · \(reason.displayText) · App \(appVersion)"
     }
 }
 
-private extension RecoveryPointCounts {
+private extension BackupRecoveryCounts {
     var displayText: String {
         "\(recordCount) 条记录，\(tagCount) 个标签，\(assetCount) 张照片"
     }
 }
 
-private extension RecoveryPointReason {
+private extension BackupRecoveryPointReason {
     var displayText: String {
         switch self {
         case .mutationSafety: "操作前安全点"

@@ -27,7 +27,8 @@ struct MoodmentsApp: App {
     @State private var didEnterBackground = false
     private let container: ModelContainer
     private let localBackupCoordinator: LocalBackupCoordinator?
-    private let launchRestoreResult: LocalBackupBootRestoreResult
+    private let backupRestoreService: (any BackupRestoreServicing)?
+    private let launchRestoreResult: BackupBootRestoreResult
 
     /// 语言偏好（见 `LanguagePreference`、阶段7计划决策4）：与 `LanguageSettingsView` 共享同一
     /// `UserDefaults.standard` key，切换后本 `@AppStorage` 立即失效重算、驱动下方
@@ -62,6 +63,7 @@ struct MoodmentsApp: App {
         let runtime = Self.makeRuntimeServices()
         container = runtime.container
         localBackupCoordinator = runtime.localBackupCoordinator
+        backupRestoreService = runtime.backupRestoreService
         self.syncStatusService = runtime.syncStatusService
         // 外观持久化：生产用真实 `UserDefaults.standard`（`AppearanceStore()` 默认）；
         // DEBUG 下 UI 测试改用隔离套件（避免测试间相互污染）+ 按需注入必失败场景
@@ -77,6 +79,7 @@ struct MoodmentsApp: App {
         WindowGroup {
             RootView(
                 localBackupCoordinator: localBackupCoordinator,
+                backupRestoreService: backupRestoreService,
                 launchRestoreResult: launchRestoreResult
             )
             .environment(localBackupRestoreState)
@@ -182,29 +185,34 @@ struct MoodmentsApp: App {
                 return RuntimeServices(
                     container: container,
                     syncStatusService: SyncStatusService(cloudKitEnabled: false),
-                    localBackupCoordinator: nil
+                    localBackupCoordinator: nil,
+                    backupRestoreService: nil
                 )
             }
         #endif
 
         let (container, cloudKitEnabled) = ModelContainerConfig.makeProductionContainer()
+        let localBackupCoordinator = makeLocalBackupCoordinatorIfNeeded(
+            modelContainer: container,
+            cloudKitEnabled: cloudKitEnabled
+        )
         return RuntimeServices(
             container: container,
             syncStatusService: SyncStatusService(cloudKitEnabled: cloudKitEnabled),
-            localBackupCoordinator: makeLocalBackupCoordinatorIfNeeded(
-                modelContainer: container,
-                cloudKitEnabled: cloudKitEnabled
-            )
+            localBackupCoordinator: localBackupCoordinator,
+            backupRestoreService: localBackupCoordinator.map(LocalBackupRestoreService.init)
         )
     }
 
-    private static func performPendingLocalRestore() -> LocalBackupBootRestoreResult {
+    private static func performPendingLocalRestore() -> BackupBootRestoreResult {
         do {
-            return try ModelContainerConfig.performPendingLocalRestoreIfNeeded()
+            return BackupBootRestoreResult(
+                result: try ModelContainerConfig.performPendingLocalRestoreIfNeeded()
+            )
         } catch let error as LocalBackupRestoreCriticalError {
             fatalError("本地备份恢复回滚失败：\(error)")
         } catch {
-            return .failed(LocalBackupBootRestoreFailure(underlying: error))
+            return .failed(BackupBootRestoreFailure(underlying: error))
         }
     }
 
@@ -235,5 +243,6 @@ struct MoodmentsApp: App {
         let container: ModelContainer
         let syncStatusService: SyncStatusService
         let localBackupCoordinator: LocalBackupCoordinator?
+        let backupRestoreService: (any BackupRestoreServicing)?
     }
 }

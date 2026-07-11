@@ -5,17 +5,17 @@ import Observation
 @Observable
 final class LocalBackupRestoreState {
     var isPendingRestoreArmed: Bool
-    var pendingContext: LocalBackupPendingRestoreContext?
+    var pendingContext: BackupPendingRestoreContext?
 
     init(
         isPendingRestoreArmed: Bool = false,
-        pendingContext: LocalBackupPendingRestoreContext? = nil
+        pendingContext: BackupPendingRestoreContext? = nil
     ) {
         self.isPendingRestoreArmed = isPendingRestoreArmed
         self.pendingContext = pendingContext
     }
 
-    func markPendingRestoreArmed(context: LocalBackupPendingRestoreContext) {
+    func markPendingRestoreArmed(context: BackupPendingRestoreContext) {
         pendingContext = context
         isPendingRestoreArmed = true
     }

@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct PendingLocalRestoreView: View {
-    let context: LocalBackupPendingRestoreContext?
+    let context: BackupPendingRestoreContext?
 
     @Environment(ThemeManager.self) private var theme
 

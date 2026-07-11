@@ -9,7 +9,7 @@ import SwiftUI
 /// `AboutView` 均为本视图内 `NavigationStack` 的 push 子页（不进 Router）；Pro 横幅用**局部**
 /// `.sheet(item:)` 弹 `ProPaywallView`（不改 `router.rootSheet`，否则会替换掉设置本身）。
 struct SettingsSheetView: View {
-    let localBackupCoordinator: LocalBackupCoordinator?
+    let backupRestoreService: (any BackupRestoreServicing)?
 
     @Environment(\.modelContext) private var modelContext
     @Environment(ThemeManager.self) private var theme
@@ -21,8 +21,8 @@ struct SettingsSheetView: View {
     @State private var isBiometricLockEnabled = BiometricLockPreference.isEnabled()
     private let biometricService = BiometricLockService()
 
-    init(localBackupCoordinator: LocalBackupCoordinator? = nil) {
-        self.localBackupCoordinator = localBackupCoordinator
+    init(backupRestoreService: (any BackupRestoreServicing)? = nil) {
+        self.backupRestoreService = backupRestoreService
     }
 
     var body: some View {
@@ -54,7 +54,7 @@ struct SettingsSheetView: View {
                     iCloudSyncRow
                     TaskSurfaceSeparator()
                     settingsNavigationRow(title: "备份与恢复", identifier: "settingsBackupRestoreRow") {
-                        BackupRestoreView(localBackupCoordinator: localBackupCoordinator)
+                        BackupRestoreView(backupRestoreService: backupRestoreService)
                     }
                     TaskSurfaceSeparator()
                     biometricLockRow

@@ -11,7 +11,8 @@ import SwiftUI
 /// 共享同一份「定位/筛选」状态，而不是两份互不相干的拷贝。
 struct RootView: View {
     let localBackupCoordinator: LocalBackupCoordinator?
-    let launchRestoreResult: LocalBackupBootRestoreResult
+    let backupRestoreService: (any BackupRestoreServicing)?
+    let launchRestoreResult: BackupBootRestoreResult
 
     @Environment(AppRouter.self) private var router
     @Environment(\.modelContext) private var modelContext
@@ -25,9 +26,11 @@ struct RootView: View {
 
     init(
         localBackupCoordinator: LocalBackupCoordinator? = nil,
-        launchRestoreResult: LocalBackupBootRestoreResult = .none
+        backupRestoreService: (any BackupRestoreServicing)? = nil,
+        launchRestoreResult: BackupBootRestoreResult = .none
     ) {
         self.localBackupCoordinator = localBackupCoordinator
+        self.backupRestoreService = backupRestoreService
         self.launchRestoreResult = launchRestoreResult
     }
 
@@ -42,7 +45,7 @@ struct RootView: View {
                         mode: mode, modelContainer: modelContext.container,
                         subscriptionService: subscriptionService
                     )
-                case .settings: SettingsSheetView(localBackupCoordinator: localBackupCoordinator)
+                case .settings: SettingsSheetView(backupRestoreService: backupRestoreService)
                 case let .paywall(trigger): ProPaywallView(trigger: trigger)
                 }
             }
@@ -113,7 +116,7 @@ struct RootView: View {
     }
 
     private static func launchRestoreSuccessMessage(
-        context: LocalBackupPendingRestoreContext
+        context: BackupPendingRestoreContext
     ) -> String {
         var message = "已恢复到 \(dateFormatter.string(from: context.selectedCreatedAt)) 的本机资料库。"
         if let safetyCreatedAt = context.restoreSafetyCreatedAt {
