@@ -59,7 +59,14 @@ final class LocalDataClosureAcceptanceTests: XCTestCase {
         let softDeletedSnapshot = try await CanonicalExportSnapshotStore(
             repository: restoredRuntime.repository
         )
-        .makeSnapshot(exportedAt: Date(timeIntervalSince1970: 510))
+        .makeSnapshot(
+            request: ExportRequest(
+                scope: .all,
+                format: .markdown,
+                includePhotos: true,
+                requestedAt: Date(timeIntervalSince1970: 510)
+            )
+        )
         XCTAssertTrue(softDeletedSnapshot.moments.isEmpty)
 
         try await restoredRuntime.repository.restoreMoment(

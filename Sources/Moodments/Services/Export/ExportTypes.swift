@@ -58,8 +58,34 @@ enum ExportFormat: String, CaseIterable, Sendable, Equatable {
     }
 }
 
+struct ExportRequest: Sendable, Equatable {
+    let scope: ExportScope
+    let format: ExportFormat
+    let includePhotos: Bool
+    let requestedAt: Date
+
+    init(
+        scope: ExportScope,
+        format: ExportFormat,
+        includePhotos: Bool,
+        requestedAt: Date = .now
+    ) {
+        self.scope = scope
+        self.format = format
+        self.includePhotos = includePhotos
+        self.requestedAt = requestedAt
+    }
+}
+
+enum ExportScope: Sendable, Equatable {
+    case all
+    case dateRange(start: Date, end: Date)
+}
+
 struct ExportSnapshot: Sendable, Equatable {
     let exportedAt: Date
+    let scope: ExportScope
+    let includePhotos: Bool
     let moments: [ExportMoment]
 }
 
@@ -102,6 +128,8 @@ struct ExportResult: Sendable, Equatable {
 }
 
 enum ExportError: Error, Equatable {
+    case invalidDateRange
+    case emptyExport
     case markdownEncodingFailed
     case pdfImageDecodingFailed(momentID: UUID, assetID: UUID)
     case pdfTextLayoutFailed

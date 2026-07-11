@@ -226,9 +226,11 @@ private struct ExportFailureState: Equatable {
 
 #if DEBUG
     private struct FailingPDFExportSnapshotProvider: ExportSnapshotProviding {
-        func makeSnapshot(exportedAt: Date) async throws -> ExportSnapshot {
+        func makeSnapshot(request: ExportRequest) async throws -> ExportSnapshot {
             ExportSnapshot(
-                exportedAt: exportedAt,
+                exportedAt: request.requestedAt,
+                scope: request.scope,
+                includePhotos: request.includePhotos,
                 moments: [
                     ExportMoment(
                         id: UUID(

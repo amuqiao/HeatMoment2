@@ -8,6 +8,8 @@ final class PDFExportRendererTests: XCTestCase {
         let imageData = try Self.makeJPEGData()
         let snapshot = ExportSnapshot(
             exportedAt: Date(timeIntervalSince1970: 0),
+            scope: .all,
+            includePhotos: true,
             moments: [
                 ExportMoment(
                     id: UUID(),
@@ -36,6 +38,8 @@ final class PDFExportRendererTests: XCTestCase {
         let momentID = UUID()
         let snapshot = ExportSnapshot(
             exportedAt: Date(timeIntervalSince1970: 0),
+            scope: .all,
+            includePhotos: true,
             moments: [
                 ExportMoment(
                     id: momentID,

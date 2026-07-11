@@ -216,21 +216,40 @@ extension CanonicalLibraryRepository {
         try fetchPage(filter: nil, offset: offset, limit: limit)
     }
 
-    func exportPayload() throws -> [CanonicalMomentExportPayload] {
+    func exportPayload(
+        startAtInclusive: Date? = nil,
+        endAtExclusive: Date? = nil,
+        includePhotos: Bool = true
+    ) throws -> [CanonicalMomentExportPayload] {
         try store.read { db in
+            var dateClause = ""
+            var arguments: StatementArguments = [
+                CanonicalMomentLifecycleState.active.rawValue
+            ]
+            if let startAtInclusive {
+                dateClause += " AND occurred_at >= ?"
+                arguments += [startAtInclusive.timeIntervalSince1970]
+            }
+            if let endAtExclusive {
+                dateClause += " AND occurred_at < ?"
+                arguments += [endAtExclusive.timeIntervalSince1970]
+            }
             let rows = try Row.fetchAll(
                 db,
                 sql: """
                     SELECT * FROM moment_record
                     WHERE lifecycle_state = ?
-                    ORDER BY occurred_at DESC
+                    \(dateClause)
+                    ORDER BY occurred_at DESC, id DESC
                     """,
-                arguments: [CanonicalMomentLifecycleState.active.rawValue]
+                arguments: arguments
             )
             return try rows.map { row in
                 let record = try makeMomentRecord(row: row, db: db)
                 let tagNamesByID = try tagNamesByID(ids: record.tagIDs, db: db)
-                let imageDatas = try orderedImageData(momentID: record.id, db: db)
+                let imageDatas = includePhotos
+                    ? try orderedImageData(momentID: record.id, db: db)
+                    : []
                 return CanonicalMomentExportPayload(
                     record: record,
                     tagNames: record.tagIDs.compactMap { tagNamesByID[$0] },

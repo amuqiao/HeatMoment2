@@ -6,6 +6,8 @@ final class MarkdownExportRendererTests: XCTestCase {
         let pngData = Data([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A])
         let snapshot = ExportSnapshot(
             exportedAt: Date(timeIntervalSince1970: 0),
+            scope: .all,
+            includePhotos: true,
             moments: [
                 ExportMoment(
                     id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,

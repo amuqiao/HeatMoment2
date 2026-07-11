@@ -57,7 +57,7 @@ final class PDFExportServiceTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(pdf.numberOfPages, 1)
     }
 
-    func testExportAllWritesReadableEmptyPDF() async throws {
+    func testExportAllRejectsEmptyPDFExport() async throws {
         let fixture = try makeCanonicalFixture()
         defer { fixture.cleanup() }
         let service = ExportService(
@@ -66,20 +66,21 @@ final class PDFExportServiceTests: XCTestCase {
             pdfRenderer: PDFExportRenderer(timeZone: TimeZone(secondsFromGMT: 0)!)
         )
 
-        let result = try await service.exportAll(
-            format: .pdf,
-            now: Date(timeIntervalSince1970: 7_200)
-        )
+        do {
+            _ = try await service.exportAll(
+                format: .pdf,
+                now: Date(timeIntervalSince1970: 7_200)
+            )
+            XCTFail("Expected empty export to fail")
+        } catch {
+            XCTAssertEqual(error as? ExportError, .emptyExport)
+        }
 
-        XCTAssertEqual(result.format, .pdf)
-        XCTAssertEqual(result.fileName, "Moodments-19700101-020000.pdf")
-        XCTAssertEqual(result.momentCount, 0)
-        XCTAssertEqual(result.assetCount, 0)
-        let data = try Data(contentsOf: result.fileURL)
-        XCTAssertTrue(data.starts(with: Data("%PDF".utf8)))
-        let provider = try XCTUnwrap(CGDataProvider(data: data as CFData))
-        let pdf = try XCTUnwrap(CGPDFDocument(provider))
-        XCTAssertGreaterThanOrEqual(pdf.numberOfPages, 1)
+        let packages = try FileManager.default.contentsOfDirectory(
+            at: outputRootURL,
+            includingPropertiesForKeys: nil
+        )
+        XCTAssertTrue(packages.isEmpty)
     }
 
     func testExportAllCleansPartialPackageAfterPDFRenderFailure() async throws {

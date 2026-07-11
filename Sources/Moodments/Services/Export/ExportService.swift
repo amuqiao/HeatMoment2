@@ -1,7 +1,7 @@
 import Foundation
 
 protocol ExportSnapshotProviding: Sendable {
-    func makeSnapshot(exportedAt: Date) async throws -> ExportSnapshot
+    func makeSnapshot(request: ExportRequest) async throws -> ExportSnapshot
 }
 
 struct ExportService {
@@ -23,15 +23,28 @@ struct ExportService {
     }
 
     func exportAll(format: ExportFormat, now: Date = .now) async throws -> ExportResult {
-        let snapshot = try await snapshotProvider.makeSnapshot(exportedAt: now)
+        let request = ExportRequest(
+            scope: .all,
+            format: format,
+            includePhotos: true,
+            requestedAt: now
+        )
+        return try await export(request: request)
+    }
+
+    func export(request: ExportRequest) async throws -> ExportResult {
+        let snapshot = try await snapshotProvider.makeSnapshot(request: request)
+        guard !snapshot.moments.isEmpty else {
+            throw ExportError.emptyExport
+        }
         try Task.checkCancellation()
-        let outputRoot = outputRootURL ?? Self.defaultOutputRootURL(format: format)
+        let outputRoot = outputRootURL ?? Self.defaultOutputRootURL(format: request.format)
         let markdownRenderer = markdownRenderer
         let pdfRenderer = pdfRenderer
         let task = Task.detached(priority: .userInitiated) {
             try Task.checkCancellation()
             let writer = ExportFileWriter(outputRootURL: outputRoot)
-            switch format {
+            switch request.format {
             case .markdown:
                 let document = markdownRenderer.render(snapshot: snapshot)
                 try Task.checkCancellation()
@@ -63,13 +76,20 @@ struct ExportService {
 
 actor CanonicalExportSnapshotStore: ExportSnapshotProviding {
     private let repository: CanonicalLibraryRepository
+    private var calendar: Calendar
 
-    init(repository: CanonicalLibraryRepository) {
+    init(repository: CanonicalLibraryRepository, calendar: Calendar = .current) {
         self.repository = repository
+        self.calendar = calendar
     }
 
-    func makeSnapshot(exportedAt: Date) async throws -> ExportSnapshot {
-        let payloads = try await repository.exportPayload()
+    func makeSnapshot(request: ExportRequest) async throws -> ExportSnapshot {
+        let range = try normalizedRange(for: request.scope)
+        let payloads = try await repository.exportPayload(
+            startAtInclusive: range?.start,
+            endAtExclusive: range?.end,
+            includePhotos: request.includePhotos
+        )
         var moments: [ExportMoment] = []
         moments.reserveCapacity(payloads.count)
         for payload in payloads {
@@ -85,7 +105,29 @@ actor CanonicalExportSnapshotStore: ExportSnapshotProviding {
             )
             moments.append(moment)
         }
-        return ExportSnapshot(exportedAt: exportedAt, moments: moments)
+        return ExportSnapshot(
+            exportedAt: request.requestedAt,
+            scope: request.scope,
+            includePhotos: request.includePhotos,
+            moments: moments
+        )
+    }
+
+    private func normalizedRange(for scope: ExportScope) throws -> (start: Date, end: Date)? {
+        switch scope {
+        case .all:
+            return nil
+        case let .dateRange(start, end):
+            let startOfDay = calendar.startOfDay(for: start)
+            let endOfDay = calendar.startOfDay(for: end)
+            guard startOfDay <= endOfDay else {
+                throw ExportError.invalidDateRange
+            }
+            guard let exclusiveEnd = calendar.date(byAdding: .day, value: 1, to: endOfDay) else {
+                throw ExportError.invalidDateRange
+            }
+            return (startOfDay, exclusiveEnd)
+        }
     }
 }
 

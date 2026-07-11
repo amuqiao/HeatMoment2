@@ -104,7 +104,7 @@ final class MarkdownExportServiceTests: XCTestCase {
         XCTAssertEqual(page.map(\.id), [activeID])
     }
 
-    func testExportAllWritesEmptyMarkdownPackage() async throws {
+    func testExportAllRejectsEmptyMarkdownExport() async throws {
         let fixture = try makeCanonicalFixture()
         defer { fixture.cleanup() }
         let service = ExportService(
@@ -113,17 +113,122 @@ final class MarkdownExportServiceTests: XCTestCase {
             markdownRenderer: MarkdownExportRenderer(timeZone: TimeZone(secondsFromGMT: 0)!)
         )
 
-        let result = try await service.exportAll(
-            format: .markdown,
-            now: Date(timeIntervalSince1970: 7_200)
+        do {
+            _ = try await service.exportAll(
+                format: .markdown,
+                now: Date(timeIntervalSince1970: 7_200)
+            )
+            XCTFail("Expected empty export to fail")
+        } catch {
+            XCTAssertEqual(error as? ExportError, .emptyExport)
+        }
+
+        let packages = try FileManager.default.contentsOfDirectory(
+            at: outputRootURL,
+            includingPropertiesForKeys: nil
+        )
+        XCTAssertTrue(packages.isEmpty)
+    }
+
+    func testExportDateRangeUsesWholeDayBounds() async throws {
+        let fixture = try makeCanonicalFixture()
+        defer { fixture.cleanup() }
+        _ = try await fixture.runtime.repository.createMoment(
+            title: "范围外较早",
+            bodyText: "",
+            occurredAt: Date(timeIntervalSince1970: 86_399),
+            mood: .normal
+        )
+        _ = try await fixture.runtime.repository.createMoment(
+            title: "范围内",
+            bodyText: "",
+            occurredAt: Date(timeIntervalSince1970: 129_600),
+            mood: .happy
+        )
+        _ = try await fixture.runtime.repository.createMoment(
+            title: "范围外较晚",
+            bodyText: "",
+            occurredAt: Date(timeIntervalSince1970: 172_800),
+            mood: .sad
+        )
+        let service = ExportService(
+            snapshotProvider: CanonicalExportSnapshotStore(
+                repository: fixture.runtime.repository,
+                calendar: Self.utcCalendar
+            ),
+            outputRootURL: outputRootURL,
+            markdownRenderer: MarkdownExportRenderer(timeZone: TimeZone(secondsFromGMT: 0)!)
         )
 
-        XCTAssertEqual(result.momentCount, 0)
-        XCTAssertEqual(result.assetCount, 0)
-        XCTAssertEqual(result.fileName, "Moodments-19700101-020000.md")
+        let result = try await service.export(
+            request: ExportRequest(
+                scope: .dateRange(
+                    start: Date(timeIntervalSince1970: 100_000),
+                    end: Date(timeIntervalSince1970: 130_000)
+                ),
+                format: .markdown,
+                includePhotos: true,
+                requestedAt: Date(timeIntervalSince1970: 200_000)
+            )
+        )
+
+        XCTAssertEqual(result.momentCount, 1)
         let markdown = try String(contentsOf: result.fileURL, encoding: .utf8)
-        XCTAssertTrue(markdown.contains("- 时刻数量：0"))
-        XCTAssertTrue(FileManager.default.fileExists(atPath: result.packageDirectoryURL.path))
+        XCTAssertTrue(markdown.contains("## 范围内"))
+        XCTAssertFalse(markdown.contains("范围外较早"))
+        XCTAssertFalse(markdown.contains("范围外较晚"))
+    }
+
+    func testExportDateRangeRejectsStartAfterEnd() async throws {
+        let fixture = try makeCanonicalFixture()
+        defer { fixture.cleanup() }
+        let provider = CanonicalExportSnapshotStore(
+            repository: fixture.runtime.repository,
+            calendar: Self.utcCalendar
+        )
+
+        do {
+            _ = try await provider.makeSnapshot(
+                request: ExportRequest(
+                    scope: .dateRange(
+                        start: Date(timeIntervalSince1970: 172_800),
+                        end: Date(timeIntervalSince1970: 86_400)
+                    ),
+                    format: .markdown,
+                    includePhotos: true,
+                    requestedAt: Date(timeIntervalSince1970: 200_000)
+                )
+            )
+            XCTFail("Expected invalid date range to fail")
+        } catch {
+            XCTAssertEqual(error as? ExportError, .invalidDateRange)
+        }
+    }
+
+    func testExportRequestCanExcludePhotosForMarkdownAndPDFSharedSnapshot() async throws {
+        let fixture = try makeCanonicalFixture()
+        defer { fixture.cleanup() }
+        _ = try await fixture.runtime.repository.createMoment(
+            title: "无照片导出",
+            bodyText: "",
+            occurredAt: Date(timeIntervalSince1970: 100),
+            mood: .normal,
+            imageDatas: [Data([0xFF, 0xD8, 0xFF, 0x01])]
+        )
+        let provider = CanonicalExportSnapshotStore(repository: fixture.runtime.repository)
+
+        let snapshot = try await provider.makeSnapshot(
+            request: ExportRequest(
+                scope: .all,
+                format: .pdf,
+                includePhotos: false,
+                requestedAt: Date(timeIntervalSince1970: 200)
+            )
+        )
+
+        XCTAssertEqual(snapshot.moments.count, 1)
+        XCTAssertFalse(snapshot.includePhotos)
+        XCTAssertTrue(snapshot.moments.first?.assets.isEmpty == true)
     }
 
     func testCanonicalSnapshotUsesTimelineTagAndImageOrder() async throws {
@@ -147,7 +252,14 @@ final class MarkdownExportServiceTests: XCTestCase {
         )
         let provider = CanonicalExportSnapshotStore(repository: fixture.runtime.repository)
 
-        let snapshot = try await provider.makeSnapshot(exportedAt: Date(timeIntervalSince1970: 300))
+        let snapshot = try await provider.makeSnapshot(
+            request: ExportRequest(
+                scope: .all,
+                format: .markdown,
+                includePhotos: true,
+                requestedAt: Date(timeIntervalSince1970: 300)
+            )
+        )
 
         XCTAssertEqual(snapshot.moments.map(\.id), [newerID, olderID])
         XCTAssertEqual(snapshot.moments.first?.tagNames, ["后创建", "先创建"])
@@ -158,6 +270,8 @@ final class MarkdownExportServiceTests: XCTestCase {
         let writer = ExportFileWriter(outputRootURL: outputRootURL)
         let snapshot = ExportSnapshot(
             exportedAt: Date(timeIntervalSince1970: 500),
+            scope: .all,
+            includePhotos: true,
             moments: []
         )
         let document = MarkdownExportDocument(
@@ -190,6 +304,12 @@ final class MarkdownExportServiceTests: XCTestCase {
             ),
             assetDirectory: assetDirectory
         )
+    }
+
+    private static var utcCalendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        return calendar
     }
 }
 
