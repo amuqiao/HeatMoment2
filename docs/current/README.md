@@ -325,3 +325,18 @@ git diff --check
 ```
 
 结果：通过。`MarkdownExportServiceTests` 改为 canonical fixture，覆盖 canonical active Moment 生成 Markdown、从 `FileAssetStore` 写出相对 `assets/` 附件、排除软删除记录、写入失败清理未完成导出包，并锁定导出 snapshot 的发生时间倒序、标签 link 顺序和图片 link 顺序；`PDFExportServiceTests` 改为 canonical fixture，覆盖从 canonical 原图生成可读 PDF、稳定 `.pdf` 文件名、照片计数和坏图片失败后清理未完成包；renderer 测试继续覆盖 Markdown 转义、正文换行归一、图片扩展名、PDF 长文分页和坏图片快速失败；`MarkdownExportUITests` 覆盖设置页“导出”入口、生成 Markdown / PDF、成功态和分享入口。生产 `ExportView` 已不再使用 SwiftData `modelContext` 构造导出服务；当前剩余主线是 M5 SwiftData production removal。
+
+2026-07-11 本轮 M-final 本地数据闭环验收：
+
+```bash
+./scripts/test.sh --only MoodmentsTests/CanonicalRecoveryPointStoreTests --only MoodmentsTests/CanonicalRecoveryCoordinatorTests --only MoodmentsTests/CanonicalRestoreExecutorTests --only MoodmentsTests/CanonicalBootRestoreGateTests --only MoodmentsTests/LocalLibraryMutationServiceTests
+./scripts/test.sh --only MoodmentsTests/MarkdownExportServiceTests --only MoodmentsTests/PDFExportServiceTests --only MoodmentsTests/MarkdownExportRendererTests --only MoodmentsTests/PDFExportRendererTests
+./scripts/test.sh --only MoodmentsUITests/BackupRestoreUITests --only MoodmentsUITests/MarkdownExportUITests
+./scripts/test.sh --only MoodmentsTests/LocalDataClosureAcceptanceTests
+./scripts/test.sh --only MoodmentsUITests/DeleteRestorePurgeUITests/testSwipeDeleteMovesToTrash --only MoodmentsUITests/DeleteRestorePurgeUITests/testRestoreReturnsToTimeline --only MoodmentsUITests/DeleteRestorePurgeUITests/testPurgeRequiresConfirmationAndRemoves
+./scripts/build.sh
+./scripts/lint.sh
+git diff --check
+```
+
+结果：通过。`LocalDataClosureAcceptanceTests` 使用真实磁盘 `CanonicalLibraryRuntime`，从 canonical repository 创建记录、标签和图片，生成 3 个系统维护恢复点，prepare restore 时创建恢复安全点并维持最多 3 个恢复点；随后通过 `CanonicalBootRestoreGate` 模拟下次启动消费 pending restore，确认恢复后的库只保留所选恢复点内容。测试继续覆盖软删除后导出 snapshot 不包含垃圾箱记录、恢复后重新进入活跃列表、彻底删除进入 purge-pending 且不被活跃列表和导出读取，以及 Markdown/PDF 导出只包含当前活跃 Moment、保留标签和图片附件。该验收关闭本地主线的数据闭环；iCloud 多设备同步、导出范围选择和持久导出任务不属于本轮 M-final。

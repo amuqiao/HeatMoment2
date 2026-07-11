@@ -1,6 +1,6 @@
 # 测试架构真相
 
-本文记录当前 SwiftUI 版 Moodments 已落地的测试入口、数据隔离方式和维护边界。尚未落地的快照、真实 CloudKit 自动化和导出完整验收不在本文伪装成现状；这些缺口进入 [`../plans/implementation-plan.md`](../plans/implementation-plan.md)。本地备份恢复 UI 演练已切到 canonical runtime 和磁盘隔离目录。
+本文记录当前 SwiftUI 版 Moodments 已落地的测试入口、数据隔离方式和维护边界。真实 CloudKit 自动化、iCloud 多设备收敛、导出范围选择和持久导出任务不在本文伪装成现状；这些缺口进入 [`../plans/implementation-plan.md`](../plans/implementation-plan.md)。本地备份恢复 UI 演练已切到 canonical runtime 和磁盘隔离目录；本地数据闭环已有磁盘级验收测试覆盖恢复点、启动恢复、删除生命周期和 Markdown/PDF 只读导出。
 
 ## 入口模型
 
