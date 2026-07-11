@@ -17,6 +17,7 @@ struct CanonicalMomentRecord: Sendable, Identifiable, Equatable {
     let updatedAt: Date
     let mood: Mood
     let tagIDs: [UUID]
+    let imageIDs: [UUID]
     let lifecycleState: CanonicalMomentLifecycleState
     let deletedAt: Date?
     let purgedAt: Date?
@@ -27,6 +28,17 @@ struct CanonicalMomentRecord: Sendable, Identifiable, Equatable {
     var isTerminalDeletion: Bool {
         lifecycleState == .purgePending || lifecycleState == .purged
     }
+}
+
+struct CanonicalMomentEditingPayload: Sendable, Equatable {
+    let record: CanonicalMomentRecord
+    let tagNames: [UUID: String]
+    let imageDatas: [Data]
+}
+
+struct CanonicalMomentImageData: Sendable, Identifiable, Equatable {
+    let id: UUID
+    let data: Data
 }
 
 struct CanonicalTagRecord: Sendable, Identifiable, Equatable {

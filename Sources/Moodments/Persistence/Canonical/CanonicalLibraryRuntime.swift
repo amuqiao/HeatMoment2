@@ -65,13 +65,17 @@ struct CanonicalLibraryRuntime: Sendable {
         self.descriptor = descriptor
         store = try CanonicalStore(path: descriptor.databaseURL.path)
         assetStore = FileAssetStore(rootDirectory: descriptor.assetDirectoryURL)
-        repository = CanonicalLibraryRepository(store: store)
-        assetPinStore = CanonicalAssetPinStore(store: store)
-        let recoveryPointStore = CanonicalRecoveryPointStore(store: store)
-        self.recoveryPointStore = recoveryPointStore
         assetOperationGate = CanonicalAssetOperationGate.shared(
             forAssetRootDirectory: assetStore.rootDirectory
         )
+        repository = CanonicalLibraryRepository(
+            store: store,
+            assetStore: assetStore,
+            operationGate: assetOperationGate
+        )
+        assetPinStore = CanonicalAssetPinStore(store: store)
+        let recoveryPointStore = CanonicalRecoveryPointStore(store: store)
+        self.recoveryPointStore = recoveryPointStore
         recoveryPointSnapshotService = CanonicalRecoveryPointSnapshotService(
             store: store,
             recoveryPointStore: recoveryPointStore,
@@ -91,14 +95,18 @@ struct CanonicalLibraryRuntime: Sendable {
         descriptor = nil
         self.store = store
         self.assetStore = assetStore
-        repository = CanonicalLibraryRepository(store: store)
-        assetPinStore = CanonicalAssetPinStore(store: store)
-        let recoveryPointStore = CanonicalRecoveryPointStore(store: store)
-        self.recoveryPointStore = recoveryPointStore
         let rootDirectory = assetStore.rootDirectory.deletingLastPathComponent()
         assetOperationGate = CanonicalAssetOperationGate.shared(
             forAssetRootDirectory: assetStore.rootDirectory
         )
+        repository = CanonicalLibraryRepository(
+            store: store,
+            assetStore: assetStore,
+            operationGate: assetOperationGate
+        )
+        assetPinStore = CanonicalAssetPinStore(store: store)
+        let recoveryPointStore = CanonicalRecoveryPointStore(store: store)
+        self.recoveryPointStore = recoveryPointStore
         recoveryPointSnapshotService = CanonicalRecoveryPointSnapshotService(
             store: store,
             recoveryPointStore: recoveryPointStore,

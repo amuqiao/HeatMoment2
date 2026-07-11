@@ -7,6 +7,7 @@ enum RepositoryError: Error, Equatable {
     case tagNotFound(UUID)
     /// `MomentImage.id` 不存在（见 `MomentRepository.imageData(imageID:)`，阶段 4）。
     case momentImageNotFound(UUID)
+    case assetStoreUnavailable
     /// 重命名标签撞名（见 `TagRepository.renameTag(id:newName:)`，阶段6：应用层查重，
     /// CloudKit 不支持 `.unique`，与 `createTag` 前置查重同一约束）。
     case tagNameConflict(String)

@@ -60,7 +60,7 @@ UI / ViewModel
 - 当前 `SyncStatusService` 只是启发式状态展示：`cloudKitEnabled + 网络可达性 + 最近本地写入时间`，不是 CloudKit import/export 事件，也不表达未登录 iCloud、账号变化、冲突、失败重试或恢复进度。
 - 当前 UI 用户写入入口已有过渡版 `LocalLibraryMutationService`：它仍委托 SwiftData repository，但已收口本地写入标记、稳定恢复点、安全恢复点、缩略图失效和时刻/标签创建额度终判。它是迁往 canonical store 前的应用服务边界，不是最终存储权威。
 - 当前已有 SwiftData 过渡版本机自动恢复点：最多 3 个、设置页列表、恢复预览、pending restore staging、恢复已排队阻断页、冷启动 replace、成功/失败反馈、稳定变更节流触发和高风险操作前安全点。它还不是目标 canonical store 下的最终 recovery catalog / asset pin 方案。
-- 当前已有 GRDB canonical store、repository 骨架、`CanonicalLibraryRuntime` 装配类型、SwiftData -> canonical baseline 导入器测试，以及内部 canonical recovery point catalog / asset manifest / recoveryPoint pin / 真实 SQLite snapshot 创建与校验 / 内部 canonical restore executor / boot restore gate / migration safety gate 测试；当前 App 启动不打开 canonical 持久库，它们尚未切入生产 UI 读写路径，也不做 SwiftData + GRDB 双写。
+- 当前已有 GRDB canonical store、M1 repository parity、`CanonicalLibraryRuntime` 装配类型、SwiftData -> canonical baseline 导入器测试，以及内部 canonical recovery point catalog / asset manifest / recoveryPoint pin / 真实 SQLite snapshot 创建与校验 / 内部 canonical restore executor / boot restore gate / migration safety gate 测试；当前 App 启动不打开 canonical 持久库，它们尚未切入生产 UI 读写路径，也不做 SwiftData + GRDB 双写。
 - 当前没有完整数据生命周期：无 canonical UI 读写路径、无 canonical 恢复点生产设置页入口、无真实 cutover / destructive migration 调用方接入、无持久 outbox、无自定义同步状态机、无真实 iCloud 多设备验收。Markdown / PDF 导出已有 SwiftData 过渡版 M1，但还不是 canonical `export_job` 闭环。
 - 当前 SwiftData 是过渡实现和 UI 可用路径，不作为目标架构里的最终数据权威。
 
@@ -111,7 +111,7 @@ MoodmentsApp
 
 ### 分阶段切换
 
-1. **M1 Repository parity**：补齐 canonical read/write facade，覆盖创建、编辑、软删除、恢复、彻底删除、标签 CRUD、时间轴筛选、预览详情、编辑 payload、图片读写、统计/热力图聚合和额度计数。
+1. **M1 Repository parity（已落地，见 current）**：canonical read/write facade 已覆盖创建、编辑、软删除、恢复、彻底删除、标签 CRUD、时间轴筛选、预览详情、编辑 payload、图片读写、统计/热力图聚合和额度计数；生产 UI 尚未切换。
 2. **M2 Main UI runtime cutover**：`MoodmentsApp`、`RootView` 和主流程 feature models 切到 canonical runtime；移除时间轴、编辑、预览、标签、垃圾箱、统计/热力图里的 `@Query` / `ModelContainer` 依赖；恢复点和导出生产切源分别留给 M3/M4，完成前不得宣称 SwiftData 已退出全部生产路径。
 3. **M3 Recovery cutover**：设置页“自动恢复点/备份与恢复”切到 `CanonicalBackupRestoreService`；写入触发器切到 `CanonicalRecoveryCoordinator`；启动期消费 canonical pending restore；SwiftData 恢复路径退出生产。
 4. **M4 Export cutover**：Markdown / PDF 改读 canonical snapshot source；图片从 `FileAssetStore` 读取；导出仍是只读副本，范围选择和持久 job 后置。
@@ -369,7 +369,7 @@ Apple ID / iCloud 边界必须可见：
 - SQLite/GRDB 依赖决策、首版 schema/repository 骨架、canonical runtime 类型、content-addressed asset store 和 SwiftData baseline 导入器已经进入 current；仍需要把导入器纳入受控 cutover，并补齐失败重试和恢复点协作策略。
 - 已将 canonical recovery catalog、asset manifest、retention=3、recoveryPoint content-hash pin、真实 SQLite snapshot 创建、snapshot/asset 校验、内部 recovery coordinator、内部 stage/arm/boot replace/rollback restore executor、restoreStaging pin、boot restore gate 和 migration safety gate 迁入 GRDB；仍需要把 SwiftData 过渡版生产创建触发器、生产启动接入和用户可见 canonical 恢复点路径迁入 canonical。
 - 需要在后续独立 iCloud 计划中，把当前 iCloud 三态启发式替换为可区分 Apple ID / 网络 / outbox / conflict 的状态模型。
-- 需要在已落地的本地 canonical runtime/importer/asset store 上补齐 derived query layer、受控 cutover path，并接入生产用户路径。
+- canonical repository parity 已落地并进入 current；仍需要建立受控 cutover path，并把生产用户路径迁入 canonical runtime/query layer。
 - 现有 SwiftData 过渡版恢复点只覆盖 `Moodments.store*`，不覆盖 `Application Support/Canonical/`；cutover 后必须退役 SwiftData 过渡恢复路径，生产恢复只走 canonical recovery catalog / snapshot / boot restore gate，避免并行 restore/rebuild 语义制造 stale canonical。
 - 需要将已落地 SwiftData 过渡版恢复点的触发器和生产恢复执行迁入 canonical；设置页恢复点 UI 已有 `BackupRestoreServicing` 边界，但当前生产适配器仍是 SwiftData，本阶段未切换 canonical 适配器。内部 canonical restore executor 已有 pending context / armed marker / boot replace / rollback / cleanup，但还没有持久 `restore_job` 表和生产启动接入。
 - 需要把已落地 Markdown / PDF 导出 M1 扩展为目标闭环：范围选择、取消/失败重试、持久 `export_job` 和 canonical export pin。
@@ -405,9 +405,9 @@ Apple ID / iCloud 边界必须可见：
 ### 2. Canonical Local Core And UI Cutover
 
 - 在已落地的本地 SQLite store、迁移框架、canonical write repository、runtime 类型和 SwiftData baseline 导入器上继续收敛。
-- 建立 canonical read/write parity facade：创建、编辑、软删除、恢复、彻底删除、标签 CRUD、时间轴筛选、预览详情、编辑 payload、图片读写、统计/热力图聚合和额度计数必须覆盖当前 SwiftData 行为。
+- M1 repository parity 已落地：创建、编辑、软删除、恢复、彻底删除、标签 CRUD、时间轴筛选、预览详情、编辑 payload、图片读写、统计/热力图聚合和额度计数已有 canonical repository 能力和定向测试。后续不再把这些能力作为 plan 重复实现，只在 UI cutover 中接入。
 - 建立受控 cutover：在切 UI 前执行 SwiftData -> canonical baseline 导入，导入必须携带 source fingerprint；导入失败、source mismatch、目标已有业务数据或恢复点不满足安全条件时必须中止，不进入双权威状态。
-- 扩展 canonical schema、transaction boundary，并建立 derived query layer 或等价查询 facade。
+- 复用已落地 transaction boundary 和等价查询 facade；只有 UI cutover 暴露出无法覆盖当前行为的查询缺口时，才补 derived query layer，避免在单机 App 上提前建设过重 projection。
 - 将首页、编辑、预览、标签、垃圾箱、统计、热力图逐步迁到 canonical repository/query layer。
 - `MoodmentsApp` 和 `RootView` 切换到 canonical runtime 环境注入；生产 UI 不再依赖 `.modelContainer(container)`。
 - 保证未登录 iCloud、飞行模式、无网络时本地全功能可用。
