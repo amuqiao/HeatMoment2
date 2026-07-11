@@ -1,6 +1,5 @@
 import Foundation
 import Observation
-import SwiftData
 import UIKit
 
 struct CanonicalMomentPreviewData: Sendable, Equatable {
@@ -38,11 +37,8 @@ final class CanonicalLibraryService {
         self.runtime = runtime
     }
 
-    func prepareIfNeeded(importingFrom modelContainer: ModelContainer?) async throws {
+    func prepareIfNeeded() async throws {
         guard !isPrepared else { return }
-        if let modelContainer {
-            try await runtime.importFromSwiftDataIfNeeded(modelContainer: modelContainer)
-        }
         isPrepared = true
         noteCanonicalChange()
     }

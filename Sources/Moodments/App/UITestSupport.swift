@@ -1,19 +1,18 @@
 #if DEBUG
     import Foundation
-    import SwiftData
     import UIKit
 
-    /// UI 测试支持（仅 DEBUG 编译）：通过 launch arguments 让 App 使用隔离的内存容器、
+    /// UI 测试支持（仅 DEBUG 编译）：通过 launch arguments 让 App 使用隔离的内存 canonical runtime、
     /// 并按需预置一批记录，供依赖「可滚动/有数据」的 UI 测试使用。生产构建不含此代码。
     ///
-    /// - `-uiTestReset`：使用内存容器（空态、与磁盘隔离）。
-    /// - `-uiTestSeedMoments`：使用内存容器并预置 15 条 Moment（使时间轴可滚动，用于标题折叠等验收）。
-    /// - `-uiTestSeedImageMoment`：使用内存容器并预置 1 条带 3 张合成图片的 Moment，
+    /// - `-uiTestReset`：使用内存 canonical runtime（空态、与磁盘隔离）。
+    /// - `-uiTestSeedMoments`：使用内存 canonical runtime 并预置 15 条 Moment（使时间轴可滚动，用于标题折叠等验收）。
+    /// - `-uiTestSeedImageMoment`：使用内存 canonical runtime 并预置 1 条带 3 张合成图片的 Moment，
     ///   供图片区手势与行级删除边界验收。
     /// - `-uiTestImageDisplayCarousel`：UI 测试隔离外观偏好中把图片展示方式预置为轮播。
-    /// - `-uiTestSeedMomentQuota`：使用内存容器并预置 10 条 Moment（占满免费额度），
+    /// - `-uiTestSeedMomentQuota`：使用内存 canonical runtime 并预置 10 条 Moment（占满免费额度），
     ///   供 `QuotaBlockUITests.testEleventhMomentBlocked` 验证第 11 篇创建被前置闸门拦截。
-    /// - `-uiTestSkipDefaultTags`：使用内存容器但跳过首启默认标签预置，供标签管理正常新建路径
+    /// - `-uiTestSkipDefaultTags`：使用内存 canonical runtime 但跳过首启默认标签预置，供标签管理正常新建路径
     ///   在免费额度未占满时验收。
     /// - `-uiTestPhotoInjection`：编辑器照片区额外展示一个调试注入按钮，直接把合成 JPEG
     ///   写入草稿（见阶段 3 计划决策1：系统 `PhotosPicker` 不在 App 无障碍树内、无法可靠自动化）。
@@ -22,8 +21,8 @@
     /// - `-uiTestResetLocalBackupDisk`：清理上方磁盘隔离目录，供本地备份 UI 测试首轮启动使用。
     /// - `-uiTestSeedLocalRecoveryPoint`：预置 1 个可恢复点，并把当前库改成另一条记录。
     enum UITestSupport {
-        /// 是否应改用内存容器（测试隔离，不落盘、不需 iCloud 能力）。
-        static var wantsInMemoryContainer: Bool {
+        /// 是否应改用内存 canonical runtime（测试隔离，不落盘、不需 iCloud 能力）。
+        static var wantsInMemoryCanonicalRuntime: Bool {
             let args = ProcessInfo.processInfo.arguments
             return args.contains("-uiTestReset")
                 || args.contains("-uiTestSeedMoments")
@@ -56,7 +55,7 @@
             isAnyUITestRun
         }
 
-        /// 标签管理 UI 测试专用：在隔离内存容器中跳过默认 3 标签预置，便于覆盖免费额度未满时的
+        /// 标签管理 UI 测试专用：在隔离内存 canonical runtime 中跳过默认 3 标签预置，便于覆盖免费额度未满时的
         /// 正常新建路径。生产路径和未携带该参数的 UI 测试仍保持首启默认标签语义。
         static var wantsSkipDefaultTags: Bool {
             ProcessInfo.processInfo.arguments.contains("-uiTestSkipDefaultTags")
@@ -86,7 +85,7 @@
         private static let appearanceTestSuiteName = "com.moodments.uiTestAppearance"
 
         /// 是否任意 `-uiTest*` 启动参数在场：外观偏好测试隔离的判定口径比
-        /// `wantsInMemoryContainer` 更宽——照片注入 (`-uiTestPhotoInjection`)、外观保存失败
+        /// `wantsInMemoryCanonicalRuntime` 更宽——照片注入 (`-uiTestPhotoInjection`)、外观保存失败
         /// (`-uiTestFailAppearanceSave`) 等场景同样需要与生产 `UserDefaults.standard` 隔离，
         /// 避免真实用户默认域被测试注入的坏值/失败态污染，也避免多次测试运行相互影响。
         private static var isAnyUITestRun: Bool {
@@ -203,26 +202,20 @@
 
         /// 若带 `-uiTestSeedMoments` 且当前为空，则预置 15 条 Moment。
         @MainActor
-        static func seedIfRequested(_ context: ModelContext) {
+        static func seedIfRequested(_ service: CanonicalLibraryService) async {
             guard ProcessInfo.processInfo.arguments.contains("-uiTestSeedMoments") else { return }
-            // 不吞错：预检查失败应显式暴露（与下方 save 的处理一致，见 CLAUDE.md 快速失败铁律）。
-            let existing: Int
             do {
-                existing = try context.fetchCount(FetchDescriptor<Moment>())
-            } catch {
-                assertionFailure("UITest seed 预检查失败：\(error)")
-                return
-            }
-            guard existing == 0 else { return }
-            for index in 0..<15 {
-                let moment = Moment()
-                moment.title = "测试时刻 \(index + 1)"
-                moment.bodyText = "用于 UI 测试的可滚动内容占位。"
-                moment.occurredAt = Date(timeIntervalSinceNow: Double(-index) * 3600)
-                context.insert(moment)
-            }
-            do {
-                try context.save()
+                let existing = try await service.repository.totalMomentCount()
+                guard existing == 0 else { return }
+                for index in 0..<15 {
+                    _ = try await service.repository.createMoment(
+                        title: "测试时刻 \(index + 1)",
+                        bodyText: "用于 UI 测试的可滚动内容占位。",
+                        occurredAt: Date(timeIntervalSinceNow: Double(-index) * 3_600),
+                        mood: .normal
+                    )
+                }
+                service.noteCanonicalChange()
             } catch {
                 assertionFailure("UITest seed 失败：\(error)")
             }
@@ -230,37 +223,25 @@
 
         /// 若带 `-uiTestSeedImageMoment` 且当前为空，则预置 1 条带 3 张图片的 Moment。
         @MainActor
-        static func seedImageMomentIfRequested(_ context: ModelContext) {
+        static func seedImageMomentIfRequested(_ service: CanonicalLibraryService) async {
             guard ProcessInfo.processInfo.arguments.contains("-uiTestSeedImageMoment") else {
                 return
             }
-            let existing: Int
             do {
-                existing = try context.fetchCount(FetchDescriptor<Moment>())
-            } catch {
-                assertionFailure("UITest 图片 Moment 预置检查失败：\(error)")
-                return
-            }
-            guard existing == 0 else { return }
-
-            let moment = Moment()
-            moment.title = "图片手势测试"
-            moment.bodyText = "用于验证图片区域横向手势不会触发行级删除。"
-            moment.occurredAt = Date()
-            context.insert(moment)
-
-            for index in 0..<3 {
-                let image = MomentImage(
-                    sortIndex: index,
-                    imageData: makeSyntheticPhotoData(),
-                    moment: moment
+                let existing = try await service.repository.totalMomentCount()
+                guard existing == 0 else { return }
+                _ = try await service.repository.createMoment(
+                    title: "图片手势测试",
+                    bodyText: "用于验证图片区域横向手势不会触发行级删除。",
+                    occurredAt: Date(),
+                    mood: .normal,
+                    imageDatas: [
+                        makeSyntheticPhotoData(),
+                        makeSyntheticPhotoData(),
+                        makeSyntheticPhotoData()
+                    ]
                 )
-                context.insert(image)
-                moment.images.append(image)
-            }
-
-            do {
-                try context.save()
+                service.noteCanonicalChange()
             } catch {
                 assertionFailure("UITest 图片 Moment 预置失败：\(error)")
             }
@@ -269,40 +250,25 @@
         /// 若带 `-uiTestSeedMomentQuota` 且当前为空，则预置 `Quota.freeMomentLimit` 条 Moment
         /// （占满免费额度），供第 11 篇创建被前置闸门拦截的验收使用（见类型头部说明）。
         @MainActor
-        static func seedMomentQuotaIfRequested(_ context: ModelContext) {
+        static func seedMomentQuotaIfRequested(_ service: CanonicalLibraryService) async {
             guard ProcessInfo.processInfo.arguments.contains("-uiTestSeedMomentQuota") else {
                 return
             }
-            let existing: Int
             do {
-                existing = try context.fetchCount(FetchDescriptor<Moment>())
-            } catch {
-                assertionFailure("UITest 配额预置检查失败：\(error)")
-                return
-            }
-            guard existing == 0 else { return }
-            for index in 0..<Quota.freeMomentLimit {
-                let moment = Moment()
-                moment.title = "配额测试 \(index + 1)"
-                moment.occurredAt = Date(timeIntervalSinceNow: Double(-index) * 3600)
-                context.insert(moment)
-            }
-            do {
-                try context.save()
+                let existing = try await service.repository.totalMomentCount()
+                guard existing == 0 else { return }
+                for index in 0..<Quota.freeMomentLimit {
+                    _ = try await service.repository.createMoment(
+                        title: "配额测试 \(index + 1)",
+                        bodyText: "",
+                        occurredAt: Date(timeIntervalSinceNow: Double(-index) * 3_600),
+                        mood: .normal
+                    )
+                }
+                service.noteCanonicalChange()
             } catch {
                 assertionFailure("UITest 配额预置失败：\(error)")
             }
-        }
-
-        @MainActor
-        static func seedLocalRecoveryPointIfRequested(
-            _ context: ModelContext,
-            coordinator: LocalBackupCoordinator?
-        ) async {
-            await UITestLocalBackupSupport.seedRecoveryPointIfRequested(
-                context,
-                coordinator: coordinator
-            )
         }
 
         @MainActor
@@ -342,46 +308,6 @@
                 }
             } catch {
                 assertionFailure("UITest 本地备份目录清理失败：\(error)")
-            }
-        }
-
-        @MainActor
-        static func seedRecoveryPointIfRequested(
-            _ context: ModelContext,
-            coordinator: LocalBackupCoordinator?
-        ) async {
-            guard ProcessInfo.processInfo.arguments.contains("-uiTestSeedLocalRecoveryPoint") else {
-                return
-            }
-            guard let coordinator else {
-                assertionFailure("UITest 本地备份恢复预置需要 LocalBackupCoordinator")
-                return
-            }
-            do {
-                let existing = try context.fetchCount(FetchDescriptor<Moment>())
-                guard existing == 0 else { return }
-
-                let backupMoment = Moment()
-                backupMoment.title = "备份里的时刻"
-                backupMoment.bodyText = "用于验证本地备份恢复后的资料库内容。"
-                backupMoment.occurredAt = Date(timeIntervalSince1970: 1_800)
-                context.insert(backupMoment)
-                try context.save()
-
-                try await coordinator.createRecoveryPoint(
-                    reason: .stableChanges,
-                    createdAt: Date(timeIntervalSince1970: 2_000)
-                )
-
-                context.delete(backupMoment)
-                let currentMoment = Moment()
-                currentMoment.title = "当前未恢复时刻"
-                currentMoment.bodyText = "用于验证恢复前后资料库已被替换。"
-                currentMoment.occurredAt = Date(timeIntervalSince1970: 2_400)
-                context.insert(currentMoment)
-                try context.save()
-            } catch {
-                assertionFailure("UITest 本地恢复点预置失败：\(error)")
             }
         }
 

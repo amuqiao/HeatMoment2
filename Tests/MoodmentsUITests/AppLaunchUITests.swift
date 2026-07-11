@@ -5,7 +5,7 @@ import XCTest
 final class AppLaunchUITests: XCTestCase {
     func testAppLaunchesIntoTimeline() {
         let app = XCUIApplication()
-        app.launchArguments = ["-uiTestReset"]   // 隔离内存容器，空态可复现、不依赖磁盘残留
+        app.launchArguments = ["-uiTestReset"]  // 隔离内存 canonical runtime，空态可复现、不依赖磁盘残留
         app.launch()
         XCTAssertTrue(app.staticTexts["timelineExpandedTitle"].waitForExistence(timeout: 10))
     }

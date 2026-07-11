@@ -1,10 +1,8 @@
-import SwiftData
 import SwiftUI
 
-/// App 入口：装配 canonical runtime（生产主流程读写权威）和过渡 SwiftData `ModelContainer`
-/// （仅供受控导入和过渡测试种子使用）、集中路由 `AppRouter`、
-/// 主题 `ThemeManager`、订阅 `SubscriptionService`，注入 Environment 供全树消费
-/// （见 08-architecture.md §0/§3/§4）。
+/// App 入口：装配 canonical runtime（生产主流程读写权威）、集中路由 `AppRouter`、
+/// 主题 `ThemeManager`、订阅 `SubscriptionService`，注入 Environment 供全树消费。
+/// SwiftData 不参与生产启动装配；旧 SwiftData importer 仅作为受控工具/历史测试面保留。
 @main
 struct MoodmentsApp: App {
     @Environment(\.scenePhase) private var scenePhase
@@ -25,7 +23,6 @@ struct MoodmentsApp: App {
     /// 跟踪：进入 `.background` 时置位，等到之后任意一次回到 `.active` 时消费并复位，规避
     /// `.inactive` 中间态导致的判定失败。
     @State private var didEnterBackground = false
-    private let container: ModelContainer
     private let canonicalLibraryService: CanonicalLibraryService
     private let canonicalRecoveryCoordinator: CanonicalRecoveryCoordinator?
     private let localBackupCoordinator: LocalBackupCoordinator?
@@ -63,7 +60,6 @@ struct MoodmentsApp: App {
         launchRestoreResult = Self.performPendingCanonicalRestore()
 
         let runtime = Self.makeRuntimeServices()
-        container = runtime.container
         canonicalLibraryService = runtime.canonicalLibraryService
         canonicalRecoveryCoordinator = runtime.canonicalRecoveryCoordinator
         localBackupCoordinator = runtime.localBackupCoordinator
@@ -182,16 +178,13 @@ struct MoodmentsApp: App {
             .environment(\.locale, effectiveLocale)
             .preferredColorScheme(theme.mode == .dark ? .dark : .light)
         }
-        .modelContainer(container)
     }
 
     private static func makeRuntimeServices() -> RuntimeServices {
         #if DEBUG
-            if UITestSupport.wantsInMemoryContainer {
-                let container = makeInMemoryContainer()
+            if UITestSupport.wantsInMemoryCanonicalRuntime {
                 let canonicalLibraryService = makeInMemoryCanonicalLibraryService()
                 return RuntimeServices(
-                    container: container,
                     canonicalLibraryService: canonicalLibraryService,
                     canonicalRecoveryCoordinator: nil,
                     syncStatusService: SyncStatusService(cloudKitEnabled: false),
@@ -201,7 +194,6 @@ struct MoodmentsApp: App {
             }
         #endif
 
-        let (container, cloudKitEnabled) = ModelContainerConfig.makeProductionContainer()
         let canonicalRuntime = makeProductionCanonicalLibraryRuntime()
         let canonicalLibraryService = CanonicalLibraryService(runtime: canonicalRuntime)
         let canonicalRecoveryCoordinator = CanonicalRecoveryCoordinator(
@@ -209,10 +201,9 @@ struct MoodmentsApp: App {
             appVersion: appVersion
         )
         return RuntimeServices(
-            container: container,
             canonicalLibraryService: canonicalLibraryService,
             canonicalRecoveryCoordinator: canonicalRecoveryCoordinator,
-            syncStatusService: SyncStatusService(cloudKitEnabled: cloudKitEnabled),
+            syncStatusService: SyncStatusService(cloudKitEnabled: hasICloudCapability),
             localBackupCoordinator: nil,
             backupRestoreService: CanonicalBackupRestoreService(
                 coordinator: canonicalRecoveryCoordinator
@@ -232,15 +223,6 @@ struct MoodmentsApp: App {
         }
     }
 
-    private static func makeInMemoryContainer() -> ModelContainer {
-        do {
-            return try ModelContainerConfig.makeInMemoryContainer()
-        } catch {
-            // 不做静默兜底：容器无法建立属不可恢复的启动错误，快速暴露（见 CLAUDE.md）。
-            fatalError("ModelContainer 初始化失败：\(error)")
-        }
-    }
-
     private static func makeProductionCanonicalLibraryRuntime() -> CanonicalLibraryRuntime {
         do {
             return try CanonicalLibraryRuntime.makeProduction()
@@ -257,20 +239,6 @@ struct MoodmentsApp: App {
         }
     }
 
-    private static func makeLocalBackupCoordinatorIfNeeded(
-        modelContainer: ModelContainer,
-        cloudKitEnabled: Bool
-    ) -> LocalBackupCoordinator? {
-        guard !cloudKitEnabled else { return nil }
-        do {
-            return try ModelContainerConfig.makeLocalBackupCoordinator(
-                modelContainer: modelContainer
-            )
-        } catch {
-            fatalError("本地备份初始化失败：\(error)")
-        }
-    }
-
     private static var appVersion: String {
         let dictionary = Bundle.main.infoDictionary
         let marketingVersion = dictionary?["CFBundleShortVersionString"] as? String
@@ -280,8 +248,16 @@ struct MoodmentsApp: App {
             .joined(separator: " ")
     }
 
+    private static var hasICloudCapability: Bool {
+        #if DEBUG
+            if UITestSupport.localBackupApplicationSupportDirectory != nil {
+                return false
+            }
+        #endif
+        return FileManager.default.ubiquityIdentityToken != nil
+    }
+
     private struct RuntimeServices {
-        let container: ModelContainer
         let canonicalLibraryService: CanonicalLibraryService
         let canonicalRecoveryCoordinator: CanonicalRecoveryCoordinator?
         let syncStatusService: SyncStatusService

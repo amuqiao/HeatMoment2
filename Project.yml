@@ -41,11 +41,10 @@ targets:
         INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
         TARGETED_DEVICE_FAMILY: "1,2"   # iPhone + iPad
-        # 阶段 7：iCloud（CloudKit 私有库同步，见 09-icloud-sync.md）+ Face ID（隐私锁，见
-        # 10-security-privacy.md）。`CODE_SIGNING_ALLOWED=NO`（见 scripts/build.sh、test.sh）下
-        # entitlements 不会被实际签名嵌入，本地/模拟器/CI 构建不因缺少开发者团队签名而失败——
-        # `ModelContainerConfig.makeProductionContainer()` 在运行时探测到 CloudKit 不可用会
-        # 自动回退本地容器（阶段7计划决策2「无签名不崩」）。
+        # iCloud（CloudKit 私有库同步，见 09-icloud-sync.md）+ Face ID（隐私锁，见
+        # 10-security-privacy.md）。M5 后生产数据权威是 canonical local store，启动不再创建
+        # SwiftData CloudKit `ModelContainer`；当前 iCloud 行只做能力/网络启发式展示，真实同步
+        # 状态机后续单独接入。
         CODE_SIGN_ENTITLEMENTS: Config/Moodments.entitlements
         INFOPLIST_KEY_NSFaceIDUsageDescription: "用于解锁「时刻」以保护你的心情日记隐私"
     dependencies:

@@ -1,4 +1,3 @@
-import SwiftData
 import SwiftUI
 
 /// 设置（见 `docs/design/04-screen-specs.md` §4.11）：Pro 横幅 + 分组卡片 A（心情统计/标签
@@ -223,6 +222,4 @@ struct SettingsSheetView: View {
         .environment(SubscriptionService())
         .environment(SyncStatusService(cloudKitEnabled: false))
         .environment(CanonicalLibraryService.makeInMemoryForPreview())
-        // swiftlint:disable:next force_try
-        .modelContainer(try! ModelContainerConfig.makeInMemoryContainer())
 }

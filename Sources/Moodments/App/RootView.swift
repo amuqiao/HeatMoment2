@@ -1,4 +1,3 @@
-import SwiftData
 import SwiftUI
 
 /// 根视图：装载时间轴首页，并把 `AppRouter` 的跨页导航意图呈现为对应浮层——
@@ -16,13 +15,13 @@ struct RootView: View {
     let launchRestoreResult: BackupBootRestoreResult
 
     @Environment(AppRouter.self) private var router
-    @Environment(\.modelContext) private var modelContext
     @Environment(ErrorPresenter.self) private var errorPresenter
     @Environment(CanonicalLibraryService.self) private var canonicalService
     @Environment(SubscriptionService.self) private var subscriptionService
     @Environment(SyncStatusService.self) private var syncStatusService
     @State private var timelineModel = TimelineModel()
     @State private var didHandleLaunchRestoreResult = false
+    @State private var isReadyForInteraction = false
     @State private var showsLaunchRestoreSuccess = false
     @State private var launchRestoreSuccessMessage = ""
 
@@ -41,7 +40,7 @@ struct RootView: View {
     var body: some View {
         @Bindable var router = router
         Group {
-            if canonicalService.isPrepared {
+            if canonicalService.isPrepared && isReadyForInteraction {
                 TimelineHomeView()
             } else {
                 ZStack {
@@ -94,20 +93,12 @@ struct RootView: View {
                     )
                 }
             }
-            #if DEBUG
-                UITestSupport.seedIfRequested(modelContext)
-                UITestSupport.seedImageMomentIfRequested(modelContext)
-                UITestSupport.seedMomentQuotaIfRequested(modelContext)
-            #endif
             do {
-                let importSource: ModelContainer?
-                if case .restored = launchRestoreResult {
-                    importSource = nil
-                } else {
-                    importSource = modelContext.container
-                }
-                try await canonicalService.prepareIfNeeded(importingFrom: importSource)
+                try await canonicalService.prepareIfNeeded()
                 #if DEBUG
+                    await UITestSupport.seedIfRequested(canonicalService)
+                    await UITestSupport.seedImageMomentIfRequested(canonicalService)
+                    await UITestSupport.seedMomentQuotaIfRequested(canonicalService)
                     await UITestSupport.seedCanonicalRecoveryPointIfRequested(
                         canonicalService,
                         coordinator: canonicalRecoveryCoordinator
@@ -140,7 +131,9 @@ struct RootView: View {
                 }
             } catch {
                 errorPresenter.report(message: "初始化默认标签失败，请重启应用重试。", underlying: error)
+                return
             }
+            isReadyForInteraction = true
         }
     }
 

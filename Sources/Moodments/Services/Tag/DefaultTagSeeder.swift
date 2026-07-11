@@ -39,9 +39,8 @@ enum DefaultTagSeeder {
     static let hasCompletedFirstSeedKey = "com.moodments.defaultTagSeeder.hasCompletedFirstSeed"
 
     /// - Parameters:
-    ///   - cloudKitEnabled: 当前容器是否启用了 CloudKit 同步（见
-    ///     `ModelContainerConfig.makeProductionContainer()`）；默认 `false`（本地容器/单测路径，
-    ///     行为与阶段 1–6 完全等价，不引入等待）。
+    ///   - cloudKitEnabled: 调用方是否已确认当前路径具备 CloudKit/iCloud 同步能力；默认 `false`
+    ///     （本地/单测路径，行为与阶段 1–6 完全等价，不引入等待）。
     ///   - firstImportSignal: 供未来接入真实 CloudKit 首次 import 完成通知使用的注入点；
     ///     `nil`（默认）时只依赖 `firstSyncGraceTimeout` 短超时兜底（见类型头部说明——真实
     ///     CloudKit import 事件粒度是 `09-icloud-sync.md` §9.2 标注的开放问题，本类型不强依赖它）。
@@ -63,7 +62,9 @@ enum DefaultTagSeeder {
         userDefaults.set(true, forKey: hasCompletedFirstSeedKey)
     }
 
-    private static func waitForFirstSyncOrTimeout(firstImportSignal: (@Sendable () async -> Void)?) async {
+    private static func waitForFirstSyncOrTimeout(
+        firstImportSignal: (@Sendable () async -> Void)?
+    ) async {
         guard let firstImportSignal else {
             try? await Task.sleep(for: firstSyncGraceTimeout)
             return

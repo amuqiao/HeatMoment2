@@ -1,5 +1,7 @@
 import Foundation
-import SwiftData
+#if DEBUG
+    import SwiftData
+#endif
 
 enum LocalLibraryMutationError: Error {
     case emptyTagName
@@ -22,7 +24,9 @@ struct LocalLibraryTagMutationResult: Equatable {
 @MainActor
 struct LocalLibraryMutationService {
     private enum Backend {
-        case swiftData(ModelContainer)
+        #if DEBUG
+            case swiftData(ModelContainer)
+        #endif
         case canonical(CanonicalLibraryService)
     }
 
@@ -32,18 +36,20 @@ struct LocalLibraryMutationService {
     private let syncStatusService: SyncStatusService
     private let errorPresenter: ErrorPresenter
 
-    init(
-        modelContainer: ModelContainer,
-        localBackupCoordinator: LocalBackupCoordinator?,
-        syncStatusService: SyncStatusService,
-        errorPresenter: ErrorPresenter
-    ) {
-        self.backend = .swiftData(modelContainer)
-        self.localBackupCoordinator = localBackupCoordinator
-        self.canonicalRecoveryCoordinator = nil
-        self.syncStatusService = syncStatusService
-        self.errorPresenter = errorPresenter
-    }
+    #if DEBUG
+        init(
+            modelContainer: ModelContainer,
+            localBackupCoordinator: LocalBackupCoordinator?,
+            syncStatusService: SyncStatusService,
+            errorPresenter: ErrorPresenter
+        ) {
+            self.backend = .swiftData(modelContainer)
+            self.localBackupCoordinator = localBackupCoordinator
+            self.canonicalRecoveryCoordinator = nil
+            self.syncStatusService = syncStatusService
+            self.errorPresenter = errorPresenter
+        }
+    #endif
 
     init(
         canonicalService: CanonicalLibraryService,
@@ -183,8 +189,10 @@ struct LocalLibraryMutationService {
 
     private func totalMomentCount() async throws -> Int {
         switch backend {
-        case let .swiftData(modelContainer):
-            try await MomentRepository(modelContainer: modelContainer).totalMomentCount()
+        #if DEBUG
+            case let .swiftData(modelContainer):
+                try await MomentRepository(modelContainer: modelContainer).totalMomentCount()
+        #endif
         case let .canonical(service):
             try await service.repository.totalMomentCount()
         }
@@ -200,15 +208,17 @@ struct LocalLibraryMutationService {
         imageDatas: [Data]
     ) async throws -> UUID {
         switch backend {
-        case let .swiftData(modelContainer):
-            return try await MomentRepository(modelContainer: modelContainer).createMoment(
-                title: title,
-                bodyText: bodyText,
-                occurredAt: occurredAt,
-                mood: mood,
-                tagIDs: tagIDs,
-                imageDatas: imageDatas
-            )
+        #if DEBUG
+            case let .swiftData(modelContainer):
+                return try await MomentRepository(modelContainer: modelContainer).createMoment(
+                    title: title,
+                    bodyText: bodyText,
+                    occurredAt: occurredAt,
+                    mood: mood,
+                    tagIDs: tagIDs,
+                    imageDatas: imageDatas
+                )
+        #endif
         case let .canonical(service):
             let id = try await service.repository.createMoment(
                 title: title,
@@ -233,16 +243,18 @@ struct LocalLibraryMutationService {
         imageDatas: [Data]
     ) async throws {
         switch backend {
-        case let .swiftData(modelContainer):
-            try await MomentRepository(modelContainer: modelContainer).updateMoment(
-                id: id,
-                title: title,
-                bodyText: bodyText,
-                occurredAt: occurredAt,
-                mood: mood,
-                tagIDs: tagIDs,
-                imageDatas: imageDatas
-            )
+        #if DEBUG
+            case let .swiftData(modelContainer):
+                try await MomentRepository(modelContainer: modelContainer).updateMoment(
+                    id: id,
+                    title: title,
+                    bodyText: bodyText,
+                    occurredAt: occurredAt,
+                    mood: mood,
+                    tagIDs: tagIDs,
+                    imageDatas: imageDatas
+                )
+        #endif
         case let .canonical(service):
             try await service.repository.updateMoment(
                 id: id,
@@ -259,8 +271,10 @@ struct LocalLibraryMutationService {
 
     private func softDeleteMomentInRepository(id: UUID) async throws {
         switch backend {
-        case let .swiftData(modelContainer):
-            try await MomentRepository(modelContainer: modelContainer).softDelete(id: id)
+        #if DEBUG
+            case let .swiftData(modelContainer):
+                try await MomentRepository(modelContainer: modelContainer).softDelete(id: id)
+        #endif
         case let .canonical(service):
             try await service.repository.softDeleteMoment(id: id)
             service.noteCanonicalChange()
@@ -269,8 +283,10 @@ struct LocalLibraryMutationService {
 
     private func restoreMomentInRepository(id: UUID) async throws {
         switch backend {
-        case let .swiftData(modelContainer):
-            try await MomentRepository(modelContainer: modelContainer).restore(id: id)
+        #if DEBUG
+            case let .swiftData(modelContainer):
+                try await MomentRepository(modelContainer: modelContainer).restore(id: id)
+        #endif
         case let .canonical(service):
             try await service.repository.restoreMoment(id: id)
             service.noteCanonicalChange()
@@ -279,8 +295,10 @@ struct LocalLibraryMutationService {
 
     private func purgeMomentInRepository(id: UUID) async throws {
         switch backend {
-        case let .swiftData(modelContainer):
-            try await MomentRepository(modelContainer: modelContainer).purge(id: id)
+        #if DEBUG
+            case let .swiftData(modelContainer):
+                try await MomentRepository(modelContainer: modelContainer).purge(id: id)
+        #endif
         case let .canonical(service):
             try await service.repository.purgeMoment(id: id)
             service.noteCanonicalChange()
@@ -292,11 +310,13 @@ struct LocalLibraryMutationService {
         quotaService: QuotaService
     ) async throws -> TagCreateOrReuseResult {
         switch backend {
-        case let .swiftData(modelContainer):
-            return try await TagRepository(modelContainer: modelContainer).createOrReuseTag(
-                name: name,
-                quotaService: quotaService
-            )
+        #if DEBUG
+            case let .swiftData(modelContainer):
+                return try await TagRepository(modelContainer: modelContainer).createOrReuseTag(
+                    name: name,
+                    quotaService: quotaService
+                )
+        #endif
         case let .canonical(service):
             let result = try await service.repository.createOrReuseTag(
                 name: name,
@@ -311,9 +331,11 @@ struct LocalLibraryMutationService {
 
     private func renameTagInRepository(id: UUID, newName: String) async throws {
         switch backend {
-        case let .swiftData(modelContainer):
-            try await TagRepository(modelContainer: modelContainer).renameTag(
-                id: id, newName: newName)
+        #if DEBUG
+            case let .swiftData(modelContainer):
+                try await TagRepository(modelContainer: modelContainer).renameTag(
+                    id: id, newName: newName)
+        #endif
         case let .canonical(service):
             try await service.repository.renameTag(id: id, newName: newName)
             service.noteCanonicalChange()
@@ -322,8 +344,10 @@ struct LocalLibraryMutationService {
 
     private func deleteTagInRepository(id: UUID) async throws {
         switch backend {
-        case let .swiftData(modelContainer):
-            try await TagRepository(modelContainer: modelContainer).deleteTag(id: id)
+        #if DEBUG
+            case let .swiftData(modelContainer):
+                try await TagRepository(modelContainer: modelContainer).deleteTag(id: id)
+        #endif
         case let .canonical(service):
             try await service.repository.deleteTag(id: id)
             service.noteCanonicalChange()
@@ -333,10 +357,12 @@ struct LocalLibraryMutationService {
     private func createMutationSafetyPoint() async throws {
         do {
             switch backend {
-            case .swiftData:
-                try await LocalBackupWriteRecorder.createMutationSafetyPoint(
-                    using: localBackupCoordinator
-                )
+            #if DEBUG
+                case .swiftData:
+                    try await LocalBackupWriteRecorder.createMutationSafetyPoint(
+                        using: localBackupCoordinator
+                    )
+            #endif
             case .canonical:
                 try await CanonicalRecoveryWriteRecorder.createMutationSafetyPoint(
                     using: canonicalRecoveryCoordinator
@@ -350,11 +376,13 @@ struct LocalLibraryMutationService {
     private func recordStableLocalWrite() {
         recordLocalWrite()
         switch backend {
-        case .swiftData:
-            LocalBackupWriteRecorder.recordStableChanges(
-                using: localBackupCoordinator,
-                errorPresenter: errorPresenter
-            )
+        #if DEBUG
+            case .swiftData:
+                LocalBackupWriteRecorder.recordStableChanges(
+                    using: localBackupCoordinator,
+                    errorPresenter: errorPresenter
+                )
+        #endif
         case .canonical:
             CanonicalRecoveryWriteRecorder.recordStableChanges(
                 using: canonicalRecoveryCoordinator,

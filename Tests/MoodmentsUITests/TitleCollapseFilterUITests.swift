@@ -10,7 +10,7 @@ import XCTest
 final class TitleCollapseFilterUITests: XCTestCase {
     func testExpandedTitleTapDoesNotOpenFilter() {
         let app = XCUIApplication()
-        app.launchArguments = ["-uiTestReset"]  // 隔离内存容器，空态展开态可复现
+        app.launchArguments = ["-uiTestReset"]  // 隔离内存 canonical runtime，空态展开态可复现
         app.launch()
 
         let expandedTitle = app.staticTexts["timelineExpandedTitle"]

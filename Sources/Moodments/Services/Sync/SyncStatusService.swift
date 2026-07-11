@@ -92,14 +92,12 @@ struct SyncStatusEvaluationInput: Sendable, Equatable {
     let now: Date
 }
 
-/// CloudKit 同步状态推导（见 09-icloud-sync.md §9.2）：SwiftData 目前未提供高层公开 API 直接
-/// 暴露「同步中/已同步/失败」细粒度事件（`ModelContainer` 无法公开访问到底层
-/// `NSPersistentCloudKitContainer`，文档已标注为开放问题），本类型按文档给出的**启发式退化
-/// 方案**实现：以「最近一次本地写入 + 网络可达性」推断展示三态，而非依赖不稳定的事件粒度。
+/// iCloud 同步状态推导（见 09-icloud-sync.md §9.2）：当前生产数据权威是 canonical local store，
+/// 尚未接入真实 iCloud 同步事件，因此本类型仍按文档给出的**启发式退化方案**实现：以「当前设备
+/// 具备 iCloud 能力 + 最近一次本地写入 + 网络可达性」推断展示三态，而非表达真实上传/下载进度。
 ///
-/// - CloudKit 未启用（生产容器回退本地，见 `ModelContainerConfig.makeProductionContainer()`）
-///   恒 `.offline`——本就没有同步这回事。
-/// - CloudKit 已启用：网络不可达 → `.offline`；网络可达且刚发生过本地写入（短时间窗口内）→
+/// - iCloud 能力不可用时恒 `.offline`——本就没有同步这回事。
+/// - iCloud 能力可用：网络不可达 → `.offline`；网络可达且刚发生过本地写入（短时间窗口内）→
 ///   `.syncing`（近似展示「正在上传」的观感）；否则 → `.synced`。
 @MainActor
 @Observable
@@ -136,12 +134,14 @@ final class SyncStatusService {
     /// 恢复后仍在 `@MainActor` 上更新 `status`。
     func refresh(now: Date = .now) async {
         let isNetworkReachable = await reachabilityChecker.isReachable()
-        status = Self.evaluate(SyncStatusEvaluationInput(
-            cloudKitEnabled: cloudKitEnabled,
-            isNetworkReachable: isNetworkReachable,
-            lastLocalWriteAt: lastLocalWriteAt,
-            now: now
-        ))
+        status = Self.evaluate(
+            SyncStatusEvaluationInput(
+                cloudKitEnabled: cloudKitEnabled,
+                isNetworkReachable: isNetworkReachable,
+                lastLocalWriteAt: lastLocalWriteAt,
+                now: now
+            )
+        )
     }
 
     /// 纯逻辑推导（见类型头部说明），供单测直接注入输入验证，不依赖真实网络/CloudKit。
@@ -149,7 +149,8 @@ final class SyncStatusService {
     nonisolated static func evaluate(_ input: SyncStatusEvaluationInput) -> SyncStatus {
         guard input.cloudKitEnabled else { return .offline }
         guard input.isNetworkReachable else { return .offline }
-        if let lastWrite = input.lastLocalWriteAt, input.now.timeIntervalSince(lastWrite) < syncingWindow {
+        if let lastWrite = input.lastLocalWriteAt,
+           input.now.timeIntervalSince(lastWrite) < syncingWindow {
             return .syncing
         }
         return .synced

@@ -1,5 +1,4 @@
 import Foundation
-import SwiftData
 
 protocol ExportSnapshotProviding: Sendable {
     func makeSnapshot(exportedAt: Date) async throws -> ExportSnapshot
@@ -21,20 +20,6 @@ struct ExportService {
         self.outputRootURL = outputRootURL
         self.markdownRenderer = markdownRenderer
         self.pdfRenderer = pdfRenderer
-    }
-
-    init(
-        modelContainer: ModelContainer,
-        outputRootURL: URL? = nil,
-        markdownRenderer: MarkdownExportRenderer = MarkdownExportRenderer(),
-        pdfRenderer: PDFExportRenderer = PDFExportRenderer()
-    ) {
-        self.init(
-            snapshotProvider: SwiftDataExportSnapshotStore(modelContainer: modelContainer),
-            outputRootURL: outputRootURL,
-            markdownRenderer: markdownRenderer,
-            pdfRenderer: pdfRenderer
-        )
     }
 
     func exportAll(format: ExportFormat, now: Date = .now) async throws -> ExportResult {
@@ -73,40 +58,6 @@ struct ExportService {
             format.outputDirectoryName,
             isDirectory: true
         )
-    }
-}
-
-@ModelActor
-actor SwiftDataExportSnapshotStore: ExportSnapshotProviding {
-    func makeSnapshot(exportedAt: Date) async throws -> ExportSnapshot {
-        let descriptor = FetchDescriptor<Moment>(
-            predicate: #Predicate { $0.deletedFlag == false },
-            sortBy: [SortDescriptor(\.occurredAt, order: .reverse)]
-        )
-        let moments = try modelContext.fetch(descriptor).map { moment in
-            ExportMoment(
-                id: moment.id,
-                title: moment.title,
-                bodyText: moment.bodyText,
-                occurredAt: moment.occurredAt,
-                mood: moment.mood,
-                tagNames: sortedTagNames(moment.tags),
-                assets: sortedAssets(moment.images)
-            )
-        }
-        return ExportSnapshot(exportedAt: exportedAt, moments: moments)
-    }
-
-    private func sortedTagNames(_ tags: [Tag]) -> [String] {
-        tags
-            .map(\.name)
-            .sorted { $0.localizedStandardCompare($1) == .orderedAscending }
-    }
-
-    private func sortedAssets(_ images: [MomentImage]) -> [ExportAsset] {
-        images
-            .sorted { $0.sortIndex < $1.sortIndex }
-            .map { ExportAsset(id: $0.id, data: $0.imageData) }
     }
 }
 

@@ -10,7 +10,7 @@ final class CanonicalLibraryServiceTests: XCTestCase {
         XCTAssertFalse(fixture.service.isPrepared)
         XCTAssertEqual(fixture.service.changeToken, 0)
 
-        try await fixture.service.prepareIfNeeded(importingFrom: nil)
+        try await fixture.service.prepareIfNeeded()
 
         XCTAssertTrue(fixture.service.isPrepared)
         XCTAssertEqual(fixture.service.changeToken, 1)
