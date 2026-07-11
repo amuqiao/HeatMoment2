@@ -4,7 +4,7 @@ import XCTest
 /// `docs/plans/implementation-plan.md` 阶段 3 验收：第 11 篇 / 第 4 标签 / 第 4 张照片）。
 final class QuotaBlockUITests: XCTestCase {
     /// 篇数额度：预置 10 篇（占满免费额度）后点新建，应直接弹出 Paywall、编辑器不打开
-    /// （见 `TimelineHomeView` 的前置闸门：`MomentRepository.totalMomentCount()` + `QuotaService`）。
+    /// （见 `TimelineHomeView` 的前置闸门：canonical count + `QuotaService`）。
     func testEleventhMomentBlocked() {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTestSeedMomentQuota"]

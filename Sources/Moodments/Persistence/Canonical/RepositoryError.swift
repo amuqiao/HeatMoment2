@@ -5,11 +5,10 @@ import Foundation
 enum RepositoryError: Error, Equatable {
     case momentNotFound(UUID)
     case tagNotFound(UUID)
-    /// `MomentImage.id` 不存在（见 `MomentRepository.imageData(imageID:)`，阶段 4）。
+    /// 图片 id 不存在（canonical asset metadata/link 中找不到对应业务图片）。
     case momentImageNotFound(UUID)
     case assetStoreUnavailable
-    /// 重命名标签撞名（见 `TagRepository.renameTag(id:newName:)`，阶段6：应用层查重，
-    /// CloudKit 不支持 `.unique`，与 `createTag` 前置查重同一约束）。
+    /// 重命名标签撞名；由 canonical repository 在单个事务内检查并快速失败。
     case tagNameConflict(String)
     /// 创建写入超过免费额度。UI/application service 可据此打开对应 Paywall，不静默创建。
     case quotaExceeded(QuotaKind)

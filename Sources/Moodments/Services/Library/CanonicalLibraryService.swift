@@ -22,8 +22,8 @@ struct CanonicalMomentPreviewData: Sendable, Equatable {
 
 /// Canonical store 的主流程 UI facade。
 ///
-/// SwiftUI 层只消费这里返回的值类型和 `changeToken`，不直接持有 GRDB row、SwiftData `@Model`
-/// 或 actor 内部状态。恢复点和导出由独立应用服务组合 canonical repository 能力。
+/// SwiftUI 层只消费这里返回的值类型和 `changeToken`，不直接持有 GRDB row 或 actor 内部状态。
+/// 恢复点和导出由独立应用服务组合 canonical repository 能力。
 @MainActor
 @Observable
 final class CanonicalLibraryService {
@@ -45,18 +45,16 @@ final class CanonicalLibraryService {
 
     func seedDefaultTagsIfNeeded(
         cloudKitEnabled: Bool = false,
-        userDefaults: UserDefaults = .standard
+        userDefaultsSuiteName: String? = nil
     ) async throws {
-        guard !userDefaults.bool(forKey: DefaultTagSeeder.hasCompletedFirstSeedKey) else { return }
-        if cloudKitEnabled {
-            try await Task.sleep(for: DefaultTagSeeder.firstSyncGraceTimeout)
+        let didWrite = try await DefaultTagSeeder.seedIfNeeded(
+            using: repository,
+            cloudKitEnabled: cloudKitEnabled,
+            userDefaultsSuiteName: userDefaultsSuiteName
+        )
+        if didWrite {
+            noteCanonicalChange()
         }
-        for name in DefaultTagSeeder.defaultNames
-        where try await repository.findTag(named: name) == nil {
-            _ = try await repository.createOrReuseTag(name: name)
-        }
-        userDefaults.set(true, forKey: DefaultTagSeeder.hasCompletedFirstSeedKey)
-        noteCanonicalChange()
     }
 
     func noteCanonicalChange() {

@@ -3,9 +3,9 @@ import Foundation
 /// 时间轴一行的 value projection，统一「真实 Moment」与「预置引导 Moment」两种来源
 /// （见 02-information-architecture.md 空态引导、04-screen-specs.md §4.1）。
 ///
-/// `TimelineRowView` 只消费这个投影对象，不直接持有 SwiftData `Moment`。这样时间轴 viewport、
-/// 滚动定位、左滑删除动画和行样式只依赖稳定值；SwiftData 刷新、软删除副作用和预览路由通过
-/// `momentID` 回到数据层，避免 live model 引用渗入阅读单元。
+/// `TimelineRowView` 只消费这个投影对象，不直接持有 GRDB row。这样时间轴 viewport、
+/// 滚动定位、左滑删除动画和行样式只依赖稳定值；写入副作用和预览路由通过 `momentID`
+/// 回到 canonical 数据层，避免 live storage 引用渗入阅读单元。
 struct TimelineEntry: Identifiable, Equatable {
     enum Kind: Equatable {
         case real
@@ -22,22 +22,6 @@ struct TimelineEntry: Identifiable, Equatable {
     let tagNames: [String]
     let placeholderImageHexColors: [UInt32]
     let imageIDs: [UUID]
-
-    /// 真实 Moment 投影：只抽取渲染与交互必要值，不把 `Moment` 本体传入行视图。
-    static func real(_ moment: Moment) -> TimelineEntry {
-        TimelineEntry(
-            id: moment.id,
-            momentID: moment.id,
-            kind: .real,
-            title: moment.title,
-            bodyText: moment.bodyText,
-            mood: moment.mood,
-            occurredAt: moment.occurredAt,
-            tagNames: moment.tags.map(\.name),
-            placeholderImageHexColors: [],
-            imageIDs: moment.images.sorted { $0.sortIndex < $1.sortIndex }.map(\.id)
-        )
-    }
 
     /// 预置引导 Moment 投影：不可点、不可删，仅用于空数据态的阅读引导。
     static func guided(_ guided: GuidedMoment) -> TimelineEntry {

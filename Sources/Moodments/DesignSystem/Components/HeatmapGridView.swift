@@ -9,7 +9,7 @@ import SwiftUI
 /// - `MoodStatsView`：`onSelectDay` 为 `nil`，纯展示、不可交互、不接 `selectedDate`。
 struct HeatmapGridView: View {
     let year: Int
-    /// key 为 `dayOfYear`（1...365/366），value 为当天最后一条时刻的心情（见 `MomentRepository.moodByDay`）。
+    /// key 为 `dayOfYear`（1...365/366），value 为当天最后一条时刻的心情。
     let moodByDay: [Int: Mood]
     /// 当前定位选中的日期（仅首页热力图使用，供选中格描边高亮）。
     var selectedDate: Date?

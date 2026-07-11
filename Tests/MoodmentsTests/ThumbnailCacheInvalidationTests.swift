@@ -5,7 +5,7 @@ import UIKit
 /// 缩略图缓存失效验收（见 `docs/design/07-data-persistence.md` §5、阶段 4 计划 §8 延后项）：
 /// `removeThumbnail` 后下一次取图必须重新触发 provider（重生成，不能继续用陈旧缓存）；
 /// `MomentEditorModel.save()` 的 `.edit` 分支保存成功后必须失效 `originalImageIDs`
-/// （旧 `MomentImage` 被级联删除、重建为全新 id，避免孤儿缓存永久占用）。
+/// （旧 canonical asset link 被重建为全新 id，避免孤儿缓存永久占用）。
 final class ThumbnailCacheInvalidationTests: XCTestCase {
     private var tempDirectory: URL!
     private var cache: ThumbnailCache!
@@ -58,7 +58,7 @@ final class ThumbnailCacheInvalidationTests: XCTestCase {
 
     /// 编辑保存（`.edit`）成功后，`MomentEditorModel` 应失效原有 `originalImageIDs` 对应的
     /// 共享 `ThumbnailCache.shared` 缓存键（`updateMoment(imageDatas:)` 级联删除旧
-    /// `MomentImage` 并重建全新 id，旧键此后必然是孤儿键，见 `MomentEditorModel` 注释）。
+    /// canonical asset link 并重建全新 id，旧键此后必然是孤儿键，见 `MomentEditorModel` 注释）。
     @MainActor
     func testEditSaveInvalidatesOriginalImageIDsThumbnailCache() async throws {
         let canonicalService = try CanonicalLibraryService(
@@ -91,7 +91,6 @@ final class ThumbnailCacheInvalidationTests: XCTestCase {
         )
         let mutationService = LocalLibraryMutationService(
             canonicalService: canonicalService,
-            localBackupCoordinator: nil,
             syncStatusService: SyncStatusService(
                 cloudKitEnabled: false,
                 reachabilityChecker: ImmediateReachabilityChecker()

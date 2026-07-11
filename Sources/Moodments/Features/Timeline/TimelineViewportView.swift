@@ -6,7 +6,7 @@ import SwiftUI
 ///
 /// - canonical 查询只消费 `filter` 和资料库变更版本；`heatmapFocusDate` 不参与查询条件。
 /// - 滚动定位由派生出的 `highlightedID` 变化驱动，只从当前 `entries`（已经历完筛选的可见集）
-///   里用纯函数 `TimelineQuery.scrollTargetID(for:granularity:in:)` 挑一个 id 滚过去，**这条链路从未写过
+///   里用纯函数 `TimelineLocator.scrollTargetID(for:granularity:in:)` 挑一个 id 滚过去，**这条链路从未写过
 ///   查询条件、也不改变 `entries`**。
 struct TimelineViewportView: View {
     // 折叠阈值取接近大标题实际高度：仅当展开态大标题大体滚出后才切收起态，
@@ -28,7 +28,6 @@ struct TimelineViewportView: View {
     @Environment(CanonicalLibraryService.self) private var canonicalService
     @Environment(ErrorPresenter.self) private var errorPresenter
     @Environment(SyncStatusService.self) private var syncStatusService
-    @Environment(\.localBackupCoordinator) private var localBackupCoordinator
     @Environment(\.canonicalRecoveryCoordinator) private var canonicalRecoveryCoordinator
     @State private var scrollOffsetY: CGFloat = 0
     @State private var realEntries: [TimelineEntry] = []
@@ -69,7 +68,7 @@ struct TimelineViewportView: View {
     /// 不引入独立存储、不影响 `entries` 本身内容。
     private var highlightedID: UUID? {
         guard let date = timelineModel.heatmapFocusDate else { return nil }
-        return TimelineQuery.scrollTargetID(
+        return TimelineLocator.scrollTargetID(
             for: date,
             granularity: timelineModel.heatmapAnchorGranularity ?? .day,
             in: entries
@@ -274,7 +273,6 @@ struct TimelineViewportView: View {
     private var mutationService: LocalLibraryMutationService {
         LocalLibraryMutationService(
             canonicalService: canonicalService,
-            localBackupCoordinator: localBackupCoordinator,
             canonicalRecoveryCoordinator: canonicalRecoveryCoordinator,
             syncStatusService: syncStatusService,
             errorPresenter: errorPresenter

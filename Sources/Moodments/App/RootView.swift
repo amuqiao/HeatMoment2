@@ -9,7 +9,6 @@ import SwiftUI
 /// 注入整棵树（含 `TimelineHomeView` 与 `YearHeatmapView`），使时间轴与热力图
 /// 共享同一份「定位/筛选」状态，而不是两份互不相干的拷贝。
 struct RootView: View {
-    let localBackupCoordinator: LocalBackupCoordinator?
     let canonicalRecoveryCoordinator: CanonicalRecoveryCoordinator?
     let backupRestoreService: (any BackupRestoreServicing)?
     let launchRestoreResult: BackupBootRestoreResult
@@ -26,12 +25,10 @@ struct RootView: View {
     @State private var launchRestoreSuccessMessage = ""
 
     init(
-        localBackupCoordinator: LocalBackupCoordinator? = nil,
         canonicalRecoveryCoordinator: CanonicalRecoveryCoordinator? = nil,
         backupRestoreService: (any BackupRestoreServicing)? = nil,
         launchRestoreResult: BackupBootRestoreResult = .none
     ) {
-        self.localBackupCoordinator = localBackupCoordinator
         self.canonicalRecoveryCoordinator = canonicalRecoveryCoordinator
         self.backupRestoreService = backupRestoreService
         self.launchRestoreResult = launchRestoreResult
@@ -111,11 +108,11 @@ struct RootView: View {
                 )
                 return
             }
-            // 首启默认标签预置（见 07-data-persistence.md §4）：无条件调用（生产与 UI 测试
+            // 首启默认标签预置：无条件调用（生产与 UI 测试
             // 均需要），是否真正执行预置由 `DefaultTagSeeder` 内部的持久化「首启已完成」标记
-            // 判定（而非 `Tag` 表是否为空——用户删除默认标签后表可能变空/不完整，若仍按
+            // 判定（而非标签表是否为空——用户删除默认标签后表可能变空/不完整，若仍按
             // 表内容判定会导致已删除的默认标签复活，见该类型头部 review 修复说明）。经后台
-            // TagRepository 写入（08 §5 分层契约）。`cloudKitEnabled` 决定首启窗口内是否需要
+            // canonical repository 写入。`cloudKitEnabled` 决定首启窗口内是否需要
             // 「首同步去重」的等待（阶段7计划决策3）——本地/单测/UI 测试路径恒 `false`，行为
             // 与阶段 1–6 完全等价、零额外延迟；非首启（flag 已置位）任何路径下都零延迟。
             do {

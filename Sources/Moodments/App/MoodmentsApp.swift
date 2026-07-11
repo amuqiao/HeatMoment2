@@ -2,7 +2,6 @@ import SwiftUI
 
 /// App 入口：装配 canonical runtime（生产主流程读写权威）、集中路由 `AppRouter`、
 /// 主题 `ThemeManager`、订阅 `SubscriptionService`，注入 Environment 供全树消费。
-/// SwiftData 不参与生产启动装配；旧 SwiftData importer 仅作为受控工具/历史测试面保留。
 @main
 struct MoodmentsApp: App {
     @Environment(\.scenePhase) private var scenePhase
@@ -25,7 +24,6 @@ struct MoodmentsApp: App {
     @State private var didEnterBackground = false
     private let canonicalLibraryService: CanonicalLibraryService
     private let canonicalRecoveryCoordinator: CanonicalRecoveryCoordinator?
-    private let localBackupCoordinator: LocalBackupCoordinator?
     private let backupRestoreService: (any BackupRestoreServicing)?
     private let launchRestoreResult: BackupBootRestoreResult
 
@@ -62,7 +60,6 @@ struct MoodmentsApp: App {
         let runtime = Self.makeRuntimeServices()
         canonicalLibraryService = runtime.canonicalLibraryService
         canonicalRecoveryCoordinator = runtime.canonicalRecoveryCoordinator
-        localBackupCoordinator = runtime.localBackupCoordinator
         backupRestoreService = runtime.backupRestoreService
         self.syncStatusService = runtime.syncStatusService
         // 外观持久化：生产用真实 `UserDefaults.standard`（`AppearanceStore()` 默认）；
@@ -78,7 +75,6 @@ struct MoodmentsApp: App {
     var body: some Scene {
         WindowGroup {
             RootView(
-                localBackupCoordinator: localBackupCoordinator,
                 canonicalRecoveryCoordinator: canonicalRecoveryCoordinator,
                 backupRestoreService: backupRestoreService,
                 launchRestoreResult: launchRestoreResult
@@ -157,7 +153,6 @@ struct MoodmentsApp: App {
             .environment(canonicalLibraryService)
             .environment(subscriptionService)
             .environment(syncStatusService)
-            .environment(\.localBackupCoordinator, localBackupCoordinator)
             .environment(\.canonicalRecoveryCoordinator, canonicalRecoveryCoordinator)
             // 语言偏好注入（见 `LanguagePreference`、12-quality-assurance.md §12.2）：
             // `.environment(\.locale, ...)` 随 `languagePreferenceRawValue` 变化自动重算，
@@ -188,7 +183,6 @@ struct MoodmentsApp: App {
                     canonicalLibraryService: canonicalLibraryService,
                     canonicalRecoveryCoordinator: nil,
                     syncStatusService: SyncStatusService(cloudKitEnabled: false),
-                    localBackupCoordinator: nil,
                     backupRestoreService: nil
                 )
             }
@@ -204,7 +198,6 @@ struct MoodmentsApp: App {
             canonicalLibraryService: canonicalLibraryService,
             canonicalRecoveryCoordinator: canonicalRecoveryCoordinator,
             syncStatusService: SyncStatusService(cloudKitEnabled: hasICloudCapability),
-            localBackupCoordinator: nil,
             backupRestoreService: CanonicalBackupRestoreService(
                 coordinator: canonicalRecoveryCoordinator
             )
@@ -261,7 +254,6 @@ struct MoodmentsApp: App {
         let canonicalLibraryService: CanonicalLibraryService
         let canonicalRecoveryCoordinator: CanonicalRecoveryCoordinator?
         let syncStatusService: SyncStatusService
-        let localBackupCoordinator: LocalBackupCoordinator?
         let backupRestoreService: (any BackupRestoreServicing)?
     }
 }

@@ -52,7 +52,7 @@ final class ErrorPresenter {
     func report(message: String.LocalizationValue, underlying: Error) {
         let resolvedMessage = LanguagePreference.localizedString(message)
         // 隐私优先：本 App 自身文案（已解析为面向用户的提示串）不含用户数据，保持 `.public`
-        // 可检索；`underlying` 可能带文件路径/SwiftData 描述等隐含用户数据，改 `.private`，
+        // 可检索；`underlying` 可能带文件路径/底层存储描述等隐含用户数据，改 `.private`，
         // 避免明文泄进系统日志（Console/sysdiagnose 均可见 `.public` 内容）。
         Self.logger.error("\(resolvedMessage, privacy: .public)：\(String(describing: underlying), privacy: .private)")
         currentError = UserFacingError(

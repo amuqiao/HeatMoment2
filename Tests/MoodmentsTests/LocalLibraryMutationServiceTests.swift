@@ -1,15 +1,14 @@
 import XCTest
-import SwiftData
 @testable import Moodments
 
-/// `LocalLibraryMutationService` 测试：锁住 UI 写入边界的副作用编排，
-/// repository 自身合同仍由各 repository 测试单独覆盖。
+/// `LocalLibraryMutationService` 测试：锁住 UI 写入边界的副作用编排。
+/// 底层数据源固定为 canonical repository。
 final class LocalLibraryMutationServiceTests: XCTestCase {
     @MainActor
-    func testMomentLifecycleMutationsGoThroughService() async throws {
-        let container = try ModelContainerConfig.makeInMemoryContainer()
-        let repository = MomentRepository(modelContainer: container)
-        let service = makeService(modelContainer: container)
+    func testMomentLifecycleMutationsGoThroughCanonicalService() async throws {
+        let fixture = try makeFixture()
+        defer { fixture.cleanup() }
+        let service = makeService(fixture: fixture)
 
         let id = try await service.createMoment(
             title: "t",
@@ -22,31 +21,34 @@ final class LocalLibraryMutationServiceTests: XCTestCase {
         )
 
         try await service.softDeleteMoment(id: id)
-        let trashAfterDelete = try await repository.fetchTrash()
+        let trashAfterDelete = try await fixture.runtime.repository.fetchTrash()
         XCTAssertEqual(trashAfterDelete.map(\.id), [id])
-        XCTAssertEqual(trashAfterDelete.first?.isDeleted, true)
 
         try await service.restoreMoment(id: id)
-        let pageAfterRestore = try await repository.fetchPage(offset: 0, limit: 10)
+        let pageAfterRestore = try await fixture.runtime.repository.fetchPage(
+            offset: 0,
+            limit: 10
+        )
         XCTAssertEqual(pageAfterRestore.map(\.id), [id])
-        XCTAssertEqual(pageAfterRestore.first?.isDeleted, false)
+        let trashAfterRestore = try await fixture.runtime.repository.fetchTrash()
+        XCTAssertTrue(trashAfterRestore.isEmpty)
 
-        try await service.softDeleteMoment(id: id)
-        let trashBeforePurge = try await repository.fetchTrash()
-        let imageIDs = trashBeforePurge.first?.imageIDs ?? []
-        try await service.purgeMoment(id: id, imageIDs: imageIDs)
+        try await service.purgeMoment(id: id, imageIDs: pageAfterRestore.first?.imageIDs ?? [])
 
-        let totalAfterPurge = try await repository.totalMomentCount()
-        XCTAssertEqual(totalAfterPurge, 0)
-        let trashAfterPurge = try await repository.fetchTrash()
-        XCTAssertTrue(trashAfterPurge.isEmpty)
+        let activeAfterPurge = try await fixture.runtime.repository.fetchPage(
+            offset: 0,
+            limit: 10
+        )
+        let purgePending = try await fixture.runtime.repository.fetchPurgePendingMoments()
+        XCTAssertTrue(activeAfterPurge.isEmpty)
+        XCTAssertEqual(purgePending.map(\.id), [id])
     }
 
     @MainActor
     func testCreateMomentChecksQuotaAtServiceBoundary() async throws {
-        let container = try ModelContainerConfig.makeInMemoryContainer()
-        let repository = MomentRepository(modelContainer: container)
-        let service = makeService(modelContainer: container)
+        let fixture = try makeFixture()
+        defer { fixture.cleanup() }
+        let service = makeService(fixture: fixture)
         let quotaService = freeQuotaService()
 
         for index in 0..<Quota.freeMomentLimit {
@@ -78,17 +80,20 @@ final class LocalLibraryMutationServiceTests: XCTestCase {
             XCTFail("期望 LocalLibraryMutationError.quotaExceeded，实际抛出 \(error)")
         }
 
-        let total = try await repository.totalMomentCount()
+        let total = try await fixture.runtime.repository.totalMomentCount()
         XCTAssertEqual(total, Quota.freeMomentLimit)
-        let page = try await repository.fetchPage(offset: 0, limit: Quota.freeMomentLimit + 1)
+        let page = try await fixture.runtime.repository.fetchPage(
+            offset: 0,
+            limit: Quota.freeMomentLimit + 1
+        )
         XCTAssertFalse(page.contains { $0.title == "overflow" })
     }
 
     @MainActor
     func testCreateOrReuseTagDeduplicatesWithoutExtraWrite() async throws {
-        let container = try ModelContainerConfig.makeInMemoryContainer()
-        let repository = TagRepository(modelContainer: container)
-        let service = makeService(modelContainer: container)
+        let fixture = try makeFixture()
+        defer { fixture.cleanup() }
+        let service = makeService(fixture: fixture)
         let quotaService = freeQuotaService()
 
         let first = try await service.createOrReuseTag(name: "工作", quotaService: quotaService)
@@ -99,15 +104,15 @@ final class LocalLibraryMutationServiceTests: XCTestCase {
         XCTAssertEqual(second.id, first.id)
         XCTAssertEqual(second.name, "工作")
 
-        let total = try await repository.totalTagCount()
+        let total = try await fixture.runtime.repository.totalTagCount()
         XCTAssertEqual(total, 1)
     }
 
     @MainActor
     func testCreateTagChecksQuotaAtServiceBoundary() async throws {
-        let container = try ModelContainerConfig.makeInMemoryContainer()
-        let repository = TagRepository(modelContainer: container)
-        let service = makeService(modelContainer: container)
+        let fixture = try makeFixture()
+        defer { fixture.cleanup() }
+        let service = makeService(fixture: fixture)
         let quotaService = freeQuotaService()
 
         _ = try await service.createOrReuseTag(name: "工作", quotaService: quotaService)
@@ -123,17 +128,17 @@ final class LocalLibraryMutationServiceTests: XCTestCase {
             XCTFail("期望 LocalLibraryMutationError.quotaExceeded，实际抛出 \(error)")
         }
 
-        let total = try await repository.totalTagCount()
+        let total = try await fixture.runtime.repository.totalTagCount()
         XCTAssertEqual(total, Quota.freeTagLimit)
-        let missing = try await repository.findTag(named: "灵感")
+        let missing = try await fixture.runtime.repository.findTag(named: "灵感")
         XCTAssertNil(missing)
     }
 
     @MainActor
     func testDeleteTagKeepsMomentAndClearsAssociation() async throws {
-        let container = try ModelContainerConfig.makeInMemoryContainer()
-        let momentRepository = MomentRepository(modelContainer: container)
-        let service = makeService(modelContainer: container)
+        let fixture = try makeFixture()
+        defer { fixture.cleanup() }
+        let service = makeService(fixture: fixture)
 
         let tag = try await service.createOrReuseTag(
             name: "工作",
@@ -148,92 +153,23 @@ final class LocalLibraryMutationServiceTests: XCTestCase {
             imageDatas: [],
             quotaService: freeQuotaService()
         )
-        let beforeDelete = try await momentRepository.fetchPage(offset: 0, limit: 10)
+        let beforeDelete = try await fixture.runtime.repository.fetchPage(offset: 0, limit: 10)
         XCTAssertEqual(beforeDelete.first?.tagIDs, [tag.id])
 
         try await service.deleteTag(id: tag.id)
 
-        let afterDelete = try await momentRepository.fetchPage(offset: 0, limit: 10)
+        let afterDelete = try await fixture.runtime.repository.fetchPage(offset: 0, limit: 10)
         XCTAssertEqual(afterDelete.map(\.id), [momentID])
         XCTAssertEqual(afterDelete.first?.tagIDs, [])
-        let totalMoments = try await momentRepository.totalMomentCount()
+        let totalMoments = try await fixture.runtime.repository.totalMomentCount()
         XCTAssertEqual(totalMoments, 1)
     }
 
     @MainActor
-    func testSafetyPointFailureStopsRestoreBeforeWrite() async throws {
-        let container = try ModelContainerConfig.makeInMemoryContainer()
-        let repository = MomentRepository(modelContainer: container)
-        let id = try await repository.createMoment(
-            title: "trashed",
-            bodyText: "",
-            occurredAt: .now,
-            mood: .sad
-        )
-        try await repository.softDelete(id: id)
-        let failingBackup = try makeFailingBackupCoordinator(modelContainer: container)
-        defer { try? FileManager.default.removeItem(at: failingBackup.rootDirectory) }
-        let service = makeService(
-            modelContainer: container,
-            localBackupCoordinator: failingBackup.coordinator
-        )
-
-        do {
-            try await service.restoreMoment(id: id)
-            XCTFail("期望安全恢复点失败时中止恢复，但没有抛出")
-        } catch LocalLibraryMutationError.mutationSafetyPointFailed {
-        } catch {
-            XCTFail("期望 LocalLibraryMutationError.mutationSafetyPointFailed，实际抛出 \(error)")
-        }
-
-        let trash = try await repository.fetchTrash()
-        XCTAssertEqual(trash.map(\.id), [id])
-        let page = try await repository.fetchPage(offset: 0, limit: 10)
-        XCTAssertTrue(page.isEmpty, "安全点失败后不应继续执行恢复写入")
-    }
-
-    @MainActor
-    func testCanonicalBackendDoesNotCreateSwiftDataStableRecoveryPoint() async throws {
-        let container = try ModelContainerConfig.makeInMemoryContainer()
-        let backup = try makeFailingBackupCoordinator(modelContainer: container)
-        defer { try? FileManager.default.removeItem(at: backup.rootDirectory) }
-        let canonicalService = try CanonicalLibraryService(
-            runtime: .makeInMemoryForTests(
-                assetDirectoryURL: backup.rootDirectory.appendingPathComponent(
-                    "CanonicalAssets",
-                    isDirectory: true
-                )
-            )
-        )
-        let service = LocalLibraryMutationService(
-            canonicalService: canonicalService,
-            localBackupCoordinator: backup.coordinator,
-            syncStatusService: SyncStatusService(
-                cloudKitEnabled: false,
-                reachabilityChecker: ImmediateReachabilityChecker()
-            ),
-            errorPresenter: ErrorPresenter()
-        )
-
-        _ = try await service.createMoment(
-            title: "canonical",
-            bodyText: "",
-            occurredAt: .now,
-            mood: .normal,
-            tagIDs: [],
-            imageDatas: [],
-            quotaService: freeQuotaService()
-        )
-        try await Task.sleep(for: .milliseconds(50))
-
-        let points = try await backup.coordinator.listRecoveryPoints()
-        XCTAssertTrue(points.isEmpty)
-    }
-
-    @MainActor
     func testMissingIDsThrowThroughService() async throws {
-        let container = try ModelContainerConfig.makeInMemoryContainer()
-        let service = makeService(modelContainer: container)
+        let fixture = try makeFixture()
+        defer { fixture.cleanup() }
+        let service = makeService(fixture: fixture)
         let missingID = UUID()
 
         await assertThrowsMomentNotFound(missingID) {
@@ -267,13 +203,54 @@ final class LocalLibraryMutationServiceTests: XCTestCase {
     }
 
     @MainActor
-    private func makeService(
-        modelContainer: ModelContainer,
-        localBackupCoordinator: LocalBackupCoordinator? = nil
-    ) -> LocalLibraryMutationService {
+    func testCanonicalBackendCreatesStableRecoveryPointThroughCoordinator() async throws {
+        let fixture = try makeFixture(recoveryBacked: true)
+        defer { fixture.cleanup() }
+        let service = makeService(fixture: fixture)
+
+        _ = try await service.createMoment(
+            title: "canonical",
+            bodyText: "",
+            occurredAt: Date(timeIntervalSince1970: 100),
+            mood: .normal,
+            tagIDs: [],
+            imageDatas: [],
+            quotaService: freeQuotaService()
+        )
+
+        let points = try await waitForCanonicalRecoveryPoints(
+            coordinator: fixture.coordinator,
+            expectedCount: 1
+        )
+        XCTAssertEqual(points.map(\.reason), [.stableChanges])
+        XCTAssertEqual(points.first?.counts.recordCount, 1)
+    }
+
+    @MainActor
+    func testCanonicalBackendCreatesSafetyPointBeforeHighRiskMutation() async throws {
+        let fixture = try makeFixture(recoveryBacked: true)
+        defer { fixture.cleanup() }
+        let service = makeService(fixture: fixture)
+        let id = try await fixture.runtime.repository.createMoment(
+            title: "trashed",
+            bodyText: "",
+            occurredAt: Date(timeIntervalSince1970: 100),
+            mood: .sad
+        )
+        try await fixture.runtime.repository.softDeleteMoment(id: id)
+
+        try await service.restoreMoment(id: id)
+
+        let points = try await fixture.coordinator.listRecoveryPoints()
+        XCTAssertEqual(points.map(\.reason), [.mutationSafety])
+        XCTAssertEqual(points.first?.counts.recordCount, 1)
+    }
+
+    @MainActor
+    private func makeService(fixture: CanonicalFixture) -> LocalLibraryMutationService {
         LocalLibraryMutationService(
-            modelContainer: modelContainer,
-            localBackupCoordinator: localBackupCoordinator,
+            canonicalService: fixture.service,
+            canonicalRecoveryCoordinator: fixture.coordinator,
             syncStatusService: SyncStatusService(
                 cloudKitEnabled: false,
                 reachabilityChecker: ImmediateReachabilityChecker()
@@ -287,32 +264,57 @@ final class LocalLibraryMutationServiceTests: XCTestCase {
         QuotaService(entitlementProvider: SubscriptionEntitlementProvider(isPro: false))
     }
 
-    private func makeFailingBackupCoordinator(
-        modelContainer: ModelContainer
-    ) throws -> (coordinator: LocalBackupCoordinator, rootDirectory: URL) {
+    @MainActor
+    private func makeFixture(recoveryBacked: Bool = false) throws -> CanonicalFixture {
         let rootDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent(
-                "LocalLibraryMutationServiceTests-\(UUID().uuidString)", isDirectory: true)
-        try FileManager.default.createDirectory(
-            at: rootDirectory,
-            withIntermediateDirectories: true
-        )
-        let descriptor = LocalBackupStoreDescriptor(
-            rootDirectory: rootDirectory,
-            storeFileName: "Missing.store",
-            sourceLibraryID: "test-local"
-        )
-        let coordinator = LocalBackupCoordinator(
-            descriptor: descriptor,
-            recoveryPointManager: try RecoveryPointManager(
-                recoveryDirectory: descriptor.recoveryDirectory
-            ),
-            countsRepository: RecoveryPointCountsRepository(modelContainer: modelContainer),
+                "LocalLibraryMutationCanonicalTests-\(UUID().uuidString)",
+                isDirectory: true
+            )
+        let runtime: CanonicalLibraryRuntime
+        if recoveryBacked {
+            runtime = try CanonicalLibraryRuntime(
+                descriptor: CanonicalStoreDescriptor(rootDirectory: rootDirectory)
+            )
+        } else {
+            runtime = try CanonicalLibraryRuntime.makeInMemoryForTests(
+                assetDirectoryURL: rootDirectory.appendingPathComponent(
+                    "Assets",
+                    isDirectory: true
+                )
+            )
+        }
+        let service = CanonicalLibraryService(runtime: runtime)
+        let coordinator = CanonicalRecoveryCoordinator(
+            runtime: runtime,
             appVersion: "1.0.0",
-            schemaVersion: 1,
             stableChangeMinimumInterval: 0
         )
-        return (coordinator, rootDirectory)
+        return CanonicalFixture(
+            runtime: runtime,
+            service: service,
+            coordinator: coordinator,
+            rootDirectory: rootDirectory
+        )
+    }
+
+    @MainActor
+    private func waitForCanonicalRecoveryPoints(
+        coordinator: CanonicalRecoveryCoordinator,
+        expectedCount: Int,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) async throws -> [CanonicalRecoveryPointRecord] {
+        for _ in 0..<20 {
+            let points = try await coordinator.listRecoveryPoints()
+            if points.count >= expectedCount {
+                return points
+            }
+            try await Task.sleep(for: .milliseconds(25))
+        }
+        let points = try await coordinator.listRecoveryPoints()
+        XCTAssertEqual(points.count, expectedCount, file: file, line: line)
+        return points
     }
 
     @MainActor
@@ -350,119 +352,6 @@ final class LocalLibraryMutationServiceTests: XCTestCase {
     }
 }
 
-extension LocalLibraryMutationServiceTests {
-    @MainActor
-    func testCanonicalBackendCreatesStableRecoveryPointThroughCanonicalCoordinator() async throws {
-        let rootDirectory: URL
-        do {
-            let fixture = try makeCanonicalFixture()
-            rootDirectory = fixture.rootDirectory
-            let service = makeCanonicalService(fixture: fixture)
-
-            _ = try await service.createMoment(
-                title: "canonical",
-                bodyText: "",
-                occurredAt: Date(timeIntervalSince1970: 100),
-                mood: .normal,
-                tagIDs: [],
-                imageDatas: [],
-                quotaService: freeQuotaService()
-            )
-
-            let points = try await waitForCanonicalRecoveryPoints(
-                coordinator: fixture.coordinator,
-                expectedCount: 1
-            )
-            XCTAssertEqual(points.map(\.reason), [.stableChanges])
-            XCTAssertEqual(points.first?.counts.recordCount, 1)
-        }
-        try? FileManager.default.removeItem(at: rootDirectory)
-    }
-
-    @MainActor
-    func testCanonicalBackendCreatesSafetyPointBeforeHighRiskMutation() async throws {
-        let rootDirectory: URL
-        do {
-            let fixture = try makeCanonicalFixture()
-            rootDirectory = fixture.rootDirectory
-            let service = makeCanonicalService(fixture: fixture)
-            let id = try await fixture.runtime.repository.createMoment(
-                title: "trashed",
-                bodyText: "",
-                occurredAt: Date(timeIntervalSince1970: 100),
-                mood: .sad
-            )
-            try await fixture.runtime.repository.softDeleteMoment(id: id)
-
-            try await service.restoreMoment(id: id)
-
-            let points = try await fixture.coordinator.listRecoveryPoints()
-            XCTAssertEqual(points.map(\.reason), [.mutationSafety])
-            XCTAssertEqual(points.first?.counts.recordCount, 1)
-        }
-        try? FileManager.default.removeItem(at: rootDirectory)
-    }
-
-    @MainActor
-    private func makeCanonicalService(
-        fixture: CanonicalFixture
-    ) -> LocalLibraryMutationService {
-        LocalLibraryMutationService(
-            canonicalService: fixture.service,
-            localBackupCoordinator: nil,
-            canonicalRecoveryCoordinator: fixture.coordinator,
-            syncStatusService: SyncStatusService(
-                cloudKitEnabled: false,
-                reachabilityChecker: ImmediateReachabilityChecker()
-            ),
-            errorPresenter: ErrorPresenter()
-        )
-    }
-
-    @MainActor
-    private func makeCanonicalFixture() throws -> CanonicalFixture {
-        let rootDirectory = FileManager.default.temporaryDirectory
-            .appendingPathComponent(
-                "LocalLibraryMutationCanonicalTests-\(UUID().uuidString)",
-                isDirectory: true
-            )
-        let runtime = try CanonicalLibraryRuntime(
-            descriptor: CanonicalStoreDescriptor(rootDirectory: rootDirectory)
-        )
-        let service = CanonicalLibraryService(runtime: runtime)
-        let coordinator = CanonicalRecoveryCoordinator(
-            runtime: runtime,
-            appVersion: "1.0.0",
-            stableChangeMinimumInterval: 0
-        )
-        return CanonicalFixture(
-            runtime: runtime,
-            service: service,
-            coordinator: coordinator,
-            rootDirectory: rootDirectory
-        )
-    }
-
-    @MainActor
-    private func waitForCanonicalRecoveryPoints(
-        coordinator: CanonicalRecoveryCoordinator,
-        expectedCount: Int,
-        file: StaticString = #filePath,
-        line: UInt = #line
-    ) async throws -> [CanonicalRecoveryPointRecord] {
-        for _ in 0..<20 {
-            let points = try await coordinator.listRecoveryPoints()
-            if points.count >= expectedCount {
-                return points
-            }
-            try await Task.sleep(for: .milliseconds(25))
-        }
-        let points = try await coordinator.listRecoveryPoints()
-        XCTAssertEqual(points.count, expectedCount, file: file, line: line)
-        return points
-    }
-}
-
 private struct ImmediateReachabilityChecker: NetworkReachabilityChecking {
     func isReachable() async -> Bool { true }
 }
@@ -472,4 +361,8 @@ private struct CanonicalFixture {
     let service: CanonicalLibraryService
     let coordinator: CanonicalRecoveryCoordinator
     let rootDirectory: URL
+
+    func cleanup() {
+        try? FileManager.default.removeItem(at: rootDirectory)
+    }
 }

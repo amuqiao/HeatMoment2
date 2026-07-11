@@ -65,30 +65,9 @@ struct BackupBootRestoreFailure: Error, Equatable, CustomStringConvertible {
     }
 }
 
-struct LocalBackupRestoreService: BackupRestoreServicing {
-    let coordinator: LocalBackupCoordinator
-
-    func listRecoveryPoints() async throws -> [BackupRecoveryPoint] {
-        let recoveryPoints = try await coordinator.listRecoveryPoints()
-        return recoveryPoints.map(BackupRecoveryPoint.init(metadata:))
-    }
-
-    func currentCounts() async throws -> BackupRecoveryCounts {
-        let counts = try await coordinator.currentCounts()
-        return BackupRecoveryCounts(counts: counts)
-    }
-
-    func prepareRestore(id: UUID) async throws -> BackupPendingRestoreContext {
-        let context = try await coordinator.prepareRestore(id: id)
-        return BackupPendingRestoreContext(context: context)
-    }
-}
-
 struct CanonicalBackupRestoreService: BackupRestoreServicing {
     let coordinator: CanonicalRecoveryCoordinator
 
-    /// 仅作为后续 canonical 设置页 adapter。不能在生产路径直接替换本地 adapter，
-    /// 除非 `CanonicalBootRestoreGate` 已接入启动期并能消费本 adapter arm 的 pending restore。
     func listRecoveryPoints() async throws -> [BackupRecoveryPoint] {
         let recoveryPoints = try await coordinator.listRecoveryPoints()
         return recoveryPoints.map(BackupRecoveryPoint.init(record:))
@@ -106,18 +85,6 @@ struct CanonicalBackupRestoreService: BackupRestoreServicing {
 }
 
 extension BackupRecoveryPoint {
-    init(metadata: RecoveryPointMetadata) {
-        self.init(
-            id: metadata.id,
-            createdAt: metadata.createdAt,
-            reason: BackupRecoveryPointReason(reason: metadata.reason),
-            status: BackupRecoveryPointStatus(status: metadata.status),
-            schemaVersion: metadata.schemaVersion,
-            appVersion: metadata.appVersion,
-            counts: BackupRecoveryCounts(counts: metadata.counts)
-        )
-    }
-
     init(record: CanonicalRecoveryPointRecord) {
         self.init(
             id: record.id,
@@ -132,14 +99,6 @@ extension BackupRecoveryPoint {
 }
 
 extension BackupRecoveryCounts {
-    init(counts: RecoveryPointCounts) {
-        self.init(
-            recordCount: counts.recordCount,
-            tagCount: counts.tagCount,
-            assetCount: counts.assetCount
-        )
-    }
-
     init(counts: CanonicalRecoveryPointCounts) {
         self.init(
             recordCount: counts.recordCount,
@@ -150,15 +109,6 @@ extension BackupRecoveryCounts {
 }
 
 extension BackupRecoveryPointReason {
-    init(reason: RecoveryPointReason) {
-        switch reason {
-        case .mutationSafety: self = .mutationSafety
-        case .restoreSafety: self = .restoreSafety
-        case .schemaMigration: self = .schemaMigration
-        case .stableChanges: self = .stableChanges
-        }
-    }
-
     init(reason: CanonicalRecoveryPointReason) {
         switch reason {
         case .mutationSafety: self = .mutationSafety
@@ -170,13 +120,6 @@ extension BackupRecoveryPointReason {
 }
 
 extension BackupRecoveryPointStatus {
-    init(status: RecoveryPointStatus) {
-        switch status {
-        case .available: self = .available
-        case .invalid: self = .invalid
-        }
-    }
-
     init(status: CanonicalRecoveryPointStatus) {
         switch status {
         case .available: self = .available
@@ -186,15 +129,6 @@ extension BackupRecoveryPointStatus {
 }
 
 extension BackupPendingRestoreContext {
-    init(context: LocalBackupPendingRestoreContext) {
-        self.init(
-            selectedRecoveryPointID: context.selectedRecoveryPointID,
-            selectedCreatedAt: context.selectedCreatedAt,
-            restoreSafetyPointID: context.restoreSafetyPointID,
-            restoreSafetyCreatedAt: context.restoreSafetyCreatedAt
-        )
-    }
-
     init(preparedRestore: CanonicalPreparedRestore) {
         self.init(
             selectedRecoveryPointID: preparedRestore.selectedRecoveryPoint.id,
@@ -215,17 +149,6 @@ extension BackupPendingRestoreContext {
 }
 
 extension BackupBootRestoreResult {
-    init(result: LocalBackupBootRestoreResult) {
-        switch result {
-        case .none:
-            self = .none
-        case let .restored(context):
-            self = .restored(BackupPendingRestoreContext(context: context))
-        case let .failed(failure):
-            self = .failed(BackupBootRestoreFailure(failure: failure))
-        }
-    }
-
     init(result: CanonicalBootRestoreResult) {
         switch result {
         case .none:
@@ -239,13 +162,6 @@ extension BackupBootRestoreResult {
 }
 
 extension BackupBootRestoreFailure {
-    init(failure: LocalBackupBootRestoreFailure) {
-        self.init(
-            underlyingDescription: failure.underlyingDescription,
-            context: failure.context.map(BackupPendingRestoreContext.init(context:))
-        )
-    }
-
     init(failure: CanonicalBootRestoreFailure) {
         self.init(
             underlyingDescription: failure.underlyingDescription,

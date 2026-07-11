@@ -6,7 +6,7 @@ import Observation
 ///
 /// **接 `TimelineModel.activeFilter` 口径**（见 `docs/plans/implementation-plan.md` 阶段5决策1：
 /// 「热力图接 `activeFilter`；`MoodStatsView` 不接」）：聚合时把当前筛选条件传给
-/// `MomentRepository.moodByDay(year:filter:)`，但这只是换了一批要聚合展示的数据源，不改变
+/// canonical repository 的年度聚合，但这只是换了一批要聚合展示的数据源，不改变
 /// 热力图本身「点格只改变滚动位置」的定位语义，不违反公理2（见 `TimelineModel` 头部注释）。
 @MainActor
 @Observable

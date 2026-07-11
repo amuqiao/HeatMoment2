@@ -140,9 +140,9 @@ struct YearHeatmapView: View {
         timelineModel.clearHeatmapAnchor()
     }
 
-    /// 点格定位：日锚点取当天最新一条——传入当天 23:59:59，`TimelineQuery.scrollTargetID`
+    /// 点格定位：日锚点取当天最新一条——传入当天 23:59:59，`TimelineLocator.scrollTargetID`
     /// 据此挑出「occurredAt <= 当天末刻」中最大的一条，即当天最晚记录（见阶段5计划决策4、
-    /// `TimelineQuery` 头部说明）；再次点击同一天 → `heatmapFocusDate = nil` 取消定位
+    /// `TimelineLocator` 头部说明）；再次点击同一天 → `heatmapFocusDate = nil` 取消定位
     /// （不主动滚动、不撤销已发生的滚动位置，只清高亮，见 04 §4.3）。
     private func handleSelectDay(_ date: Date) {
         let calendar = Calendar.current
@@ -161,7 +161,7 @@ struct YearHeatmapView: View {
         timelineModel.setHeatmapAnchor(endOfDay, granularity: .day)
     }
 
-    /// 点月定位：月锚点取该月最后一刻，`TimelineQuery.scrollTargetID` 会在当前可见集里挑出
+    /// 点月定位：月锚点取该月最后一刻，`TimelineLocator.scrollTargetID` 会在当前可见集里挑出
     /// 同月且 `occurredAt <= 月末` 的最新真实记录；再次点击同一月取消定位。
     private func handleSelectMonth(_ date: Date) {
         let calendar = Calendar.current

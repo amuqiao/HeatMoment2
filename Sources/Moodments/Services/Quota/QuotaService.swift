@@ -37,7 +37,7 @@ struct QuotaService: Sendable {
     }
 
     /// 校验能否再新增一篇 Moment。`currentMomentCount` 须按额度计数口径传入
-    /// （含垃圾箱内 `isDeleted==true` 的记录，见 `MomentRepository.totalMomentCount()`）。
+    /// （含垃圾箱内软删除记录，见 canonical repository 的额度计数口径）。
     func checkCanCreateMoment(currentMomentCount: Int) -> QuotaCheck {
         guard !entitlementProvider.isPro else { return .allowed }
         return currentMomentCount < Quota.freeMomentLimit ? .allowed : .exceeded(.moments)

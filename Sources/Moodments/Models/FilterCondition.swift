@@ -8,7 +8,7 @@ import Foundation
 /// - 心情**单选**（一次一个）；
 /// - 标签维度与心情维度之间也是 AND：最终命中条件 = （含全部选中标签）且（命中所选心情，若选了）。
 ///
-/// 只传值类型跨隔离域使用（见 `08-architecture.md` 第 5 节）：标签用 `Tag.id`（`UUID`）而非 `@Model` 引用。
+/// 只传值类型跨隔离域使用：标签用 canonical tag id（`UUID`），不传 storage row 引用。
 struct FilterCondition: Sendable, Equatable {
     /// 选中的标签 id 集合，彼此 AND（交集）；为空表示不按标签筛选。
     var tagIDs: Set<UUID>

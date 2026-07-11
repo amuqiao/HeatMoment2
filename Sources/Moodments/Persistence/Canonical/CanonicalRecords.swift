@@ -30,6 +30,29 @@ struct CanonicalMomentRecord: Sendable, Identifiable, Equatable {
     }
 }
 
+/// 主 UI 消费的 Moment 值投影。它由 canonical record 派生，不携带 ORM/live row 引用。
+struct MomentSnapshot: Sendable, Identifiable, Equatable {
+    let id: UUID
+    let title: String
+    let bodyText: String
+    let occurredAt: Date
+    let createdAt: Date
+    let updatedAt: Date
+    let mood: Mood
+    let tagIDs: [UUID]
+    let imageIDs: [UUID]
+    let isDeleted: Bool
+    let deletedAt: Date?
+}
+
+/// 编辑态载入所需的完整数据。
+/// `tagNames` 供标签行回填文案；`imageDatas` 按 canonical link 顺序排列。
+struct MomentEditingPayload: Sendable, Equatable {
+    let snapshot: MomentSnapshot
+    let tagNames: [UUID: String]
+    let imageDatas: [Data]
+}
+
 struct CanonicalMomentEditingPayload: Sendable, Equatable {
     let record: CanonicalMomentRecord
     let tagNames: [UUID: String]
@@ -52,6 +75,18 @@ struct CanonicalTagRecord: Sendable, Identifiable, Equatable {
     let name: String
     let createdAt: Date
     let revision: Int
+}
+
+struct TagSnapshot: Sendable, Identifiable, Equatable {
+    let id: UUID
+    let name: String
+    let createdAt: Date
+}
+
+struct TagCreateOrReuseResult: Sendable, Equatable {
+    let id: UUID
+    let name: String
+    let didCreate: Bool
 }
 
 struct CanonicalMutationRecord: Sendable, Identifiable, Equatable {
@@ -152,8 +187,6 @@ struct CanonicalLibraryMetadata: Sendable, Equatable {
     let syncEpoch: UUID
     let createdAt: Date
     let updatedAt: Date
-    let swiftDataImportedAt: Date?
-    let swiftDataImportSourceFingerprint: String?
 }
 
 extension Date {

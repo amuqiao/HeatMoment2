@@ -48,7 +48,7 @@ struct CustomBackgroundImageWriteTarget: Sendable, Equatable {
     }
 }
 
-/// `AppearancePreference` 的 UserDefaults 持久化（见 07 §6：非 SwiftData `@Model`，避免把
+/// `AppearancePreference` 的 UserDefaults 持久化：非资料库模型，避免把
 /// 展示层偏好卷入 CloudKit 冲突解决范围；不跨设备同步，见 13-open-questions.md #3）。
 ///
 /// **逐轴持久化**：每个轴各自一个 UserDefaults key，而非编码成单一 blob——使坏配置能够

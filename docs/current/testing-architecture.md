@@ -27,7 +27,7 @@ MoodmentsUITests    XCUITest 用户流程和交互契约
 
 单元测试当前由各测试文件自己构造数据：
 
-- SwiftData 相关测试使用内存容器或测试专用临时目录。
+- Canonical repository / recovery / export 相关测试使用内存 runtime 或测试专用临时目录。
 - `SyncStatusServiceTests` 只验证同步状态的纯逻辑推导，不证明真实 iCloud 同步、CloudKit 事件处理或多设备收敛。
 - `UserDefaults` 相关测试使用独立 suite，并在 teardown 清理。
 - StoreKit 测试使用 `Config/Moodments.storekit`，已知 `storekitagent` 环境握手失败时转为显式 `XCTSkip`。

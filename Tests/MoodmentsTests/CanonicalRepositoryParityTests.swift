@@ -199,7 +199,7 @@ final class CanonicalRepositoryParityTests: XCTestCase {
         }
     }
 
-    func testFilteredTimelineAndAggregationsMatchSwiftDataRepositorySemantics() async throws {
+    func testFilteredTimelineAndAggregationsShareCanonicalSemantics() async throws {
         let fixture = try makeFixture()
         defer { fixture.cleanup() }
         let repository = fixture.runtime.repository

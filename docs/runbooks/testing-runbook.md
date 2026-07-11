@@ -62,7 +62,7 @@
 | 类型 | 本项目入口 | 测什么 | 是否启动 App |
 | --- | --- | --- | --- |
 | 单元测试 Unit | `--unit` | 纯逻辑、模型、服务、规则 | 否 |
-| 集成式逻辑测试 | `--unit` | SwiftData、repository、多个对象协作 | 通常否 |
+| 集成式逻辑测试 | `--unit` | canonical repository、recovery/export 服务、多个对象协作 | 通常否 |
 | UI 测试 XCUITest | `--ui` | 用户真实路径、sheet、滑动、输入、导航 | 是 |
 | StoreKit 测试 | `--unit` 中的相关用例 | 订阅、购买、恢复、授权状态 | 不按真实 UI 流程启动 App |
 | 快照 / 视觉测试 | 目前未落地 | 截图级视觉回归 | 未来按实现决定 |
@@ -71,7 +71,7 @@
 
 测试不应依赖模拟器中手工留下的数据。
 
-- 单元测试自己构造 SwiftData 内存容器、独立 `UserDefaults` suite 或临时目录。
+- 单元测试自己构造 canonical in-memory runtime、独立 `UserDefaults` suite 或临时目录。
 - UI 测试通过 DEBUG-only launch arguments 进入固定场景，例如空数据、可滚动时间轴、额度已满、照片注入、隐私锁注入。
 - 具体 launch argument 契约维护在 [`../current/testing-architecture.md`](../current/testing-architecture.md)，不要把场景参数散落到 shell 脚本里。
 

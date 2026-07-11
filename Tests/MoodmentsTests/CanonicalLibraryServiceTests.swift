@@ -56,7 +56,6 @@ final class CanonicalLibraryServiceTests: XCTestCase {
         defer { fixture.cleanup() }
         let mutationService = LocalLibraryMutationService(
             canonicalService: fixture.service,
-            localBackupCoordinator: nil,
             syncStatusService: SyncStatusService(
                 cloudKitEnabled: false,
                 reachabilityChecker: CanonicalServiceImmediateReachabilityChecker()

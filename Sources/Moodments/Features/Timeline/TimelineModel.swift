@@ -14,7 +14,7 @@ enum HeatmapAnchorGranularity: Equatable {
 ///
 /// 主流程切到 canonical 后，`TimelineViewportView` 用 `activeFilter` 重新加载可见集；
 /// `heatmapFocusDate` 只驱动 `ScrollViewReader` 滚动（见
-/// `TimelineQuery.scrollTargetID(for:granularity:in:)`）；两者互不引用、互不覆盖。
+/// `TimelineLocator.scrollTargetID(for:granularity:in:)`）；两者互不引用、互不覆盖。
 ///
 /// **上提**（阶段5必要重构）：本类型由 `RootView` 持有并通过 `.environment()` 注入整棵树
 /// （含 `TimelineHomeView` 与热力图顶部上下文区 `YearHeatmapView`），使时间轴与热力图共享同一实例——

@@ -67,8 +67,8 @@ final class MomentEditorModel {
     /// 打开时的字段快照，供 `isDirty` 比较（见 03-user-flows.md §3.1：取消若脏需二次确认）。
     private var baseline: EditorSnapshot
 
-    /// `.edit` 态载入时既有的 `MomentImage.id` 列表（见 `save()`）：`updateMoment(imageDatas:)`
-    /// 会级联删除旧 `MomentImage` 并按新顺序重建全新 id（即便照片内容未改动，见仓库层注释），
+    /// `.edit` 态载入时既有的图片 ID 列表（见 `save()`）：`updateMoment(imageDatas:)`
+    /// 会按新顺序重建 canonical asset link（即便照片内容未改动，见仓库层注释），
     /// 故保存成功后这些旧 id 对应的 `ThumbnailCache` 缓存必然是孤儿键，需逐个失效
     /// （见阶段 4 计划 §8 延后项、`docs/design/07-data-persistence.md` §5 缩略图缓存清理）。
     private var originalImageIDs: [UUID] = []

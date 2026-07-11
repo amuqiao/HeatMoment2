@@ -82,7 +82,7 @@ final class TitleCollapseFilterUITests: XCTestCase {
 
     /// 等待预置数据渲染 → 上滑折叠标题 → 点收起态「时刻 ⌄」打开筛选 sheet。
     private func collapseTitleAndOpenFilter(_ app: XCUIApplication) {
-        // 等待预置数据渲染完成再滑动，避免 seed 写入/@Query 刷新与滑动的竞态
+        // 等待预置数据渲染完成再滑动，避免 seed 写入/时间轴刷新与滑动的竞态
         // （真实行为 isButton，其 accessibilityLabel 含标题「测试时刻 1」）。
         let seededRow = app.buttons
             .matching(NSPredicate(format: "label CONTAINS %@", "测试时刻 1"))

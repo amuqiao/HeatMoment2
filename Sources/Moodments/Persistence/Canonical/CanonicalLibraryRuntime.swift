@@ -1,5 +1,4 @@
 import Foundation
-import SwiftData
 
 struct CanonicalStoreDescriptor: Sendable, Equatable {
     let rootDirectory: URL
@@ -148,20 +147,6 @@ struct CanonicalLibraryRuntime: Sendable {
         try CanonicalLibraryRuntime(
             store: CanonicalStore.makeInMemory(),
             assetStore: FileAssetStore(rootDirectory: assetDirectoryURL)
-        )
-    }
-
-    @discardableResult
-    func importFromSwiftDataIfNeeded(
-        modelContainer: ModelContainer,
-        importedAt: Date = .now
-    ) async throws -> SwiftDataCanonicalImportResult {
-        let importer = SwiftDataCanonicalImporter(modelContainer: modelContainer)
-        return try await importer.importIfNeeded(
-            into: store,
-            assetStore: assetStore,
-            operationGate: assetOperationGate,
-            importedAt: importedAt
         )
     }
 

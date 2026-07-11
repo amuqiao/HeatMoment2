@@ -28,9 +28,7 @@ actor CanonicalLibraryRepository {
                 deviceID: row.canonicalUUID("device_id"),
                 syncEpoch: row.canonicalUUID("sync_epoch"),
                 createdAt: row.canonicalDate("created_at"),
-                updatedAt: row.canonicalDate("updated_at"),
-                swiftDataImportedAt: row.canonicalOptionalDate("swift_data_imported_at"),
-                swiftDataImportSourceFingerprint: row["swift_data_import_source_fingerprint"]
+                updatedAt: row.canonicalDate("updated_at")
             )
         }
     }

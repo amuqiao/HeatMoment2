@@ -36,8 +36,8 @@ iOS SwiftUI 复刻 App「时刻」(App Store 商店名「心绪日记」/ 关于
 ## 关键技术约定（细节见 design/08、14）
 
 - 架构：`@Observable` MVVM + 集中 `AppRouter`（`@MainActor @Observable`）。
-- 数据：SwiftData（`@Model` + `@Query`）+ CloudKit 私有库（本地优先）。
-- 并发：UI 层 `@MainActor`；写入走后台 `ModelActor`；异步加载 `.task(id:)`；跨隔离域只传值类型（如 `Moment.ID`），不传 `@Model` 引用。
+- 数据：Canonical Repository + GRDB + SQLite + `FileAssetStore`（本地优先）；CloudKit 私有库同步后续按 canonical 数据模型接入。
+- 并发：UI 层 `@MainActor`；数据写入收敛到 canonical repository / recovery coordinator；异步加载 `.task(id:)`；跨隔离域只传值类型（如 `MomentSnapshot`、`TagSnapshot`、`UUID`），不传 live store row 引用。
 - 内购 StoreKit 2（月订阅 + 终身买断）；隐私锁 LocalAuthentication。
 - **排期分层**：先打磨核心（记录 / 时间轴 / 回看 / 编辑），再接支撑能力（iCloud / 面容 / 语言 / 订阅）。
 

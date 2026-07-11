@@ -2,35 +2,6 @@ import XCTest
 @testable import Moodments
 
 final class BackupRestoreServiceTests: XCTestCase {
-    func testLocalRecoveryPointMetadataMapsToBackupRecoveryPoint() {
-        let id = uuid("00000000-0000-0000-0000-000000006101")
-        let metadata = RecoveryPointMetadata(
-            id: id,
-            createdAt: Date(timeIntervalSince1970: 100),
-            reason: .schemaMigration,
-            status: .invalid,
-            schemaVersion: 7,
-            appVersion: "1.0.8",
-            sourceLibraryID: "local",
-            counts: RecoveryPointCounts(recordCount: 2, tagCount: 3, assetCount: 4),
-            payloadSizeBytes: 100,
-            files: []
-        )
-
-        let point = BackupRecoveryPoint(metadata: metadata)
-
-        XCTAssertEqual(point.id, id)
-        XCTAssertEqual(point.createdAt, Date(timeIntervalSince1970: 100))
-        XCTAssertEqual(point.reason, .schemaMigration)
-        XCTAssertEqual(point.status, .invalid)
-        XCTAssertEqual(point.schemaVersion, 7)
-        XCTAssertEqual(point.appVersion, "1.0.8")
-        XCTAssertEqual(
-            point.counts,
-            BackupRecoveryCounts(recordCount: 2, tagCount: 3, assetCount: 4)
-        )
-    }
-
     func testCanonicalRecoveryPointRecordMapsToBackupRecoveryPoint() {
         let id = uuid("00000000-0000-0000-0000-000000006201")
         let record = canonicalRecord(
@@ -49,29 +20,6 @@ final class BackupRestoreServiceTests: XCTestCase {
             point.counts,
             BackupRecoveryCounts(recordCount: 5, tagCount: 6, assetCount: 7)
         )
-    }
-
-    func testLocalPendingRestoreContextMapsToBackupPendingContext() {
-        let selected = localMetadata(
-            id: uuid("00000000-0000-0000-0000-000000006301"),
-            createdAt: Date(timeIntervalSince1970: 100)
-        )
-        let restoreSafety = localMetadata(
-            id: uuid("00000000-0000-0000-0000-000000006302"),
-            createdAt: Date(timeIntervalSince1970: 200)
-        )
-
-        let context = BackupPendingRestoreContext(
-            context: LocalBackupPendingRestoreContext(
-                selected: selected,
-                restoreSafety: restoreSafety
-            )
-        )
-
-        XCTAssertEqual(context.selectedRecoveryPointID, selected.id)
-        XCTAssertEqual(context.selectedCreatedAt, selected.createdAt)
-        XCTAssertEqual(context.restoreSafetyPointID, restoreSafety.id)
-        XCTAssertEqual(context.restoreSafetyCreatedAt, restoreSafety.createdAt)
     }
 
     func testCanonicalPreparedRestoreMapsToBackupPendingContext() {
@@ -118,24 +66,6 @@ final class BackupRestoreServiceTests: XCTestCase {
                     restoreSafetyCreatedAt: nil
                 )
             )
-        )
-    }
-
-    private func localMetadata(
-        id: UUID,
-        createdAt: Date
-    ) -> RecoveryPointMetadata {
-        RecoveryPointMetadata(
-            id: id,
-            createdAt: createdAt,
-            reason: .stableChanges,
-            status: .available,
-            schemaVersion: 1,
-            appVersion: "1.0.8",
-            sourceLibraryID: "local",
-            counts: RecoveryPointCounts(recordCount: 1, tagCount: 0, assetCount: 0),
-            payloadSizeBytes: 1,
-            files: []
         )
     }
 

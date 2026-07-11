@@ -23,7 +23,7 @@ actor ThumbnailCache {
     /// 取指定图片的缩略图：命中内存/磁盘缓存则直接返回；未命中则调用 `originalData` 现场
     /// 生成并回写两级缓存（见 07 §5「命中缓存则用、未命中则从原图现场生成并回写」）。
     /// - Parameters:
-    ///   - imageID: 对应 `MomentImage.id`。
+    ///   - imageID: 对应 canonical asset link 的图片 ID。
     ///   - originalData: 生成缩略图所需的原图 `Data` 来源（由调用方按需从仓库读取，避免
     ///     缓存命中时的无谓 IO）。
     func thumbnail(
@@ -52,9 +52,8 @@ actor ThumbnailCache {
     }
 
     /// `thumbnail(for:maxDimension:originalData:)` 的 `async` 版本：命中内存/磁盘缓存则直接
-    /// 返回，未命中才 `await` 调用 `provideOriginal` 现场拉原图——供调用方从跨 actor 的仓库
-    /// （如 `MomentRepository.imageData(imageID:)`，本身是 `@ModelActor` 方法、只能 `await` 调用）
-    /// 取原图时使用（同步闭包重载无法在其内部 `await`，见阶段 4 计划）。
+    /// 返回，未命中才 `await` 调用 `provideOriginal` 现场拉原图——供调用方从跨 actor 的
+    /// canonical repository 取原图时使用（同步闭包重载无法在其内部 `await`，见阶段 4 计划）。
     func thumbnail(
         for imageID: UUID,
         maxDimension: CGFloat = 240,
