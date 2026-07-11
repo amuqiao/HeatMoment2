@@ -58,7 +58,7 @@ struct SettingsSheetView: View {
                     }
                     TaskSurfaceSeparator()
                     settingsNavigationRow(title: "导出", identifier: "settingsExportRow") {
-                        MarkdownExportView()
+                        ExportView()
                     }
                     TaskSurfaceSeparator()
                     biometricLockRow

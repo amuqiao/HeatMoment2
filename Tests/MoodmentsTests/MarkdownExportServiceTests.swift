@@ -42,18 +42,22 @@ final class MarkdownExportServiceTests: XCTestCase {
             imageDatas: [jpegData]
         )
 
-        let service = MarkdownExportService(
+        let service = ExportService(
             modelContainer: container,
             outputRootURL: outputRootURL,
-            renderer: MarkdownExportRenderer(timeZone: TimeZone(secondsFromGMT: 0)!)
+            markdownRenderer: MarkdownExportRenderer(timeZone: TimeZone(secondsFromGMT: 0)!)
         )
-        let result = try await service.exportAll(now: Date(timeIntervalSince1970: 7_200))
+        let result = try await service.exportAll(
+            format: .markdown,
+            now: Date(timeIntervalSince1970: 7_200)
+        )
 
         XCTAssertEqual(result.fileName, "Moodments-19700101-020000.md")
+        XCTAssertEqual(result.format, .markdown)
         XCTAssertEqual(result.momentCount, 1)
         XCTAssertEqual(result.assetCount, 1)
 
-        let markdown = try String(contentsOf: result.markdownFileURL, encoding: .utf8)
+        let markdown = try String(contentsOf: result.fileURL, encoding: .utf8)
         XCTAssertTrue(markdown.contains("# 时刻导出"))
         XCTAssertTrue(markdown.contains("- 导出时间：1970-01-01 02:00"))
         XCTAssertTrue(markdown.contains("## 海边"))
@@ -84,15 +88,18 @@ final class MarkdownExportServiceTests: XCTestCase {
         )
         try await momentRepository.softDelete(id: deletedID)
 
-        let service = MarkdownExportService(
+        let service = ExportService(
             modelContainer: container,
             outputRootURL: outputRootURL,
-            renderer: MarkdownExportRenderer(timeZone: TimeZone(secondsFromGMT: 0)!)
+            markdownRenderer: MarkdownExportRenderer(timeZone: TimeZone(secondsFromGMT: 0)!)
         )
-        let result = try await service.exportAll(now: Date(timeIntervalSince1970: 400))
+        let result = try await service.exportAll(
+            format: .markdown,
+            now: Date(timeIntervalSince1970: 400)
+        )
 
         XCTAssertEqual(result.momentCount, 1)
-        let markdown = try String(contentsOf: result.markdownFileURL, encoding: .utf8)
+        let markdown = try String(contentsOf: result.fileURL, encoding: .utf8)
         XCTAssertTrue(markdown.contains("## 保留"))
         XCTAssertFalse(markdown.contains("不导出"))
 
@@ -101,20 +108,22 @@ final class MarkdownExportServiceTests: XCTestCase {
     }
 
     func testFileWriterCleansPartialPackageAfterWriteFailure() throws {
-        let writer = MarkdownExportFileWriter(outputRootURL: outputRootURL)
-        let snapshot = MarkdownExportSnapshot(
+        let writer = ExportFileWriter(outputRootURL: outputRootURL)
+        let snapshot = ExportSnapshot(
             exportedAt: Date(timeIntervalSince1970: 500),
             moments: []
         )
         let document = MarkdownExportDocument(
             markdown: "# partial",
+            // swiftlint:disable trailing_comma
             assets: [
                 MarkdownExportRenderedAsset(relativePath: "assets/ok.jpg", data: Data([0x01])),
-                MarkdownExportRenderedAsset(relativePath: "assets", data: Data([0x02]))
+                MarkdownExportRenderedAsset(relativePath: "assets", data: Data([0x02])),
             ]
+            // swiftlint:enable trailing_comma
         )
 
-        XCTAssertThrowsError(try writer.write(document: document, snapshot: snapshot))
+        XCTAssertThrowsError(try writer.writeMarkdown(document: document, snapshot: snapshot))
 
         let packages = try FileManager.default.contentsOfDirectory(
             at: outputRootURL,

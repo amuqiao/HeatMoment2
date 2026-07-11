@@ -96,9 +96,9 @@ TimelineHomeView.timelineFilterSheet
 
 设置页已有“备份与恢复”详情页：用户可查看最多 3 个恢复点，列表显示时间、记录/标签/照片计数、创建原因和 App version；点选后进入恢复预览。恢复采用 staging + armed marker + pending context + 下次冷启动 replace 的路径：未 armed 的 staged payload 不会在启动时替换当前 store；准备恢复成功后记录所选恢复点和恢复前安全点信息，并立即展示不可交互的阻断页，要求用户完全退出并重新打开 App，避免当前会话继续写入后又被冷启动恢复覆盖；冷启动成功后提示已恢复到的时间点和恢复前安全点。armed payload 校验失败会清理 pending 并提示当前数据未被替换；replace 失败但 rollback 成功时同样提示失败且保留当前 store；replace/rollback 发生不可恢复错误时启动快速失败，不继续用半替换 store 构建 `ModelContainer`。用户不能手动删除恢复点，也不能把恢复点导出为备份包。
 
-当前已有 Markdown 导出 M1：设置页新增“导出”详情页，沿用 settings detail navigation chrome、`TaskPageScrollView` 和 `TaskSurfaceSection`；详情页明确导出只是副本，不改变当前数据，也不影响 iCloud 同步。`MarkdownExportService` 从 `SwiftDataMarkdownExportSnapshotStore` 读取未软删除 Moment 的值类型快照，按 `occurredAt` 倒序生成 Markdown；渲染和文件写入在 detached task 内执行，不占用设置页 UI actor；照片写入同一导出目录下的 `assets/` 并在 Markdown 中使用相对链接；导出结果提供指向整个导出目录的系统 `ShareLink`，避免只分享 `.md` 时丢失相对附件。当前 M1 只支持“全部活跃时刻 -> Markdown”，不支持当前主页筛选、日期范围、取消、失败重试 UI、持久 `export_job`、canonical asset pin 或 PDF。
+当前已有 Markdown / PDF 导出 M1：设置页“导出”详情页沿用 settings detail navigation chrome、`TaskPageScrollView` 和 `TaskSurfaceSection`；详情页明确导出只是副本，不改变当前数据，也不影响 iCloud 同步。`ExportService` 从 `SwiftDataExportSnapshotStore` 读取未软删除 Moment 的值类型快照，按 `occurredAt` 倒序生成导出输入；Markdown 使用 `MarkdownExportRenderer` 生成 `.md` 和相邻 `assets/` 相对图片目录，PDF 使用系统 `UIGraphicsPDFRenderer` / CoreText 本地分页并把照片嵌入 PDF。渲染和文件写入在 detached task 内执行，不占用设置页 UI actor；坏图片在 PDF 导出中显式失败，不静默跳过。Markdown 成功后分享整个导出目录，避免只分享 `.md` 时丢失相对附件；PDF 成功后分享单个 `.pdf` 文件。当前 M1 只支持“全部活跃时刻 -> Markdown/PDF”，不支持当前主页筛选、日期范围、取消、失败重试 UI、持久 `export_job` 或 canonical asset pin。
 
-当前本地文件分层如下：Moment 原图归 SwiftData `MomentImage.imageData`；缩略图在 `Caches/thumbnails`，可从原图重建，不参与同步；外观自定义背景图在 Application Support 的外观目录，不进入 SwiftData 或 CloudKit；语言、隐私锁、订阅缓存、默认标签首启标记和外观偏好使用 `UserDefaults`。当前没有用户可触发的外部备份包或 PDF 导出；Markdown 导出文件写在系统临时目录的 `MoodmentsExports/Markdown/` 下，每次新导出前会清理旧导出包，属于用户显式生成的只读分享副本，不参与恢复点或 iCloud 同步。
+当前本地文件分层如下：Moment 原图归 SwiftData `MomentImage.imageData`；缩略图在 `Caches/thumbnails`，可从原图重建，不参与同步；外观自定义背景图在 Application Support 的外观目录，不进入 SwiftData 或 CloudKit；语言、隐私锁、订阅缓存、默认标签首启标记和外观偏好使用 `UserDefaults`。当前没有用户可触发的外部备份包；Markdown / PDF 导出文件分别写在系统临时目录的 `MoodmentsExports/Markdown/` 和 `MoodmentsExports/PDF/` 下，每次新导出前会清理同格式旧导出包，属于用户显式生成的只读分享副本，不参与恢复点或 iCloud 同步。
 
 ## 编辑页局部选择
 

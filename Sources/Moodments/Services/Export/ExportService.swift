@@ -1,54 +1,73 @@
 import Foundation
 import SwiftData
 
-struct MarkdownExportService {
+struct ExportService {
     private let modelContainer: ModelContainer
     private let outputRootURL: URL?
-    private let renderer: MarkdownExportRenderer
+    private let markdownRenderer: MarkdownExportRenderer
+    private let pdfRenderer: PDFExportRenderer
 
     init(
         modelContainer: ModelContainer,
         outputRootURL: URL? = nil,
-        renderer: MarkdownExportRenderer = MarkdownExportRenderer()
+        markdownRenderer: MarkdownExportRenderer = MarkdownExportRenderer(),
+        pdfRenderer: PDFExportRenderer = PDFExportRenderer()
     ) {
         self.modelContainer = modelContainer
         self.outputRootURL = outputRootURL
-        self.renderer = renderer
+        self.markdownRenderer = markdownRenderer
+        self.pdfRenderer = pdfRenderer
     }
 
-    func exportAll(now: Date = .now) async throws -> MarkdownExportResult {
-        let store = SwiftDataMarkdownExportSnapshotStore(modelContainer: modelContainer)
+    func exportAll(format: ExportFormat, now: Date = .now) async throws -> ExportResult {
+        let store = SwiftDataExportSnapshotStore(modelContainer: modelContainer)
         let snapshot = try await store.makeSnapshot(exportedAt: now)
-        let outputRoot = try outputRootURL ?? Self.defaultOutputRootURL()
-        let renderer = renderer
-        return try await Task.detached(priority: .userInitiated) {
-            let document = renderer.render(snapshot: snapshot)
-            return try MarkdownExportFileWriter(outputRootURL: outputRoot)
-                .write(document: document, snapshot: snapshot)
-        }.value
+        try Task.checkCancellation()
+        let outputRoot = outputRootURL ?? Self.defaultOutputRootURL(format: format)
+        let markdownRenderer = markdownRenderer
+        let pdfRenderer = pdfRenderer
+        let task = Task.detached(priority: .userInitiated) {
+            try Task.checkCancellation()
+            let writer = ExportFileWriter(outputRootURL: outputRoot)
+            switch format {
+            case .markdown:
+                let document = markdownRenderer.render(snapshot: snapshot)
+                try Task.checkCancellation()
+                return try writer.writeMarkdown(document: document, snapshot: snapshot)
+            case .pdf:
+                let document = try pdfRenderer.render(snapshot: snapshot)
+                try Task.checkCancellation()
+                return try writer.writePDF(document: document, snapshot: snapshot)
+            }
+        }
+        return try await withTaskCancellationHandler {
+            try await task.value
+        } onCancel: {
+            task.cancel()
+        }
     }
 
-    private static func defaultOutputRootURL() throws -> URL {
+    private static func defaultOutputRootURL(format: ExportFormat) -> URL {
         let exportsDirectory = FileManager.default.temporaryDirectory.appendingPathComponent(
             "MoodmentsExports",
             isDirectory: true
         )
         return exportsDirectory.appendingPathComponent(
-            "Markdown",
+            format.outputDirectoryName,
             isDirectory: true
         )
     }
 }
 
 @ModelActor
-actor SwiftDataMarkdownExportSnapshotStore {
-    func makeSnapshot(exportedAt: Date) throws -> MarkdownExportSnapshot {
+actor SwiftDataExportSnapshotStore {
+    func makeSnapshot(exportedAt: Date) throws -> ExportSnapshot {
         let descriptor = FetchDescriptor<Moment>(
             predicate: #Predicate { $0.deletedFlag == false },
             sortBy: [SortDescriptor(\.occurredAt, order: .reverse)]
         )
         let moments = try modelContext.fetch(descriptor).map { moment in
-            MarkdownExportMoment(
+            ExportMoment(
                 id: moment.id,
                 title: moment.title,
                 bodyText: moment.bodyText,
@@ -58,7 +77,7 @@ actor SwiftDataMarkdownExportSnapshotStore {
                 assets: sortedAssets(moment.images)
             )
         }
-        return MarkdownExportSnapshot(exportedAt: exportedAt, moments: moments)
+        return ExportSnapshot(exportedAt: exportedAt, moments: moments)
     }
 
     private func sortedTagNames(_ tags: [Tag]) -> [String] {
@@ -67,41 +86,71 @@ actor SwiftDataMarkdownExportSnapshotStore {
             .sorted { $0.localizedStandardCompare($1) == .orderedAscending }
     }
 
-    private func sortedAssets(_ images: [MomentImage]) -> [MarkdownExportAsset] {
+    private func sortedAssets(_ images: [MomentImage]) -> [ExportAsset] {
         images
             .sorted { $0.sortIndex < $1.sortIndex }
-            .map { MarkdownExportAsset(id: $0.id, data: $0.imageData) }
+            .map { ExportAsset(id: $0.id, data: $0.imageData) }
     }
 }
 
-struct MarkdownExportFileWriter: Sendable {
+struct ExportFileWriter: Sendable {
     let outputRootURL: URL
 
-    func write(
+    func writeMarkdown(
         document: MarkdownExportDocument,
-        snapshot: MarkdownExportSnapshot
-    ) throws -> MarkdownExportResult {
-        try prepareOutputRoot()
-        let markdownFileName = "Moodments-\(Self.fileTimestamp(snapshot.exportedAt)).md"
-        let locations = makeOutputLocations(
+        snapshot: ExportSnapshot
+    ) throws -> ExportResult {
+        try write(
+            format: .markdown,
             exportedAt: snapshot.exportedAt,
-            markdownFileName: markdownFileName
+            momentCount: snapshot.moments.count,
+            assetCount: document.assets.count
+        ) { locations in
+            try writeMarkdownDocument(document, to: locations)
+        }
+    }
+
+    func writePDF(document: PDFExportDocument, snapshot: ExportSnapshot) throws -> ExportResult {
+        try write(
+            format: .pdf,
+            exportedAt: snapshot.exportedAt,
+            momentCount: snapshot.moments.count,
+            assetCount: snapshot.moments.reduce(0) { $0 + $1.assets.count }
+        ) { locations in
+            try writePDFDocument(document, to: locations)
+        }
+    }
+
+    private func write(
+        format: ExportFormat,
+        exportedAt: Date,
+        momentCount: Int,
+        assetCount: Int,
+        writeDocument: (ExportOutputLocations) throws -> Void
+    ) throws -> ExportResult {
+        try prepareOutputRoot()
+        let fileName = "Moodments-\(Self.fileTimestamp(exportedAt)).\(format.fileExtension)"
+        let locations = makeOutputLocations(
+            exportedAt: exportedAt,
+            fileName: fileName
         )
 
         do {
-            try writeDocument(document, to: locations)
+            try Task.checkCancellation()
+            try writeDocument(locations)
         } catch {
             let originalError = error
             try cleanupFailedPackage(locations.packageDirectory, originalError: originalError)
             throw originalError
         }
 
-        return MarkdownExportResult(
+        return ExportResult(
+            format: format,
             packageDirectoryURL: locations.packageDirectory,
-            markdownFileURL: locations.markdownFile,
-            fileName: markdownFileName,
-            momentCount: snapshot.moments.count,
-            assetCount: document.assets.count
+            fileURL: locations.file,
+            fileName: fileName,
+            momentCount: momentCount,
+            assetCount: assetCount
         )
     }
 
@@ -119,8 +168,8 @@ struct MarkdownExportFileWriter: Sendable {
 
     private func makeOutputLocations(
         exportedAt: Date,
-        markdownFileName: String
-    ) -> MarkdownExportOutputLocations {
+        fileName: String
+    ) -> ExportOutputLocations {
         // swiftlint:disable trailing_comma
         let directoryName = [
             "Moodments",
@@ -132,15 +181,15 @@ struct MarkdownExportFileWriter: Sendable {
             directoryName,
             isDirectory: true
         )
-        return MarkdownExportOutputLocations(
+        return ExportOutputLocations(
             packageDirectory: packageDirectory,
-            markdownFile: packageDirectory.appendingPathComponent(markdownFileName)
+            file: packageDirectory.appendingPathComponent(fileName)
         )
     }
 
-    private func writeDocument(
+    private func writeMarkdownDocument(
         _ document: MarkdownExportDocument,
-        to locations: MarkdownExportOutputLocations
+        to locations: ExportOutputLocations
     ) throws {
         let fileManager = FileManager.default
         try fileManager.createDirectory(
@@ -148,6 +197,7 @@ struct MarkdownExportFileWriter: Sendable {
             withIntermediateDirectories: false
         )
         for asset in document.assets {
+            try Task.checkCancellation()
             let assetURL = locations.packageDirectory.appendingPathComponent(asset.relativePath)
             try fileManager.createDirectory(
                 at: assetURL.deletingLastPathComponent(),
@@ -156,9 +206,22 @@ struct MarkdownExportFileWriter: Sendable {
             try asset.data.write(to: assetURL, options: .atomic)
         }
         guard let markdownData = document.markdown.data(using: .utf8) else {
-            throw MarkdownExportError.markdownEncodingFailed
+            throw ExportError.markdownEncodingFailed
         }
-        try markdownData.write(to: locations.markdownFile, options: .atomic)
+        try Task.checkCancellation()
+        try markdownData.write(to: locations.file, options: .atomic)
+    }
+
+    private func writePDFDocument(
+        _ document: PDFExportDocument,
+        to locations: ExportOutputLocations
+    ) throws {
+        try FileManager.default.createDirectory(
+            at: locations.packageDirectory,
+            withIntermediateDirectories: false
+        )
+        try Task.checkCancellation()
+        try document.data.write(to: locations.file, options: .atomic)
     }
 
     private func cleanupFailedPackage(_ packageDirectory: URL, originalError: Error) throws {
@@ -167,7 +230,7 @@ struct MarkdownExportFileWriter: Sendable {
         do {
             try fileManager.removeItem(at: packageDirectory)
         } catch {
-            throw MarkdownExportError.cleanupFailed(
+            throw ExportError.cleanupFailed(
                 original: String(describing: originalError),
                 cleanup: String(describing: error)
             )
@@ -193,7 +256,7 @@ struct MarkdownExportFileWriter: Sendable {
     }
 }
 
-private struct MarkdownExportOutputLocations {
+private struct ExportOutputLocations {
     let packageDirectory: URL
-    let markdownFile: URL
+    let file: URL
 }

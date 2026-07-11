@@ -9,7 +9,7 @@ struct MarkdownExportRenderer: Sendable {
         self.calendar = calendar
     }
 
-    func render(snapshot: MarkdownExportSnapshot) -> MarkdownExportDocument {
+    func render(snapshot: ExportSnapshot) -> MarkdownExportDocument {
         // swiftlint:disable trailing_comma
         var lines: [String] = [
             "# 时刻导出",
@@ -133,12 +133,5 @@ struct MarkdownExportRenderer: Sendable {
             || signature.contains("ftypheix")
             || signature.contains("ftyphevc")
             || signature.contains("ftypmif1")
-    }
-}
-
-private extension String {
-    var trimmedForExportTitle: String {
-        let trimmed = trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? "无标题" : trimmed
     }
 }
