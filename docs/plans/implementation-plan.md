@@ -2,6 +2,8 @@
 
 本文是当前主动计划，只记录尚未完成的目标架构、实施顺序和验收条件。已落地事实进入 [`../current/`](../current/README.md)；产品语义以 [`../product-mental-model.md`](../product-mental-model.md) 为准。
 
+当前仓库没有单独的 `docs/design/` 目录，因此本文临时承载两类非 current 内容：前半部分的目标契约（target contract）和后半部分的主动计划（active plan）。任一内容落地验收后，as-built 真相必须迁入 `docs/current/`，本文只保留仍未完成的计划或最终关闭证据。
+
 ## Planning Position
 
 Moodments 是单机优先、小而美的个人日记 App。数据架构必须可靠、可恢复、可验证，但不能膨胀成账号系统、云备份平台或多人协同系统。
@@ -62,11 +64,73 @@ UI / ViewModel
 - 当前没有完整数据生命周期：无 canonical UI 读写路径、无 canonical 恢复点生产设置页入口、无真实 cutover / destructive migration 调用方接入、无持久 outbox、无自定义同步状态机、无真实 iCloud 多设备验收。Markdown / PDF 导出已有 SwiftData 过渡版 M1，但还不是 canonical `export_job` 闭环。
 - 当前 SwiftData 是过渡实现和 UI 可用路径，不作为目标架构里的最终数据权威。
 
+## M0 Canonical Cutover Contract
+
+M0 的目标不是继续扩功能，而是把生产切换的单一权威边界、影响面和退出标准固定下来。项目尚未上线，因此不做旧 SwiftData 方案的长期兼容、迁移矩阵或双写。
+
+### M0 决策
+
+- 生产目标固定为 `Canonical Repository + GRDB + SQLite + FileAssetStore`；SwiftData 只保留为 current 事实和受控 cutover 前的过渡来源。
+- 验收通过后的生产启动不得再创建 SwiftData `ModelContainer`，不得把 SwiftData 作为 UI 读写、恢复点或导出的运行期数据源。
+- 不做 SwiftData + GRDB 双写。任何双权威都会让恢复点、导出、图片 GC 和后续 iCloud 同步出现不可解释的竞态。
+- 因 App 未上线，cutover 采用破坏式切换：验收通过后删除或隔离 SwiftData 生产路径；不保留用户可见的“旧存储模式”。
+- cutover 后恢复只走 canonical recovery catalog / snapshot / boot restore gate。SwiftData 过渡恢复点路径随生产切换退役，不能继续承担恢复一致性。
+- M0 不把 iCloud、CloudKit outbox/checkpoint、冲突 UI、外部备份包、导出范围选择、持久 `export_job` 或完整后台 GC 作为关闭条件。
+
+### 目标生产路径
+
+```text
+MoodmentsApp
+  -> CanonicalBootRestoreGate
+  -> CanonicalLibraryRuntime
+      -> CanonicalLibraryRepository
+      -> FileAssetStore
+      -> CanonicalRecoveryCoordinator
+      -> CanonicalBackupRestoreService
+      -> ExportService(canonical snapshot source)
+  -> SwiftUI feature models / views
+```
+
+启动顺序必须是阻断式、可解释的：先消费 pending restore，再打开 canonical runtime；如果发生受控 cutover，则在用户进入主时间轴前完成导入/校验/切换，不能让 UI 先使用 SwiftData 再后台悄悄切库。
+
+### 影响面清单
+
+| 面 | 当前事实 | cutover 前缺口 | 目标 |
+| --- | --- | --- | --- |
+| App 启动 | `MoodmentsApp` 创建 SwiftData `ModelContainer` 并注入 `.modelContainer`。 | 接入 `CanonicalBootRestoreGate` 与 `CanonicalLibraryRuntime`；定义 canonical runtime 的环境注入方式。 | 生产启动只打开 canonical runtime。 |
+| 用户写入 | `LocalLibraryMutationService` 已收口写入副作用，但仍创建 `MomentRepository` / `TagRepository`。 | 改为调用 canonical mutation boundary，并接入 canonical 稳定恢复点/安全点。 | UI 不知道底层 store，写入只进 canonical transaction。 |
+| 时间轴/筛选 | `TimelineHomeView`、`TimelineViewportView`、`FilterPanelView` 仍使用 `@Query` / SwiftData `Tag`。 | 建立 canonical read facade：active moments、mood filter、tag AND filter、tag list、定位入口所需数据。 | 时间轴和筛选不依赖 SwiftData model。 |
+| 预览/编辑 | `MomentPreviewView` 直接查 `Moment`；`MomentEditorModel` 通过 SwiftData editing payload 取图和标签。 | canonical 提供预览详情、编辑 payload、原图读取、图片顺序和标签名回填。 | 预览和编辑只消费值类型。 |
+| 标签管理 | `TagManageView` / `TagPickerView` 直接使用 `TagRepository`。 | canonical tag list/create/rename/delete 与额度、稳定排序、冲突错误对齐。 | 标签入口统一走 canonical service。 |
+| 垃圾箱 | `TrashView` 用 SwiftData `fetchTrash`，恢复/彻底删除经过 SwiftData repository。 | canonical trash query、restore、purge 和高风险安全点接入。 | 删除生命周期完全由 canonical 状态机表达。 |
+| 统计/热力图 | `MoodStatsModel`、`YearHeatmapModel` 通过 SwiftData aggregation。 | canonical 聚合查询或可重建 derived query layer。 | 统计、热力图与时间轴同源。 |
+| 图片/缩略图 | 原图在 SwiftData `MomentImage.imageData`，缩略图按 SwiftData image ID 读取。 | canonical asset 写入、读取、删图、重排、缩略图失效和 image ID 稳定性。 | 原图由 `FileAssetStore` 管理，SQLite 只存 metadata/link。 |
+| 自动恢复点 | 设置页协议已存在，但生产 adapter 是 SwiftData `LocalBackupCoordinator`。 | 生产切到 `CanonicalBackupRestoreService`，启动结果消费 canonical boot result。 | 恢复点列表/预览/恢复全走 canonical。 |
+| 导出 | `ExportService` 从 `SwiftDataExportSnapshotStore` 读取。 | 增加 canonical export snapshot source，复用 Markdown/PDF renderer。 | 导出与 UI 读写同源，不改变 canonical store。 |
+| 测试数据 | 多数 UI seed 和单测 fixture 仍构造 SwiftData `ModelContext`。 | 提供 canonical test runtime / seed helper，重写主流程测试入口。 | 验证生产路径而不是旧过渡路径。 |
+
+### 分阶段切换
+
+1. **M1 Repository parity**：补齐 canonical read/write facade，覆盖创建、编辑、软删除、恢复、彻底删除、标签 CRUD、时间轴筛选、预览详情、编辑 payload、图片读写、统计/热力图聚合和额度计数。
+2. **M2 Main UI runtime cutover**：`MoodmentsApp`、`RootView` 和主流程 feature models 切到 canonical runtime；移除时间轴、编辑、预览、标签、垃圾箱、统计/热力图里的 `@Query` / `ModelContainer` 依赖；恢复点和导出生产切源分别留给 M3/M4，完成前不得宣称 SwiftData 已退出全部生产路径。
+3. **M3 Recovery cutover**：设置页“自动恢复点/备份与恢复”切到 `CanonicalBackupRestoreService`；写入触发器切到 `CanonicalRecoveryCoordinator`；启动期消费 canonical pending restore；SwiftData 恢复路径退出生产。
+4. **M4 Export cutover**：Markdown / PDF 改读 canonical snapshot source；图片从 `FileAssetStore` 读取；导出仍是只读副本，范围选择和持久 job 后置。
+5. **M5 SwiftData production removal**：在 M2-M4 全部验收后，删除或隔离 SwiftData production wiring、过渡恢复 coordinator、过渡导出 snapshot store 和 UI seed 对 SwiftData 的依赖；此阶段完成后才允许宣称 SwiftData 只剩受控导入工具或历史测试辅助。更新 current 文档为 canonical as-built。
+
+### M0 Acceptance
+
+- 本计划明确 current、目标和未实现计划：current 仍是 SwiftData，目标生产是 canonical，M0 不声明代码已切换。
+- 后续实现的退出标准明确为“验收后生产路径不再创建 SwiftData `ModelContainer`，UI/恢复/导出不再读写 SwiftData”。
+- 已列出所有必须脱离 SwiftData 的生产入口：启动、写入、时间轴、筛选、预览、编辑、标签、垃圾箱、统计/热力图、图片、恢复点、导出、测试种子。
+- 恢复一致性收敛为单一路径：cutover 后只走 canonical recovery；不保留“SwiftData restore 后 rebuild canonical”的并行生产策略。
+- 设置页仍保持 iCloud 同步、自动恢复点、导出三入口分离；恢复预览只从自动恢复点进入；导出切源到 canonical snapshot 后仍只表达只读副本。
+- iCloud、外部备份包、导出范围选择、持久 `export_job`、完整后台 GC 和多设备冲突不进入 M0 关闭条件。
+
 ## Mature Choices
 
 | 需求 | 采用方案 | 边界 |
 | --- | --- | --- |
-| 本地权威、事务、迁移、查询 | SQLite + GRDB 候选 | 阶段 0 冻结；若不用 GRDB，必须记录替代方案如何覆盖迁移、事务、观察和测试。 |
+| 本地权威、事务、迁移、查询 | SQLite + GRDB | 已冻结为生产目标；后续不再回到 SwiftData repository 作为权威。 |
 | 图片与大文件 | Content-addressed file asset store | 文件归 App 管理；SQLite 只存 metadata、hash、引用和 pin。 |
 | 崩溃后恢复 | SQLite transaction + durable job tables | 写入、恢复、导出、同步都用持久状态；不靠内存队列。 |
 | 本机自动恢复点 | Recovery point catalog + atomic snapshot/replace | v1 最多 3 个恢复点；用户不可删除。 |
@@ -77,7 +141,7 @@ UI / ViewModel
 
 ## Core Data Model
 
-阶段 0 必须冻结最小 schema。字段名可在设计层微调，但职责不能合并。
+下表是目标数据生命周期的对象地图，不等于 M0 必须一次实现的 schema。M0 只冻结本地生产 cutover 的最小闭环：`library_metadata`、Moment/Tag/link、asset metadata、mutation/tombstone、recovery point catalog 和 restore staging。`sync_*`、`conflict_record`、`export_job` 属于后续 iCloud / 导出增强计划，不能阻塞本地 canonical 切生产。
 
 | 表 / 对象 | 职责 |
 | --- | --- |
@@ -90,7 +154,7 @@ UI / ViewModel
 | `mutation_log` | 本地不可变事实：创建、编辑、软删、恢复、彻底删除、标签变更。 |
 | `sync_outbox` | 后续 iCloud 计划使用的可重试出站任务，携带幂等 key、目标 revision、重试状态。 |
 | `sync_checkpoint` | 后续 iCloud 计划使用的 CloudKit token、Apple ID 边界状态、server metadata。 |
-| `conflict_record` | 无法自动合并的正文、照片、标签关系、删除冲突；v1 先服务本机恢复/删除边界，iCloud 冲突后续扩展。 |
+| `conflict_record` | 后续 iCloud 计划使用的用户可见冲突记录；M0 不引入冲突 UI，也不把该表作为本地切生产关闭条件。 |
 | `recovery_point` | App 自动恢复点 catalog，最多保留 3 个。 |
 | `restore_job` | staging、校验、replace、失败恢复的持久状态。 |
 | `export_job` | Markdown/PDF 导出任务状态、目标、进度和失败原因。 |
@@ -302,27 +366,27 @@ Apple ID / iCloud 边界必须可见：
 
 ## Remaining Gaps
 
-- SQLite/GRDB 依赖决策、首版 schema/repository 骨架、canonical runtime 类型、content-addressed asset store 和 SwiftData baseline 导入器已经进入 current；仍需要把导入器纳入受控 cutover，并补齐失败重试、rebuild 和恢复点协作策略。
+- SQLite/GRDB 依赖决策、首版 schema/repository 骨架、canonical runtime 类型、content-addressed asset store 和 SwiftData baseline 导入器已经进入 current；仍需要把导入器纳入受控 cutover，并补齐失败重试和恢复点协作策略。
 - 已将 canonical recovery catalog、asset manifest、retention=3、recoveryPoint content-hash pin、真实 SQLite snapshot 创建、snapshot/asset 校验、内部 recovery coordinator、内部 stage/arm/boot replace/rollback restore executor、restoreStaging pin、boot restore gate 和 migration safety gate 迁入 GRDB；仍需要把 SwiftData 过渡版生产创建触发器、生产启动接入和用户可见 canonical 恢复点路径迁入 canonical。
 - 需要在后续独立 iCloud 计划中，把当前 iCloud 三态启发式替换为可区分 Apple ID / 网络 / outbox / conflict 的状态模型。
-- 需要在已落地的本地 canonical runtime/importer/asset store 上补齐 derived query layer、受控 cutover/rebuild path，并接入生产用户路径。
-- 现有 SwiftData 过渡版恢复点只覆盖 `Moodments.store*`，不覆盖 `Application Support/Canonical/`；cutover 前必须定义 restore 后 canonical invalidation/rebuild 契约，或采用 wipe + reimport 作为唯一受控流程。
+- 需要在已落地的本地 canonical runtime/importer/asset store 上补齐 derived query layer、受控 cutover path，并接入生产用户路径。
+- 现有 SwiftData 过渡版恢复点只覆盖 `Moodments.store*`，不覆盖 `Application Support/Canonical/`；cutover 后必须退役 SwiftData 过渡恢复路径，生产恢复只走 canonical recovery catalog / snapshot / boot restore gate，避免并行 restore/rebuild 语义制造 stale canonical。
 - 需要将已落地 SwiftData 过渡版恢复点的触发器和生产恢复执行迁入 canonical；设置页恢复点 UI 已有 `BackupRestoreServicing` 边界，但当前生产适配器仍是 SwiftData，本阶段未切换 canonical 适配器。内部 canonical restore executor 已有 pending context / armed marker / boot replace / rollback / cleanup，但还没有持久 `restore_job` 表和生产启动接入。
 - 需要把已落地 Markdown / PDF 导出 M1 扩展为目标闭环：范围选择、取消/失败重试、持久 `export_job` 和 canonical export pin。
 - 需要另建 iCloud 独立计划，覆盖 custom zone 同步、outbox、checkpoint、冲突记录、用户可见状态和真机矩阵。
 
 ## Planned Work
 
-### 0. 契约冻结
+### 0. M0 Canonical Cutover Contract
 
-- 冻结目标依赖：canonical store 首选 GRDB；PDF 首选系统 renderer；外部 ZIP 备份文件后置。
-- 冻结核心 schema：domain records、asset、mutation、sync、conflict、recovery、restore、export。
-- 冻结自动恢复点策略：最多 3 个、按时间淘汰、不可删除、asset pin、创建触发器。
-- 冻结设置 IA 和用户文案，明确本机保存、iCloud 同步、自动恢复点、导出四个概念。
-- 记录 iCloud 后续计划边界状态草案：`localOnly / signedOut / disabled / syncing / synced / failed / accountChanged / conflict`，不作为 v1 关闭门槛。
-- 冻结冲突矩阵：哪些可自动合并，哪些必须进入 `conflict_record`。
+- 已冻结生产目标：`Canonical Repository + GRDB + SQLite + FileAssetStore`，SwiftData 不再作为目标权威。
+- 已冻结切换原则：不双写、不长期兼容旧方案、不保留用户可见旧存储模式；验收后 SwiftData 退出生产启动、UI 读写、恢复点和导出路径。
+- 已冻结单一恢复策略：cutover 后只走 canonical recovery catalog / snapshot / boot restore gate；SwiftData 过渡恢复路径随生产切换退役。
+- 已列出 cutover 影响面：启动、写入、时间轴、筛选、预览、编辑、标签、垃圾箱、统计/热力图、图片、自动恢复点、导出和测试种子。
+- 已明确 M0 非目标：iCloud/CloudKit、`sync_outbox` / checkpoint、冲突 UI、外部备份包、导出范围选择、持久 `export_job`、完整后台 GC 和多设备验收。
+- 已保留设置 IA 边界：本机保存、iCloud 同步、自动恢复点、导出继续拆开表达，用户无需 App 登录。
 
-验收：计划和后续设计文档能让开发者直接区分 current、目标契约和未实现计划；没有把自动恢复点、外部备份文件和导出混为一谈；迁移前已有最小可用恢复点创建与校验契约。
+验收：本节能直接指导后续 M1-M5 实现；开发者可以判断一个入口是否仍错误依赖 SwiftData；用户侧不会把自动恢复点、外部备份文件、Markdown/PDF 导出和 iCloud 同步混为一谈；M0 不宣称代码已经切换。
 
 ### 1. Minimal Recovery Point Foundation
 
@@ -338,15 +402,17 @@ Apple ID / iCloud 边界必须可见：
 
 验收：在任何 SwiftData -> canonical 迁移或 destructive schema migration 前，都能先创建一个可校验恢复点；正常完成 create/enforce retention 后，连续创建第 4 个恢复点会淘汰最旧项并释放对应 pin；内部 coordinator 能证明稳定变更节流、安全点、兼容性拒绝、prepare restore 组合顺序和 arm 后 retention 失败语义；内部 restore executor 能证明 armed restore 可替换、unarmed 不替换、失败不破坏当前 store、restoreStaging pin 可清理；内部 boot gate 能证明 runtime 打开前可消费 pending restore，且 no-pending 不物化 canonical store；用户路径不存在删除入口。当前 catalog / manifest / pin / retention / 真实 snapshot 创建与校验 / 内部 coordinator / 内部 restore executor / 内部 boot gate / 内部 migration safety gate / UI 服务边界已有测试证据；普通 SwiftUI 生产启动、真实 cutover 调用方接入和用户可见 canonical 恢复点路径仍未完成。
 
-### 2. Canonical Local Core
+### 2. Canonical Local Core And UI Cutover
 
 - 在已落地的本地 SQLite store、迁移框架、canonical write repository、runtime 类型和 SwiftData baseline 导入器上继续收敛。
-- 建立受控 cutover：在切 UI 前执行 SwiftData -> canonical baseline 导入，导入必须携带 source fingerprint；restore 后必须 invalidation/rebuild 或 wipe + reimport，避免当前 SwiftData 恢复点 replace 后出现 stale canonical。
-- 扩展 canonical schema、transaction boundary，并建立 derived query layer。
-- 将首页、编辑、标签、垃圾箱、统计逐步迁到 repository/query layer。
+- 建立 canonical read/write parity facade：创建、编辑、软删除、恢复、彻底删除、标签 CRUD、时间轴筛选、预览详情、编辑 payload、图片读写、统计/热力图聚合和额度计数必须覆盖当前 SwiftData 行为。
+- 建立受控 cutover：在切 UI 前执行 SwiftData -> canonical baseline 导入，导入必须携带 source fingerprint；导入失败、source mismatch、目标已有业务数据或恢复点不满足安全条件时必须中止，不进入双权威状态。
+- 扩展 canonical schema、transaction boundary，并建立 derived query layer 或等价查询 facade。
+- 将首页、编辑、预览、标签、垃圾箱、统计、热力图逐步迁到 canonical repository/query layer。
+- `MoodmentsApp` 和 `RootView` 切换到 canonical runtime 环境注入；生产 UI 不再依赖 `.modelContainer(container)`。
 - 保证未登录 iCloud、飞行模式、无网络时本地全功能可用。
 
-验收：创建、编辑、标签、筛选、热力图、软删、恢复、彻底删除在 canonical store 下保持当前产品公理；迁移可重入，失败可重试，不破坏旧数据。
+验收：创建、编辑、标签、筛选、预览、热力图、统计、软删、恢复、彻底删除在 canonical store 下保持当前产品公理；生产启动不再创建 SwiftData `ModelContainer`；生产 UI 不再使用 `@Query` / SwiftData model；cutover 失败不进入可写的混合状态。
 
 ### 3. Asset Pipeline
 
@@ -366,22 +432,24 @@ Apple ID / iCloud 边界必须可见：
 
 - 将 SwiftData 过渡版恢复点触发器、设置列表/预览和用户触发的恢复执行迁入 canonical `recovery_point` catalog。
 - 在 canonical store 下接入已落地的内部 recovery coordinator、restore executor 与 boot restore gate：设置页准备恢复后写 pending/armed，上层进入阻断页；后续普通生产启动或受控 cutover 调用方必须在打开 `CanonicalLibraryRuntime` 前先调用 gate。
+- SwiftData 过渡版 `LocalBackupCoordinator` / `LocalBackupRestoreExecutor` 不再作为生产恢复路径；只可保留为删除前的历史测试或受控迁移辅助。
 - 决定生产启动或维护时机如何调用 orphan recovery point 目录 reconciliation；恢复点淘汰后的 snapshot 目录清理和内部 restore staging pin 已有地基。
 - 将已落地 `CanonicalMigrationSafetyGate` 接入真实 destructive schema migration / SwiftData -> canonical cutover 调用方。
 - 在 canonical replace restore 后重建 `syncEpoch` 占位、清空旧 outbox/token 占位、重建 projection。
 - 保持已落地用户契约：设置页最多 3 个恢复点、可恢复、不可删除；准备恢复后阻断继续使用；恢复失败不破坏当前 library。
 
-验收：用户可看到最多 3 个恢复点并恢复；用户不能删除恢复点；连续创建第 4 个恢复点会淘汰最旧项；准备恢复后不能继续写入；恢复失败不破坏当前 library；普通生产启动或受控 cutover 启动路径能够在打开 canonical runtime 前消费 pending restore。
+验收：用户可看到最多 3 个恢复点并恢复；用户不能删除恢复点；连续创建第 4 个恢复点会淘汰最旧项；准备恢复后不能继续写入；恢复失败不破坏当前 library；普通生产启动或受控 cutover 启动路径能够在打开 canonical runtime 前消费 pending restore；生产设置页使用 `CanonicalBackupRestoreService`。
 
 ### 5. Export
 
 - Markdown / PDF 导出 M1 已落地：设置详情页可导出全部活跃 Moment，稳定文件名、Markdown 文档、相对图片链接、PDF 分页和图片嵌入已覆盖；范围筛选仍未实现。
+- 先把导出数据源从 SwiftData snapshot 切到 canonical snapshot：active moments、tag names、asset links 和原图 bytes 都从 canonical store / `FileAssetStore` 读取。
 - 补齐 Markdown 范围选择：全部、当前主页筛选、日期范围。
 - 补齐导出详情页：范围、照片选项、目标位置、进度、取消、失败重试。
 - 如果选择“当前主页筛选”，详情页必须显示只读筛选摘要，避免设置任务空间里的“当前”产生歧义。
 - 导出任务从一致性快照读取，不阻塞 UI，不改变 canonical store。
 
-验收：导出成功、取消、失败、重试、目标冲突和临时文件清理都有可测行为；导出文件不是备份，也不参与 iCloud。
+验收：Markdown / PDF 导出不再读取 SwiftData；导出成功、取消、失败、重试、目标冲突和临时文件清理都有可测行为；导出文件不是备份，也不参与 iCloud。
 
 ### 6. iCloud Sync Follow-up Plan
 
@@ -393,7 +461,7 @@ Apple ID / iCloud 边界必须可见：
 
 ### 7. Cleanup And Hardening
 
-- 移除 SwiftData 作为生产权威的残留路径，保留必要迁移历史。
+- 删除或隔离 SwiftData 生产 wiring 的残留引用，保留必要迁移历史和已明确的测试辅助。
 - 更新 `docs/current/` 为最终 as-built 真相，计划层只保留未完成项。
 - 更新隐私文案、Privacy Manifest 注释和用户可见错误文案。
 - 补齐快照/视觉验证，确保新增设置页和详情页沿用现有任务容器风格。
@@ -414,7 +482,9 @@ Apple ID / iCloud 边界必须可见：
 | Settings IA | 独立数据分组、iCloud/自动恢复点/导出详情页、面容解锁根页开关、无 App 登录入口。 |
 | iCloud follow-up | 独立计划覆盖未登录、关闭 iCloud、单设备、两设备、Apple ID 变化、离线后恢复、图片同步、删除传播、冲突记录。 |
 
-## Acceptance
+## Final Plan Acceptance
+
+本节是整份数据生命周期 implementation plan 的最终关闭条件，不是 M0 contract 的关闭条件。M0 的验收只看 `M0 Canonical Cutover Contract` 小节。
 
 计划可以关闭的条件：
 
