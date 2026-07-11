@@ -203,6 +203,15 @@ extension BackupPendingRestoreContext {
             restoreSafetyCreatedAt: preparedRestore.restoreSafetyRecoveryPoint.createdAt
         )
     }
+
+    init(context: CanonicalPendingRestoreContext) {
+        self.init(
+            selectedRecoveryPointID: context.selectedRecoveryPointID,
+            selectedCreatedAt: context.selectedCreatedAt,
+            restoreSafetyPointID: context.restoreSafetyRecoveryPoint?.id,
+            restoreSafetyCreatedAt: context.restoreSafetyRecoveryPoint?.createdAt
+        )
+    }
 }
 
 extension BackupBootRestoreResult {
@@ -216,10 +225,28 @@ extension BackupBootRestoreResult {
             self = .failed(BackupBootRestoreFailure(failure: failure))
         }
     }
+
+    init(result: CanonicalBootRestoreResult) {
+        switch result {
+        case .none:
+            self = .none
+        case let .restored(context):
+            self = .restored(BackupPendingRestoreContext(context: context))
+        case let .failed(failure):
+            self = .failed(BackupBootRestoreFailure(failure: failure))
+        }
+    }
 }
 
 extension BackupBootRestoreFailure {
     init(failure: LocalBackupBootRestoreFailure) {
+        self.init(
+            underlyingDescription: failure.underlyingDescription,
+            context: failure.context.map(BackupPendingRestoreContext.init(context:))
+        )
+    }
+
+    init(failure: CanonicalBootRestoreFailure) {
         self.init(
             underlyingDescription: failure.underlyingDescription,
             context: failure.context.map(BackupPendingRestoreContext.init(context:))

@@ -490,6 +490,77 @@ extension CanonicalRestoreExecutorTests {
         XCTAssertEqual(try momentTitles(in: runtime.store), ["最旧恢复点内容"])
     }
 
+    func testBootRestorePrunesSnapshotCatalogAndRetainsRestoreSafety() async throws {
+        let fixture = try makeFixture()
+        let firstID = uuid("00000000-0000-0000-0000-000000002601")
+        let secondID = uuid("00000000-0000-0000-0000-000000002602")
+        let thirdID = uuid("00000000-0000-0000-0000-000000002603")
+        let selectedID = uuid("00000000-0000-0000-0000-000000002604")
+        let restoreSafetyID = uuid("00000000-0000-0000-0000-000000002605")
+
+        do {
+            let runtime = try CanonicalLibraryRuntime(descriptor: fixture.descriptor)
+            for (id, timestamp) in [
+                (firstID, 100.0),
+                (secondID, 200.0),
+                (thirdID, 300.0),
+                (selectedID, 400.0),
+            ] {
+                _ = try await runtime.repository.createMoment(
+                    title: "恢复点 \(Int(timestamp))",
+                    bodyText: "",
+                    occurredAt: Date(timeIntervalSince1970: timestamp),
+                    mood: .normal
+                )
+                _ = try runtime.recoveryPointSnapshotService.createRecoveryPoint(
+                    RecoveryPointSnapshotRequest(
+                        id: id,
+                        reason: .stableChanges,
+                        createdAt: Date(timeIntervalSince1970: timestamp),
+                        appVersion: "1.0.8"
+                    )
+                )
+            }
+            XCTAssertNil(try runtime.recoveryPointStore.recoveryPoint(id: firstID))
+            XCTAssertFalse(
+                FileManager.default.fileExists(
+                    atPath: fixture.descriptor.recoveryPointDirectoryURL
+                        .appendingPathComponent(firstID.uuidString, isDirectory: true)
+                        .path
+                ))
+
+            let executor = try CanonicalRestoreExecutor(runtime: runtime)
+            var context = try executor.stageRestore(recoveryPointID: selectedID)
+            let restoreSafety = try runtime.recoveryPointSnapshotService.createRecoveryPoint(
+                RecoveryPointSnapshotRequest(
+                    id: restoreSafetyID,
+                    reason: .restoreSafety,
+                    createdAt: Date(timeIntervalSince1970: 500),
+                    appVersion: "1.0.8"
+                ),
+                enforcesRetention: false
+            ).recoveryPoint
+            context.restoreSafetyRecoveryPoint = restoreSafety
+            context.restoreSafetyAssetManifest = try runtime.recoveryPointStore.assetManifest(
+                for: restoreSafety.id
+            )
+            try executor.updateStagedRestoreContext(context: context)
+            try executor.armStagedRestore(context: context)
+        }
+
+        _ = try CanonicalRestoreExecutor.performPendingRestoreIfNeeded(
+            descriptor: fixture.descriptor,
+            now: Date(timeIntervalSince1970: 600)
+        )
+
+        let restoredRuntime = try CanonicalLibraryRuntime(descriptor: fixture.descriptor)
+        let points = try restoredRuntime.recoveryPointStore.listRecoveryPoints()
+        XCTAssertEqual(points.map(\.id), [restoreSafetyID, thirdID, secondID])
+        XCTAssertNil(try restoredRuntime.recoveryPointStore.recoveryPoint(id: firstID))
+        XCTAssertNil(try restoredRuntime.recoveryPointStore.recoveryPoint(id: selectedID))
+        XCTAssertEqual(points.first?.reason, .restoreSafety)
+    }
+
     func testReconcileRecoveryPointDirectoriesRemovesOrphansAndStaging() throws {
         let fixture = try makeFixture()
         let runtime = try CanonicalLibraryRuntime(descriptor: fixture.descriptor)

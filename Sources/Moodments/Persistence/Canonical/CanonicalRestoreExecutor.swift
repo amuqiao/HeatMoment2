@@ -70,6 +70,8 @@ struct CanonicalPendingRestoreContext: Codable, Sendable, Equatable {
     let snapshot: CanonicalPendingRestoreSnapshot
     let counts: CanonicalPendingRestoreCounts
     let assetManifest: [CanonicalPendingRestoreAsset]
+    var restoreSafetyRecoveryPoint: CanonicalRecoveryPointRecord? = nil
+    var restoreSafetyAssetManifest: [CanonicalRecoveryPointAssetRecord] = []
 }
 
 struct CanonicalPendingRestoreSnapshot: Codable, Sendable, Equatable {
@@ -144,6 +146,18 @@ struct CanonicalRestoreExecutor: Sendable {
             try Data(context.restoreJobID.uuidString.utf8).write(
                 to: descriptor.pendingRestoreDirectory.appendingPathComponent(Self.armedFileName),
                 options: [.atomic]
+            )
+        }
+    }
+
+    func updateStagedRestoreContext(
+        context: CanonicalPendingRestoreContext
+    ) throws {
+        try operationGate.performSync {
+            try Self.validatePendingPayload(context: context, descriptor: descriptor)
+            try Self.writeContext(
+                context,
+                to: descriptor.pendingRestoreDirectory.appendingPathComponent(Self.contextFileName)
             )
         }
     }
@@ -450,6 +464,156 @@ private extension CanonicalRestoreExecutor {
                     context.restoredSyncEpoch.uuidString,
                     context.currentLibraryCreatedAt.timeIntervalSince1970,
                     now.timeIntervalSince1970,
+                ]
+            )
+            try pruneRecoveryPointsWithMissingSnapshots(
+                db: db,
+                rootDirectory: descriptor.rootDirectory
+            )
+            if let restoreSafety = context.restoreSafetyRecoveryPoint {
+                try insertRestoreSafetyRecoveryPoint(
+                    restoreSafety,
+                    assetManifest: context.restoreSafetyAssetManifest,
+                    db: db
+                )
+            }
+            _ = try evictOverflowRecoveryPoints(db: db)
+        }
+    }
+
+    static func pruneRecoveryPointsWithMissingSnapshots(
+        db: Database,
+        rootDirectory: URL
+    ) throws {
+        let rows = try Row.fetchAll(
+            db,
+            sql: """
+                SELECT id, sqlite_snapshot_relative_path
+                FROM recovery_point_record
+                """
+        )
+        for row in rows {
+            let id = try row.canonicalUUID("id")
+            let relativePath: String = row["sqlite_snapshot_relative_path"]
+            let snapshotURL = try absoluteURL(
+                forRelativePath: relativePath,
+                rootDirectory: rootDirectory
+            )
+            if !FileManager.default.fileExists(atPath: snapshotURL.path) {
+                try deleteRecoveryPointCatalog(id: id, db: db)
+            }
+        }
+    }
+
+    static func evictOverflowRecoveryPoints(db: Database) throws -> [UUID] {
+        let rows = try Row.fetchAll(
+            db,
+            sql: """
+                SELECT id
+                FROM recovery_point_record
+                ORDER BY created_at DESC, id DESC
+                """
+        )
+        let evictedIDs = try rows.dropFirst(
+            CanonicalRecoveryPointStore.retainedRecoveryPointLimit
+        ).map { row in
+            try row.canonicalUUID("id")
+        }
+        for id in evictedIDs {
+            try deleteRecoveryPointCatalog(id: id, db: db)
+        }
+        return evictedIDs
+    }
+
+    static func deleteRecoveryPointCatalog(id: UUID, db: Database) throws {
+        try db.execute(
+            sql: """
+                DELETE FROM asset_pin_record
+                WHERE owner_kind = ? AND owner_id = ?
+                """,
+            arguments: [CanonicalAssetPinOwnerKind.recoveryPoint.rawValue, id.uuidString]
+        )
+        try db.execute(
+            sql: "DELETE FROM recovery_point_asset_record WHERE recovery_point_id = ?",
+            arguments: [id.uuidString]
+        )
+        try db.execute(
+            sql: "DELETE FROM recovery_point_record WHERE id = ?",
+            arguments: [id.uuidString]
+        )
+    }
+
+    static func insertRestoreSafetyRecoveryPoint(
+        _ record: CanonicalRecoveryPointRecord,
+        assetManifest: [CanonicalRecoveryPointAssetRecord],
+        db: Database
+    ) throws {
+        try db.execute(
+            sql: "DELETE FROM recovery_point_asset_record WHERE recovery_point_id = ?",
+            arguments: [record.id.uuidString]
+        )
+        try db.execute(
+            sql: "DELETE FROM asset_pin_record WHERE owner_kind = ? AND owner_id = ?",
+            arguments: [
+                CanonicalAssetPinOwnerKind.recoveryPoint.rawValue,
+                record.id.uuidString,
+            ]
+        )
+        try db.execute(
+            sql: """
+                INSERT OR REPLACE INTO recovery_point_record (
+                    id, created_at, reason, status, schema_version, app_version,
+                    source_library_id, sqlite_snapshot_relative_path,
+                    sqlite_snapshot_byte_count, sqlite_snapshot_sha256,
+                    record_count, tag_count, asset_count
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+            arguments: [
+                record.id.uuidString,
+                record.createdAt.timeIntervalSince1970,
+                record.reason.rawValue,
+                record.status.rawValue,
+                record.schemaVersion,
+                record.appVersion,
+                record.sourceLibraryID.uuidString,
+                record.sqliteSnapshot.relativePath,
+                record.sqliteSnapshot.byteCount,
+                record.sqliteSnapshot.sha256,
+                record.counts.recordCount,
+                record.counts.tagCount,
+                record.counts.assetCount,
+            ]
+        )
+        for asset in assetManifest {
+            try db.execute(
+                sql: """
+                    INSERT OR REPLACE INTO recovery_point_asset_record (
+                        recovery_point_id, asset_id, content_hash, byte_count, relative_path
+                    ) VALUES (?, ?, ?, ?, ?)
+                    """,
+                arguments: [
+                    record.id.uuidString,
+                    asset.assetID.uuidString,
+                    asset.contentHash,
+                    asset.byteCount,
+                    asset.relativePath,
+                ]
+            )
+            try db.execute(
+                sql: """
+                    INSERT INTO asset_pin_record (
+                        id, content_hash, owner_kind, owner_id, created_at, expires_at
+                    ) VALUES (?, ?, ?, ?, ?, NULL)
+                    ON CONFLICT(content_hash, owner_kind, owner_id) DO UPDATE SET
+                        created_at = excluded.created_at,
+                        expires_at = NULL
+                    """,
+                arguments: [
+                    UUID().uuidString,
+                    asset.contentHash,
+                    CanonicalAssetPinOwnerKind.recoveryPoint.rawValue,
+                    record.id.uuidString,
+                    record.createdAt.timeIntervalSince1970,
                 ]
             )
         }

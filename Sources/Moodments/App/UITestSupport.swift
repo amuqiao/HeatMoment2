@@ -304,6 +304,17 @@
                 coordinator: coordinator
             )
         }
+
+        @MainActor
+        static func seedCanonicalRecoveryPointIfRequested(
+            _ service: CanonicalLibraryService,
+            coordinator: CanonicalRecoveryCoordinator?
+        ) async {
+            await UITestLocalBackupSupport.seedCanonicalRecoveryPointIfRequested(
+                service,
+                coordinator: coordinator
+            )
+        }
     }
 
     private enum UITestLocalBackupSupport {
@@ -371,6 +382,53 @@
                 try context.save()
             } catch {
                 assertionFailure("UITest 本地恢复点预置失败：\(error)")
+            }
+        }
+
+        @MainActor
+        static func seedCanonicalRecoveryPointIfRequested(
+            _ service: CanonicalLibraryService,
+            coordinator: CanonicalRecoveryCoordinator?
+        ) async {
+            guard ProcessInfo.processInfo.arguments.contains("-uiTestSeedLocalRecoveryPoint") else {
+                return
+            }
+            guard let coordinator else {
+                assertionFailure("UITest canonical 恢复点预置需要 CanonicalRecoveryCoordinator")
+                return
+            }
+            do {
+                let existing = try await service.repository.totalMomentCount()
+                guard existing == 0 else { return }
+
+                let backupMomentID = try await service.repository.createMoment(
+                    title: "备份里的时刻",
+                    bodyText: "用于验证本地备份恢复后的资料库内容。",
+                    occurredAt: Date(timeIntervalSince1970: 1_800),
+                    mood: .normal,
+                    now: Date(timeIntervalSince1970: 1_800)
+                )
+                service.noteCanonicalChange()
+
+                try await coordinator.createRecoveryPoint(
+                    reason: .stableChanges,
+                    createdAt: Date(timeIntervalSince1970: 2_000)
+                )
+
+                try await service.repository.purgeMoment(
+                    id: backupMomentID,
+                    now: Date(timeIntervalSince1970: 2_200)
+                )
+                _ = try await service.repository.createMoment(
+                    title: "当前未恢复时刻",
+                    bodyText: "用于验证恢复前后资料库已被替换。",
+                    occurredAt: Date(timeIntervalSince1970: 2_400),
+                    mood: .sad,
+                    now: Date(timeIntervalSince1970: 2_400)
+                )
+                service.noteCanonicalChange()
+            } catch {
+                assertionFailure("UITest canonical 恢复点预置失败：\(error)")
             }
         }
     }

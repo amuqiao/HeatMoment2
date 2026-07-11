@@ -22,6 +22,7 @@ struct TagCreateSheetView: View {
     @Environment(SubscriptionService.self) private var subscriptionService
     @Environment(SyncStatusService.self) private var syncStatusService
     @Environment(\.localBackupCoordinator) private var localBackupCoordinator
+    @Environment(\.canonicalRecoveryCoordinator) private var canonicalRecoveryCoordinator
     @State private var name: String
     @State private var isSaving = false
     @State private var paywallTrigger: PaywallTrigger?
@@ -174,6 +175,7 @@ struct TagCreateSheetView: View {
         LocalLibraryMutationService(
             canonicalService: canonicalService,
             localBackupCoordinator: localBackupCoordinator,
+            canonicalRecoveryCoordinator: canonicalRecoveryCoordinator,
             syncStatusService: syncStatusService,
             errorPresenter: errorPresenter
         )

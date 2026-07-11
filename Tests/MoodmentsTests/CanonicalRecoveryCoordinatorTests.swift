@@ -82,7 +82,7 @@ extension CanonicalRecoveryCoordinatorTests {
             listedIDs,
             [
                 uuid("00000000-0000-0000-0000-000000003203"),
-                uuid("00000000-0000-0000-0000-000000003201")
+                uuid("00000000-0000-0000-0000-000000003201"),
             ])
     }
 
@@ -122,7 +122,7 @@ extension CanonicalRecoveryCoordinatorTests {
             listedIDs,
             [
                 uuid("00000000-0000-0000-0000-000000003253"),
-                uuid("00000000-0000-0000-0000-000000003251")
+                uuid("00000000-0000-0000-0000-000000003251"),
             ])
     }
 
@@ -183,7 +183,7 @@ extension CanonicalRecoveryCoordinatorTests {
             listed.map(\.id),
             [
                 uuid("00000000-0000-0000-0000-000000003272"),
-                uuid("00000000-0000-0000-0000-000000003271")
+                uuid("00000000-0000-0000-0000-000000003271"),
             ])
         XCTAssertEqual(listed.map(\.reason), [.mutationSafety, .stableChanges])
     }
@@ -386,7 +386,9 @@ extension CanonicalRecoveryCoordinatorTests {
         XCTAssertEqual(listedIDs, [thirdID, secondID, selectedID])
     }
 
-    func testPrepareRestoreRejectsIncompatibleRecoveryPointWithoutLeavingPendingRestore() async throws {
+    func testPrepareRestoreRejectsIncompatibleRecoveryPointWithoutLeavingPendingRestore()
+        async throws
+    {
         let fixture = try makeFixture()
         let coordinator = CanonicalRecoveryCoordinator(
             runtime: fixture.runtime,
@@ -461,6 +463,10 @@ private extension CanonicalRecoveryCoordinatorTests {
             throw InjectedArmError.failed
         }
 
+        func updateStagedRestoreContext(context: CanonicalPendingRestoreContext) throws {
+            try executor.updateStagedRestoreContext(context: context)
+        }
+
         func clearPendingRestore() throws {
             try executor.clearPendingRestore()
         }
@@ -510,7 +516,7 @@ private extension CanonicalRecoveryCoordinatorTests {
                     storedAsset.byteCount,
                     Date(timeIntervalSince1970: 100).timeIntervalSince1970,
                     "referenced",
-                    0
+                    0,
                 ]
             )
         }

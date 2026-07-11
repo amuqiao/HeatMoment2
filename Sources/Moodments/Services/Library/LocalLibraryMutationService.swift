@@ -28,6 +28,7 @@ struct LocalLibraryMutationService {
 
     private let backend: Backend
     private let localBackupCoordinator: LocalBackupCoordinator?
+    private let canonicalRecoveryCoordinator: CanonicalRecoveryCoordinator?
     private let syncStatusService: SyncStatusService
     private let errorPresenter: ErrorPresenter
 
@@ -39,6 +40,7 @@ struct LocalLibraryMutationService {
     ) {
         self.backend = .swiftData(modelContainer)
         self.localBackupCoordinator = localBackupCoordinator
+        self.canonicalRecoveryCoordinator = nil
         self.syncStatusService = syncStatusService
         self.errorPresenter = errorPresenter
     }
@@ -46,11 +48,13 @@ struct LocalLibraryMutationService {
     init(
         canonicalService: CanonicalLibraryService,
         localBackupCoordinator: LocalBackupCoordinator?,
+        canonicalRecoveryCoordinator: CanonicalRecoveryCoordinator? = nil,
         syncStatusService: SyncStatusService,
         errorPresenter: ErrorPresenter
     ) {
         self.backend = .canonical(canonicalService)
         self.localBackupCoordinator = localBackupCoordinator
+        self.canonicalRecoveryCoordinator = canonicalRecoveryCoordinator
         self.syncStatusService = syncStatusService
         self.errorPresenter = errorPresenter
     }
@@ -327,11 +331,17 @@ struct LocalLibraryMutationService {
     }
 
     private func createMutationSafetyPoint() async throws {
-        guard case .swiftData = backend else { return }
         do {
-            try await LocalBackupWriteRecorder.createMutationSafetyPoint(
-                using: localBackupCoordinator
-            )
+            switch backend {
+            case .swiftData:
+                try await LocalBackupWriteRecorder.createMutationSafetyPoint(
+                    using: localBackupCoordinator
+                )
+            case .canonical:
+                try await CanonicalRecoveryWriteRecorder.createMutationSafetyPoint(
+                    using: canonicalRecoveryCoordinator
+                )
+            }
         } catch {
             throw LocalLibraryMutationError.mutationSafetyPointFailed(underlying: error)
         }
@@ -339,11 +349,18 @@ struct LocalLibraryMutationService {
 
     private func recordStableLocalWrite() {
         recordLocalWrite()
-        guard case .swiftData = backend else { return }
-        LocalBackupWriteRecorder.recordStableChanges(
-            using: localBackupCoordinator,
-            errorPresenter: errorPresenter
-        )
+        switch backend {
+        case .swiftData:
+            LocalBackupWriteRecorder.recordStableChanges(
+                using: localBackupCoordinator,
+                errorPresenter: errorPresenter
+            )
+        case .canonical:
+            CanonicalRecoveryWriteRecorder.recordStableChanges(
+                using: canonicalRecoveryCoordinator,
+                errorPresenter: errorPresenter
+            )
+        }
     }
 
     private func recordLocalWrite() {

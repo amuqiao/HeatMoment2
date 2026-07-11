@@ -27,6 +27,7 @@ struct MoodmentsApp: App {
     @State private var didEnterBackground = false
     private let container: ModelContainer
     private let canonicalLibraryService: CanonicalLibraryService
+    private let canonicalRecoveryCoordinator: CanonicalRecoveryCoordinator?
     private let localBackupCoordinator: LocalBackupCoordinator?
     private let backupRestoreService: (any BackupRestoreServicing)?
     private let launchRestoreResult: BackupBootRestoreResult
@@ -59,11 +60,12 @@ struct MoodmentsApp: App {
                 router.isLocked = BiometricLockPreference.isEnabled()
                 return router
             }())
-        launchRestoreResult = Self.performPendingLocalRestore()
+        launchRestoreResult = Self.performPendingCanonicalRestore()
 
-        let runtime = Self.makeRuntimeServices(launchRestoreResult: launchRestoreResult)
+        let runtime = Self.makeRuntimeServices()
         container = runtime.container
         canonicalLibraryService = runtime.canonicalLibraryService
+        canonicalRecoveryCoordinator = runtime.canonicalRecoveryCoordinator
         localBackupCoordinator = runtime.localBackupCoordinator
         backupRestoreService = runtime.backupRestoreService
         self.syncStatusService = runtime.syncStatusService
@@ -81,6 +83,7 @@ struct MoodmentsApp: App {
         WindowGroup {
             RootView(
                 localBackupCoordinator: localBackupCoordinator,
+                canonicalRecoveryCoordinator: canonicalRecoveryCoordinator,
                 backupRestoreService: backupRestoreService,
                 launchRestoreResult: launchRestoreResult
             )
@@ -159,6 +162,7 @@ struct MoodmentsApp: App {
             .environment(subscriptionService)
             .environment(syncStatusService)
             .environment(\.localBackupCoordinator, localBackupCoordinator)
+            .environment(\.canonicalRecoveryCoordinator, canonicalRecoveryCoordinator)
             // 语言偏好注入（见 `LanguagePreference`、12-quality-assurance.md §12.2）：
             // `.environment(\.locale, ...)` 随 `languagePreferenceRawValue` 变化自动重算，
             // 驱动整棵树重渲染；`Mood.displayName` 等无法读取 View 环境的纯值类型改用
@@ -181,9 +185,7 @@ struct MoodmentsApp: App {
         .modelContainer(container)
     }
 
-    private static func makeRuntimeServices(
-        launchRestoreResult: BackupBootRestoreResult
-    ) -> RuntimeServices {
+    private static func makeRuntimeServices() -> RuntimeServices {
         #if DEBUG
             if UITestSupport.wantsInMemoryContainer {
                 let container = makeInMemoryContainer()
@@ -191,6 +193,7 @@ struct MoodmentsApp: App {
                 return RuntimeServices(
                     container: container,
                     canonicalLibraryService: canonicalLibraryService,
+                    canonicalRecoveryCoordinator: nil,
                     syncStatusService: SyncStatusService(cloudKitEnabled: false),
                     localBackupCoordinator: nil,
                     backupRestoreService: nil
@@ -199,28 +202,31 @@ struct MoodmentsApp: App {
         #endif
 
         let (container, cloudKitEnabled) = ModelContainerConfig.makeProductionContainer()
-        resetCanonicalStorageIfSwiftDataRestoreSucceeded(launchRestoreResult)
-        let canonicalLibraryService = makeProductionCanonicalLibraryService()
-        let localBackupCoordinator = makeLocalBackupCoordinatorIfNeeded(
-            modelContainer: container,
-            cloudKitEnabled: cloudKitEnabled
+        let canonicalRuntime = makeProductionCanonicalLibraryRuntime()
+        let canonicalLibraryService = CanonicalLibraryService(runtime: canonicalRuntime)
+        let canonicalRecoveryCoordinator = CanonicalRecoveryCoordinator(
+            runtime: canonicalRuntime,
+            appVersion: appVersion
         )
         return RuntimeServices(
             container: container,
             canonicalLibraryService: canonicalLibraryService,
+            canonicalRecoveryCoordinator: canonicalRecoveryCoordinator,
             syncStatusService: SyncStatusService(cloudKitEnabled: cloudKitEnabled),
-            localBackupCoordinator: localBackupCoordinator,
-            backupRestoreService: localBackupCoordinator.map(LocalBackupRestoreService.init)
+            localBackupCoordinator: nil,
+            backupRestoreService: CanonicalBackupRestoreService(
+                coordinator: canonicalRecoveryCoordinator
+            )
         )
     }
 
-    private static func performPendingLocalRestore() -> BackupBootRestoreResult {
+    private static func performPendingCanonicalRestore() -> BackupBootRestoreResult {
         do {
             return BackupBootRestoreResult(
-                result: try ModelContainerConfig.performPendingLocalRestoreIfNeeded()
+                result: try CanonicalBootRestoreGate.performProductionPendingRestoreIfNeeded()
             )
-        } catch let error as LocalBackupRestoreCriticalError {
-            fatalError("本地备份恢复回滚失败：\(error)")
+        } catch let error as CanonicalRestoreCriticalError {
+            fatalError("本地恢复回滚失败：\(error)")
         } catch {
             return .failed(BackupBootRestoreFailure(underlying: error))
         }
@@ -235,24 +241,11 @@ struct MoodmentsApp: App {
         }
     }
 
-    private static func makeProductionCanonicalLibraryService() -> CanonicalLibraryService {
+    private static func makeProductionCanonicalLibraryRuntime() -> CanonicalLibraryRuntime {
         do {
-            return try CanonicalLibraryService(runtime: .makeProduction())
+            return try CanonicalLibraryRuntime.makeProduction()
         } catch {
             fatalError("Canonical 本地资料库初始化失败：\(error)")
-        }
-    }
-
-    private static func resetCanonicalStorageIfSwiftDataRestoreSucceeded(
-        _ launchRestoreResult: BackupBootRestoreResult
-    ) {
-        guard case .restored = launchRestoreResult else { return }
-        do {
-            try CanonicalLibraryRuntime.resetStorage(
-                descriptor: CanonicalLibraryRuntime.productionDescriptor
-            )
-        } catch {
-            fatalError("本地备份恢复后重置 Canonical 资料库失败：\(error)")
         }
     }
 
@@ -278,9 +271,19 @@ struct MoodmentsApp: App {
         }
     }
 
+    private static var appVersion: String {
+        let dictionary = Bundle.main.infoDictionary
+        let marketingVersion = dictionary?["CFBundleShortVersionString"] as? String
+        let buildNumber = dictionary?["CFBundleVersion"] as? String
+        return [marketingVersion, buildNumber]
+            .compactMap { $0 }
+            .joined(separator: " ")
+    }
+
     private struct RuntimeServices {
         let container: ModelContainer
         let canonicalLibraryService: CanonicalLibraryService
+        let canonicalRecoveryCoordinator: CanonicalRecoveryCoordinator?
         let syncStatusService: SyncStatusService
         let localBackupCoordinator: LocalBackupCoordinator?
         let backupRestoreService: (any BackupRestoreServicing)?

@@ -11,6 +11,7 @@ import SwiftUI
 /// 共享同一份「定位/筛选」状态，而不是两份互不相干的拷贝。
 struct RootView: View {
     let localBackupCoordinator: LocalBackupCoordinator?
+    let canonicalRecoveryCoordinator: CanonicalRecoveryCoordinator?
     let backupRestoreService: (any BackupRestoreServicing)?
     let launchRestoreResult: BackupBootRestoreResult
 
@@ -27,10 +28,12 @@ struct RootView: View {
 
     init(
         localBackupCoordinator: LocalBackupCoordinator? = nil,
+        canonicalRecoveryCoordinator: CanonicalRecoveryCoordinator? = nil,
         backupRestoreService: (any BackupRestoreServicing)? = nil,
         launchRestoreResult: BackupBootRestoreResult = .none
     ) {
         self.localBackupCoordinator = localBackupCoordinator
+        self.canonicalRecoveryCoordinator = canonicalRecoveryCoordinator
         self.backupRestoreService = backupRestoreService
         self.launchRestoreResult = launchRestoreResult
     }
@@ -95,13 +98,21 @@ struct RootView: View {
                 UITestSupport.seedIfRequested(modelContext)
                 UITestSupport.seedImageMomentIfRequested(modelContext)
                 UITestSupport.seedMomentQuotaIfRequested(modelContext)
-                await UITestSupport.seedLocalRecoveryPointIfRequested(
-                    modelContext,
-                    coordinator: localBackupCoordinator
-                )
             #endif
             do {
-                try await canonicalService.prepareIfNeeded(importingFrom: modelContext.container)
+                let importSource: ModelContainer?
+                if case .restored = launchRestoreResult {
+                    importSource = nil
+                } else {
+                    importSource = modelContext.container
+                }
+                try await canonicalService.prepareIfNeeded(importingFrom: importSource)
+                #if DEBUG
+                    await UITestSupport.seedCanonicalRecoveryPointIfRequested(
+                        canonicalService,
+                        coordinator: canonicalRecoveryCoordinator
+                    )
+                #endif
             } catch {
                 errorPresenter.report(
                     message: "初始化本地资料库失败，请重启应用重试。",

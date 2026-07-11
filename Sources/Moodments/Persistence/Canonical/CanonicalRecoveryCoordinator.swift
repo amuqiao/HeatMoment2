@@ -15,6 +15,7 @@ protocol CanonicalRestoreExecuting: Sendable {
     ) throws -> CanonicalPendingRestoreContext
 
     func armStagedRestore(context: CanonicalPendingRestoreContext) throws
+    func updateStagedRestoreContext(context: CanonicalPendingRestoreContext) throws
     func clearPendingRestore() throws
 }
 
@@ -55,11 +56,12 @@ actor CanonicalRecoveryCoordinator {
             ) throws -> any CanonicalRestoreExecuting = { runtime in
                 try CanonicalRestoreExecutor(runtime: runtime)
             },
-        enforceRecoveryPointRetention: @escaping @Sendable (
-            CanonicalLibraryRuntime
-        ) throws -> [UUID] = { runtime in
-            try runtime.recoveryPointSnapshotService.enforceRecoveryPointRetention()
-        }
+        enforceRecoveryPointRetention:
+            @escaping @Sendable (
+                CanonicalLibraryRuntime
+            ) throws -> [UUID] = { runtime in
+                try runtime.recoveryPointSnapshotService.enforceRecoveryPointRetention()
+            }
     ) {
         self.runtime = runtime
         self.appVersion = appVersion
@@ -170,7 +172,7 @@ actor CanonicalRecoveryCoordinator {
         try assertCompatibleForRestore(selected)
 
         let executor = try makeRestoreExecutor(runtime)
-        let pendingContext = try executor.stageRestore(
+        var pendingContext = try executor.stageRestore(
             recoveryPointID: selected.id,
             restoreJobID: restoreJobID,
             restoredSyncEpoch: restoredSyncEpoch,
@@ -186,6 +188,10 @@ actor CanonicalRecoveryCoordinator {
                 enforcesRetention: false
             )
             restoreSafetyIDToCleanUp = restoreSafety.id
+            pendingContext.restoreSafetyRecoveryPoint = restoreSafety
+            pendingContext.restoreSafetyAssetManifest = try runtime.recoveryPointStore
+                .assetManifest(for: restoreSafety.id)
+            try executor.updateStagedRestoreContext(context: pendingContext)
             try executor.armStagedRestore(context: pendingContext)
             didArmPendingRestore = true
             let retentionStatus: CanonicalRestoreRetentionStatus

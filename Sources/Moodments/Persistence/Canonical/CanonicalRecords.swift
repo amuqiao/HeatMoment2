@@ -78,31 +78,31 @@ struct CanonicalAssetPinRecord: Sendable, Identifiable, Equatable {
     }
 }
 
-enum CanonicalRecoveryPointReason: String, Sendable, Equatable, CaseIterable {
+enum CanonicalRecoveryPointReason: String, Sendable, Codable, Equatable, CaseIterable {
     case mutationSafety
     case schemaMigration
     case restoreSafety
     case stableChanges
 }
 
-enum CanonicalRecoveryPointStatus: String, Sendable, Equatable, CaseIterable {
+enum CanonicalRecoveryPointStatus: String, Sendable, Codable, Equatable, CaseIterable {
     case available
     case invalid
 }
 
-struct CanonicalRecoveryPointCounts: Sendable, Equatable {
+struct CanonicalRecoveryPointCounts: Sendable, Codable, Equatable {
     let recordCount: Int
     let tagCount: Int
     let assetCount: Int
 }
 
-struct CanonicalRecoveryPointSnapshot: Sendable, Equatable {
+struct CanonicalRecoveryPointSnapshot: Sendable, Codable, Equatable {
     let relativePath: String
     let byteCount: Int64
     let sha256: String
 }
 
-struct CanonicalRecoveryPointRecord: Sendable, Identifiable, Equatable {
+struct CanonicalRecoveryPointRecord: Sendable, Codable, Identifiable, Equatable {
     let id: UUID
     let createdAt: Date
     let reason: CanonicalRecoveryPointReason
@@ -114,7 +114,7 @@ struct CanonicalRecoveryPointRecord: Sendable, Identifiable, Equatable {
     let counts: CanonicalRecoveryPointCounts
 }
 
-struct CanonicalRecoveryPointAssetRecord: Sendable, Equatable {
+struct CanonicalRecoveryPointAssetRecord: Sendable, Codable, Equatable {
     let recoveryPointID: UUID
     let assetID: UUID
     let contentHash: String

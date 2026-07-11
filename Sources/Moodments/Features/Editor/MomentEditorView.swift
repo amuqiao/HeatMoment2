@@ -20,6 +20,7 @@ struct MomentEditorView: View {
     @Environment(ErrorPresenter.self) private var errorPresenter
     @Environment(SyncStatusService.self) private var syncStatusService
     @Environment(\.localBackupCoordinator) private var localBackupCoordinator
+    @Environment(\.canonicalRecoveryCoordinator) private var canonicalRecoveryCoordinator
     @AppStorage(EditorMoodMemory.storageKey) private var lastUsedMood: Mood = .normal
 
     @State private var model: MomentEditorModel
@@ -286,6 +287,7 @@ struct MomentEditorView: View {
         LocalLibraryMutationService(
             canonicalService: canonicalService,
             localBackupCoordinator: localBackupCoordinator,
+            canonicalRecoveryCoordinator: canonicalRecoveryCoordinator,
             syncStatusService: syncStatusService,
             errorPresenter: errorPresenter
         )

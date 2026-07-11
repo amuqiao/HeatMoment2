@@ -98,6 +98,29 @@ final class BackupRestoreServiceTests: XCTestCase {
         XCTAssertEqual(context.restoreSafetyCreatedAt, restoreSafety.createdAt)
     }
 
+    func testCanonicalBootRestoreResultMapsToBackupBootRestoreResult() {
+        let selected = canonicalRecord(
+            id: uuid("00000000-0000-0000-0000-000000006601"),
+            createdAt: Date(timeIntervalSince1970: 500)
+        )
+        let pendingContext = canonicalPendingContext(selected: selected)
+
+        let result = BackupBootRestoreResult(
+            result: CanonicalBootRestoreResult.restored(pendingContext))
+
+        XCTAssertEqual(
+            result,
+            .restored(
+                BackupPendingRestoreContext(
+                    selectedRecoveryPointID: selected.id,
+                    selectedCreatedAt: selected.createdAt,
+                    restoreSafetyPointID: nil,
+                    restoreSafetyCreatedAt: nil
+                )
+            )
+        )
+    }
+
     private func localMetadata(
         id: UUID,
         createdAt: Date

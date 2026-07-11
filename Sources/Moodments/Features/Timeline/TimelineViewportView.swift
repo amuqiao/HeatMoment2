@@ -29,6 +29,7 @@ struct TimelineViewportView: View {
     @Environment(ErrorPresenter.self) private var errorPresenter
     @Environment(SyncStatusService.self) private var syncStatusService
     @Environment(\.localBackupCoordinator) private var localBackupCoordinator
+    @Environment(\.canonicalRecoveryCoordinator) private var canonicalRecoveryCoordinator
     @State private var scrollOffsetY: CGFloat = 0
     @State private var realEntries: [TimelineEntry] = []
     @State private var isLoaded = false
@@ -274,6 +275,7 @@ struct TimelineViewportView: View {
         LocalLibraryMutationService(
             canonicalService: canonicalService,
             localBackupCoordinator: localBackupCoordinator,
+            canonicalRecoveryCoordinator: canonicalRecoveryCoordinator,
             syncStatusService: syncStatusService,
             errorPresenter: errorPresenter
         )

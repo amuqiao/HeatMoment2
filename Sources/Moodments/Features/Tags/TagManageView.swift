@@ -15,6 +15,7 @@ struct TagManageView: View {
     @Environment(SubscriptionService.self) private var subscriptionService
     @Environment(SyncStatusService.self) private var syncStatusService
     @Environment(\.localBackupCoordinator) private var localBackupCoordinator
+    @Environment(\.canonicalRecoveryCoordinator) private var canonicalRecoveryCoordinator
 
     @State private var tags: [TagSnapshot] = []
     @State private var isLoaded = false
@@ -194,6 +195,7 @@ struct TagManageView: View {
         LocalLibraryMutationService(
             canonicalService: canonicalService,
             localBackupCoordinator: localBackupCoordinator,
+            canonicalRecoveryCoordinator: canonicalRecoveryCoordinator,
             syncStatusService: syncStatusService,
             errorPresenter: errorPresenter
         )

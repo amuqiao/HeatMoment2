@@ -12,6 +12,7 @@ struct TrashView: View {
     @Environment(CanonicalLibraryService.self) private var canonicalService
     @Environment(SyncStatusService.self) private var syncStatusService
     @Environment(\.localBackupCoordinator) private var localBackupCoordinator
+    @Environment(\.canonicalRecoveryCoordinator) private var canonicalRecoveryCoordinator
 
     @State private var items: [MomentSnapshot] = []
     @State private var isLoaded = false
@@ -156,6 +157,7 @@ struct TrashView: View {
         LocalLibraryMutationService(
             canonicalService: canonicalService,
             localBackupCoordinator: localBackupCoordinator,
+            canonicalRecoveryCoordinator: canonicalRecoveryCoordinator,
             syncStatusService: syncStatusService,
             errorPresenter: errorPresenter
         )

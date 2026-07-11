@@ -53,7 +53,9 @@ struct SettingsSheetView: View {
                 TaskSurfaceSection(accessibilityIdentifier: "settingsSupportSection") {
                     iCloudSyncRow
                     TaskSurfaceSeparator()
-                    disabledPlaceholderRow(title: "备份与恢复", identifier: "settingsBackupRestoreRow")
+                    settingsNavigationRow(title: "备份与恢复", identifier: "settingsBackupRestoreRow") {
+                        BackupRestoreView(backupRestoreService: backupRestoreService)
+                    }
                     TaskSurfaceSeparator()
                     settingsNavigationRow(title: "导出", identifier: "settingsExportRow") {
                         ExportView()

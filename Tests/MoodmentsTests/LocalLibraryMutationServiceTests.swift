@@ -350,6 +350,126 @@ final class LocalLibraryMutationServiceTests: XCTestCase {
     }
 }
 
+extension LocalLibraryMutationServiceTests {
+    @MainActor
+    func testCanonicalBackendCreatesStableRecoveryPointThroughCanonicalCoordinator() async throws {
+        let rootDirectory: URL
+        do {
+            let fixture = try makeCanonicalFixture()
+            rootDirectory = fixture.rootDirectory
+            let service = makeCanonicalService(fixture: fixture)
+
+            _ = try await service.createMoment(
+                title: "canonical",
+                bodyText: "",
+                occurredAt: Date(timeIntervalSince1970: 100),
+                mood: .normal,
+                tagIDs: [],
+                imageDatas: [],
+                quotaService: freeQuotaService()
+            )
+
+            let points = try await waitForCanonicalRecoveryPoints(
+                coordinator: fixture.coordinator,
+                expectedCount: 1
+            )
+            XCTAssertEqual(points.map(\.reason), [.stableChanges])
+            XCTAssertEqual(points.first?.counts.recordCount, 1)
+        }
+        try? FileManager.default.removeItem(at: rootDirectory)
+    }
+
+    @MainActor
+    func testCanonicalBackendCreatesSafetyPointBeforeHighRiskMutation() async throws {
+        let rootDirectory: URL
+        do {
+            let fixture = try makeCanonicalFixture()
+            rootDirectory = fixture.rootDirectory
+            let service = makeCanonicalService(fixture: fixture)
+            let id = try await fixture.runtime.repository.createMoment(
+                title: "trashed",
+                bodyText: "",
+                occurredAt: Date(timeIntervalSince1970: 100),
+                mood: .sad
+            )
+            try await fixture.runtime.repository.softDeleteMoment(id: id)
+
+            try await service.restoreMoment(id: id)
+
+            let points = try await fixture.coordinator.listRecoveryPoints()
+            XCTAssertEqual(points.map(\.reason), [.mutationSafety])
+            XCTAssertEqual(points.first?.counts.recordCount, 1)
+        }
+        try? FileManager.default.removeItem(at: rootDirectory)
+    }
+
+    @MainActor
+    private func makeCanonicalService(
+        fixture: CanonicalFixture
+    ) -> LocalLibraryMutationService {
+        LocalLibraryMutationService(
+            canonicalService: fixture.service,
+            localBackupCoordinator: nil,
+            canonicalRecoveryCoordinator: fixture.coordinator,
+            syncStatusService: SyncStatusService(
+                cloudKitEnabled: false,
+                reachabilityChecker: ImmediateReachabilityChecker()
+            ),
+            errorPresenter: ErrorPresenter()
+        )
+    }
+
+    @MainActor
+    private func makeCanonicalFixture() throws -> CanonicalFixture {
+        let rootDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(
+                "LocalLibraryMutationCanonicalTests-\(UUID().uuidString)",
+                isDirectory: true
+            )
+        let runtime = try CanonicalLibraryRuntime(
+            descriptor: CanonicalStoreDescriptor(rootDirectory: rootDirectory)
+        )
+        let service = CanonicalLibraryService(runtime: runtime)
+        let coordinator = CanonicalRecoveryCoordinator(
+            runtime: runtime,
+            appVersion: "1.0.0",
+            stableChangeMinimumInterval: 0
+        )
+        return CanonicalFixture(
+            runtime: runtime,
+            service: service,
+            coordinator: coordinator,
+            rootDirectory: rootDirectory
+        )
+    }
+
+    @MainActor
+    private func waitForCanonicalRecoveryPoints(
+        coordinator: CanonicalRecoveryCoordinator,
+        expectedCount: Int,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) async throws -> [CanonicalRecoveryPointRecord] {
+        for _ in 0..<20 {
+            let points = try await coordinator.listRecoveryPoints()
+            if points.count >= expectedCount {
+                return points
+            }
+            try await Task.sleep(for: .milliseconds(25))
+        }
+        let points = try await coordinator.listRecoveryPoints()
+        XCTAssertEqual(points.count, expectedCount, file: file, line: line)
+        return points
+    }
+}
+
 private struct ImmediateReachabilityChecker: NetworkReachabilityChecking {
     func isReachable() async -> Bool { true }
+}
+
+private struct CanonicalFixture {
+    let runtime: CanonicalLibraryRuntime
+    let service: CanonicalLibraryService
+    let coordinator: CanonicalRecoveryCoordinator
+    let rootDirectory: URL
 }
