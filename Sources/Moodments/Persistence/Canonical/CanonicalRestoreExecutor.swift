@@ -161,6 +161,20 @@ struct CanonicalRestoreExecutor: Sendable {
         descriptor: CanonicalStoreDescriptor,
         now: Date = .now
     ) throws -> CanonicalBootRestoreResult {
+        try performPendingRestoreIfNeeded(
+            descriptor: descriptor,
+            now: now,
+            replaceStorePayload: { payloadDirectory, descriptor in
+                try replaceStorePayload(from: payloadDirectory, descriptor: descriptor)
+            }
+        )
+    }
+
+    static func performPendingRestoreIfNeeded(
+        descriptor: CanonicalStoreDescriptor,
+        now: Date = .now,
+        replaceStorePayload: (URL, CanonicalStoreDescriptor) throws -> Void
+    ) throws -> CanonicalBootRestoreResult {
         let pendingDirectory = descriptor.pendingRestoreDirectory
         guard FileManager.default.fileExists(atPath: pendingDirectory.path) else {
             return .none
@@ -189,8 +203,7 @@ struct CanonicalRestoreExecutor: Sendable {
 
             try validatePendingPayload(context: context, descriptor: descriptor)
             try prepareIncomingSnapshot(context: context, descriptor: descriptor, now: now)
-            try replaceStorePayload(
-                from: payloadDirectory(in: pendingDirectory), descriptor: descriptor)
+            try replaceStorePayload(payloadDirectory(in: pendingDirectory), descriptor)
             try FileManager.default.removeItem(at: pendingDirectory)
             return .restored(context)
         } catch let error as CanonicalRestoreCriticalError {
@@ -232,6 +245,34 @@ struct CanonicalRestoreExecutor: Sendable {
         descriptor: CanonicalStoreDescriptor,
         copyIncomingPayload: (URL, CanonicalStoreDescriptor) throws -> Void
     ) throws {
+        func defaultRollbackStorePayload(
+            _ movedCurrentPayload: [URL],
+            _ rollbackDirectory: URL,
+            _ removesRootPayloadBeforeRollback: Bool,
+            _ descriptor: CanonicalStoreDescriptor
+        ) throws {
+            try Self.rollbackStorePayload(
+                movedCurrentPayload: movedCurrentPayload,
+                rollbackDirectory: rollbackDirectory,
+                removesRootPayloadBeforeRollback: removesRootPayloadBeforeRollback,
+                descriptor: descriptor
+            )
+        }
+
+        try replaceStorePayload(
+            from: payloadDirectory,
+            descriptor: descriptor,
+            copyIncomingPayload: copyIncomingPayload,
+            rollbackStorePayload: defaultRollbackStorePayload
+        )
+    }
+
+    static func replaceStorePayload(
+        from payloadDirectory: URL,
+        descriptor: CanonicalStoreDescriptor,
+        copyIncomingPayload: (URL, CanonicalStoreDescriptor) throws -> Void,
+        rollbackStorePayload: ([URL], URL, Bool, CanonicalStoreDescriptor) throws -> Void
+    ) throws {
         try FileManager.default.createDirectory(
             at: descriptor.rootDirectory,
             withIntermediateDirectories: true
@@ -258,10 +299,10 @@ struct CanonicalRestoreExecutor: Sendable {
         } catch {
             do {
                 try rollbackStorePayload(
-                    movedCurrentPayload: movedCurrentPayload,
-                    rollbackDirectory: rollbackDirectory,
-                    removesRootPayloadBeforeRollback: didMoveAllCurrentPayload,
-                    descriptor: descriptor
+                    movedCurrentPayload,
+                    rollbackDirectory,
+                    didMoveAllCurrentPayload,
+                    descriptor
                 )
             } catch {
                 throw CanonicalRestoreCriticalError.rollbackFailed(error)

@@ -149,9 +149,7 @@ extension CanonicalRestoreExecutorTests {
         )
     }
 
-    func testCorruptArmedPendingRestoreFailsWithoutReplacingCurrentStoreAndReleasesPins()
-        async throws
-    {
+    func testCorruptArmedPendingRestoreFailsAndReleasesPins() async throws {
         let fixture = try makeFixture()
         let recoveryPointID = uuid("00000000-0000-0000-0000-000000002301")
         var context: CanonicalPendingRestoreContext?
@@ -377,6 +375,58 @@ extension CanonicalRestoreExecutorTests {
         XCTAssertEqual(try rollbackDirectoryNames(in: fixture.rootDirectory), [])
     }
 
+    func testReplaceStorePayloadThrowsCriticalErrorWhenRollbackFails() async throws {
+        let fixture = try makeFixture()
+        let recoveryPointID = uuid("00000000-0000-0000-0000-000000002381")
+
+        do {
+            let runtime = try CanonicalLibraryRuntime(descriptor: fixture.descriptor)
+            _ = try await runtime.repository.createMoment(
+                title: "快照内",
+                bodyText: "",
+                occurredAt: Date(timeIntervalSince1970: 100),
+                mood: .normal
+            )
+            _ = try runtime.recoveryPointSnapshotService.createRecoveryPoint(
+                RecoveryPointSnapshotRequest(
+                    id: recoveryPointID,
+                    reason: .stableChanges,
+                    createdAt: Date(timeIntervalSince1970: 200),
+                    appVersion: "1.0.8"
+                )
+            )
+            _ = try await runtime.repository.createMoment(
+                title: "当前数据",
+                bodyText: "",
+                occurredAt: Date(timeIntervalSince1970: 300),
+                mood: .sad
+            )
+
+            let executor = try CanonicalRestoreExecutor(runtime: runtime)
+            _ = try executor.stageRestore(recoveryPointID: recoveryPointID)
+        }
+
+        XCTAssertThrowsError(
+            try CanonicalRestoreExecutor.replaceStorePayload(
+                from: pendingPayloadDirectory(descriptor: fixture.descriptor),
+                descriptor: fixture.descriptor,
+                copyIncomingPayload: { _, _ in
+                    throw InjectedCopyError.copyFailed
+                },
+                rollbackStorePayload: { _, _, _, _ in
+                    throw InjectedRollbackError.rollbackFailed
+                }
+            )
+        ) { error in
+            guard case CanonicalRestoreCriticalError.rollbackFailed(let rollbackError) = error
+            else {
+                XCTFail("期望 rollbackFailed，实际抛出 \(error)")
+                return
+            }
+            XCTAssertEqual(rollbackError as? InjectedRollbackError, .rollbackFailed)
+        }
+    }
+
     func testStagedRestoreSurvivesSelectedRecoveryPointEviction() async throws {
         let fixture = try makeFixture()
         let selectedRecoveryPointID = uuid("00000000-0000-0000-0000-000000002401")
@@ -479,6 +529,10 @@ extension CanonicalRestoreExecutorTests {
 private extension CanonicalRestoreExecutorTests {
     enum InjectedCopyError: Error, Equatable {
         case copyFailed
+    }
+
+    enum InjectedRollbackError: Error, Equatable {
+        case rollbackFailed
     }
 
     struct Fixture {

@@ -331,11 +331,12 @@ Apple ID / iCloud 边界必须可见：
 - 已落地真实 SQLite snapshot 创建与校验：使用 GRDB online backup 写入 staging，从 snapshot 自身读取 metadata/count/asset manifest，校验 asset blob，atomic move 后写 catalog；snapshot hash / byte count / schema version / asset blob 校验失败会把 catalog status 标为 `invalid`；第 4 个恢复点会同步删除被淘汰的 snapshot 目录。
 - 已落地内部 canonical restore executor：stage 时复制 selected snapshot 到 `PendingRestore/payload`、写 pending context、用 `restoreStaging` content-hash pin 保护 asset；arm 后启动期 replace，成功前重写 staged SQLite 的当前本机 `libraryID` / `deviceID` 和新 `syncEpoch`，非 critical 失败会 rollback 并清理 pending；unarmed pending 不替换当前 store；pending context 缺失或损坏时会释放 staging pin，复制新库失败后会 rollback 保留当前 store。
 - 已落地内部 canonical recovery coordinator：提供恢复点列表、当前 counts、稳定变更节流恢复点、mutation safety 恢复点、恢复点校验、兼容性检查和 prepare restore；prepare restore 先 stage selected，再创建暂缓 retention 的 restore safety，arm 成功后才执行 retention，避免 arm 失败时丢失 selected snapshot；arm 后 retention 失败会作为返回状态暴露，pending restore 仍视为已准备。
+- 已落地内部 canonical boot restore gate：调用方可在打开 `CanonicalLibraryRuntime` 前先消费 pending restore；无 pending 时不创建 canonical root / DB；armed pending 成功替换后再由调用方打开 runtime；unarmed pending 会清理且不替换；损坏 armed pending 返回 failure 并保留当前 store；rollback 失败仍作为 critical error 抛出，避免继续打开半替换 store。
 - 实现迁移前恢复点创建，创建失败则中止 destructive migration。
 - 实现恢复点不可恢复状态展示。
 - 后续接生产触发器和设置 UI 时复用已落地内部 service，不再另建同职责备份协调器。
 
-验收：在任何 SwiftData -> canonical 迁移或 destructive schema migration 前，都能先创建一个可校验恢复点；正常完成 create/enforce retention 后，连续创建第 4 个恢复点会淘汰最旧项并释放对应 pin；内部 coordinator 能证明稳定变更节流、安全点、兼容性拒绝、prepare restore 组合顺序和 arm 后 retention 失败语义；内部 restore executor 能证明 armed restore 可替换、unarmed 不替换、失败不破坏当前 store、restoreStaging pin 可清理；用户路径不存在删除入口。当前 catalog / manifest / pin / retention / 真实 snapshot 创建与校验 / 内部 coordinator / 内部 restore executor 已有测试证据，但迁移闸门、生产启动接入和用户可见不可恢复状态仍未完成。
+验收：在任何 SwiftData -> canonical 迁移或 destructive schema migration 前，都能先创建一个可校验恢复点；正常完成 create/enforce retention 后，连续创建第 4 个恢复点会淘汰最旧项并释放对应 pin；内部 coordinator 能证明稳定变更节流、安全点、兼容性拒绝、prepare restore 组合顺序和 arm 后 retention 失败语义；内部 restore executor 能证明 armed restore 可替换、unarmed 不替换、失败不破坏当前 store、restoreStaging pin 可清理；内部 boot gate 能证明 runtime 打开前可消费 pending restore，且 no-pending 不物化 canonical store；用户路径不存在删除入口。当前 catalog / manifest / pin / retention / 真实 snapshot 创建与校验 / 内部 coordinator / 内部 restore executor / 内部 boot gate 已有测试证据，但迁移闸门、普通 SwiftUI 生产启动或 cutover 调用方接入、用户可见不可恢复状态仍未完成。
 
 ### 2. Canonical Local Core
 
@@ -364,13 +365,13 @@ Apple ID / iCloud 边界必须可见：
 ### 4. Recovery Point UI And Restore
 
 - 将 SwiftData 过渡版恢复点触发器、设置列表/预览和用户触发的恢复执行迁入 canonical `recovery_point` catalog。
-- 在 canonical store 下接入已落地的内部 recovery coordinator 与 restore executor：设置页准备恢复后写 pending/armed，上层进入阻断页，下一次 canonical 生产启动执行 boot replace。
+- 在 canonical store 下接入已落地的内部 recovery coordinator、restore executor 与 boot restore gate：设置页准备恢复后写 pending/armed，上层进入阻断页；后续普通生产启动或受控 cutover 调用方必须在打开 `CanonicalLibraryRuntime` 前先调用 gate。
 - 决定生产启动或维护时机如何调用 orphan recovery point 目录 reconciliation；恢复点淘汰后的 snapshot 目录清理和内部 restore staging pin 已有地基。
 - 在 destructive schema migration 前创建可校验恢复点。
 - 在 canonical replace restore 后重建 `syncEpoch` 占位、清空旧 outbox/token 占位、重建 projection。
 - 保持已落地用户契约：设置页最多 3 个恢复点、可恢复、不可删除；准备恢复后阻断继续使用；恢复失败不破坏当前 library。
 
-验收：用户可看到最多 3 个恢复点并恢复；用户不能删除恢复点；连续创建第 4 个恢复点会淘汰最旧项；准备恢复后不能继续写入；恢复失败不破坏当前 library；生产启动路径能够消费 canonical pending restore。
+验收：用户可看到最多 3 个恢复点并恢复；用户不能删除恢复点；连续创建第 4 个恢复点会淘汰最旧项；准备恢复后不能继续写入；恢复失败不破坏当前 library；普通生产启动或受控 cutover 启动路径能够在打开 canonical runtime 前消费 pending restore。
 
 ### 5. Export
 

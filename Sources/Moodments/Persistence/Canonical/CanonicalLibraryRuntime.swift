@@ -117,10 +117,12 @@ struct CanonicalLibraryRuntime: Sendable {
         )
     }
 
+    static var productionDescriptor: CanonicalStoreDescriptor {
+        CanonicalStoreDescriptor(rootDirectory: applicationSupportDirectory)
+    }
+
     static func makeProduction() throws -> CanonicalLibraryRuntime {
-        try CanonicalLibraryRuntime(
-            descriptor: CanonicalStoreDescriptor(rootDirectory: applicationSupportDirectory)
-        )
+        try CanonicalLibraryRuntime(descriptor: productionDescriptor)
     }
 
     static func makeInMemoryForTests(
