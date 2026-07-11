@@ -1,4 +1,3 @@
-import SwiftData
 import SwiftUI
 import UIKit
 
@@ -11,10 +10,10 @@ struct ImageViewerView: View {
     let startIndex: Int
 
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.modelContext) private var modelContext
+    @Environment(CanonicalLibraryService.self) private var canonicalService
     @Environment(ThemeManager.self) private var theme
     @State private var currentIndex: Int
-    @State private var images: [MomentImageData] = []
+    @State private var images: [CanonicalMomentImageData] = []
     @State private var isLoaded = false
 
     init(momentID: UUID, startIndex: Int) {
@@ -66,7 +65,7 @@ struct ImageViewerView: View {
         }
     }
 
-    private func pageView(for image: MomentImageData, index: Int) -> some View {
+    private func pageView(for image: CanonicalMomentImageData, index: Int) -> some View {
         Group {
             if let uiImage = UIImage(data: image.data) {
                 ZoomableImageView(uiImage: uiImage)
@@ -87,8 +86,7 @@ struct ImageViewerView: View {
     ///   release 保留空态而非伪装成功），调用方（预览/根路由）打开本视图前已确认 `momentID` 有效。
     private func loadImages() async {
         do {
-            images = try await MomentRepository(modelContainer: modelContext.container)
-                .orderedImageData(momentID: momentID)
+            images = try await canonicalService.orderedImageData(momentID: momentID)
         } catch {
             assertionFailure("图片查看器取原图失败 momentID=\(momentID)：\(error)")
         }

@@ -17,6 +17,7 @@ struct RootView: View {
     @Environment(AppRouter.self) private var router
     @Environment(\.modelContext) private var modelContext
     @Environment(ErrorPresenter.self) private var errorPresenter
+    @Environment(CanonicalLibraryService.self) private var canonicalService
     @Environment(SubscriptionService.self) private var subscriptionService
     @Environment(SyncStatusService.self) private var syncStatusService
     @State private var timelineModel = TimelineModel()
@@ -36,83 +37,100 @@ struct RootView: View {
 
     var body: some View {
         @Bindable var router = router
-        TimelineHomeView()
-            .sheet(item: $router.rootSheet) { sheet in
-                switch sheet {
-                case let .preview(id): MomentPreviewView(momentID: id)
-                case let .editor(mode):
-                    MomentEditorView(
-                        mode: mode, modelContainer: modelContext.container,
-                        subscriptionService: subscriptionService
+        Group {
+            if canonicalService.isPrepared {
+                TimelineHomeView()
+            } else {
+                ZStack {
+                    HomeSceneBackgroundView().ignoresSafeArea()
+                    ProgressView()
+                }
+            }
+        }
+        .sheet(item: $router.rootSheet) { sheet in
+            switch sheet {
+            case let .preview(id): MomentPreviewView(momentID: id)
+            case let .editor(mode):
+                MomentEditorView(
+                    mode: mode, canonicalService: canonicalService,
+                    subscriptionService: subscriptionService
+                )
+            case .settings: SettingsSheetView(backupRestoreService: backupRestoreService)
+            case let .paywall(trigger): ProPaywallView(trigger: trigger)
+            }
+        }
+        // 预留路由入口（见 AppRouter.FullCover 说明）：当前无写入方，图片查看器由预览局部呈现。
+        .fullScreenCover(item: $router.fullScreenCover) { cover in
+            switch cover {
+            case let .imageViewer(momentID, index):
+                ImageViewerView(momentID: momentID, startIndex: index)
+            }
+        }
+        .environment(timelineModel)
+        .alert("本地备份恢复完成", isPresented: $showsLaunchRestoreSuccess) {
+            Button("好的", role: .cancel) {}
+        } message: {
+            Text(launchRestoreSuccessMessage)
+        }
+        .userFacingErrorAlert(errorPresenter)
+        .task {
+            if !didHandleLaunchRestoreResult {
+                didHandleLaunchRestoreResult = true
+                switch launchRestoreResult {
+                case .none:
+                    break
+                case let .restored(context):
+                    launchRestoreSuccessMessage = Self.launchRestoreSuccessMessage(
+                        context: context
                     )
-                case .settings: SettingsSheetView(backupRestoreService: backupRestoreService)
-                case let .paywall(trigger): ProPaywallView(trigger: trigger)
+                    showsLaunchRestoreSuccess = true
+                case let .failed(failure):
+                    errorPresenter.report(
+                        message: "本地备份恢复失败，当前数据未被替换。",
+                        underlying: failure
+                    )
                 }
             }
-            // 预留路由入口（见 AppRouter.FullCover 说明）：当前无写入方，图片查看器由预览局部呈现。
-            .fullScreenCover(item: $router.fullScreenCover) { cover in
-                switch cover {
-                case let .imageViewer(momentID, index):
-                    ImageViewerView(momentID: momentID, startIndex: index)
-                }
+            #if DEBUG
+                UITestSupport.seedIfRequested(modelContext)
+                UITestSupport.seedImageMomentIfRequested(modelContext)
+                UITestSupport.seedMomentQuotaIfRequested(modelContext)
+                await UITestSupport.seedLocalRecoveryPointIfRequested(
+                    modelContext,
+                    coordinator: localBackupCoordinator
+                )
+            #endif
+            do {
+                try await canonicalService.prepareIfNeeded(importingFrom: modelContext.container)
+            } catch {
+                errorPresenter.report(
+                    message: "初始化本地资料库失败，请重启应用重试。",
+                    underlying: error
+                )
+                return
             }
-            .environment(timelineModel)
-            .alert("本地备份恢复完成", isPresented: $showsLaunchRestoreSuccess) {
-                Button("好的", role: .cancel) {}
-            } message: {
-                Text(launchRestoreSuccessMessage)
-            }
-            .userFacingErrorAlert(errorPresenter)
-            .task {
-                if !didHandleLaunchRestoreResult {
-                    didHandleLaunchRestoreResult = true
-                    switch launchRestoreResult {
-                    case .none:
-                        break
-                    case let .restored(context):
-                        launchRestoreSuccessMessage = Self.launchRestoreSuccessMessage(
-                            context: context
-                        )
-                        showsLaunchRestoreSuccess = true
-                    case let .failed(failure):
-                        errorPresenter.report(
-                            message: "本地备份恢复失败，当前数据未被替换。",
-                            underlying: failure
-                        )
-                    }
-                }
-                // 首启默认标签预置（见 07-data-persistence.md §4）：无条件调用（生产与 UI 测试
-                // 均需要），是否真正执行预置由 `DefaultTagSeeder` 内部的持久化「首启已完成」标记
-                // 判定（而非 `Tag` 表是否为空——用户删除默认标签后表可能变空/不完整，若仍按
-                // 表内容判定会导致已删除的默认标签复活，见该类型头部 review 修复说明）。经后台
-                // TagRepository 写入（08 §5 分层契约）。`cloudKitEnabled` 决定首启窗口内是否需要
-                // 「首同步去重」的等待（阶段7计划决策3）——本地/单测/UI 测试路径恒 `false`，行为
-                // 与阶段 1–6 完全等价、零额外延迟；非首启（flag 已置位）任何路径下都零延迟。
-                do {
-                    #if DEBUG
-                        let shouldSeedDefaultTags = !UITestSupport.wantsSkipDefaultTags
-                    #else
-                        let shouldSeedDefaultTags = true
-                    #endif
-                    if shouldSeedDefaultTags {
-                        let tagRepository = TagRepository(modelContainer: modelContext.container)
-                        try await DefaultTagSeeder.seedIfNeeded(
-                            using: tagRepository, cloudKitEnabled: syncStatusService.cloudKitEnabled
-                        )
-                    }
-                } catch {
-                    errorPresenter.report(message: "初始化默认标签失败，请重启应用重试。", underlying: error)
-                }
+            // 首启默认标签预置（见 07-data-persistence.md §4）：无条件调用（生产与 UI 测试
+            // 均需要），是否真正执行预置由 `DefaultTagSeeder` 内部的持久化「首启已完成」标记
+            // 判定（而非 `Tag` 表是否为空——用户删除默认标签后表可能变空/不完整，若仍按
+            // 表内容判定会导致已删除的默认标签复活，见该类型头部 review 修复说明）。经后台
+            // TagRepository 写入（08 §5 分层契约）。`cloudKitEnabled` 决定首启窗口内是否需要
+            // 「首同步去重」的等待（阶段7计划决策3）——本地/单测/UI 测试路径恒 `false`，行为
+            // 与阶段 1–6 完全等价、零额外延迟；非首启（flag 已置位）任何路径下都零延迟。
+            do {
                 #if DEBUG
-                    UITestSupport.seedIfRequested(modelContext)
-                    UITestSupport.seedImageMomentIfRequested(modelContext)
-                    UITestSupport.seedMomentQuotaIfRequested(modelContext)
-                    await UITestSupport.seedLocalRecoveryPointIfRequested(
-                        modelContext,
-                        coordinator: localBackupCoordinator
-                    )
+                    let shouldSeedDefaultTags = !UITestSupport.wantsSkipDefaultTags
+                #else
+                    let shouldSeedDefaultTags = true
                 #endif
+                if shouldSeedDefaultTags {
+                    try await canonicalService.seedDefaultTagsIfNeeded(
+                        cloudKitEnabled: syncStatusService.cloudKitEnabled
+                    )
+                }
+            } catch {
+                errorPresenter.report(message: "初始化默认标签失败，请重启应用重试。", underlying: error)
             }
+        }
     }
 
     private static func launchRestoreSuccessMessage(

@@ -1,4 +1,3 @@
-import SwiftData
 import SwiftUI
 
 /// 垃圾箱（见 `docs/design/04-screen-specs.md` §4.14）：已软删除的 Moment 列表，按
@@ -9,8 +8,8 @@ import SwiftUI
 /// （与首页删除「无需确认」形成对比，因垃圾箱是最后一道安全网，见公理3「删除是生命周期」）。
 struct TrashView: View {
     @Environment(ThemeManager.self) private var theme
-    @Environment(\.modelContext) private var modelContext
     @Environment(ErrorPresenter.self) private var errorPresenter
+    @Environment(CanonicalLibraryService.self) private var canonicalService
     @Environment(SyncStatusService.self) private var syncStatusService
     @Environment(\.localBackupCoordinator) private var localBackupCoordinator
 
@@ -105,9 +104,9 @@ struct TrashView: View {
 
     private func reload() async {
         do {
-            items = try await MomentRepository(modelContainer: modelContext.container).fetchTrash()
+            items = try await canonicalService.fetchTrash()
         } catch {
-            await errorPresenter.report(message: "垃圾箱列表加载失败，请稍后重试。", underlying: error)
+            errorPresenter.report(message: "垃圾箱列表加载失败，请稍后重试。", underlying: error)
         }
         isLoaded = true
     }
@@ -120,13 +119,13 @@ struct TrashView: View {
                 try await mutationService.restoreMoment(id: item.id)
                 await reload()
             } catch LocalLibraryMutationError.mutationSafetyPointFailed(let underlying) {
-                await errorPresenter.report(
+                errorPresenter.report(
                     message: "创建操作前安全备份失败，请稍后重试。",
                     underlying: underlying
                 )
                 await reload()
             } catch {
-                await errorPresenter.report(message: "恢复失败，请稍后重试。", underlying: error)
+                errorPresenter.report(message: "恢复失败，请稍后重试。", underlying: error)
                 await reload()
             }
         }
@@ -141,13 +140,13 @@ struct TrashView: View {
                 try await mutationService.purgeMoment(id: item.id, imageIDs: item.imageIDs)
                 await reload()
             } catch LocalLibraryMutationError.mutationSafetyPointFailed(let underlying) {
-                await errorPresenter.report(
+                errorPresenter.report(
                     message: "创建操作前安全备份失败，请稍后重试。",
                     underlying: underlying
                 )
                 await reload()
             } catch {
-                await errorPresenter.report(message: "彻底删除失败，请稍后重试。", underlying: error)
+                errorPresenter.report(message: "彻底删除失败，请稍后重试。", underlying: error)
                 await reload()
             }
         }
@@ -155,7 +154,7 @@ struct TrashView: View {
 
     private var mutationService: LocalLibraryMutationService {
         LocalLibraryMutationService(
-            modelContainer: modelContext.container,
+            canonicalService: canonicalService,
             localBackupCoordinator: localBackupCoordinator,
             syncStatusService: syncStatusService,
             errorPresenter: errorPresenter

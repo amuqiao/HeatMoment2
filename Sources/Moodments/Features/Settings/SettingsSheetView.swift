@@ -11,9 +11,9 @@ import SwiftUI
 struct SettingsSheetView: View {
     let backupRestoreService: (any BackupRestoreServicing)?
 
-    @Environment(\.modelContext) private var modelContext
     @Environment(ThemeManager.self) private var theme
     @Environment(ErrorPresenter.self) private var errorPresenter
+    @Environment(CanonicalLibraryService.self) private var canonicalService
     @Environment(SubscriptionService.self) private var subscriptionService
     @Environment(SyncStatusService.self) private var syncStatusService
 
@@ -35,14 +35,14 @@ struct SettingsSheetView: View {
                         title: "心情统计",
                         identifier: "settingsMoodStatsRow"
                     ) {
-                        MoodStatsView(modelContainer: modelContext.container)
+                        MoodStatsView(canonicalService: canonicalService)
                     }
                     TaskSurfaceSeparator()
                     settingsNavigationRow(
                         title: "标签管理",
                         identifier: "settingsTagManageRow"
                     ) {
-                        TagManageView(modelContainer: modelContext.container)
+                        TagManageView()
                     }
                     TaskSurfaceSeparator()
                     settingsNavigationRow(title: "垃圾箱", identifier: "settingsTrashRow") {
@@ -53,9 +53,7 @@ struct SettingsSheetView: View {
                 TaskSurfaceSection(accessibilityIdentifier: "settingsSupportSection") {
                     iCloudSyncRow
                     TaskSurfaceSeparator()
-                    settingsNavigationRow(title: "备份与恢复", identifier: "settingsBackupRestoreRow") {
-                        BackupRestoreView(backupRestoreService: backupRestoreService)
-                    }
+                    disabledPlaceholderRow(title: "备份与恢复", identifier: "settingsBackupRestoreRow")
                     TaskSurfaceSeparator()
                     settingsNavigationRow(title: "导出", identifier: "settingsExportRow") {
                         ExportView()
@@ -222,6 +220,7 @@ struct SettingsSheetView: View {
         .environment(TimelineModel())
         .environment(SubscriptionService())
         .environment(SyncStatusService(cloudKitEnabled: false))
+        .environment(CanonicalLibraryService.makeInMemoryForPreview())
         // swiftlint:disable:next force_try
         .modelContainer(try! ModelContainerConfig.makeInMemoryContainer())
 }

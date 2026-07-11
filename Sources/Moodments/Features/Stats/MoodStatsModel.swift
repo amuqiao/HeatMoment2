@@ -1,6 +1,5 @@
 import Foundation
 import Observation
-import SwiftData
 
 /// 心情统计页局部状态（见 `docs/design/04-screen-specs.md` §4.12）：与首页时间轴的
 /// `TimelineModel` 完全独立——**不接 `activeFilter`、不接 `heatmapFocusDate`**，年份切换只刷新
@@ -14,22 +13,21 @@ final class MoodStatsModel {
     var moodByDay: [Int: Mood] = [:]
     var moodCounts: [Mood: Int] = [:]
 
-    private let modelContainer: ModelContainer
+    private let canonicalService: CanonicalLibraryService
 
-    init(modelContainer: ModelContainer, year: Int = HeatmapYearRange.currentYear) {
-        self.modelContainer = modelContainer
+    init(canonicalService: CanonicalLibraryService, year: Int = HeatmapYearRange.currentYear) {
+        self.canonicalService = canonicalService
         self.year = year
         availableYears = [year]
     }
 
     /// 供 `.task(id: model.year)` 调用：按当前 `year` 重新加载两个卡片的数据（均为全量，无筛选）。
     func load() async throws {
-        let repository = MomentRepository(modelContainer: modelContainer)
-        availableYears = try await repository.availableYears()
+        availableYears = try await canonicalService.availableYears()
         if !availableYears.contains(year) {
             year = HeatmapYearRange.currentYear
         }
-        moodByDay = try await repository.moodByDay(year: year, filter: nil)
-        moodCounts = try await repository.moodCounts(year: year)
+        moodByDay = try await canonicalService.moodByDay(year: year, filter: nil)
+        moodCounts = try await canonicalService.moodCounts(year: year)
     }
 }

@@ -6,10 +6,10 @@ import SwiftData
 /// **公理2「定位 ≠ 筛选」的类型层保证**：`predicate(for:)` 签名内**没有任何 `Date` 参数**——
 /// 类型系统本身就杜绝了热力图定位污染数据集的可能；`scrollTargetID(for:granularity:in:)` 是纯函数，
 /// 只在调用方已经算好的「当前可见（已筛选）集」里挑一个 id，既不返回、也不修改数据集本身。
-/// 两个函数彼此不引用、不共享任何中间状态，`TimelineViewportView` 里也分别独立驱动
-/// （`@Query` = f(filter)；`.onChange(of: locateScrollRequest)` = f(focusDate, granularity, entries)）。
+/// 两个函数彼此不引用、不共享任何中间状态；主流程切到 canonical 后，`TimelineViewportView`
+/// 只继续使用滚动定位函数，`predicate(for:)` 保留给 SwiftData 过渡测试/旧查询路径。
 enum TimelineQuery {
-    /// 时间轴 `@Query` 谓词：只表达「未软删除」+「心情单选命中（若选了）」。
+    /// SwiftData 过渡路径的时间轴谓词：只表达「未软删除」+「心情单选命中（若选了）」。
     ///
     /// **不放标签**：SwiftData `#Predicate` 对「集合是否包含某个子集」这类多值 AND 交集判断
     /// 不能可靠表达（`Tag` 是多对多关系），标签 AND 交集改在内存用 `FilterCondition.matches`
@@ -31,7 +31,7 @@ enum TimelineQuery {
     /// 不能退到更早月份或更早日期，否则会破坏「点的是哪个时间位置」的上下文语义。
     ///
     /// 本函数只读 `entries`、只返回一个 `UUID?`，**不返回、不修改数据集合本身**——
-    /// 数据集合是否包含哪些条目完全由 `predicate(for:)` 决定，与本函数无关。
+    /// 数据集合是否包含哪些条目完全由调用方查询条件决定，与本函数无关。
     static func scrollTargetID(
         for date: Date,
         granularity: HeatmapAnchorGranularity = .day,

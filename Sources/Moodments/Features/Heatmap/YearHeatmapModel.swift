@@ -1,6 +1,5 @@
 import Foundation
 import Observation
-import SwiftData
 
 /// 首页热力图顶部上下文区局部状态（见 `docs/design/04-screen-specs.md` §4.3）：年份选择 + 当前年度
 /// 的日期→心情聚合数据。
@@ -16,10 +15,10 @@ final class YearHeatmapModel {
     var availableYears: [Int]
     var moodByDay: [Int: Mood] = [:]
 
-    private let modelContainer: ModelContainer
+    private let canonicalService: CanonicalLibraryService
 
-    init(modelContainer: ModelContainer, year: Int = HeatmapYearRange.currentYear) {
-        self.modelContainer = modelContainer
+    init(canonicalService: CanonicalLibraryService, year: Int = HeatmapYearRange.currentYear) {
+        self.canonicalService = canonicalService
         self.year = year
         availableYears = [year]
     }
@@ -27,11 +26,10 @@ final class YearHeatmapModel {
     /// 供 `.task(id:)` 调用：按当前 `year` + 传入的 `filter` 重新聚合（后台 `ModelActor`，
     /// 跨隔离域只回传 `[Int: Mood]` 值类型，见 08-architecture.md §5）。
     func load(filter: FilterCondition?) async throws {
-        let repository = MomentRepository(modelContainer: modelContainer)
-        availableYears = try await repository.availableYears()
+        availableYears = try await canonicalService.availableYears()
         if !availableYears.contains(year) {
             year = HeatmapYearRange.currentYear
         }
-        moodByDay = try await repository.moodByDay(year: year, filter: filter)
+        moodByDay = try await canonicalService.moodByDay(year: year, filter: filter)
     }
 }

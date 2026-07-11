@@ -1,8 +1,8 @@
 import SwiftData
 import SwiftUI
 
-/// App 入口：装配 SwiftData `ModelContainer`（生产路径尝试 CloudKit、无签名/未授权时回退本地，
-/// 见 `ModelContainerConfig.makeProductionContainer()`、阶段7计划决策2）、集中路由 `AppRouter`、
+/// App 入口：装配 canonical runtime（生产主流程读写权威）和过渡 SwiftData `ModelContainer`
+/// （仅供 M3/M4 前的恢复点、导出和受控导入使用）、集中路由 `AppRouter`、
 /// 主题 `ThemeManager`、订阅 `SubscriptionService`，注入 Environment 供全树消费
 /// （见 08-architecture.md §0/§3/§4）。
 @main
@@ -26,6 +26,7 @@ struct MoodmentsApp: App {
     /// `.inactive` 中间态导致的判定失败。
     @State private var didEnterBackground = false
     private let container: ModelContainer
+    private let canonicalLibraryService: CanonicalLibraryService
     private let localBackupCoordinator: LocalBackupCoordinator?
     private let backupRestoreService: (any BackupRestoreServicing)?
     private let launchRestoreResult: BackupBootRestoreResult
@@ -60,8 +61,9 @@ struct MoodmentsApp: App {
             }())
         launchRestoreResult = Self.performPendingLocalRestore()
 
-        let runtime = Self.makeRuntimeServices()
+        let runtime = Self.makeRuntimeServices(launchRestoreResult: launchRestoreResult)
         container = runtime.container
+        canonicalLibraryService = runtime.canonicalLibraryService
         localBackupCoordinator = runtime.localBackupCoordinator
         backupRestoreService = runtime.backupRestoreService
         self.syncStatusService = runtime.syncStatusService
@@ -153,6 +155,7 @@ struct MoodmentsApp: App {
             .environment(router)
             .environment(theme)
             .environment(errorPresenter)
+            .environment(canonicalLibraryService)
             .environment(subscriptionService)
             .environment(syncStatusService)
             .environment(\.localBackupCoordinator, localBackupCoordinator)
@@ -178,12 +181,16 @@ struct MoodmentsApp: App {
         .modelContainer(container)
     }
 
-    private static func makeRuntimeServices() -> RuntimeServices {
+    private static func makeRuntimeServices(
+        launchRestoreResult: BackupBootRestoreResult
+    ) -> RuntimeServices {
         #if DEBUG
             if UITestSupport.wantsInMemoryContainer {
                 let container = makeInMemoryContainer()
+                let canonicalLibraryService = makeInMemoryCanonicalLibraryService()
                 return RuntimeServices(
                     container: container,
+                    canonicalLibraryService: canonicalLibraryService,
                     syncStatusService: SyncStatusService(cloudKitEnabled: false),
                     localBackupCoordinator: nil,
                     backupRestoreService: nil
@@ -192,12 +199,15 @@ struct MoodmentsApp: App {
         #endif
 
         let (container, cloudKitEnabled) = ModelContainerConfig.makeProductionContainer()
+        resetCanonicalStorageIfSwiftDataRestoreSucceeded(launchRestoreResult)
+        let canonicalLibraryService = makeProductionCanonicalLibraryService()
         let localBackupCoordinator = makeLocalBackupCoordinatorIfNeeded(
             modelContainer: container,
             cloudKitEnabled: cloudKitEnabled
         )
         return RuntimeServices(
             container: container,
+            canonicalLibraryService: canonicalLibraryService,
             syncStatusService: SyncStatusService(cloudKitEnabled: cloudKitEnabled),
             localBackupCoordinator: localBackupCoordinator,
             backupRestoreService: localBackupCoordinator.map(LocalBackupRestoreService.init)
@@ -225,6 +235,35 @@ struct MoodmentsApp: App {
         }
     }
 
+    private static func makeProductionCanonicalLibraryService() -> CanonicalLibraryService {
+        do {
+            return try CanonicalLibraryService(runtime: .makeProduction())
+        } catch {
+            fatalError("Canonical 本地资料库初始化失败：\(error)")
+        }
+    }
+
+    private static func resetCanonicalStorageIfSwiftDataRestoreSucceeded(
+        _ launchRestoreResult: BackupBootRestoreResult
+    ) {
+        guard case .restored = launchRestoreResult else { return }
+        do {
+            try CanonicalLibraryRuntime.resetStorage(
+                descriptor: CanonicalLibraryRuntime.productionDescriptor
+            )
+        } catch {
+            fatalError("本地备份恢复后重置 Canonical 资料库失败：\(error)")
+        }
+    }
+
+    private static func makeInMemoryCanonicalLibraryService() -> CanonicalLibraryService {
+        do {
+            return try CanonicalLibraryService(runtime: .makeInMemoryForTests())
+        } catch {
+            fatalError("Canonical 测试资料库初始化失败：\(error)")
+        }
+    }
+
     private static func makeLocalBackupCoordinatorIfNeeded(
         modelContainer: ModelContainer,
         cloudKitEnabled: Bool
@@ -241,6 +280,7 @@ struct MoodmentsApp: App {
 
     private struct RuntimeServices {
         let container: ModelContainer
+        let canonicalLibraryService: CanonicalLibraryService
         let syncStatusService: SyncStatusService
         let localBackupCoordinator: LocalBackupCoordinator?
         let backupRestoreService: (any BackupRestoreServicing)?

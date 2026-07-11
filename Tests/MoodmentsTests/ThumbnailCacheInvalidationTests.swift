@@ -1,5 +1,4 @@
 import XCTest
-import SwiftData
 import UIKit
 @testable import Moodments
 
@@ -62,27 +61,36 @@ final class ThumbnailCacheInvalidationTests: XCTestCase {
     /// `MomentImage` 并重建全新 id，旧键此后必然是孤儿键，见 `MomentEditorModel` 注释）。
     @MainActor
     func testEditSaveInvalidatesOriginalImageIDsThumbnailCache() async throws {
-        let container = try ModelContainerConfig.makeInMemoryContainer()
-        let repository = MomentRepository(modelContainer: container)
-        let momentID = try await repository.createMoment(
+        let canonicalService = try CanonicalLibraryService(
+            runtime: .makeInMemoryForTests(
+                assetDirectoryURL: tempDirectory.appendingPathComponent(
+                    "CanonicalAssets",
+                    isDirectory: true
+                )
+            )
+        )
+        let momentID = try await canonicalService.repository.createMoment(
             title: "t", bodyText: "", occurredAt: .now, mood: .normal,
             imageDatas: [Self.makeSyntheticJPEGData()]
         )
-        let originalImages = try await repository.orderedImageData(momentID: momentID)
+        let originalImages = try await canonicalService.orderedImageData(momentID: momentID)
         let originalImageID = try XCTUnwrap(originalImages.first?.id)
 
         // 预热共享缓存（`MomentEditorModel.save()` 实际失效的是这个单例）。
         _ = try await ThumbnailCache.shared.thumbnail(for: originalImageID) {
-            try await repository.imageData(imageID: originalImageID)
+            try await canonicalService.imageData(imageID: originalImageID)
         }
-        let hasCachedBeforeSave = await ThumbnailCache.shared.hasMemoryCachedThumbnail(for: originalImageID)
+        let hasCachedBeforeSave = await ThumbnailCache.shared.hasMemoryCachedThumbnail(
+            for: originalImageID)
         XCTAssertTrue(hasCachedBeforeSave)
 
         let model = MomentEditorModel(
-            mode: .edit(momentID), modelContainer: container, subscriptionService: SubscriptionService()
+            mode: .edit(momentID),
+            canonicalService: canonicalService,
+            subscriptionService: SubscriptionService()
         )
         let mutationService = LocalLibraryMutationService(
-            modelContainer: container,
+            canonicalService: canonicalService,
             localBackupCoordinator: nil,
             syncStatusService: SyncStatusService(
                 cloudKitEnabled: false,
@@ -93,7 +101,8 @@ final class ThumbnailCacheInvalidationTests: XCTestCase {
         try await model.load()
         try await model.save(using: mutationService)
 
-        let hasCachedAfterSave = await ThumbnailCache.shared.hasMemoryCachedThumbnail(for: originalImageID)
+        let hasCachedAfterSave = await ThumbnailCache.shared.hasMemoryCachedThumbnail(
+            for: originalImageID)
         XCTAssertFalse(hasCachedAfterSave, "编辑保存后旧 imageID 的缩略图缓存应已被失效")
     }
 

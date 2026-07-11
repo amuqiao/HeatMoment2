@@ -169,9 +169,19 @@ final class CanonicalStore: @unchecked Sendable {
             )
         }
         migrator.registerMigration("v2_swift_data_import_marker") { db in
-            try db.alter(table: "library_metadata") { table in
-                table.add(column: "swift_data_imported_at", .double)
-                table.add(column: "swift_data_import_source_fingerprint", .text)
+            let existingColumns = Set(try db.columns(in: "library_metadata").map(\.name))
+            let needsImportedAt = !existingColumns.contains("swift_data_imported_at")
+            let needsSourceFingerprint =
+                !existingColumns.contains("swift_data_import_source_fingerprint")
+            if needsImportedAt || needsSourceFingerprint {
+                try db.alter(table: "library_metadata") { table in
+                    if needsImportedAt {
+                        table.add(column: "swift_data_imported_at", .double)
+                    }
+                    if needsSourceFingerprint {
+                        table.add(column: "swift_data_import_source_fingerprint", .text)
+                    }
+                }
             }
             try db.execute(
                 sql: "UPDATE library_metadata SET schema_version = ? WHERE id = 1",

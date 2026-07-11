@@ -1,4 +1,3 @@
-import SwiftData
 import SwiftUI
 import UIKit
 
@@ -11,24 +10,24 @@ struct MomentPreviewView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(ThemeManager.self) private var theme
-    @Environment(\.modelContext) private var modelContext
+    @Environment(CanonicalLibraryService.self) private var canonicalService
+    @Environment(ErrorPresenter.self) private var errorPresenter
     @Environment(SubscriptionService.self) private var subscriptionService
 
-    @Query private var moments: [Moment]
+    @State private var previewData: CanonicalMomentPreviewData?
     @State private var editorPresentation: EditorPresentation?
     @State private var viewerContext: ViewerContext?
     @AccessibilityFocusState private var isTitleFocused: Bool
 
     init(momentID: UUID) {
         self.momentID = momentID
-        _moments = Query(filter: #Predicate<Moment> { $0.id == momentID })
     }
 
     var body: some View {
         TaskSheetScaffold {
             Group {
-                if let moment = moments.first {
-                    content(for: moment)
+                if let previewData {
+                    content(for: previewData)
                 } else {
                     ProgressView()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -48,29 +47,34 @@ struct MomentPreviewView: View {
         .accessibilityAddTraits(.isModal)
         .sheet(item: $editorPresentation) { presentation in
             MomentEditorView(
-                mode: presentation.mode, modelContainer: modelContext.container,
+                mode: presentation.mode, canonicalService: canonicalService,
                 subscriptionService: subscriptionService
             )
         }
         .fullScreenCover(item: $viewerContext) { context in
             ImageViewerView(momentID: momentID, startIndex: context.startIndex)
         }
+        .userFacingErrorAlert(errorPresenter)
+        .task(id: canonicalService.changeToken) {
+            await loadPreview()
+        }
     }
 
     private var previewEditAction: TaskSheetAction? {
-        guard let moment = moments.first else { return nil }
+        guard let record = previewData?.record else { return nil }
         return TaskSheetAction(
             "编辑",
             accessibilityIdentifier: "momentPreviewEditButton"
         ) {
-            editorPresentation = EditorPresentation(mode: .edit(moment.id))
+            editorPresentation = EditorPresentation(mode: .edit(record.id))
         }
     }
 
     // MARK: - 内容（见 04-screen-specs.md §4.9：顶部心情/日期/编辑入口；正文区标题/标签/照片/正文）
 
-    private func content(for moment: Moment) -> some View {
-        TaskPageScrollView(spacing: 20, accessibilityIdentifier: "momentPreviewCard") {
+    private func content(for previewData: CanonicalMomentPreviewData) -> some View {
+        let moment = previewData.record
+        return TaskPageScrollView(spacing: 20, accessibilityIdentifier: "momentPreviewCard") {
             header(for: moment)
 
             if !moment.title.isEmpty {
@@ -81,7 +85,7 @@ struct MomentPreviewView: View {
                     .accessibilityFocused($isTitleFocused)
             }
 
-            let tagNames = moment.tags.map(\.name)
+            let tagNames = previewData.tagNames
             if !tagNames.isEmpty {
                 HStack(spacing: 6) {
                     ForEach(tagNames, id: \.self) { name in
@@ -90,14 +94,13 @@ struct MomentPreviewView: View {
                 }
             }
 
-            let orderedImages = orderedImages(for: moment)
-            let imageIDs = orderedImages.map(\.id)
+            let imageIDs = previewData.imageDatas.map(\.id)
             if !imageIDs.isEmpty {
                 ThumbnailStripView(
                     imageIDs: imageIDs,
                     displayMode: .scroll,
                     usesMomentPhotoRailLayout: true,
-                    preferredSizesByID: preferredSizesByID(for: orderedImages)
+                    preferredSizesByID: previewData.preferredSizesByID
                 ) { index in
                     viewerContext = ViewerContext(startIndex: index)
                 }
@@ -118,7 +121,7 @@ struct MomentPreviewView: View {
         }
     }
 
-    private func header(for moment: Moment) -> some View {
+    private func header(for moment: CanonicalMomentRecord) -> some View {
         HStack(spacing: 12) {
             HStack(spacing: 6) {
                 MoodNodeView(
@@ -137,21 +140,12 @@ struct MomentPreviewView: View {
         }
     }
 
-    /// 按 `sortIndex` 有序的图片列表（见 07-data-persistence.md §5）。
-    private func orderedImages(for moment: Moment) -> [MomentImage] {
-        moment.images.sorted { $0.sortIndex < $1.sortIndex }
-    }
-
-    private func preferredSizesByID(for images: [MomentImage]) -> [UUID: CGSize] {
-        Dictionary(
-            uniqueKeysWithValues: images.map { image in
-                let size =
-                    UIImage(data: image.imageData).map {
-                        MomentPhotoRailLayout.itemSize(for: $0.size)
-                    } ?? MomentPhotoRailLayout.fallbackItemSize
-                return (image.id, size)
-            }
-        )
+    private func loadPreview() async {
+        do {
+            previewData = try await canonicalService.fetchPreviewData(id: momentID)
+        } catch {
+            errorPresenter.report(message: "加载时刻失败，请稍后重试。", underlying: error)
+        }
     }
 
 }

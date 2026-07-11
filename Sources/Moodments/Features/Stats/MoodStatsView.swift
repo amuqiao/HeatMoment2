@@ -1,4 +1,3 @@
-import SwiftData
 import SwiftUI
 
 /// 心情统计页（见 `docs/design/04-screen-specs.md` §4.12）：顶栏「‹设置 | 年份」+ 卡片1
@@ -7,28 +6,16 @@ import SwiftUI
 /// `MoodStatsModel` 头部注释）。
 struct MoodStatsView: View {
     @Environment(ThemeManager.self) private var theme
+    @Environment(CanonicalLibraryService.self) private var canonicalService
     @State private var model: MoodStatsModel
-    @State private var contentRevision = 0
-    @Query private var contentMoments: [Moment]
 
     private struct LoadKey: Equatable {
         let year: Int
-        let contentRevision: Int
+        let changeToken: Int
     }
 
-    private var contentSignature: [MomentContentSignature] {
-        contentMoments.map(MomentContentSignature.init(moment:))
-    }
-
-    init(modelContainer: ModelContainer) {
-        _model = State(initialValue: MoodStatsModel(modelContainer: modelContainer))
-        _contentMoments = Query(
-            filter: #Predicate<Moment> { moment in
-                moment.deletedFlag == false
-            },
-            sort: \Moment.occurredAt,
-            order: .reverse
-        )
+    init(canonicalService: CanonicalLibraryService) {
+        _model = State(initialValue: MoodStatsModel(canonicalService: canonicalService))
     }
 
     var body: some View {
@@ -46,15 +33,12 @@ struct MoodStatsView: View {
                 yearPicker
             }
         }
-        .task(id: LoadKey(year: model.year, contentRevision: contentRevision)) {
+        .task(id: LoadKey(year: model.year, changeToken: canonicalService.changeToken)) {
             do {
                 try await model.load()
             } catch {
                 assertionFailure("心情统计加载失败：\(error)")
             }
-        }
-        .onChange(of: contentSignature) { _, _ in
-            contentRevision += 1
         }
     }
 
@@ -107,7 +91,8 @@ struct MoodStatsView: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(theme.bubbleBackground))
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous).fill(theme.bubbleBackground))
         // 注：不在卡片容器上叠加 `.accessibilityIdentifier`——会覆盖 `HeatmapGridView` 各日期格
         // 自己的 identifier（见 `FilterPanelView` 同类教训，登记于 `YearHeatmapView`）。
     }
@@ -124,7 +109,8 @@ struct MoodStatsView: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(theme.bubbleBackground))
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous).fill(theme.bubbleBackground))
         // 注：不在卡片容器上叠加 `.accessibilityIdentifier`——会覆盖 `MoodStatBarView` 各条形
         // 自己的 identifier（见 `FilterPanelView` 同类教训，登记于 `YearHeatmapView`）。
     }
@@ -133,7 +119,9 @@ struct MoodStatsView: View {
 #Preview {
     NavigationStack {
         // swiftlint:disable:next force_try
-        MoodStatsView(modelContainer: try! ModelContainerConfig.makeInMemoryContainer())
+        let canonicalService = try! CanonicalLibraryService(runtime: .makeInMemoryForTests())
+        MoodStatsView(canonicalService: canonicalService)
             .environment(ThemeManager())
+            .environment(canonicalService)
     }
 }

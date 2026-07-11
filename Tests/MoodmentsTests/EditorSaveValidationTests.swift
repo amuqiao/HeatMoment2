@@ -1,24 +1,37 @@
 import XCTest
-import SwiftData
 @testable import Moodments
 
 /// `MomentEditorModel` 保存校验 / 默认情绪回退 / 脏检测测试（见 `docs/plans/implementation-plan.md`
 /// 阶段 3、`docs/design/03-user-flows.md` §3.1）。
 @MainActor
 final class EditorSaveValidationTests: XCTestCase {
-    private var container: ModelContainer!
+    private var canonicalService: CanonicalLibraryService!
+    private var assetDirectory: URL!
 
     override func setUpWithError() throws {
-        container = try ModelContainerConfig.makeInMemoryContainer()
+        assetDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(
+                "EditorSaveValidationTests-\(UUID().uuidString)",
+                isDirectory: true
+            )
+        canonicalService = try CanonicalLibraryService(
+            runtime: .makeInMemoryForTests(assetDirectoryURL: assetDirectory)
+        )
     }
 
     override func tearDown() {
-        container = nil
+        if let assetDirectory {
+            try? FileManager.default.removeItem(at: assetDirectory)
+        }
+        assetDirectory = nil
+        canonicalService = nil
     }
 
     func testCanSaveRequiresAtLeastTitleBodyOrPhoto() {
         let model = MomentEditorModel(
-            mode: .create, modelContainer: container, subscriptionService: SubscriptionService()
+            mode: .create,
+            canonicalService: canonicalService,
+            subscriptionService: SubscriptionService()
         )
 
         XCTAssertFalse(model.canSave, "标题/正文/照片均为空时不可保存")
@@ -39,20 +52,25 @@ final class EditorSaveValidationTests: XCTestCase {
 
     func testDefaultMoodFallsBackToLastThenNormal() {
         let withLastMood = MomentEditorModel(
-            mode: .create, modelContainer: container, subscriptionService: SubscriptionService(),
+            mode: .create, canonicalService: canonicalService,
+            subscriptionService: SubscriptionService(),
             lastUsedMood: .happy
         )
         XCTAssertEqual(withLastMood.mood, .happy, "有历史选择应使用上次选择")
 
         let withoutLastMood = MomentEditorModel(
-            mode: .create, modelContainer: container, subscriptionService: SubscriptionService()
+            mode: .create,
+            canonicalService: canonicalService,
+            subscriptionService: SubscriptionService()
         )
         XCTAssertEqual(withoutLastMood.mood, .normal, "无历史选择应回退到 .normal")
     }
 
     func testIsDirtyDetectsUnsavedChanges() {
         let model = MomentEditorModel(
-            mode: .create, modelContainer: container, subscriptionService: SubscriptionService()
+            mode: .create,
+            canonicalService: canonicalService,
+            subscriptionService: SubscriptionService()
         )
         XCTAssertFalse(model.isDirty, "刚打开的新建态不应视为脏")
 
@@ -62,7 +80,9 @@ final class EditorSaveValidationTests: XCTestCase {
 
     func testAddPhotoRespectsQuotaAndRemovePhotoWorks() async {
         let model = MomentEditorModel(
-            mode: .create, modelContainer: container, subscriptionService: SubscriptionService()
+            mode: .create,
+            canonicalService: canonicalService,
+            subscriptionService: SubscriptionService()
         )
 
         for _ in 0..<Quota.freePhotosPerMomentLimit {
@@ -81,13 +101,14 @@ final class EditorSaveValidationTests: XCTestCase {
 
     /// `.edit` 态经 `load()` 载入既有数据后，未改动前不应视为脏；载入后修改字段应视为脏。
     func testEditModeLoadEstablishesCleanBaseline() async throws {
-        let repository = MomentRepository(modelContainer: container)
-        let id = try await repository.createMoment(
+        let id = try await canonicalService.repository.createMoment(
             title: "旧标题", bodyText: "旧正文", occurredAt: .now, mood: .sad
         )
 
         let model = MomentEditorModel(
-            mode: .edit(id), modelContainer: container, subscriptionService: SubscriptionService()
+            mode: .edit(id),
+            canonicalService: canonicalService,
+            subscriptionService: SubscriptionService()
         )
         XCTAssertFalse(model.isLoaded)
 

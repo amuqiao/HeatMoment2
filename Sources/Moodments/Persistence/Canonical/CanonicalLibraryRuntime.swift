@@ -133,6 +133,13 @@ struct CanonicalLibraryRuntime: Sendable {
         try CanonicalLibraryRuntime(descriptor: productionDescriptor)
     }
 
+    static func resetStorage(descriptor: CanonicalStoreDescriptor) throws {
+        guard FileManager.default.fileExists(atPath: descriptor.rootDirectory.path) else {
+            return
+        }
+        try FileManager.default.removeItem(at: descriptor.rootDirectory)
+    }
+
     static func makeInMemoryForTests(
         assetDirectoryURL: URL = FileManager.default.temporaryDirectory
             .appendingPathComponent(

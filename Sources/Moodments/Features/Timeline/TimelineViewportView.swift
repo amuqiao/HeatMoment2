@@ -1,19 +1,13 @@
-import SwiftData
 import SwiftUI
 
-/// 时间轴 viewport：动态 `@Query`=f(`filter`)
+/// 时间轴 viewport：canonical reload=f(`filter`, `changeToken`)
 /// + `ScrollViewReader`=f(`heatmapFocusDate`, 粒度, 当前可见集) 两条链路彼此独立、互不引用，
 /// 是「定位 ≠ 筛选」（公理2）在本视图层的结构化落实：
 ///
-/// - `@Query` 的谓词由 `TimelineQuery.predicate(for: filter)` 生成，签名内没有任何 `Date`
-///   参数，`filter` 变化时 `init(filter:)` 重新执行、`@Query` 重新取数——**这条链路从未读过
-///   `heatmapFocusDate`**。
+/// - canonical 查询只消费 `filter` 和资料库变更版本；`heatmapFocusDate` 不参与查询条件。
 /// - 滚动定位由派生出的 `highlightedID` 变化驱动，只从当前 `entries`（已经历完筛选的可见集）
 ///   里用纯函数 `TimelineQuery.scrollTargetID(for:granularity:in:)` 挑一个 id 滚过去，**这条链路从未写过
-///   `@Query` 谓词、也不改变 `entries`**。
-///
-/// 标签 AND 交集（`@Query` 谓词表达不了的部分）在 `matchedMoments` 里用
-/// `FilterCondition.matches` 内存过滤（见 04-screen-specs.md §4.2）。
+///   查询条件、也不改变 `entries`**。
 struct TimelineViewportView: View {
     // 折叠阈值取接近大标题实际高度：仅当展开态大标题大体滚出后才切收起态，
     // 避免小阈值下「时刻 ⌄」与仍完整可见的大标题同屏并存（见阶段2 code review）。
@@ -31,13 +25,18 @@ struct TimelineViewportView: View {
     @Environment(AppRouter.self) private var router
     @Environment(TimelineModel.self) private var timelineModel
     @Environment(ThemeManager.self) private var theme
-    @Environment(\.modelContext) private var modelContext
+    @Environment(CanonicalLibraryService.self) private var canonicalService
     @Environment(ErrorPresenter.self) private var errorPresenter
     @Environment(SyncStatusService.self) private var syncStatusService
     @Environment(\.localBackupCoordinator) private var localBackupCoordinator
     @State private var scrollOffsetY: CGFloat = 0
+    @State private var realEntries: [TimelineEntry] = []
+    @State private var isLoaded = false
 
-    @Query private var moments: [Moment]
+    private struct LoadKey: Equatable {
+        let filter: FilterCondition?
+        let changeToken: Int
+    }
 
     init(
         filter: FilterCondition?,
@@ -49,33 +48,21 @@ struct TimelineViewportView: View {
         self.scene = scene
         self.suppressAccessibility = suppressAccessibility
         _isTitleCollapsed = isTitleCollapsed
-        _moments = Query(
-            filter: TimelineQuery.predicate(for: filter),
-            sort: \Moment.occurredAt,
-            order: .reverse
-        )
-    }
-
-    /// 标签 AND 交集在内存判定（复用 `FilterCondition.matches`，见类型头部说明）；
-    /// `@Query` 已经把「未删除 + 心情命中」过滤好，这里只需再叠加标签维度。
-    private var matchedMoments: [Moment] {
-        guard let filter else { return moments }
-        return moments.filter { filter.matches(tagIDs: Set($0.tags.map(\.id)), mood: $0.mood) }
     }
 
     /// 空态展示预置引导 Moment，仅当**未筛选且真的一条真实记录都没有**时触发
-    /// （与阶段2语义完全一致：`filter == nil` 时 `moments` 就是「未删除全量」，
+    /// （与阶段2语义完全一致：`filter == nil` 时 `realEntries` 就是「未删除全量」，
     /// 为空即代表用户从未记录过，见 02-information-architecture.md）。
     private var entries: [TimelineEntry] {
-        if filter == nil, moments.isEmpty {
+        if filter == nil, isLoaded, realEntries.isEmpty {
             return GuidedMoment.all.map(TimelineEntry.guided)
         }
-        return matchedMoments.map(TimelineEntry.real)
+        return realEntries
     }
 
     /// 筛选后 0 条命中（区别于「从未记录过」的引导空态），见 04-screen-specs.md §4.1 状态、
     /// 03-user-flows.md §3.3「筛选后 0 条命中时...展示对应空态文案」。
-    private var isFilteredEmpty: Bool { filter != nil && matchedMoments.isEmpty }
+    private var isFilteredEmpty: Bool { filter != nil && isLoaded && realEntries.isEmpty }
 
     /// 当前定位命中的行 id（供逐行高亮），纯粹由 `heatmapFocusDate` + 当前 `entries` 派生，
     /// 不引入独立存储、不影响 `entries` 本身内容。
@@ -195,6 +182,11 @@ struct TimelineViewportView: View {
                             proxy.scrollTo(targetID, anchor: .center)
                         }
                     }
+                    .task(
+                        id: LoadKey(filter: filter, changeToken: canonicalService.changeToken)
+                    ) {
+                        await reload()
+                    }
                     .zIndex(1)
                 }
             }
@@ -271,7 +263,7 @@ struct TimelineViewportView: View {
             do {
                 try await mutationService.softDeleteMoment(id: momentID)
             } catch {
-                // `@Query` 是真相源：删除失败时它本就不会反映出该行已消失，不需要额外回滚
+                // canonical 是真相源：删除失败时可见集不会刷新为已删除，不需要额外回滚
                 // 本地状态（见阶段6计划决策3：可恢复写失败改走统一错误通道）。
                 errorPresenter.report(message: "删除失败，请稍后重试。", underlying: error)
             }
@@ -280,11 +272,21 @@ struct TimelineViewportView: View {
 
     private var mutationService: LocalLibraryMutationService {
         LocalLibraryMutationService(
-            modelContainer: modelContext.container,
+            canonicalService: canonicalService,
             localBackupCoordinator: localBackupCoordinator,
             syncStatusService: syncStatusService,
             errorPresenter: errorPresenter
         )
+    }
+
+    private func reload() async {
+        do {
+            realEntries = try await canonicalService.fetchTimelineEntries(filter: filter)
+            isLoaded = true
+        } catch {
+            isLoaded = true
+            errorPresenter.report(message: "时间轴加载失败，请稍后重试。", underlying: error)
+        }
     }
 
     // MARK: - 标题两态（见 04-screen-specs.md §4.1）
@@ -314,6 +316,5 @@ struct TimelineViewportView: View {
     .environment(TimelineModel())
     .environment(ErrorPresenter())
     .environment(SyncStatusService(cloudKitEnabled: false))
-    // swiftlint:disable:next force_try
-    .modelContainer(try! ModelContainerConfig.makeInMemoryContainer())
+    .environment(CanonicalLibraryService.makeInMemoryForPreview())
 }

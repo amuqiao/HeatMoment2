@@ -1,4 +1,3 @@
-import SwiftData
 import SwiftUI
 
 /// 上下文标记横条（见 `docs/product-mental-model.md`「上下文标记」对象、
@@ -15,8 +14,9 @@ struct TimelineContextMarkerBar: View {
 
     @Environment(TimelineModel.self) private var timelineModel
     @Environment(ThemeManager.self) private var theme
+    @Environment(CanonicalLibraryService.self) private var canonicalService
 
-    @Query(sort: \Tag.createdAt) private var tags: [Tag]
+    @State private var tags: [TagSnapshot] = []
 
     private var tagNamesByID: [UUID: String] {
         Dictionary(uniqueKeysWithValues: tags.map { ($0.id, $0.name) })
@@ -68,6 +68,13 @@ struct TimelineContextMarkerBar: View {
             }
             .padding(.horizontal, layout.topChromeHorizontalPadding)
             .padding(.vertical, layout.topChromeVerticalPadding)
+        }
+        .task(id: canonicalService.changeToken) {
+            do {
+                tags = try await canonicalService.fetchFilterTags()
+            } catch {
+                assertionFailure("上下文标记标签加载失败：\(error)")
+            }
         }
     }
 
@@ -125,6 +132,5 @@ struct TimelineContextMarkerBar: View {
     return TimelineContextMarkerBar(layout: .standard)
         .environment(ThemeManager())
         .environment(model)
-        // swiftlint:disable:next force_try
-        .modelContainer(try! ModelContainerConfig.makeInMemoryContainer())
+        .environment(CanonicalLibraryService.makeInMemoryForPreview())
 }

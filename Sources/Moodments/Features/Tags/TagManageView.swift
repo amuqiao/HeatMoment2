@@ -1,4 +1,3 @@
-import SwiftData
 import SwiftUI
 
 /// 标签管理子页（见 `docs/design/04-screen-specs.md` §4.13）：列表 + 右上「+」新建 +
@@ -9,11 +8,10 @@ import SwiftUI
 /// （阶段6计划决策5；`TimelineModel` 由 `RootView` 上提注入，经 `.sheet` 内容默认继承环境
 /// 可在此直接读取，见 08-architecture.md §3/§4）。
 struct TagManageView: View {
-    let modelContainer: ModelContainer
-
     @Environment(ThemeManager.self) private var theme
     @Environment(ErrorPresenter.self) private var errorPresenter
     @Environment(TimelineModel.self) private var timelineModel
+    @Environment(CanonicalLibraryService.self) private var canonicalService
     @Environment(SubscriptionService.self) private var subscriptionService
     @Environment(SyncStatusService.self) private var syncStatusService
     @Environment(\.localBackupCoordinator) private var localBackupCoordinator
@@ -70,11 +68,11 @@ struct TagManageView: View {
         .sheet(item: $editContext) { context in
             switch context {
             case .create:
-                TagCreateSheetView(modelContainer: modelContainer) { _, _ in
+                TagCreateSheetView { _, _ in
                     Task { await reload() }
                 }
             case let .rename(tag):
-                TagCreateSheetView(modelContainer: modelContainer, editing: tag) { _, _ in
+                TagCreateSheetView(editing: tag) { _, _ in
                     Task { await reload() }
                 }
             }
@@ -133,9 +131,9 @@ struct TagManageView: View {
 
     private func reload() async {
         do {
-            tags = try await TagRepository(modelContainer: modelContainer).fetchAll()
+            tags = try await canonicalService.fetchFilterTags()
         } catch {
-            await errorPresenter.report(message: "标签列表加载失败，请稍后重试。", underlying: error)
+            errorPresenter.report(message: "标签列表加载失败，请稍后重试。", underlying: error)
         }
         isLoaded = true
     }
@@ -148,8 +146,7 @@ struct TagManageView: View {
         Task {
             defer { isCheckingCreateQuota = false }
             do {
-                let repository = TagRepository(modelContainer: modelContainer)
-                let count = try await repository.totalTagCount()
+                let count = try await canonicalService.repository.totalTagCount()
                 let isPro = await subscriptionService.currentEntitlementIsPro()
                 let quotaService = QuotaService(
                     entitlementProvider: SubscriptionEntitlementProvider(isPro: isPro)
@@ -165,7 +162,7 @@ struct TagManageView: View {
                     }
                 }
             } catch {
-                await errorPresenter.report(message: "标签额度校验失败，请稍后重试。", underlying: error)
+                errorPresenter.report(message: "标签额度校验失败，请稍后重试。", underlying: error)
             }
         }
     }
@@ -178,16 +175,16 @@ struct TagManageView: View {
         Task {
             do {
                 try await mutationService.deleteTag(id: tag.id)
-                await timelineModel.discardFilterTag(tag.id)
+                timelineModel.discardFilterTag(tag.id)
                 await reload()
             } catch LocalLibraryMutationError.mutationSafetyPointFailed(let underlying) {
-                await errorPresenter.report(
+                errorPresenter.report(
                     message: "创建操作前安全备份失败，请稍后重试。",
                     underlying: underlying
                 )
                 await reload()
             } catch {
-                await errorPresenter.report(message: "删除标签失败，请稍后重试。", underlying: error)
+                errorPresenter.report(message: "删除标签失败，请稍后重试。", underlying: error)
                 await reload()
             }
         }
@@ -195,7 +192,7 @@ struct TagManageView: View {
 
     private var mutationService: LocalLibraryMutationService {
         LocalLibraryMutationService(
-            modelContainer: modelContainer,
+            canonicalService: canonicalService,
             localBackupCoordinator: localBackupCoordinator,
             syncStatusService: syncStatusService,
             errorPresenter: errorPresenter

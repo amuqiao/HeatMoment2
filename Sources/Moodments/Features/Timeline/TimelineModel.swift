@@ -12,9 +12,9 @@ enum HeatmapAnchorGranularity: Equatable {
 /// 依 `product-mental-model.md` 公理2「定位 ≠ 筛选」：定位只改变滚动位置（不改变可见数据集合），
 /// 筛选只改变可见数据集合（不改变滚动逻辑），二者正交、可同时存在。
 ///
-/// 阶段5起接真实交互：`TimelineViewportView` 的 `@Query` 谓词消费 `activeFilter`
-/// （见 `TimelineQuery.predicate(for:)`），`heatmapFocusDate` 驱动 `ScrollViewReader` 滚动
-/// （见 `TimelineQuery.scrollTargetID(for:granularity:in:)`）；两者互不引用、互不覆盖。
+/// 主流程切到 canonical 后，`TimelineViewportView` 用 `activeFilter` 重新加载可见集；
+/// `heatmapFocusDate` 只驱动 `ScrollViewReader` 滚动（见
+/// `TimelineQuery.scrollTargetID(for:granularity:in:)`）；两者互不引用、互不覆盖。
 ///
 /// **上提**（阶段5必要重构）：本类型由 `RootView` 持有并通过 `.environment()` 注入整棵树
 /// （含 `TimelineHomeView` 与热力图顶部上下文区 `YearHeatmapView`），使时间轴与热力图共享同一实例——
@@ -24,11 +24,11 @@ enum HeatmapAnchorGranularity: Equatable {
 @Observable
 final class TimelineModel {
     /// 主时间轴内容版本：只表达「未删除 Moment 集合或排序/聚合关键字段发生变化」。
-    /// 首页热力图等派生视图把它纳入 `.task(id:)`，从本地 SwiftData 真相源重新计算年度候选
+    /// 首页热力图等派生视图把它纳入 `.task(id:)`，从 canonical 真相源重新计算年度候选
     /// 和聚合数据；它不携带筛选/定位语义，避免把「定位 ≠ 筛选」重新耦合。
     var timelineContentRevision = 0
 
-    /// 热力图定位锚点：仅用于驱动 `ScrollViewReader` 滚动目标，绝不影响 `@Query` 谓词（公理2）。
+    /// 热力图定位锚点：仅用于驱动 `ScrollViewReader` 滚动目标，绝不影响资料库筛选条件（公理2）。
     var heatmapFocusDate: Date? {
         didSet {
             if heatmapFocusDate == nil {
@@ -43,7 +43,7 @@ final class TimelineModel {
     /// 月份选择必须通过 `setHeatmapAnchor(_:granularity:)` 写入，以保留月/日 UI 语义。
     var heatmapAnchorGranularity: HeatmapAnchorGranularity?
 
-    /// 标签/心情筛选条件：仅用于影响 `@Query` 谓词，绝不影响滚动逻辑（公理2）。
+    /// 标签/心情筛选条件：仅用于影响 canonical 查询，绝不影响滚动逻辑（公理2）。
     var activeFilter: FilterCondition?
 
     init() {}

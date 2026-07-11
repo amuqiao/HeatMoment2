@@ -17,6 +17,25 @@ final class CanonicalRuntimeImportTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: descriptor.databaseURL.path))
     }
 
+    func testResetStorageRemovesDiskBackedCanonicalStoreBeforeReimport() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let descriptor = CanonicalStoreDescriptor(rootDirectory: directory)
+
+        do {
+            let runtime = try CanonicalLibraryRuntime(descriptor: descriptor)
+            _ = try await runtime.repository.createOrReuseTag(name: "恢复前")
+            XCTAssertTrue(FileManager.default.fileExists(atPath: descriptor.databaseURL.path))
+        }
+
+        try CanonicalLibraryRuntime.resetStorage(descriptor: descriptor)
+
+        XCTAssertFalse(FileManager.default.fileExists(atPath: descriptor.rootDirectory.path))
+        let freshRuntime = try CanonicalLibraryRuntime(descriptor: descriptor)
+        let tags = try await freshRuntime.repository.fetchAllTags()
+        XCTAssertTrue(tags.isEmpty)
+    }
+
     func testImportsSwiftDataBaselineAndMarksCompletion() async throws {
         let container = try ModelContainerConfig.makeInMemoryContainer()
         let source = try makeSwiftDataSource(in: container)

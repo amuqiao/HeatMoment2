@@ -1,4 +1,3 @@
-import SwiftData
 import SwiftUI
 
 /// 新建/重命名标签任务卡片（见 `docs/design/04-screen-specs.md` §4.7/§4.13）：任务卡片栈的
@@ -11,7 +10,6 @@ import SwiftUI
 /// `tagNameConflict`）。空输入禁用保存；写失败改走统一 `ErrorPresenter`（用户可见、不中止进程、
 /// 不 dismiss——保留输入内容供重试，见阶段6计划决策3）。
 struct TagCreateSheetView: View {
-    let modelContainer: ModelContainer
     /// 非 `nil` 表示重命名既有标签（预填其原名）；`nil` 表示新建。
     var editing: TagSnapshot?
     /// 新建（或查重复用的既有）标签 / 重命名成功后的回填回调，统一传回 `(id, 最终名称)`。
@@ -20,6 +18,7 @@ struct TagCreateSheetView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(ThemeManager.self) private var theme
     @Environment(ErrorPresenter.self) private var errorPresenter
+    @Environment(CanonicalLibraryService.self) private var canonicalService
     @Environment(SubscriptionService.self) private var subscriptionService
     @Environment(SyncStatusService.self) private var syncStatusService
     @Environment(\.localBackupCoordinator) private var localBackupCoordinator
@@ -28,10 +27,9 @@ struct TagCreateSheetView: View {
     @State private var paywallTrigger: PaywallTrigger?
 
     init(
-        modelContainer: ModelContainer, editing: TagSnapshot? = nil,
+        editing: TagSnapshot? = nil,
         onCreated: @escaping (UUID, String) -> Void
     ) {
-        self.modelContainer = modelContainer
         self.editing = editing
         self.onCreated = onCreated
         _name = State(initialValue: editing?.name ?? "")
@@ -152,7 +150,7 @@ struct TagCreateSheetView: View {
             onCreated(result.id, result.name)
             dismiss()
         } catch RepositoryError.tagNameConflict(let conflictingName) {
-            await errorPresenter.report(
+            errorPresenter.report(
                 message: "标签名「\(conflictingName)」已存在，请换一个名称。",
                 underlying: RepositoryError.tagNameConflict(conflictingName)
             )
@@ -161,7 +159,7 @@ struct TagCreateSheetView: View {
         } catch {
             let message: String.LocalizationValue =
                 editing == nil ? "创建标签失败，请稍后重试。" : "重命名标签失败，请稍后重试。"
-            await errorPresenter.report(message: message, underlying: error)
+            errorPresenter.report(message: message, underlying: error)
         }
     }
 
@@ -174,7 +172,7 @@ struct TagCreateSheetView: View {
 
     private var mutationService: LocalLibraryMutationService {
         LocalLibraryMutationService(
-            modelContainer: modelContainer,
+            canonicalService: canonicalService,
             localBackupCoordinator: localBackupCoordinator,
             syncStatusService: syncStatusService,
             errorPresenter: errorPresenter

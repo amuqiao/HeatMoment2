@@ -1,4 +1,3 @@
-import SwiftData
 import SwiftUI
 
 /// 「上次选择情绪」持久化 key（见阶段 3 计划决策5：`@AppStorage` 本地持久化，
@@ -14,7 +13,7 @@ enum EditorMoodMemory {
 /// 标签选择只消费已有标签。标签新增、重命名、删除归属设置页 `TagManageView`。
 struct MomentEditorView: View {
     let mode: EditorMode
-    let modelContainer: ModelContainer
+    let canonicalService: CanonicalLibraryService
 
     @Environment(\.dismiss) private var dismiss
     @Environment(ThemeManager.self) private var theme
@@ -39,11 +38,11 @@ struct MomentEditorView: View {
     /// `@AppStorage` 初始化顺序陷阱同一原因，见下方注释）。
     init(
         mode: EditorMode,
-        modelContainer: ModelContainer,
+        canonicalService: CanonicalLibraryService,
         subscriptionService: SubscriptionService
     ) {
         self.mode = mode
-        self.modelContainer = modelContainer
+        self.canonicalService = canonicalService
         // 直接读 `UserDefaults` 而非 `_lastUsedMood` 的 wrapped value：属性包装器初始化顺序
         // 不保证此刻可跨属性引用 `self`，故用同一 key 的原始读取规避该顺序陷阱；二者读写
         // 同一 UserDefaults key，语义一致。缺省值 0 恰好等于 `Mood.normal.rawValue`，与
@@ -53,7 +52,7 @@ struct MomentEditorView: View {
             ?? .normal
         _model = State(
             initialValue: MomentEditorModel(
-                mode: mode, modelContainer: modelContainer,
+                mode: mode, canonicalService: canonicalService,
                 subscriptionService: subscriptionService, lastUsedMood: seedMood
             ))
     }
@@ -99,7 +98,7 @@ struct MomentEditorView: View {
             do {
                 try await model.load()
             } catch {
-                await errorPresenter.report(message: "加载时刻失败，请稍后重试。", underlying: error)
+                errorPresenter.report(message: "加载时刻失败，请稍后重试。", underlying: error)
             }
         }
     }
@@ -192,7 +191,6 @@ struct MomentEditorView: View {
         .accessibilityLabel(Text("标签，\(tagSummaryText)，双击更改"))
         .popover(isPresented: $isTagPickerPresented, arrowEdge: .top) {
             TagPickerView(
-                modelContainer: modelContainer,
                 selectedTagIDs: model.selectedTagIDs,
                 onToggle: { tag in model.toggleTagSelection(tag) }
             )
@@ -279,14 +277,14 @@ struct MomentEditorView: View {
             } catch {
                 // 保存失败不 dismiss——草稿留在编辑器内供用户重试，不假装保存成功
                 // （见阶段6计划决策3：可恢复写失败改走统一错误通道，不伪造成功）。
-                await errorPresenter.report(message: "保存时刻失败，请稍后重试。", underlying: error)
+                errorPresenter.report(message: "保存时刻失败，请稍后重试。", underlying: error)
             }
         }
     }
 
     private var mutationService: LocalLibraryMutationService {
         LocalLibraryMutationService(
-            modelContainer: modelContainer,
+            canonicalService: canonicalService,
             localBackupCoordinator: localBackupCoordinator,
             syncStatusService: syncStatusService,
             errorPresenter: errorPresenter
@@ -297,9 +295,10 @@ struct MomentEditorView: View {
 
 #Preview {
     // swiftlint:disable:next force_try
-    let container = try! ModelContainerConfig.makeInMemoryContainer()
+    let canonicalService = try! CanonicalLibraryService(runtime: .makeInMemoryForTests())
     return MomentEditorView(
-        mode: .create, modelContainer: container, subscriptionService: SubscriptionService()
+        mode: .create, canonicalService: canonicalService,
+        subscriptionService: SubscriptionService()
     )
     .environment(ThemeManager())
     .environment(ErrorPresenter())

@@ -1,6 +1,5 @@
 import Foundation
 import Observation
-import SwiftData
 
 /// 一张待保存的草稿照片：已压缩为 JPEG `Data`（见 `ImageCompressor`）。缩略图直接由
 /// `jpegData` 现场解码渲染——草稿态最多 `Quota.freePhotosPerMomentLimit` 张，量小，无需
@@ -47,7 +46,7 @@ private struct EditorSnapshot: Equatable {
 final class MomentEditorModel {
     let mode: EditorMode
 
-    private let repository: MomentRepository
+    private let canonicalService: CanonicalLibraryService
     private let subscriptionService: SubscriptionService
 
     /// 编辑态是否已完成从仓库载入；新建态恒为 `true`（无需等待异步载入）。
@@ -76,12 +75,12 @@ final class MomentEditorModel {
 
     init(
         mode: EditorMode,
-        modelContainer: ModelContainer,
+        canonicalService: CanonicalLibraryService,
         subscriptionService: SubscriptionService,
         lastUsedMood: Mood = .normal
     ) {
         self.mode = mode
-        self.repository = MomentRepository(modelContainer: modelContainer)
+        self.canonicalService = canonicalService
         self.subscriptionService = subscriptionService
         self.cachedIsPro = subscriptionService.isPro
 
@@ -113,7 +112,7 @@ final class MomentEditorModel {
     /// - Throws: `RepositoryError.momentNotFound` 若 `id` 已不存在（如被彻底删除后仍打开编辑）。
     func load() async throws {
         guard case let .edit(id) = mode else { return }
-        let payload = try await repository.editingPayload(id: id)
+        let payload = try await canonicalService.editingPayload(id: id)
         mood = payload.snapshot.mood
         title = payload.snapshot.title
         bodyText = payload.snapshot.bodyText

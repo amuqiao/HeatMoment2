@@ -1,4 +1,3 @@
-import SwiftData
 import SwiftUI
 
 /// 首页时间轴（见 04-screen-specs.md §4.1）：唯一一级页面，聊天气泡式时间轴 + 顶部三入口 +
@@ -13,30 +12,15 @@ struct TimelineHomeView: View {
     @Environment(AppRouter.self) private var router
     @Environment(TimelineModel.self) private var timelineModel
     @Environment(ThemeManager.self) private var theme
-    @Environment(\.modelContext) private var modelContext
+    @Environment(CanonicalLibraryService.self) private var canonicalService
     @Environment(ErrorPresenter.self) private var errorPresenter
     @Environment(SubscriptionService.self) private var subscriptionService
     @State private var isTitleCollapsed = false
     @State private var isFilterPresented = false
     @State private var isHeatmapPresented = false
-    @Query private var timelineContentMoments: [Moment]
-
-    private var timelineContentSignature: [MomentContentSignature] {
-        timelineContentMoments.map(MomentContentSignature.init(moment:))
-    }
 
     private var isModalContextPresented: Bool {
         router.rootSheet != nil || isFilterPresented
-    }
-
-    init() {
-        _timelineContentMoments = Query(
-            filter: #Predicate<Moment> { moment in
-                moment.deletedFlag == false
-            },
-            sort: \Moment.occurredAt,
-            order: .reverse
-        )
     }
 
     var body: some View {
@@ -83,7 +67,7 @@ struct TimelineHomeView: View {
         .onAppear {
             timelineModel.noteTimelineContentChanged()
         }
-        .onChange(of: timelineContentSignature) { _, _ in
+        .onChange(of: canonicalService.changeToken) { _, _ in
             timelineModel.noteTimelineContentChanged()
         }
     }
@@ -108,7 +92,7 @@ struct TimelineHomeView: View {
                 }
             )
             HomeContextPanel(isPresented: isHeatmapPresented) {
-                YearHeatmapView(modelContainer: modelContext.container) {
+                YearHeatmapView(canonicalService: canonicalService) {
                     isHeatmapPresented = false
                 }
             }
@@ -129,8 +113,7 @@ struct TimelineHomeView: View {
         Task {
             do {
                 let isPro = await subscriptionService.currentEntitlementIsPro()
-                let repository = MomentRepository(modelContainer: modelContext.container)
-                let count = try await repository.totalMomentCount()
+                let count = try await canonicalService.repository.totalMomentCount()
                 let quotaService = QuotaService(
                     entitlementProvider: SubscriptionEntitlementProvider(isPro: isPro)
                 )
@@ -141,7 +124,7 @@ struct TimelineHomeView: View {
                     router.rootSheet = .paywall(.quotaMoment)
                 }
             } catch {
-                await errorPresenter.report(message: "创建前检查失败，请稍后重试。", underlying: error)
+                errorPresenter.report(message: "创建前检查失败，请稍后重试。", underlying: error)
             }
         }
     }
@@ -155,6 +138,5 @@ struct TimelineHomeView: View {
         .environment(ErrorPresenter())
         .environment(SubscriptionService())
         .environment(SyncStatusService(cloudKitEnabled: false))
-        // swiftlint:disable:next force_try
-        .modelContainer(try! ModelContainerConfig.makeInMemoryContainer())
+        .environment(CanonicalLibraryService.makeInMemoryForPreview())
 }

@@ -1,4 +1,3 @@
-import SwiftData
 import SwiftUI
 
 /// 标签/心情筛选面板（见 `docs/design/04-screen-specs.md` §4.2）：从首页收起态标题
@@ -19,8 +18,10 @@ struct FilterPanelView: View {
     @Binding var activeFilter: FilterCondition?
 
     @Environment(ThemeManager.self) private var theme
+    @Environment(CanonicalLibraryService.self) private var canonicalService
+    @Environment(ErrorPresenter.self) private var errorPresenter
     @Environment(\.dismiss) private var dismiss
-    @Query(sort: \Tag.createdAt) private var tags: [Tag]
+    @State private var tags: [TagSnapshot] = []
 
     private var selectedTagIDs: Set<UUID> { activeFilter?.tagIDs ?? [] }
     private var selectedMood: Mood? { activeFilter?.mood }
@@ -78,6 +79,10 @@ struct FilterPanelView: View {
         }
         .themedTaskContainer(theme)
         .presentationBackground(theme.sheetBackground)
+        .userFacingErrorAlert(errorPresenter)
+        .task(id: canonicalService.changeToken) {
+            await loadTags()
+        }
     }
 
     private var tagGridColumns: [GridItem] {
@@ -94,7 +99,7 @@ struct FilterPanelView: View {
             .foregroundStyle(theme.primaryText)
     }
 
-    private func tagChip(_ tag: Tag) -> some View {
+    private func tagChip(_ tag: TagSnapshot) -> some View {
         let isSelected = selectedTagIDs.contains(tag.id)
         return Button {
             toggleTag(tag.id)
@@ -212,11 +217,19 @@ struct FilterPanelView: View {
         updated.mood = (updated.mood == mood) ? nil : mood
         activeFilter = updated.isEmpty ? nil : updated
     }
+
+    private func loadTags() async {
+        do {
+            tags = try await canonicalService.fetchFilterTags()
+        } catch {
+            errorPresenter.report(message: "标签列表加载失败，请稍后重试。", underlying: error)
+        }
+    }
 }
 
 #Preview {
     FilterPanelView(activeFilter: .constant(nil))
         .environment(ThemeManager())
-        // swiftlint:disable:next force_try
-        .modelContainer(try! ModelContainerConfig.makeInMemoryContainer())
+        .environment(ErrorPresenter())
+        .environment(CanonicalLibraryService.makeInMemoryForPreview())
 }

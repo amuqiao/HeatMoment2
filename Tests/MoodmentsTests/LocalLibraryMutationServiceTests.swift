@@ -193,6 +193,44 @@ final class LocalLibraryMutationServiceTests: XCTestCase {
     }
 
     @MainActor
+    func testCanonicalBackendDoesNotCreateSwiftDataStableRecoveryPoint() async throws {
+        let container = try ModelContainerConfig.makeInMemoryContainer()
+        let backup = try makeFailingBackupCoordinator(modelContainer: container)
+        defer { try? FileManager.default.removeItem(at: backup.rootDirectory) }
+        let canonicalService = try CanonicalLibraryService(
+            runtime: .makeInMemoryForTests(
+                assetDirectoryURL: backup.rootDirectory.appendingPathComponent(
+                    "CanonicalAssets",
+                    isDirectory: true
+                )
+            )
+        )
+        let service = LocalLibraryMutationService(
+            canonicalService: canonicalService,
+            localBackupCoordinator: backup.coordinator,
+            syncStatusService: SyncStatusService(
+                cloudKitEnabled: false,
+                reachabilityChecker: ImmediateReachabilityChecker()
+            ),
+            errorPresenter: ErrorPresenter()
+        )
+
+        _ = try await service.createMoment(
+            title: "canonical",
+            bodyText: "",
+            occurredAt: .now,
+            mood: .normal,
+            tagIDs: [],
+            imageDatas: [],
+            quotaService: freeQuotaService()
+        )
+        try await Task.sleep(for: .milliseconds(50))
+
+        let points = try await backup.coordinator.listRecoveryPoints()
+        XCTAssertTrue(points.isEmpty)
+    }
+
+    @MainActor
     func testMissingIDsThrowThroughService() async throws {
         let container = try ModelContainerConfig.makeInMemoryContainer()
         let service = makeService(modelContainer: container)
@@ -253,7 +291,8 @@ final class LocalLibraryMutationServiceTests: XCTestCase {
         modelContainer: ModelContainer
     ) throws -> (coordinator: LocalBackupCoordinator, rootDirectory: URL) {
         let rootDirectory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("LocalLibraryMutationServiceTests-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent(
+                "LocalLibraryMutationServiceTests-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(
             at: rootDirectory,
             withIntermediateDirectories: true

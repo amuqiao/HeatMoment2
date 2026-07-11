@@ -1,16 +1,15 @@
-import SwiftData
 import SwiftUI
 
 /// 标签选择就近浮窗（见 `docs/design/04-screen-specs.md` §4.6）：只展示已有标签；
 /// 点已有标签**多选**（点选切换、不关闭浮窗，由调用方保持 `isPresented`）。
 /// 标签新增、重命名、删除归属设置页 `TagManageView`，本浮窗只消费既有标签。
 struct TagPickerView: View {
-    let modelContainer: ModelContainer
     let selectedTagIDs: [UUID]
     let onToggle: (TagSnapshot) -> Void
 
     @Environment(ThemeManager.self) private var theme
     @Environment(ErrorPresenter.self) private var errorPresenter
+    @Environment(CanonicalLibraryService.self) private var canonicalService
     @State private var tags: [TagSnapshot] = []
 
     var body: some View {
@@ -63,9 +62,9 @@ struct TagPickerView: View {
         .userFacingErrorAlert(errorPresenter)
         .task {
             do {
-                tags = try await TagRepository(modelContainer: modelContainer).fetchAll()
+                tags = try await canonicalService.fetchFilterTags()
             } catch {
-                await errorPresenter.report(message: "标签列表加载失败，请稍后重试。", underlying: error)
+                errorPresenter.report(message: "标签列表加载失败，请稍后重试。", underlying: error)
             }
         }
     }

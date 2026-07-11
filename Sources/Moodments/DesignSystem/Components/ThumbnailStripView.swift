@@ -1,4 +1,3 @@
-import SwiftData
 import SwiftUI
 import UIKit
 
@@ -18,7 +17,7 @@ struct ThumbnailStripView: View {
     var allowsImageInteraction = true
     var onTapImage: ((Int) -> Void)?
 
-    @Environment(\.modelContext) private var modelContext
+    @Environment(CanonicalLibraryService.self) private var canonicalService
     @State private var thumbnailsByID: [UUID: Data] = [:]
 
     var body: some View {
@@ -148,11 +147,10 @@ struct ThumbnailStripView: View {
     /// 逐张经 `ThumbnailCache` 取图：命中缓存零 IO，未命中才 `await` 向仓库取原图现场生成
     /// （见 `ThumbnailCache.thumbnail(for:maxDimension:provideOriginal:)` 的 async 重载）。
     private func loadThumbnails() async {
-        let repository = MomentRepository(modelContainer: modelContext.container)
         for imageID in imageIDs where thumbnailsByID[imageID] == nil {
             do {
                 let data = try await ThumbnailCache.shared.thumbnail(for: imageID) {
-                    try await repository.imageData(imageID: imageID)
+                    try await canonicalService.imageData(imageID: imageID)
                 }
                 thumbnailsByID[imageID] = data
             } catch {

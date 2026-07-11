@@ -25,8 +25,10 @@ final class HeatmapMoodColorTests: XCTestCase {
         let year = 2026
         let morning = Self.date(year: year, month: 4, day: 10, hour: 8)
         let evening = Self.date(year: year, month: 4, day: 10, hour: 22)
-        _ = try await repository.createMoment(title: "早", bodyText: "", occurredAt: morning, mood: .sad)
-        _ = try await repository.createMoment(title: "晚", bodyText: "", occurredAt: evening, mood: .happy)
+        _ = try await repository.createMoment(
+            title: "早", bodyText: "", occurredAt: morning, mood: .sad)
+        _ = try await repository.createMoment(
+            title: "晚", bodyText: "", occurredAt: evening, mood: .happy)
 
         let moodByDay = try await repository.moodByDay(year: year, filter: nil)
         let dayOfYear = Calendar.current.ordinality(of: .day, in: .year, for: morning)!
@@ -39,7 +41,8 @@ final class HeatmapMoodColorTests: XCTestCase {
         let year = 2026
         let morning = Self.date(year: year, month: 4, day: 10, hour: 8)
         let evening = Self.date(year: year, month: 4, day: 10, hour: 22)
-        _ = try await repository.createMoment(title: "早", bodyText: "", occurredAt: morning, mood: .sad)
+        _ = try await repository.createMoment(
+            title: "早", bodyText: "", occurredAt: morning, mood: .sad)
         let eveningID = try await repository.createMoment(
             title: "晚", bodyText: "", occurredAt: evening, mood: .happy
         )
@@ -56,7 +59,8 @@ final class HeatmapMoodColorTests: XCTestCase {
     func testAllMomentsOfDaySoftDeletedLeavesDayAbsent() async throws {
         let year = 2026
         let day = Self.date(year: year, month: 4, day: 10, hour: 8)
-        let id = try await repository.createMoment(title: "唯一", bodyText: "", occurredAt: day, mood: .happy)
+        let id = try await repository.createMoment(
+            title: "唯一", bodyText: "", occurredAt: day, mood: .happy)
         try await repository.softDelete(id: id)
 
         let moodByDay = try await repository.moodByDay(year: year, filter: nil)
@@ -69,8 +73,10 @@ final class HeatmapMoodColorTests: XCTestCase {
     func testAggregationDoesNotLeakAcrossYears() async throws {
         let day2025 = Self.date(year: 2025, month: 6, day: 15, hour: 10)
         let day2026 = Self.date(year: 2026, month: 6, day: 15, hour: 10)
-        _ = try await repository.createMoment(title: "2025", bodyText: "", occurredAt: day2025, mood: .sad)
-        _ = try await repository.createMoment(title: "2026", bodyText: "", occurredAt: day2026, mood: .happy)
+        _ = try await repository.createMoment(
+            title: "2025", bodyText: "", occurredAt: day2025, mood: .sad)
+        _ = try await repository.createMoment(
+            title: "2026", bodyText: "", occurredAt: day2026, mood: .happy)
 
         let moodByDay2025 = try await repository.moodByDay(year: 2025, filter: nil)
         let moodByDay2026 = try await repository.moodByDay(year: 2026, filter: nil)
@@ -86,12 +92,14 @@ final class HeatmapMoodColorTests: XCTestCase {
     func testFilteredAggregationOnlyCountsMatchingMoments() async throws {
         let year = 2026
         let day = Self.date(year: year, month: 7, day: 1, hour: 10)
-        _ = try await repository.createMoment(title: "开心", bodyText: "", occurredAt: day, mood: .happy)
+        _ = try await repository.createMoment(
+            title: "开心", bodyText: "", occurredAt: day, mood: .happy)
         _ = try await repository.createMoment(
             title: "难过", bodyText: "", occurredAt: day.addingTimeInterval(-86400), mood: .sad
         )
 
-        let moodByDay = try await repository.moodByDay(year: year, filter: FilterCondition(mood: .happy))
+        let moodByDay = try await repository.moodByDay(
+            year: year, filter: FilterCondition(mood: .happy))
 
         XCTAssertEqual(moodByDay.count, 1, "只有命中筛选条件（开心）的记录应参与聚合")
         let dayOfYear = Calendar.current.ordinality(of: .day, in: .year, for: day)!
@@ -102,7 +110,8 @@ final class HeatmapMoodColorTests: XCTestCase {
     func testMoodCountsAggregatesByMoodRegardlessOfFilterConcept() async throws {
         let year = 2026
         let base = Self.date(year: year, month: 8, day: 1, hour: 10)
-        _ = try await repository.createMoment(title: "a", bodyText: "", occurredAt: base, mood: .happy)
+        _ = try await repository.createMoment(
+            title: "a", bodyText: "", occurredAt: base, mood: .happy)
         _ = try await repository.createMoment(
             title: "b", bodyText: "", occurredAt: base.addingTimeInterval(3600), mood: .happy
         )
@@ -174,16 +183,19 @@ final class HeatmapMoodColorTests: XCTestCase {
     }
 
     /// 派生 model 每次加载都重算候选；选中年份失效时回落到当前年，避免菜单残留空年份。
+    @MainActor
     func testHeatmapModelReloadFallsBackWhenSelectedYearDisappears() async throws {
-        let id = try await repository.createMoment(
+        let canonicalFixture = try makeCanonicalService()
+        defer { canonicalFixture.cleanup() }
+        let canonicalRepository = canonicalFixture.service.repository
+        let id = try await canonicalRepository.createMoment(
             title: "future",
             bodyText: "",
             occurredAt: Self.date(year: 2028, month: 1, day: 1, hour: 10),
             mood: .motivated
         )
-        let modelContainer = try XCTUnwrap(container)
         let model = await MainActor.run {
-            YearHeatmapModel(modelContainer: modelContainer, year: 2028)
+            YearHeatmapModel(canonicalService: canonicalFixture.service, year: 2028)
         }
         try await model.load(filter: nil)
 
@@ -193,7 +205,7 @@ final class HeatmapMoodColorTests: XCTestCase {
         XCTAssertEqual(loadedState.year, 2028)
         XCTAssertEqual(loadedState.availableYears, [2026, 2028])
 
-        try await repository.softDelete(id: id)
+        try await canonicalRepository.softDeleteMoment(id: id)
         try await model.load(filter: nil)
 
         let reloadedState = await MainActor.run {
@@ -201,6 +213,24 @@ final class HeatmapMoodColorTests: XCTestCase {
         }
         XCTAssertEqual(reloadedState.year, 2026)
         XCTAssertEqual(reloadedState.availableYears, [2026])
+    }
+
+    @MainActor
+    private func makeCanonicalService() throws -> (
+        service: CanonicalLibraryService, cleanup: () -> Void
+    ) {
+        let assetDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(
+                "HeatmapMoodColorTests-\(UUID().uuidString)",
+                isDirectory: true
+            )
+        let runtime = try CanonicalLibraryRuntime.makeInMemoryForTests(
+            assetDirectoryURL: assetDirectory
+        )
+        return (
+            CanonicalLibraryService(runtime: runtime),
+            { try? FileManager.default.removeItem(at: assetDirectory) }
+        )
     }
 
     private static func date(year: Int, month: Int, day: Int, hour: Int) -> Date {

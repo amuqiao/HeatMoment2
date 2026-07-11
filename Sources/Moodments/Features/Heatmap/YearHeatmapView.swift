@@ -1,4 +1,3 @@
-import SwiftData
 import SwiftUI
 
 /// 年度心情热力图主页顶部上下文区（见 `docs/design/04-screen-specs.md` §4.3、
@@ -17,8 +16,8 @@ struct YearHeatmapView: View {
     @State private var heatmapModel: YearHeatmapModel
     let onClose: () -> Void
 
-    init(modelContainer: ModelContainer, onClose: @escaping () -> Void = {}) {
-        _heatmapModel = State(initialValue: YearHeatmapModel(modelContainer: modelContainer))
+    init(canonicalService: CanonicalLibraryService, onClose: @escaping () -> Void = {}) {
+        _heatmapModel = State(initialValue: YearHeatmapModel(canonicalService: canonicalService))
         self.onClose = onClose
     }
 
@@ -148,12 +147,14 @@ struct YearHeatmapView: View {
     private func handleSelectDay(_ date: Date) {
         let calendar = Calendar.current
         if timelineModel.heatmapAnchorGranularity == .day,
-           let current = timelineModel.heatmapFocusDate,
-           calendar.isDate(current, inSameDayAs: date) {
+            let current = timelineModel.heatmapFocusDate,
+            calendar.isDate(current, inSameDayAs: date)
+        {
             timelineModel.clearHeatmapAnchor()
             return
         }
-        guard let endOfDay = calendar.date(bySettingHour: 23, minute: 59, second: 59, of: date) else {
+        guard let endOfDay = calendar.date(bySettingHour: 23, minute: 59, second: 59, of: date)
+        else {
             assertionFailure("日期锚点合成失败：\(date)")
             return
         }
@@ -165,8 +166,9 @@ struct YearHeatmapView: View {
     private func handleSelectMonth(_ date: Date) {
         let calendar = Calendar.current
         if timelineModel.heatmapAnchorGranularity == .month,
-           let current = timelineModel.heatmapFocusDate,
-           calendar.isDate(current, equalTo: date, toGranularity: .month) {
+            let current = timelineModel.heatmapFocusDate,
+            calendar.isDate(current, equalTo: date, toGranularity: .month)
+        {
             timelineModel.clearHeatmapAnchor()
             return
         }
@@ -182,8 +184,9 @@ struct YearHeatmapView: View {
 }
 
 #Preview {
-    // swiftlint:disable:next force_try
-    YearHeatmapView(modelContainer: try! ModelContainerConfig.makeInMemoryContainer())
-        .environment(TimelineModel())
-        .environment(ThemeManager())
+    YearHeatmapView(
+        canonicalService: .makeInMemoryForPreview()
+    )
+    .environment(TimelineModel())
+    .environment(ThemeManager())
 }
