@@ -53,8 +53,8 @@ SwiftUI / ViewModel
 - 旧本地存储实现、旧 repository、旧恢复点实现、旧导入器和旧架构测试已经从源码与测试目标中清理。
 - 项目尚未上线，本轮不兼容旧本地存储直升和旧恢复点桥接；后续计划只基于 canonical store 演进。
 - 设置页已经区分“备份与恢复”和“导出”；恢复点是系统自动维护的本机恢复点，导出是只读副本。
+- 当前导出闭环支持全部或日期范围、Markdown/PDF、照片开关、失败重试和临时文件清理；它不写 canonical store、不创建恢复点、不参与 iCloud 同步，详见 [`../current/implementation-truth.md`](../current/implementation-truth.md)。
 - 当前 iCloud 仍只有能力/网络/最近本地写入时间的启发式状态展示；尚未实现真实 CloudKit 同步状态机、多设备收敛、冲突记录或重试队列。
-- 当前导出基础闭环只支持“全部活跃 Moment -> Markdown/PDF”；范围选择、当前筛选导出和持久导出任务尚未实现。
 - 当前 asset reachability、pin-aware dry-run、DB orphan record finalizer 和 orphan blob cleanup 已有维护地基；完整后台 GC 调度、export/sync pin 生命周期尚未实现。
 
 ## Active Plan
@@ -78,25 +78,7 @@ SwiftUI / ViewModel
 - 同一 Apple ID 下两台设备最终收敛，且不会把本机恢复点当作跨设备云备份。
 - 弱网、重复同步、应用被杀、CloudKit 暂不可用时有确定行为，不静默丢数据。
 
-### 2. Export Enhancements
-
-目标：在现有 Markdown/PDF 基础闭环上增加更可控的导出范围和任务体验。
-
-候选增强：
-
-- 全部 / 当前主页筛选 / 日期范围。
-- 是否包含照片。
-- 更明确的导出摘要和文件命名。
-- 持久 `export_job`、取消、重试、目标冲突策略。
-- export asset pin 生命周期，确保长任务期间图片不会被 GC 误删。
-
-验收：
-
-- 导出仍是只读副本，不改变 canonical store，不创建恢复点，不参与 iCloud 同步。
-- 范围选择和筛选摘要不让用户误解为“迁移/备份/同步”。
-- 导出失败有可重试状态，临时文件清理可测。
-
-### 3. Asset GC Hardening
+### 2. Asset GC Hardening
 
 目标：把当前 asset reachability / dry-run / cleanup 地基升级为可安全运行的完整维护流程。
 
@@ -124,7 +106,7 @@ SwiftUI / ViewModel
 | Asset pipeline | hash、引用、pin、GC、恢复点/导出/staging 期间不误删。 |
 | 自动恢复点 | 最多 3 个、按时间淘汰、不可删除、列表可见、恢复预览、恢复失败不破坏现库。 |
 | Restore | staging 校验、atomic replace、崩溃中断、`syncEpoch` 重建、旧 outbox/token 作废。 |
-| Export | Markdown 相对链接、PDF 分页、图片嵌入、失败态、重试入口、临时文件清理。 |
+| Export | 全部/日期范围、照片开关、Markdown 相对链接、PDF 分页、图片嵌入、空范围失败、失败态、重试入口、临时文件清理、只读边界。 |
 | Settings IA | 独立数据分组、iCloud/自动恢复点/导出详情页、面容解锁根页开关、无 App 登录入口。 |
 | iCloud follow-up | 未登录、关闭 iCloud、单设备、两设备、Apple ID 变化、离线后恢复、图片同步、删除传播、冲突记录。 |
 
@@ -133,6 +115,5 @@ SwiftUI / ViewModel
 本地数据闭环已经进入 current。整份数据生命周期计划最终关闭还需要：
 
 - iCloud 独立计划落地并通过真机矩阵验收。
-- 导出范围和持久导出任务若进入 v1，需有只读副本语义和失败恢复证据。
 - 完整 asset GC 执行入口落地，并证明不会误删 recovery/export/sync 仍需保护的 blob。
 - current 文档持续保持 as-built 真相，不把已关闭阶段重新写成主动计划。

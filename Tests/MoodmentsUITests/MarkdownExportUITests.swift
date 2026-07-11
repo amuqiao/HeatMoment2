@@ -46,6 +46,26 @@ final class MarkdownExportUITests: XCTestCase {
         XCTAssertTrue(app.buttons["exportShareLink"].exists)
     }
 
+    func testSettingsExportPageShowsRangeAndPhotoControls() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTestSeedImageMoment"]
+        app.launch()
+
+        openExportPage(app)
+
+        let scopePicker = app.segmentedControls["exportScopePicker"]
+        XCTAssertTrue(scopePicker.waitForExistence(timeout: 5))
+        XCTAssertTrue(scopePicker.buttons["全部"].exists)
+        XCTAssertTrue(scopePicker.buttons["日期范围"].exists)
+        XCTAssertTrue(app.switches["exportIncludePhotosToggle"].exists)
+
+        scopePicker.buttons["日期范围"].tap()
+
+        XCTAssertTrue(exportControlExists(app, identifier: "exportStartDatePicker"))
+        XCTAssertTrue(exportControlExists(app, identifier: "exportEndDatePicker"))
+        XCTAssertTrue(app.buttons["exportGenerateButton"].isEnabled)
+    }
+
     func testSettingsExportPageShowsFailureAndRetryForInvalidPDFImage() {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTestReset", "-uiTestExportForcePDFFailure"]
@@ -95,5 +115,11 @@ final class MarkdownExportUITests: XCTestCase {
         let predicate = NSPredicate(format: "value != %@", previousValue)
         let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
         return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
+    }
+
+    private func exportControlExists(_ app: XCUIApplication, identifier: String) -> Bool {
+        app.datePickers[identifier].exists
+            || app.otherElements[identifier].exists
+            || app.buttons[identifier].exists
     }
 }

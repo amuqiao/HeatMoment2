@@ -97,6 +97,17 @@ final class LocalDataClosureAcceptanceTests: XCTestCase {
         let activeTitlesAfterPurge = try await Self.activeTitles(in: restoredRuntime.repository)
         XCTAssertEqual(activeTitlesAfterPurge, ["恢复点活跃"])
 
+        let recoveryCoordinator = CanonicalRecoveryCoordinator(
+            runtime: restoredRuntime,
+            appVersion: "1.0.8"
+        )
+        let momentCountBeforeExport = try await restoredRuntime.repository.totalMomentCount()
+        let tagCountBeforeExport = try await restoredRuntime.repository.totalTagCount()
+        let recoveryPointIDsBeforeExport = try await recoveryCoordinator.listRecoveryPoints()
+            .map(\.id)
+        let syncStatusService = SyncStatusService(cloudKitEnabled: true)
+        let syncStatusBeforeExport = syncStatusService.status
+
         let markdownResult = try await Self.export(
             format: .markdown,
             repository: restoredRuntime.repository,
@@ -129,6 +140,15 @@ final class LocalDataClosureAcceptanceTests: XCTestCase {
         XCTAssertTrue(pdfText.contains("恢复点活跃"))
         XCTAssertFalse(pdfText.contains("恢复前当前数据"))
         XCTAssertFalse(pdfText.contains("彻底删除候选"))
+
+        let momentCountAfterExport = try await restoredRuntime.repository.totalMomentCount()
+        let tagCountAfterExport = try await restoredRuntime.repository.totalTagCount()
+        let recoveryPointIDsAfterExport = try await recoveryCoordinator.listRecoveryPoints()
+            .map(\.id)
+        XCTAssertEqual(momentCountAfterExport, momentCountBeforeExport)
+        XCTAssertEqual(tagCountAfterExport, tagCountBeforeExport)
+        XCTAssertEqual(recoveryPointIDsAfterExport, recoveryPointIDsBeforeExport)
+        XCTAssertEqual(syncStatusService.status, syncStatusBeforeExport)
     }
 
     @MainActor

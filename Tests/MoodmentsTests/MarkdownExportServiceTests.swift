@@ -231,6 +231,89 @@ final class MarkdownExportServiceTests: XCTestCase {
         XCTAssertTrue(snapshot.moments.first?.assets.isEmpty == true)
     }
 
+    func testMarkdownExportWithoutPhotosWritesNoRelativeAssets() async throws {
+        let fixture = try makeCanonicalFixture()
+        defer { fixture.cleanup() }
+        _ = try await fixture.runtime.repository.createMoment(
+            title: "只导文字",
+            bodyText: "照片不进入这次导出。",
+            occurredAt: Date(timeIntervalSince1970: 100),
+            mood: .normal,
+            imageDatas: [Data([0xFF, 0xD8, 0xFF, 0x01])]
+        )
+        let service = ExportService(
+            snapshotProvider: CanonicalExportSnapshotStore(repository: fixture.runtime.repository),
+            outputRootURL: outputRootURL,
+            markdownRenderer: MarkdownExportRenderer(timeZone: TimeZone(secondsFromGMT: 0)!)
+        )
+
+        let result = try await service.export(
+            request: ExportRequest(
+                scope: .all,
+                format: .markdown,
+                includePhotos: false,
+                requestedAt: Date(timeIntervalSince1970: 200)
+            )
+        )
+
+        XCTAssertEqual(result.momentCount, 1)
+        XCTAssertEqual(result.assetCount, 0)
+        let markdown = try String(contentsOf: result.fileURL, encoding: .utf8)
+        XCTAssertTrue(markdown.contains("## 只导文字"))
+        XCTAssertFalse(markdown.contains("![照片"))
+        XCTAssertFalse(
+            FileManager.default.fileExists(
+                atPath: result.packageDirectoryURL.appendingPathComponent("assets").path
+            )
+        )
+    }
+
+    func testExportCancellationLeavesNoPackage() async throws {
+        let service = ExportService(
+            snapshotProvider: CancellationExportSnapshotProvider(),
+            outputRootURL: outputRootURL,
+            markdownRenderer: MarkdownExportRenderer(timeZone: TimeZone(secondsFromGMT: 0)!)
+        )
+
+        do {
+            _ = try await service.export(
+                request: ExportRequest(
+                    scope: .all,
+                    format: .markdown,
+                    includePhotos: true,
+                    requestedAt: Date(timeIntervalSince1970: 200)
+                )
+            )
+            XCTFail("Expected cancellation to fail")
+        } catch is CancellationError {
+        }
+
+        let packages = try FileManager.default.contentsOfDirectory(
+            at: outputRootURL,
+            includingPropertiesForKeys: nil
+        )
+        XCTAssertTrue(packages.isEmpty)
+    }
+
+    func testFileWriterCleanOutputRootRemovesPreviousMoodmentsPackagesOnly() throws {
+        let writer = ExportFileWriter(outputRootURL: outputRootURL)
+        let stalePackage = outputRootURL.appendingPathComponent(
+            "Moodments-19700101-000000-stale",
+            isDirectory: true
+        )
+        let userFile = outputRootURL.appendingPathComponent("keep.txt")
+        try FileManager.default.createDirectory(
+            at: stalePackage,
+            withIntermediateDirectories: true
+        )
+        try Data("keep".utf8).write(to: userFile)
+
+        try writer.cleanOutputRoot()
+
+        XCTAssertFalse(FileManager.default.fileExists(atPath: stalePackage.path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: userFile.path))
+    }
+
     func testCanonicalSnapshotUsesTimelineTagAndImageOrder() async throws {
         let fixture = try makeCanonicalFixture()
         defer { fixture.cleanup() }
@@ -319,5 +402,11 @@ private struct CanonicalExportFixture {
 
     func cleanup() {
         try? FileManager.default.removeItem(at: assetDirectory)
+    }
+}
+
+private struct CancellationExportSnapshotProvider: ExportSnapshotProviding {
+    func makeSnapshot(request: ExportRequest) async throws -> ExportSnapshot {
+        throw CancellationError()
     }
 }
