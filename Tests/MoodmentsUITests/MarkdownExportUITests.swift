@@ -66,6 +66,25 @@ final class MarkdownExportUITests: XCTestCase {
         XCTAssertTrue(app.buttons["exportGenerateButton"].isEnabled)
     }
 
+    func testSettingsExportPageRetriesDateBoundsLoadFailure() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTestSeedImageMoment", "-uiTestExportDateBoundsFailOnce"]
+        app.launch()
+
+        openExportPage(app)
+
+        let failureState = app.otherElements["exportFailureState"]
+        XCTAssertTrue(failureState.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["exportFailureMessage"].label.contains("导出数据读取失败"))
+        XCTAssertFalse(app.staticTexts["exportValidationText"].exists)
+
+        app.buttons["exportRetryButton"].tap()
+
+        XCTAssertTrue(app.segmentedControls["exportScopePicker"].waitForExistence(timeout: 10))
+        XCTAssertFalse(app.otherElements["exportFailureState"].exists)
+        XCTAssertTrue(app.buttons["exportGenerateButton"].isEnabled)
+    }
+
     func testSettingsExportPageShowsFailureAndRetryForInvalidPDFImage() {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTestReset", "-uiTestExportForcePDFFailure"]

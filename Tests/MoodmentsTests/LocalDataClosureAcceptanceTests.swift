@@ -101,12 +101,12 @@ final class LocalDataClosureAcceptanceTests: XCTestCase {
             runtime: restoredRuntime,
             appVersion: "1.0.8"
         )
-        let momentCountBeforeExport = try await restoredRuntime.repository.totalMomentCount()
-        let tagCountBeforeExport = try await restoredRuntime.repository.totalTagCount()
-        let recoveryPointIDsBeforeExport = try await recoveryCoordinator.listRecoveryPoints()
-            .map(\.id)
         let syncStatusService = SyncStatusService(cloudKitEnabled: true)
-        let syncStatusBeforeExport = syncStatusService.status
+        let boundaryBeforeExport = try await Self.exportBoundarySnapshot(
+            runtime: restoredRuntime,
+            coordinator: recoveryCoordinator,
+            syncStatusService: syncStatusService
+        )
 
         let markdownResult = try await Self.export(
             format: .markdown,
@@ -116,12 +116,7 @@ final class LocalDataClosureAcceptanceTests: XCTestCase {
         )
         XCTAssertEqual(markdownResult.momentCount, 1)
         XCTAssertEqual(markdownResult.assetCount, 1)
-        let markdown = try String(contentsOf: markdownResult.fileURL, encoding: .utf8)
-        XCTAssertTrue(markdown.contains("## 恢复点活跃"))
-        XCTAssertTrue(markdown.contains("- 标签：#闭环"))
-        XCTAssertTrue(markdown.contains("![照片 1](assets/"))
-        XCTAssertFalse(markdown.contains("恢复前当前数据"))
-        XCTAssertFalse(markdown.contains("彻底删除候选"))
+        try Self.assertMarkdownContainsOnlyRestoredMoment(markdownResult)
 
         let pdfResult = try await Self.export(
             format: .pdf,
@@ -131,24 +126,14 @@ final class LocalDataClosureAcceptanceTests: XCTestCase {
         )
         XCTAssertEqual(pdfResult.momentCount, 1)
         XCTAssertEqual(pdfResult.assetCount, 1)
-        let pdfData = try Data(contentsOf: pdfResult.fileURL)
-        XCTAssertTrue(pdfData.starts(with: Data("%PDF".utf8)))
-        let provider = try XCTUnwrap(CGDataProvider(data: pdfData as CFData))
-        let document = try XCTUnwrap(CGPDFDocument(provider))
-        XCTAssertGreaterThanOrEqual(document.numberOfPages, 1)
-        let pdfText = try XCTUnwrap(PDFDocument(data: pdfData)?.string)
-        XCTAssertTrue(pdfText.contains("恢复点活跃"))
-        XCTAssertFalse(pdfText.contains("恢复前当前数据"))
-        XCTAssertFalse(pdfText.contains("彻底删除候选"))
+        try Self.assertPDFContainsOnlyRestoredMoment(pdfResult)
 
-        let momentCountAfterExport = try await restoredRuntime.repository.totalMomentCount()
-        let tagCountAfterExport = try await restoredRuntime.repository.totalTagCount()
-        let recoveryPointIDsAfterExport = try await recoveryCoordinator.listRecoveryPoints()
-            .map(\.id)
-        XCTAssertEqual(momentCountAfterExport, momentCountBeforeExport)
-        XCTAssertEqual(tagCountAfterExport, tagCountBeforeExport)
-        XCTAssertEqual(recoveryPointIDsAfterExport, recoveryPointIDsBeforeExport)
-        XCTAssertEqual(syncStatusService.status, syncStatusBeforeExport)
+        let boundaryAfterExport = try await Self.exportBoundarySnapshot(
+            runtime: restoredRuntime,
+            coordinator: recoveryCoordinator,
+            syncStatusService: syncStatusService
+        )
+        XCTAssertEqual(boundaryAfterExport, boundaryBeforeExport)
     }
 
     @MainActor
@@ -245,6 +230,43 @@ final class LocalDataClosureAcceptanceTests: XCTestCase {
         try await repository.fetchPage(offset: 0, limit: 10).map(\.title)
     }
 
+    private static func assertMarkdownContainsOnlyRestoredMoment(
+        _ result: ExportResult
+    ) throws {
+        let markdown = try String(contentsOf: result.fileURL, encoding: .utf8)
+        XCTAssertTrue(markdown.contains("## 恢复点活跃"))
+        XCTAssertTrue(markdown.contains("- 标签：#闭环"))
+        XCTAssertTrue(markdown.contains("![照片 1](assets/"))
+        XCTAssertFalse(markdown.contains("恢复前当前数据"))
+        XCTAssertFalse(markdown.contains("彻底删除候选"))
+    }
+
+    private static func assertPDFContainsOnlyRestoredMoment(_ result: ExportResult) throws {
+        let pdfData = try Data(contentsOf: result.fileURL)
+        XCTAssertTrue(pdfData.starts(with: Data("%PDF".utf8)))
+        let provider = try XCTUnwrap(CGDataProvider(data: pdfData as CFData))
+        let document = try XCTUnwrap(CGPDFDocument(provider))
+        XCTAssertGreaterThanOrEqual(document.numberOfPages, 1)
+        let pdfText = try XCTUnwrap(PDFDocument(data: pdfData)?.string)
+        XCTAssertTrue(pdfText.contains("恢复点活跃"))
+        XCTAssertFalse(pdfText.contains("恢复前当前数据"))
+        XCTAssertFalse(pdfText.contains("彻底删除候选"))
+    }
+
+    @MainActor
+    private static func exportBoundarySnapshot(
+        runtime: CanonicalLibraryRuntime,
+        coordinator: CanonicalRecoveryCoordinator,
+        syncStatusService: SyncStatusService
+    ) async throws -> ExportBoundarySnapshot {
+        ExportBoundarySnapshot(
+            momentCount: try await runtime.repository.totalMomentCount(),
+            tagCount: try await runtime.repository.totalTagCount(),
+            recoveryPointIDs: try await coordinator.listRecoveryPoints().map(\.id),
+            syncStatus: syncStatusService.status
+        )
+    }
+
     private static func makeJPEGData() throws -> Data {
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: 20, height: 14))
         let image = renderer.image { context in
@@ -259,6 +281,13 @@ final class LocalDataClosureAcceptanceTests: XCTestCase {
     private static func uuid(_ value: String) -> UUID {
         UUID(uuidString: value)!
     }
+}
+
+private struct ExportBoundarySnapshot: Equatable {
+    let momentCount: Int
+    let tagCount: Int
+    let recoveryPointIDs: [UUID]
+    let syncStatus: SyncStatus
 }
 
 private extension CanonicalBootRestoreResult {

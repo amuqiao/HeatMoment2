@@ -16,6 +16,9 @@ struct ExportView: View {
     @State private var isExporting = false
     @State private var exportAttemptID = 0
     @State private var exportTask: Task<Void, Never>?
+    #if DEBUG
+        @State private var didForceDateBoundsFailure = false
+    #endif
 
     var body: some View {
         TaskPageScrollView(accessibilityIdentifier: "exportScrollView") {
@@ -239,7 +242,7 @@ struct ExportView: View {
                     .foregroundStyle(theme.primaryText)
                     .accessibilityIdentifier("exportFailureMessage")
                 Button {
-                    exportSelectedFormat()
+                    retry(failure)
                 } label: {
                     Label("重试", systemImage: "arrow.clockwise")
                         .font(AppTypography.body.weight(.semibold))
@@ -276,7 +279,8 @@ struct ExportView: View {
             } catch {
                 exportFailure = ExportFailureState(
                     attemptID: attemptID,
-                    message: failureMessage(for: error, format: request.format)
+                    message: failureMessage(for: error, format: request.format),
+                    retryAction: .export
                 )
             }
         }
@@ -312,21 +316,17 @@ struct ExportView: View {
         )
     }
 
-    private func cancelExport() {
-        exportTask?.cancel()
-        exportTask = nil
-        isExporting = false
-    }
-
-    private func clearExportState() {
-        exportResult = nil
-        exportFailure = nil
-    }
-
     private func loadDateBoundsIfNeeded() async {
         guard !didLoadDateBounds else { return }
         didLoadDateBounds = true
         do {
+            #if DEBUG
+                if UITestSupport.wantsExportDateBoundsFailOnce,
+                   !didForceDateBoundsFailure {
+                    didForceDateBoundsFailure = true
+                    throw ExportDateBoundsLoadError()
+                }
+            #endif
             var bounds = try await canonicalService.repository.exportDateBounds()
             #if DEBUG
                 if bounds == nil, UITestSupport.wantsExportForcePDFFailure {
@@ -335,6 +335,7 @@ struct ExportView: View {
                 }
             #endif
             exportDateBounds = bounds
+            exportFailure = nil
             if let bounds {
                 startDate = Calendar.current.startOfDay(for: bounds.earliest)
                 endDate = Calendar.current.startOfDay(for: bounds.latest)
@@ -342,12 +343,42 @@ struct ExportView: View {
         } catch {
             exportFailure = ExportFailureState(
                 attemptID: exportAttemptID,
-                message: "导出数据读取失败，请重试。"
+                message: "导出数据读取失败，请重试。",
+                retryAction: .loadDateBounds
             )
         }
     }
 
-    private func shareURL(for result: ExportResult) -> URL {
+    private func reloadDateBounds() async {
+        didLoadDateBounds = false
+        exportDateBounds = nil
+        exportFailure = nil
+        await loadDateBoundsIfNeeded()
+    }
+}
+
+private extension ExportView {
+    func cancelExport() {
+        exportTask?.cancel()
+        exportTask = nil
+        isExporting = false
+    }
+
+    func retry(_ failure: ExportFailureState) {
+        switch failure.retryAction {
+        case .export:
+            exportSelectedFormat()
+        case .loadDateBounds:
+            Task { await reloadDateBounds() }
+        }
+    }
+
+    func clearExportState() {
+        exportResult = nil
+        exportFailure = nil
+    }
+
+    func shareURL(for result: ExportResult) -> URL {
         switch result.format {
         case .markdown:
             return result.packageDirectoryURL
@@ -356,7 +387,8 @@ struct ExportView: View {
         }
     }
 
-    private var validationMessage: String? {
+    var validationMessage: String? {
+        if exportFailure?.retryAction == .loadDateBounds { return nil }
         guard exportDateBounds != nil else {
             return "暂无可导出的时刻。"
         }
@@ -366,11 +398,11 @@ struct ExportView: View {
         return nil
     }
 
-    private var dateRangeIsValid: Bool {
+    var dateRangeIsValid: Bool {
         Calendar.current.startOfDay(for: startDate) <= Calendar.current.startOfDay(for: endDate)
     }
 
-    private func failureMessage(for error: Error, format: ExportFormat) -> String {
+    func failureMessage(for error: Error, format: ExportFormat) -> String {
         if case ExportError.emptyExport = error {
             return "所选范围内没有可导出的时刻，请调整日期范围后重试。"
         }
@@ -384,6 +416,12 @@ struct ExportView: View {
 private struct ExportFailureState: Equatable {
     let attemptID: Int
     let message: String
+    let retryAction: ExportFailureRetryAction
+}
+
+private enum ExportFailureRetryAction: Equatable {
+    case export
+    case loadDateBounds
 }
 
 private enum ExportScopeMode: String, CaseIterable {
@@ -401,6 +439,8 @@ private enum ExportScopeMode: String, CaseIterable {
 }
 
 #if DEBUG
+    private struct ExportDateBoundsLoadError: Error {}
+
     private struct FailingPDFExportSnapshotProvider: ExportSnapshotProviding {
         func makeSnapshot(request: ExportRequest) async throws -> ExportSnapshot {
             ExportSnapshot(
