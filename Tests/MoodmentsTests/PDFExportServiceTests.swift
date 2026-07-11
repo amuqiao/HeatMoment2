@@ -1,15 +1,12 @@
 import CoreGraphics
-import SwiftData
 import UIKit
 import XCTest
 @testable import Moodments
 
 final class PDFExportServiceTests: XCTestCase {
-    private var container: ModelContainer!
     private var outputRootURL: URL!
 
     override func setUpWithError() throws {
-        container = try ModelContainerConfig.makeInMemoryContainer()
         outputRootURL = FileManager.default.temporaryDirectory.appendingPathComponent(
             "PDFExportServiceTests-\(UUID().uuidString)",
             isDirectory: true
@@ -25,13 +22,13 @@ final class PDFExportServiceTests: XCTestCase {
             try FileManager.default.removeItem(at: outputRootURL)
         }
         outputRootURL = nil
-        container = nil
     }
 
     func testExportAllWritesReadablePDF() async throws {
-        let momentRepository = MomentRepository(modelContainer: container)
+        let fixture = try makeCanonicalFixture()
+        defer { fixture.cleanup() }
         let imageData = try Self.makeJPEGData()
-        try await momentRepository.createMoment(
+        try await fixture.runtime.repository.createMoment(
             title: "PDF 时刻",
             bodyText: "这条记录会进入 PDF。",
             occurredAt: Date(timeIntervalSince1970: 3_600),
@@ -39,7 +36,7 @@ final class PDFExportServiceTests: XCTestCase {
             imageDatas: [imageData]
         )
         let service = ExportService(
-            modelContainer: container,
+            snapshotProvider: CanonicalExportSnapshotStore(repository: fixture.runtime.repository),
             outputRootURL: outputRootURL,
             pdfRenderer: PDFExportRenderer(timeZone: TimeZone(secondsFromGMT: 0)!)
         )
@@ -61,8 +58,9 @@ final class PDFExportServiceTests: XCTestCase {
     }
 
     func testExportAllCleansPartialPackageAfterPDFRenderFailure() async throws {
-        let momentRepository = MomentRepository(modelContainer: container)
-        try await momentRepository.createMoment(
+        let fixture = try makeCanonicalFixture()
+        defer { fixture.cleanup() }
+        try await fixture.runtime.repository.createMoment(
             title: "坏图",
             bodyText: "",
             occurredAt: Date(timeIntervalSince1970: 3_600),
@@ -70,7 +68,7 @@ final class PDFExportServiceTests: XCTestCase {
             imageDatas: [Data([0x00, 0x01])]
         )
         let service = ExportService(
-            modelContainer: container,
+            snapshotProvider: CanonicalExportSnapshotStore(repository: fixture.runtime.repository),
             outputRootURL: outputRootURL,
             pdfRenderer: PDFExportRenderer(timeZone: TimeZone(secondsFromGMT: 0)!)
         )
@@ -93,6 +91,28 @@ final class PDFExportServiceTests: XCTestCase {
             context.fill(CGRect(x: 4, y: 4, width: 16, height: 8))
         }
         return try XCTUnwrap(image.jpegData(compressionQuality: 0.9))
+    }
+
+    private func makeCanonicalFixture() throws -> CanonicalExportFixture {
+        let assetDirectory = FileManager.default.temporaryDirectory.appendingPathComponent(
+            "PDFExportCanonicalAssets-\(UUID().uuidString)",
+            isDirectory: true
+        )
+        return CanonicalExportFixture(
+            runtime: try CanonicalLibraryRuntime.makeInMemoryForTests(
+                assetDirectoryURL: assetDirectory
+            ),
+            assetDirectory: assetDirectory
+        )
+    }
+}
+
+private struct CanonicalExportFixture {
+    let runtime: CanonicalLibraryRuntime
+    let assetDirectory: URL
+
+    func cleanup() {
+        try? FileManager.default.removeItem(at: assetDirectory)
     }
 }
 

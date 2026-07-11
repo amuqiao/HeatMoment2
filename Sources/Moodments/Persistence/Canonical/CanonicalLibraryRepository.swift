@@ -218,6 +218,30 @@ extension CanonicalLibraryRepository {
         try fetchPage(filter: nil, offset: offset, limit: limit)
     }
 
+    func exportPayload() throws -> [CanonicalMomentExportPayload] {
+        try store.read { db in
+            let rows = try Row.fetchAll(
+                db,
+                sql: """
+                    SELECT * FROM moment_record
+                    WHERE lifecycle_state = ?
+                    ORDER BY occurred_at DESC
+                    """,
+                arguments: [CanonicalMomentLifecycleState.active.rawValue]
+            )
+            return try rows.map { row in
+                let record = try makeMomentRecord(row: row, db: db)
+                let tagNamesByID = try tagNamesByID(ids: record.tagIDs, db: db)
+                let imageDatas = try orderedImageData(momentID: record.id, db: db)
+                return CanonicalMomentExportPayload(
+                    record: record,
+                    tagNames: record.tagIDs.compactMap { tagNamesByID[$0] },
+                    imageDatas: imageDatas
+                )
+            }
+        }
+    }
+
     func fetchPage(
         filter: FilterCondition?,
         offset: Int = 0,

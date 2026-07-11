@@ -1,11 +1,27 @@
 import Foundation
 import SwiftData
 
+protocol ExportSnapshotProviding: Sendable {
+    func makeSnapshot(exportedAt: Date) async throws -> ExportSnapshot
+}
+
 struct ExportService {
-    private let modelContainer: ModelContainer
+    private let snapshotProvider: any ExportSnapshotProviding
     private let outputRootURL: URL?
     private let markdownRenderer: MarkdownExportRenderer
     private let pdfRenderer: PDFExportRenderer
+
+    init(
+        snapshotProvider: any ExportSnapshotProviding,
+        outputRootURL: URL? = nil,
+        markdownRenderer: MarkdownExportRenderer = MarkdownExportRenderer(),
+        pdfRenderer: PDFExportRenderer = PDFExportRenderer()
+    ) {
+        self.snapshotProvider = snapshotProvider
+        self.outputRootURL = outputRootURL
+        self.markdownRenderer = markdownRenderer
+        self.pdfRenderer = pdfRenderer
+    }
 
     init(
         modelContainer: ModelContainer,
@@ -13,15 +29,16 @@ struct ExportService {
         markdownRenderer: MarkdownExportRenderer = MarkdownExportRenderer(),
         pdfRenderer: PDFExportRenderer = PDFExportRenderer()
     ) {
-        self.modelContainer = modelContainer
-        self.outputRootURL = outputRootURL
-        self.markdownRenderer = markdownRenderer
-        self.pdfRenderer = pdfRenderer
+        self.init(
+            snapshotProvider: SwiftDataExportSnapshotStore(modelContainer: modelContainer),
+            outputRootURL: outputRootURL,
+            markdownRenderer: markdownRenderer,
+            pdfRenderer: pdfRenderer
+        )
     }
 
     func exportAll(format: ExportFormat, now: Date = .now) async throws -> ExportResult {
-        let store = SwiftDataExportSnapshotStore(modelContainer: modelContainer)
-        let snapshot = try await store.makeSnapshot(exportedAt: now)
+        let snapshot = try await snapshotProvider.makeSnapshot(exportedAt: now)
         try Task.checkCancellation()
         let outputRoot = outputRootURL ?? Self.defaultOutputRootURL(format: format)
         let markdownRenderer = markdownRenderer
@@ -60,8 +77,8 @@ struct ExportService {
 }
 
 @ModelActor
-actor SwiftDataExportSnapshotStore {
-    func makeSnapshot(exportedAt: Date) throws -> ExportSnapshot {
+actor SwiftDataExportSnapshotStore: ExportSnapshotProviding {
+    func makeSnapshot(exportedAt: Date) async throws -> ExportSnapshot {
         let descriptor = FetchDescriptor<Moment>(
             predicate: #Predicate { $0.deletedFlag == false },
             sortBy: [SortDescriptor(\.occurredAt, order: .reverse)]
@@ -90,6 +107,34 @@ actor SwiftDataExportSnapshotStore {
         images
             .sorted { $0.sortIndex < $1.sortIndex }
             .map { ExportAsset(id: $0.id, data: $0.imageData) }
+    }
+}
+
+actor CanonicalExportSnapshotStore: ExportSnapshotProviding {
+    private let repository: CanonicalLibraryRepository
+
+    init(repository: CanonicalLibraryRepository) {
+        self.repository = repository
+    }
+
+    func makeSnapshot(exportedAt: Date) async throws -> ExportSnapshot {
+        let payloads = try await repository.exportPayload()
+        var moments: [ExportMoment] = []
+        moments.reserveCapacity(payloads.count)
+        for payload in payloads {
+            let assets = payload.imageDatas.map { ExportAsset(id: $0.id, data: $0.data) }
+            let moment = ExportMoment(
+                id: payload.record.id,
+                title: payload.record.title,
+                bodyText: payload.record.bodyText,
+                occurredAt: payload.record.occurredAt,
+                mood: payload.record.mood,
+                tagNames: payload.tagNames,
+                assets: assets
+            )
+            moments.append(moment)
+        }
+        return ExportSnapshot(exportedAt: exportedAt, moments: moments)
     }
 }
 

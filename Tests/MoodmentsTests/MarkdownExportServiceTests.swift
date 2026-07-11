@@ -1,13 +1,10 @@
-import SwiftData
 import XCTest
 @testable import Moodments
 
 final class MarkdownExportServiceTests: XCTestCase {
-    private var container: ModelContainer!
     private var outputRootURL: URL!
 
     override func setUpWithError() throws {
-        container = try ModelContainerConfig.makeInMemoryContainer()
         outputRootURL = FileManager.default.temporaryDirectory.appendingPathComponent(
             "MarkdownExportServiceTests-\(UUID().uuidString)",
             isDirectory: true
@@ -23,27 +20,26 @@ final class MarkdownExportServiceTests: XCTestCase {
             try FileManager.default.removeItem(at: outputRootURL)
         }
         outputRootURL = nil
-        container = nil
     }
 
     func testExportAllWritesMarkdownAndRelativeAssets() async throws {
-        let tagRepository = TagRepository(modelContainer: container)
-        let momentRepository = MomentRepository(modelContainer: container)
-        let tagID = try await tagRepository.createTag(name: "旅行")
+        let fixture = try makeCanonicalFixture()
+        defer { fixture.cleanup() }
+        let tag = try await fixture.runtime.repository.createOrReuseTag(name: "旅行")
         let jpegData = Data([0xFF, 0xD8, 0xFF, 0x01])
         let occurredAt = Date(timeIntervalSince1970: 3_600)
 
-        let momentID = try await momentRepository.createMoment(
+        let momentID = try await fixture.runtime.repository.createMoment(
             title: "海边",
             bodyText: "今天看到了海。",
             occurredAt: occurredAt,
             mood: .happy,
-            tagIDs: [tagID],
+            tagIDs: [tag.id],
             imageDatas: [jpegData]
         )
 
         let service = ExportService(
-            modelContainer: container,
+            snapshotProvider: CanonicalExportSnapshotStore(repository: fixture.runtime.repository),
             outputRootURL: outputRootURL,
             markdownRenderer: MarkdownExportRenderer(timeZone: TimeZone(secondsFromGMT: 0)!)
         )
@@ -73,23 +69,24 @@ final class MarkdownExportServiceTests: XCTestCase {
     }
 
     func testExportAllExcludesSoftDeletedMoments() async throws {
-        let momentRepository = MomentRepository(modelContainer: container)
-        let activeID = try await momentRepository.createMoment(
+        let fixture = try makeCanonicalFixture()
+        defer { fixture.cleanup() }
+        let activeID = try await fixture.runtime.repository.createMoment(
             title: "保留",
             bodyText: "",
             occurredAt: Date(timeIntervalSince1970: 200),
             mood: .normal
         )
-        let deletedID = try await momentRepository.createMoment(
+        let deletedID = try await fixture.runtime.repository.createMoment(
             title: "不导出",
             bodyText: "",
             occurredAt: Date(timeIntervalSince1970: 300),
             mood: .sad
         )
-        try await momentRepository.softDelete(id: deletedID)
+        try await fixture.runtime.repository.softDeleteMoment(id: deletedID)
 
         let service = ExportService(
-            modelContainer: container,
+            snapshotProvider: CanonicalExportSnapshotStore(repository: fixture.runtime.repository),
             outputRootURL: outputRootURL,
             markdownRenderer: MarkdownExportRenderer(timeZone: TimeZone(secondsFromGMT: 0)!)
         )
@@ -103,8 +100,36 @@ final class MarkdownExportServiceTests: XCTestCase {
         XCTAssertTrue(markdown.contains("## 保留"))
         XCTAssertFalse(markdown.contains("不导出"))
 
-        let page = try await momentRepository.fetchPage(offset: 0, limit: 10)
+        let page = try await fixture.runtime.repository.fetchPage(offset: 0, limit: 10)
         XCTAssertEqual(page.map(\.id), [activeID])
+    }
+
+    func testCanonicalSnapshotUsesTimelineTagAndImageOrder() async throws {
+        let fixture = try makeCanonicalFixture()
+        defer { fixture.cleanup() }
+        let firstTag = try await fixture.runtime.repository.createOrReuseTag(name: "先创建")
+        let secondTag = try await fixture.runtime.repository.createOrReuseTag(name: "后创建")
+        let olderID = try await fixture.runtime.repository.createMoment(
+            title: "较早",
+            bodyText: "",
+            occurredAt: Date(timeIntervalSince1970: 100),
+            mood: .normal
+        )
+        let newerID = try await fixture.runtime.repository.createMoment(
+            title: "较晚",
+            bodyText: "",
+            occurredAt: Date(timeIntervalSince1970: 200),
+            mood: .happy,
+            tagIDs: [secondTag.id, firstTag.id],
+            imageDatas: [Data([0x11]), Data([0x22])]
+        )
+        let provider = CanonicalExportSnapshotStore(repository: fixture.runtime.repository)
+
+        let snapshot = try await provider.makeSnapshot(exportedAt: Date(timeIntervalSince1970: 300))
+
+        XCTAssertEqual(snapshot.moments.map(\.id), [newerID, olderID])
+        XCTAssertEqual(snapshot.moments.first?.tagNames, ["后创建", "先创建"])
+        XCTAssertEqual(snapshot.moments.first?.assets.map(\.data), [Data([0x11]), Data([0x22])])
     }
 
     func testFileWriterCleansPartialPackageAfterWriteFailure() throws {
@@ -130,5 +155,27 @@ final class MarkdownExportServiceTests: XCTestCase {
             includingPropertiesForKeys: nil
         )
         XCTAssertTrue(packages.isEmpty)
+    }
+
+    private func makeCanonicalFixture() throws -> CanonicalExportFixture {
+        let assetDirectory = FileManager.default.temporaryDirectory.appendingPathComponent(
+            "MarkdownExportCanonicalAssets-\(UUID().uuidString)",
+            isDirectory: true
+        )
+        return CanonicalExportFixture(
+            runtime: try CanonicalLibraryRuntime.makeInMemoryForTests(
+                assetDirectoryURL: assetDirectory
+            ),
+            assetDirectory: assetDirectory
+        )
+    }
+}
+
+private struct CanonicalExportFixture {
+    let runtime: CanonicalLibraryRuntime
+    let assetDirectory: URL
+
+    func cleanup() {
+        try? FileManager.default.removeItem(at: assetDirectory)
     }
 }

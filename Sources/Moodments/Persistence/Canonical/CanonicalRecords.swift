@@ -36,6 +36,12 @@ struct CanonicalMomentEditingPayload: Sendable, Equatable {
     let imageDatas: [Data]
 }
 
+struct CanonicalMomentExportPayload: Sendable, Equatable {
+    let record: CanonicalMomentRecord
+    let tagNames: [String]
+    let imageDatas: [CanonicalMomentImageData]
+}
+
 struct CanonicalMomentImageData: Sendable, Identifiable, Equatable {
     let id: UUID
     let data: Data

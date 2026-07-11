@@ -1,8 +1,7 @@
-import SwiftData
 import SwiftUI
 
 struct ExportView: View {
-    @Environment(\.modelContext) private var modelContext
+    @Environment(CanonicalLibraryService.self) private var canonicalService
     @Environment(ThemeManager.self) private var theme
     @Environment(ErrorPresenter.self) private var errorPresenter
 
@@ -147,7 +146,11 @@ struct ExportView: View {
                 exportTask = nil
             }
             do {
-                let service = ExportService(modelContainer: modelContext.container)
+                let service = ExportService(
+                    snapshotProvider: CanonicalExportSnapshotStore(
+                        repository: canonicalService.repository
+                    )
+                )
                 exportResult = try await service.exportAll(format: format)
             } catch is CancellationError {
                 exportResult = nil
@@ -180,6 +183,5 @@ struct ExportView: View {
     ExportView()
         .environment(ThemeManager())
         .environment(ErrorPresenter())
-        // swiftlint:disable:next force_try
-        .modelContainer(try! ModelContainerConfig.makeInMemoryContainer())
+        .environment(CanonicalLibraryService.makeInMemoryForPreview())
 }

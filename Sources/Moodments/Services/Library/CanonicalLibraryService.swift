@@ -24,7 +24,7 @@ struct CanonicalMomentPreviewData: Sendable, Equatable {
 /// Canonical store 的主流程 UI facade。
 ///
 /// SwiftUI 层只消费这里返回的值类型和 `changeToken`，不直接持有 GRDB row、SwiftData `@Model`
-/// 或 actor 内部状态。恢复点和导出仍由后续阶段切源，本类型只覆盖 M2 主流程读写。
+/// 或 actor 内部状态。恢复点和导出由独立应用服务组合 canonical repository 能力。
 @MainActor
 @Observable
 final class CanonicalLibraryService {

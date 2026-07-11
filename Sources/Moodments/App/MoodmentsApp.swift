@@ -2,7 +2,7 @@ import SwiftData
 import SwiftUI
 
 /// App 入口：装配 canonical runtime（生产主流程读写权威）和过渡 SwiftData `ModelContainer`
-/// （仅供 M3/M4 前的恢复点、导出和受控导入使用）、集中路由 `AppRouter`、
+/// （仅供受控导入和过渡测试种子使用）、集中路由 `AppRouter`、
 /// 主题 `ThemeManager`、订阅 `SubscriptionService`，注入 Environment 供全树消费
 /// （见 08-architecture.md §0/§3/§4）。
 @main
