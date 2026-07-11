@@ -266,12 +266,12 @@ active
 
 导出是只读副本，不承担备份/恢复语义。
 
-- 导出从一致性快照读取，不能直接拼活跃 UI 查询结果。
-- Markdown：按全部、当前主页筛选或日期范围生成 `.md`，图片复制到相邻 `assets/` 并使用相对链接。
-- PDF：按同一查询生成阅读文档，照片可嵌入，长文分页稳定。
-- `export_job` 状态：`queued / rendering / writing / completed / cancelled / failed`。
+- M0 基础闭环：导出从 canonical 一致性快照读取全部活跃 Moment，不能直接拼活跃 UI 查询结果。
+- M0 基础闭环：Markdown 生成 `.md`，图片复制到相邻 `assets/` 并使用相对链接。
+- M0 基础闭环：PDF 生成阅读文档，照片可嵌入，长文分页稳定。
+- 后续增强：当前主页筛选、日期范围、目标位置、复杂取消流、持久 `export_job` 状态和 export asset pin。
 - 导出文件不回写 canonical store，不进入 iCloud，不创建恢复点。
-- 用户取消、目标冲突、写权限失败、磁盘不足或崩溃后，canonical store 不变，临时文件可清理。
+- 失败后 canonical store 不变，未完成导出包会清理；M0 页面提供失败态和重试入口。
 
 ### iCloud 同步
 
@@ -359,9 +359,9 @@ Apple ID / iCloud 边界必须可见：
 ### 导出详情页
 
 - 提供 Markdown / PDF 格式选择。
-- 提供范围选择：全部、当前主页筛选、日期范围；选择当前主页筛选时显示只读筛选摘要。
-- 提供是否包含照片。
-- 提供目标位置选择、进度、取消、失败重试和成功状态。
+- M0 固定导出全部活跃 Moment；范围选择、当前主页筛选摘要和日期范围属于后续增强。
+- M0 固定包含照片；照片选项属于后续增强。
+- M0 提供生成中、成功、失败和重试状态；目标位置选择、复杂取消流和持久任务进度属于后续增强。
 - 明确说明“导出会生成副本，不会改变当前数据，也不会影响 iCloud 同步。”
 
 ## Remaining Gaps
@@ -372,7 +372,7 @@ Apple ID / iCloud 边界必须可见：
 - canonical repository parity、主 UI runtime/query layer cutover、recovery cutover、export cutover 和最终 SwiftData production removal 已落地并进入 current。
 - 旧 SwiftData 过渡版恢复点只覆盖 `Moodments.store*`，不覆盖 `Application Support/Canonical/`；M3 后它不再作为生产恢复路径，M5 后只作为历史测试面保留。
 - 恢复点触发器、生产恢复执行、设置页恢复点 UI 和普通生产启动 gate 已接入 canonical。当前仍没有持久 `restore_job` 表；这不是 M4 导出闭环前置条件，如需补齐应作为后续恢复增强计划单独评估。
-- Markdown / PDF 导出已完成 canonical source cutover；范围选择、取消/失败重试、持久 `export_job` 和 canonical export pin 属于后续增强，不是 M5 前置条件。
+- Markdown / PDF 导出已完成 canonical source cutover 和基础失败重试入口；范围选择、复杂取消流、持久 `export_job` 和 canonical export pin 属于后续增强。
 - 需要另建 iCloud 独立计划，覆盖 custom zone 同步、outbox、checkpoint、冲突记录、用户可见状态和真机矩阵。
 
 ## Planned Work
@@ -442,14 +442,17 @@ Apple ID / iCloud 边界必须可见：
 
 ### 5. Export
 
-- Markdown / PDF 导出 M1 已落地：设置详情页可导出全部活跃 Moment，稳定文件名、Markdown 文档、相对图片链接、PDF 分页和图片嵌入已覆盖；范围筛选仍未实现。
-- 先把导出数据源从 SwiftData snapshot 切到 canonical snapshot：active moments、tag names、asset links 和原图 bytes 都从 canonical store / `FileAssetStore` 读取。
-- 补齐 Markdown 范围选择：全部、当前主页筛选、日期范围。
-- 补齐导出详情页：范围、照片选项、目标位置、进度、取消、失败重试。
-- 如果选择“当前主页筛选”，详情页必须显示只读筛选摘要，避免设置任务空间里的“当前”产生歧义。
-- 导出任务从一致性快照读取，不阻塞 UI，不改变 canonical store。
+已关闭，as-built 真相见 `docs/current/`：
 
-验收：Markdown / PDF 导出不再读取 SwiftData；导出成功、取消、失败、重试、目标冲突和临时文件清理都有可测行为；导出文件不是备份，也不参与 iCloud。
+- Markdown / PDF 导出基础闭环已落地：设置详情页可导出全部活跃 Moment，稳定文件名、Markdown 文档、相对图片链接、PDF 分页和图片嵌入已覆盖。
+- 导出数据源已从 SwiftData snapshot 切到 canonical snapshot：active moments、tag names、asset links 和原图 bytes 都从 canonical store / `FileAssetStore` 读取。
+- 导出任务从一致性快照读取，不阻塞 UI，不改变 canonical store；生成中禁用重复点击。
+- 成功后 Markdown 分享导出目录、PDF 分享单个文件；失败时在详情页展示失败状态和重试入口，坏图片 PDF 渲染失败不会被静默跳过。
+- 导出文件是只读副本，不是备份，不参与恢复点或 iCloud 同步。
+
+后续增强不进入本地主线收口：全部/当前主页筛选/日期范围、照片选项、目标位置选择、复杂取消流、目标冲突策略、持久 `export_job`、export asset pin。
+
+验收证据：`MarkdownExportServiceTests`、`PDFExportServiceTests`、`MarkdownExportRendererTests`、`PDFExportRendererTests`、`MarkdownExportUITests`。
 
 ### 6. iCloud Sync Follow-up Plan
 
@@ -478,7 +481,7 @@ Apple ID / iCloud 边界必须可见：
 | Asset pipeline | hash、引用、pin、GC、恢复点/导出/staging 期间不误删。 |
 | 自动恢复点 | 最多 3 个、按时间淘汰、不可删除、列表可见、恢复预览、恢复失败不破坏现库。 |
 | Restore | staging 校验、atomic replace、崩溃中断、`syncEpoch` 重建、旧 outbox/token 作废。 |
-| Export | Markdown 相对链接、PDF 分页、取消、失败重试、目标冲突、临时文件清理。 |
+| Export | Markdown 相对链接、PDF 分页、图片嵌入、失败态、重试入口、临时文件清理。范围选择、目标冲突和持久任务属于后续增强。 |
 | Settings IA | 独立数据分组、iCloud/自动恢复点/导出详情页、面容解锁根页开关、无 App 登录入口。 |
 | iCloud follow-up | 独立计划覆盖未登录、关闭 iCloud、单设备、两设备、Apple ID 变化、离线后恢复、图片同步、删除传播、冲突记录。 |
 
@@ -493,5 +496,5 @@ Apple ID / iCloud 边界必须可见：
 - 设置页让用户清楚区分本机保存、iCloud 同步、自动恢复点和导出；不出现 App 登录入口；不把 iCloud 写成云端备份。
 - App 被杀、弱网、重复同步、CloudKit 暂不可用、Apple ID 变化、资产缺失、恢复点损坏、导出失败时都有确定行为，不靠内存状态或静默吞错。
 - 自动恢复点最多 3 个、用户不可删除、可查看并恢复；恢复前创建安全恢复点，恢复失败不破坏现有 library。
-- Markdown/PDF 导出只读；M1 已做到成功/失败可测且不改变当前 store，后续仍需补齐取消、失败重试和 canonical `export_job` 闭环。
+- Markdown/PDF 导出只读；基础闭环已做到成功/失败/重试入口可测且不改变当前 store。范围选择、复杂取消流和 canonical `export_job` 属于后续增强，不阻塞本地主线收口。
 - iCloud 已拆为独立后续计划，且该计划不改变本计划已验收的本地权威、自动恢复点和导出语义。

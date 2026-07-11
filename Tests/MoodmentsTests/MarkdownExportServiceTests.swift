@@ -104,6 +104,28 @@ final class MarkdownExportServiceTests: XCTestCase {
         XCTAssertEqual(page.map(\.id), [activeID])
     }
 
+    func testExportAllWritesEmptyMarkdownPackage() async throws {
+        let fixture = try makeCanonicalFixture()
+        defer { fixture.cleanup() }
+        let service = ExportService(
+            snapshotProvider: CanonicalExportSnapshotStore(repository: fixture.runtime.repository),
+            outputRootURL: outputRootURL,
+            markdownRenderer: MarkdownExportRenderer(timeZone: TimeZone(secondsFromGMT: 0)!)
+        )
+
+        let result = try await service.exportAll(
+            format: .markdown,
+            now: Date(timeIntervalSince1970: 7_200)
+        )
+
+        XCTAssertEqual(result.momentCount, 0)
+        XCTAssertEqual(result.assetCount, 0)
+        XCTAssertEqual(result.fileName, "Moodments-19700101-020000.md")
+        let markdown = try String(contentsOf: result.fileURL, encoding: .utf8)
+        XCTAssertTrue(markdown.contains("- 时刻数量：0"))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: result.packageDirectoryURL.path))
+    }
+
     func testCanonicalSnapshotUsesTimelineTagAndImageOrder() async throws {
         let fixture = try makeCanonicalFixture()
         defer { fixture.cleanup() }

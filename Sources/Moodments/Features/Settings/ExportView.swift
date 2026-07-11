@@ -3,11 +3,12 @@ import SwiftUI
 struct ExportView: View {
     @Environment(CanonicalLibraryService.self) private var canonicalService
     @Environment(ThemeManager.self) private var theme
-    @Environment(ErrorPresenter.self) private var errorPresenter
 
     @State private var selectedFormat: ExportFormat = .markdown
     @State private var exportResult: ExportResult?
+    @State private var exportFailure: ExportFailureState?
     @State private var isExporting = false
+    @State private var exportAttemptID = 0
     @State private var exportTask: Task<Void, Never>?
 
     var body: some View {
@@ -18,12 +19,15 @@ struct ExportView: View {
             if let exportResult {
                 resultSection(exportResult)
             }
+            if let exportFailure {
+                failureSection(exportFailure)
+            }
         }
         .settingsDetailNavigationChrome("导出")
         .themedTaskContainer(theme)
-        .userFacingErrorAlert(errorPresenter)
         .onChange(of: selectedFormat) { _, _ in
             exportResult = nil
+            exportFailure = nil
         }
         .onDisappear {
             cancelExport()
@@ -134,11 +138,38 @@ struct ExportView: View {
         }
     }
 
+    private func failureSection(_ failure: ExportFailureState) -> some View {
+        TaskSurfaceSection(title: "导出失败", accessibilityIdentifier: "exportFailureState") {
+            VStack(alignment: .leading, spacing: 12) {
+                Text(failure.message)
+                    .font(AppTypography.body)
+                    .foregroundStyle(theme.primaryText)
+                    .accessibilityIdentifier("exportFailureMessage")
+                Button {
+                    exportSelectedFormat()
+                } label: {
+                    Label("重试", systemImage: "arrow.clockwise")
+                        .font(AppTypography.body.weight(.semibold))
+                        .foregroundStyle(theme.accent)
+                }
+                .buttonStyle(.plain)
+                .disabled(isExporting)
+                .accessibilityIdentifier("exportRetryButton")
+            }
+            .padding(.horizontal, TaskSurfaceMetrics.rowHorizontalPadding)
+            .padding(.vertical, 12)
+        }
+        .accessibilityValue("\(failure.attemptID)")
+    }
+
     private func exportSelectedFormat() {
         guard !isExporting else { return }
         exportTask?.cancel()
         isExporting = true
         exportResult = nil
+        exportFailure = nil
+        exportAttemptID += 1
+        let attemptID = exportAttemptID
         let format = selectedFormat
         exportTask = Task {
             defer {
@@ -146,21 +177,30 @@ struct ExportView: View {
                 exportTask = nil
             }
             do {
-                let service = ExportService(
-                    snapshotProvider: CanonicalExportSnapshotStore(
-                        repository: canonicalService.repository
-                    )
-                )
+                let service = makeExportService(format: format)
                 exportResult = try await service.exportAll(format: format)
             } catch is CancellationError {
                 exportResult = nil
             } catch {
-                errorPresenter.report(
-                    message: "\(format.displayName) 导出失败，请稍后重试。",
-                    underlying: error
+                exportFailure = ExportFailureState(
+                    attemptID: attemptID,
+                    message: "\(format.displayName) 导出失败，请重试。"
                 )
             }
         }
+    }
+
+    private func makeExportService(format: ExportFormat) -> ExportService {
+        #if DEBUG
+            if format == .pdf, UITestSupport.wantsExportForcePDFFailure {
+                return ExportService(snapshotProvider: FailingPDFExportSnapshotProvider())
+            }
+        #endif
+        return ExportService(
+            snapshotProvider: CanonicalExportSnapshotStore(
+                repository: canonicalService.repository
+            )
+        )
     }
 
     private func cancelExport() {
@@ -179,9 +219,55 @@ struct ExportView: View {
     }
 }
 
+private struct ExportFailureState: Equatable {
+    let attemptID: Int
+    let message: String
+}
+
+#if DEBUG
+    private struct FailingPDFExportSnapshotProvider: ExportSnapshotProviding {
+        func makeSnapshot(exportedAt: Date) async throws -> ExportSnapshot {
+            ExportSnapshot(
+                exportedAt: exportedAt,
+                moments: [
+                    ExportMoment(
+                        id: UUID(
+                            uuid: (
+                                0x11, 0x11, 0x11, 0x11,
+                                0x11, 0x11,
+                                0x11, 0x11,
+                                0x11, 0x11,
+                                0x11, 0x11, 0x11, 0x11, 0x11, 0x11
+                            )
+                        ),
+                        title: "坏图导出测试",
+                        bodyText: "用于验证 PDF 导出失败态和重试入口。",
+                        occurredAt: Date(timeIntervalSince1970: 3_600),
+                        mood: .normal,
+                        tagNames: [],
+                        assets: [
+                            ExportAsset(
+                                id: UUID(
+                                    uuid: (
+                                        0x22, 0x22, 0x22, 0x22,
+                                        0x22, 0x22,
+                                        0x22, 0x22,
+                                        0x22, 0x22,
+                                        0x22, 0x22, 0x22, 0x22, 0x22, 0x22
+                                    )
+                                ),
+                                data: Data([0x00, 0x01])
+                            )
+                        ]
+                    )
+                ]
+            )
+        }
+    }
+#endif
+
 #Preview {
     ExportView()
         .environment(ThemeManager())
-        .environment(ErrorPresenter())
         .environment(CanonicalLibraryService.makeInMemoryForPreview())
 }

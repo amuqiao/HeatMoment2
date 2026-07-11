@@ -46,6 +46,35 @@ final class MarkdownExportUITests: XCTestCase {
         XCTAssertTrue(app.buttons["exportShareLink"].exists)
     }
 
+    func testSettingsExportPageShowsFailureAndRetryForInvalidPDFImage() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTestReset", "-uiTestExportForcePDFFailure"]
+        app.launch()
+
+        openExportPage(app)
+
+        let formatPicker = app.segmentedControls["exportFormatPicker"]
+        XCTAssertTrue(formatPicker.waitForExistence(timeout: 5))
+        formatPicker.buttons["PDF"].tap()
+
+        let generateButton = app.buttons["exportGenerateButton"]
+        XCTAssertTrue(generateButton.waitForExistence(timeout: 5))
+        generateButton.tap()
+
+        let failureState = app.otherElements["exportFailureState"]
+        XCTAssertTrue(failureState.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["exportFailureMessage"].label.contains("PDF 导出失败"))
+        XCTAssertTrue(app.buttons["exportRetryButton"].exists)
+        XCTAssertFalse(app.otherElements["exportSuccessState"].exists)
+        let firstAttemptValue = failureState.value as? String ?? ""
+
+        app.buttons["exportRetryButton"].tap()
+        XCTAssertTrue(
+            waitForFailureRetry(failureState, previousValue: firstAttemptValue, timeout: 5)
+        )
+        XCTAssertTrue(failureState.waitForExistence(timeout: 10))
+    }
+
     private func openExportPage(_ app: XCUIApplication) {
         let settingsButton = app.buttons["设置"]
         XCTAssertTrue(settingsButton.waitForExistence(timeout: 10))
@@ -56,5 +85,15 @@ final class MarkdownExportUITests: XCTestCase {
         exportRow.tap()
 
         XCTAssertTrue(app.navigationBars["导出"].waitForExistence(timeout: 5))
+    }
+
+    private func waitForFailureRetry(
+        _ element: XCUIElement,
+        previousValue: String,
+        timeout: TimeInterval
+    ) -> Bool {
+        let predicate = NSPredicate(format: "value != %@", previousValue)
+        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
+        return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
     }
 }

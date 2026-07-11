@@ -9,6 +9,8 @@
     /// - `-uiTestSeedMoments`：使用内存 canonical runtime 并预置 15 条 Moment（使时间轴可滚动，用于标题折叠等验收）。
     /// - `-uiTestSeedImageMoment`：使用内存 canonical runtime 并预置 1 条带 3 张合成图片的 Moment，
     ///   供图片区手势与行级删除边界验收。
+    /// - `-uiTestExportForcePDFFailure`：导出页使用 DEBUG-only 坏图片 snapshot，
+    ///   供 PDF 导出失败态验收，不绕过入库图片校验。
     /// - `-uiTestImageDisplayCarousel`：UI 测试隔离外观偏好中把图片展示方式预置为轮播。
     /// - `-uiTestSeedMomentQuota`：使用内存 canonical runtime 并预置 10 条 Moment（占满免费额度），
     ///   供 `QuotaBlockUITests.testEleventhMomentBlocked` 验证第 11 篇创建被前置闸门拦截。
@@ -102,6 +104,12 @@
         /// 的 `TabView(.page)` 分支与行级 swipe 的手势边界。
         static var wantsImageDisplayCarousel: Bool {
             ProcessInfo.processInfo.arguments.contains("-uiTestImageDisplayCarousel")
+        }
+
+        /// PDF 导出 UI 测试专用：不写入坏图片到 canonical asset store，只在导出 snapshot
+        /// provider 层注入不可解码图片，覆盖 PDF renderer 失败态。
+        static var wantsExportForcePDFFailure: Bool {
+            ProcessInfo.processInfo.arguments.contains("-uiTestExportForcePDFFailure")
         }
 
         /// UI 测试隔离：清掉上一次测试运行可能残留在 `UserDefaults.standard` 里的语言偏好
