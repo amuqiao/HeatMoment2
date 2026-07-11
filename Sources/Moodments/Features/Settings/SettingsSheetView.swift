@@ -57,6 +57,10 @@ struct SettingsSheetView: View {
                         BackupRestoreView(backupRestoreService: backupRestoreService)
                     }
                     TaskSurfaceSeparator()
+                    settingsNavigationRow(title: "导出", identifier: "settingsExportRow") {
+                        MarkdownExportView()
+                    }
+                    TaskSurfaceSeparator()
                     biometricLockRow
                     TaskSurfaceSeparator()
                     settingsNavigationRow(title: "语言", identifier: "settingsLanguageRow") {

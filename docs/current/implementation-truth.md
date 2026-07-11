@@ -80,7 +80,7 @@ TimelineHomeView.timelineFilterSheet
 
 ## 当前持久化与同步状态
 
-当前代码使用 SwiftData 作为已落地的生产持久化实现，但这只是 current 事实和过渡路径，不是目标数据生命周期里的最终权威模型。当前生产 schema 由 `ModelContainerConfig.schema` 注册 `Moment`、`Tag`、`MomentImage`。`Moment` 承载标题、正文、发生时间、创建/更新时间、心情 raw value、标签关系、图片关系和删除生命周期字段；`Tag` 是归类对象；`MomentImage.imageData` 使用 SwiftData `externalStorage` 存原图数据。业务层没有独立 CoreData 栈、自定义 CloudKit record mapper、同步 coordinator、Markdown/PDF 导出服务或外部备份包服务。
+当前代码使用 SwiftData 作为已落地的生产持久化实现，但这只是 current 事实和过渡路径，不是目标数据生命周期里的最终权威模型。当前生产 schema 由 `ModelContainerConfig.schema` 注册 `Moment`、`Tag`、`MomentImage`。`Moment` 承载标题、正文、发生时间、创建/更新时间、心情 raw value、标签关系、图片关系和删除生命周期字段；`Tag` 是归类对象；`MomentImage.imageData` 使用 SwiftData `externalStorage` 存原图数据。业务层没有独立 CoreData 栈、自定义 CloudKit record mapper、同步 coordinator、PDF 导出服务或外部备份包服务。
 
 `Sources/Moodments/Persistence/Canonical/` 是 GRDB canonical local core。它当前包含 SQLite migration、library metadata、moment/tag records、稳定排序的 moment-tag link、asset/link metadata、content-addressed `FileAssetStore`、content-hash `asset_pin_record` lease、canonical recovery point catalog、canonical recovery coordinator、canonical boot restore gate、canonical migration safety gate、asset reachability audit、GC dry-run plan、DB orphan asset record finalizer、orphan blob cleanup、tombstone、mutation log、`CanonicalLibraryRepository` 的事务边界、`CanonicalLibraryRuntime` 装配类型，以及 SwiftData -> canonical baseline 导入器。当前 `MoodmentsApp` 不在普通启动时打开 canonical 持久库，因为 SwiftData 过渡版本地恢复点只替换 `Moodments.store*`，还不管理 `Application Support/Canonical/`；在受控 cutover 之前提前物化第二个持久库会制造恢复边界外的 stale canonical 风险。导入器保留 SwiftData 的业务 ID、时间戳、软删除状态、稳定标签顺序、图片顺序和 asset metadata，并把 SwiftData `MomentImage.imageData` 原图字节写入 content-addressed asset store；相同 bytes 共享同一个 blob，SQLite 仍用 `asset_record.id` / `moment_asset_link` 保留业务图片身份和顺序。baseline 导入不写 `mutation_log` 或 `tombstone_record`；导入完成会记录 source fingerprint，重复导入只有同一 source fingerprint 才跳过；源数据异常、目标 canonical 已有业务表或历史表内容、source fingerprint 不一致时都会失败并回滚，不做 upsert 合并。
 
@@ -96,7 +96,9 @@ TimelineHomeView.timelineFilterSheet
 
 设置页已有“备份与恢复”详情页：用户可查看最多 3 个恢复点，列表显示时间、记录/标签/照片计数、创建原因和 App version；点选后进入恢复预览。恢复采用 staging + armed marker + pending context + 下次冷启动 replace 的路径：未 armed 的 staged payload 不会在启动时替换当前 store；准备恢复成功后记录所选恢复点和恢复前安全点信息，并立即展示不可交互的阻断页，要求用户完全退出并重新打开 App，避免当前会话继续写入后又被冷启动恢复覆盖；冷启动成功后提示已恢复到的时间点和恢复前安全点。armed payload 校验失败会清理 pending 并提示当前数据未被替换；replace 失败但 rollback 成功时同样提示失败且保留当前 store；replace/rollback 发生不可恢复错误时启动快速失败，不继续用半替换 store 构建 `ModelContainer`。用户不能手动删除恢复点，也不能把恢复点导出为备份包。
 
-当前本地文件分层如下：Moment 原图归 SwiftData `MomentImage.imageData`；缩略图在 `Caches/thumbnails`，可从原图重建，不参与同步；外观自定义背景图在 Application Support 的外观目录，不进入 SwiftData 或 CloudKit；语言、隐私锁、订阅缓存、默认标签首启标记和外观偏好使用 `UserDefaults`。当前没有用户可触发的外部备份包、Markdown 导出或 PDF 导出。
+当前已有 Markdown 导出 M1：设置页新增“导出”详情页，沿用 settings detail navigation chrome、`TaskPageScrollView` 和 `TaskSurfaceSection`；详情页明确导出只是副本，不改变当前数据，也不影响 iCloud 同步。`MarkdownExportService` 从 `SwiftDataMarkdownExportSnapshotStore` 读取未软删除 Moment 的值类型快照，按 `occurredAt` 倒序生成 Markdown；渲染和文件写入在 detached task 内执行，不占用设置页 UI actor；照片写入同一导出目录下的 `assets/` 并在 Markdown 中使用相对链接；导出结果提供指向整个导出目录的系统 `ShareLink`，避免只分享 `.md` 时丢失相对附件。当前 M1 只支持“全部活跃时刻 -> Markdown”，不支持当前主页筛选、日期范围、取消、失败重试 UI、持久 `export_job`、canonical asset pin 或 PDF。
+
+当前本地文件分层如下：Moment 原图归 SwiftData `MomentImage.imageData`；缩略图在 `Caches/thumbnails`，可从原图重建，不参与同步；外观自定义背景图在 Application Support 的外观目录，不进入 SwiftData 或 CloudKit；语言、隐私锁、订阅缓存、默认标签首启标记和外观偏好使用 `UserDefaults`。当前没有用户可触发的外部备份包或 PDF 导出；Markdown 导出文件写在系统临时目录的 `MoodmentsExports/Markdown/` 下，每次新导出前会清理旧导出包，属于用户显式生成的只读分享副本，不参与恢复点或 iCloud 同步。
 
 ## 编辑页局部选择
 

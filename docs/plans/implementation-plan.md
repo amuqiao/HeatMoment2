@@ -59,7 +59,7 @@ UI / ViewModel
 - 当前 UI 用户写入入口已有过渡版 `LocalLibraryMutationService`：它仍委托 SwiftData repository，但已收口本地写入标记、稳定恢复点、安全恢复点、缩略图失效和时刻/标签创建额度终判。它是迁往 canonical store 前的应用服务边界，不是最终存储权威。
 - 当前已有 SwiftData 过渡版本机自动恢复点：最多 3 个、设置页列表、恢复预览、pending restore staging、恢复已排队阻断页、冷启动 replace、成功/失败反馈、稳定变更节流触发和高风险操作前安全点。它还不是目标 canonical store 下的最终 recovery catalog / asset pin 方案。
 - 当前已有 GRDB canonical store、repository 骨架、`CanonicalLibraryRuntime` 装配类型、SwiftData -> canonical baseline 导入器测试，以及内部 canonical recovery point catalog / asset manifest / recoveryPoint pin / 真实 SQLite snapshot 创建与校验 / 内部 canonical restore executor / boot restore gate / migration safety gate 测试；当前 App 启动不打开 canonical 持久库，它们尚未切入生产 UI 读写路径，也不做 SwiftData + GRDB 双写。
-- 当前没有完整数据生命周期：无 canonical UI 读写路径、无 canonical 恢复点生产设置页入口、无真实 cutover / destructive migration 调用方接入、无持久 outbox、无自定义同步状态机、无 Markdown/PDF 导出任务、无真实 iCloud 多设备验收。
+- 当前没有完整数据生命周期：无 canonical UI 读写路径、无 canonical 恢复点生产设置页入口、无真实 cutover / destructive migration 调用方接入、无持久 outbox、无自定义同步状态机、无 PDF 导出任务、无真实 iCloud 多设备验收。Markdown 导出已有 SwiftData 过渡版 M1，但还不是 canonical `export_job` 闭环。
 - 当前 SwiftData 是过渡实现和 UI 可用路径，不作为目标架构里的最终数据权威。
 
 ## Mature Choices
@@ -308,7 +308,7 @@ Apple ID / iCloud 边界必须可见：
 - 需要在已落地的本地 canonical runtime/importer/asset store 上补齐 derived query layer、受控 cutover/rebuild path，并接入生产用户路径。
 - 现有 SwiftData 过渡版恢复点只覆盖 `Moodments.store*`，不覆盖 `Application Support/Canonical/`；cutover 前必须定义 restore 后 canonical invalidation/rebuild 契约，或采用 wipe + reimport 作为唯一受控流程。
 - 需要将已落地 SwiftData 过渡版恢复点的触发器和生产恢复执行迁入 canonical；设置页恢复点 UI 已有 `BackupRestoreServicing` 边界，但当前生产适配器仍是 SwiftData，本阶段未切换 canonical 适配器。内部 canonical restore executor 已有 pending context / armed marker / boot replace / rollback / cleanup，但还没有持久 `restore_job` 表和生产启动接入。
-- 需要实现 Markdown/PDF 导出服务和设置详情页流程。
+- 需要把已落地 Markdown 导出 M1 扩展为目标闭环：范围选择、取消/失败重试、持久 `export_job`、canonical export pin 和 PDF 导出。
 - 需要另建 iCloud 独立计划，覆盖 custom zone 同步、outbox、checkpoint、冲突记录、用户可见状态和真机矩阵。
 
 ## Planned Work
@@ -375,9 +375,10 @@ Apple ID / iCloud 边界必须可见：
 
 ### 5. Export
 
-- 实现 Markdown 导出：稳定文件名、相对图片链接、范围筛选。
+- Markdown 导出 M1 已落地：设置详情页可导出全部活跃 Moment，稳定文件名、Markdown 文档和相对图片链接已覆盖；范围筛选仍未实现。
+- 补齐 Markdown 范围选择：全部、当前主页筛选、日期范围。
 - 实现 PDF 导出：分页、图片嵌入、长文排版。
-- 实现导出详情页：格式、范围、照片选项、目标位置、进度、取消、失败重试。
+- 补齐导出详情页：PDF 格式、范围、照片选项、目标位置、进度、取消、失败重试。
 - 如果选择“当前主页筛选”，详情页必须显示只读筛选摘要，避免设置任务空间里的“当前”产生歧义。
 - 导出任务从一致性快照读取，不阻塞 UI，不改变 canonical store。
 
