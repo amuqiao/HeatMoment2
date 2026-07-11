@@ -82,6 +82,11 @@ enum ExportScope: Sendable, Equatable {
     case dateRange(start: Date, end: Date)
 }
 
+struct ExportDateBounds: Sendable, Equatable {
+    let earliest: Date
+    let latest: Date
+}
+
 struct ExportSnapshot: Sendable, Equatable {
     let exportedAt: Date
     let scope: ExportScope

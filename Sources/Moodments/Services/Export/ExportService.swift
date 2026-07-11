@@ -62,6 +62,13 @@ struct ExportService {
         }
     }
 
+    static func cleanupTemporaryExports() throws {
+        for format in ExportFormat.allCases {
+            let writer = ExportFileWriter(outputRootURL: defaultOutputRootURL(format: format))
+            try writer.cleanOutputRoot()
+        }
+    }
+
     private static func defaultOutputRootURL(format: ExportFormat) -> URL {
         let exportsDirectory = FileManager.default.temporaryDirectory.appendingPathComponent(
             "MoodmentsExports",
@@ -193,6 +200,10 @@ struct ExportFileWriter: Sendable {
     }
 
     private func prepareOutputRoot() throws {
+        try cleanOutputRoot()
+    }
+
+    func cleanOutputRoot() throws {
         let fileManager = FileManager.default
         try fileManager.createDirectory(at: outputRootURL, withIntermediateDirectories: true)
         let existingPackages = try fileManager.contentsOfDirectory(

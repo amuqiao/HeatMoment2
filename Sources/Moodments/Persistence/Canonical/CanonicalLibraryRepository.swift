@@ -216,6 +216,30 @@ extension CanonicalLibraryRepository {
         try fetchPage(filter: nil, offset: offset, limit: limit)
     }
 
+    func exportDateBounds() throws -> ExportDateBounds? {
+        try store.read { db in
+            guard
+                let row = try Row.fetchOne(
+                    db,
+                    sql: """
+                        SELECT MIN(occurred_at) AS earliest, MAX(occurred_at) AS latest
+                        FROM moment_record
+                        WHERE lifecycle_state = ?
+                        """,
+                    arguments: [CanonicalMomentLifecycleState.active.rawValue]
+                ),
+                let earliest: Double = row["earliest"],
+                let latest: Double = row["latest"]
+            else {
+                return nil
+            }
+            return ExportDateBounds(
+                earliest: Date(timeIntervalSince1970: earliest),
+                latest: Date(timeIntervalSince1970: latest)
+            )
+        }
+    }
+
     func exportPayload(
         startAtInclusive: Date? = nil,
         endAtExclusive: Date? = nil,

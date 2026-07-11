@@ -5,6 +5,12 @@ struct ExportView: View {
     @Environment(ThemeManager.self) private var theme
 
     @State private var selectedFormat: ExportFormat = .markdown
+    @State private var selectedScopeMode: ExportScopeMode = .all
+    @State private var includePhotos = true
+    @State private var startDate = Date()
+    @State private var endDate = Date()
+    @State private var exportDateBounds: ExportDateBounds?
+    @State private var didLoadDateBounds = false
     @State private var exportResult: ExportResult?
     @State private var exportFailure: ExportFailureState?
     @State private var isExporting = false
@@ -14,6 +20,8 @@ struct ExportView: View {
     var body: some View {
         TaskPageScrollView(accessibilityIdentifier: "exportScrollView") {
             summarySection
+            scopeSection
+            contentSection
             formatSection
             generateButton
             if let exportResult {
@@ -26,8 +34,23 @@ struct ExportView: View {
         .settingsDetailNavigationChrome("导出")
         .themedTaskContainer(theme)
         .onChange(of: selectedFormat) { _, _ in
-            exportResult = nil
-            exportFailure = nil
+            clearExportState()
+        }
+        .onChange(of: selectedScopeMode) { _, _ in
+            clearExportState()
+        }
+        .onChange(of: includePhotos) { _, _ in
+            clearExportState()
+        }
+        .onChange(of: startDate) { _, _ in
+            clearExportState()
+        }
+        .onChange(of: endDate) { _, _ in
+            clearExportState()
+        }
+        .task {
+            try? ExportService.cleanupTemporaryExports()
+            await loadDateBoundsIfNeeded()
         }
         .onDisappear {
             cancelExport()
@@ -48,6 +71,76 @@ struct ExportView: View {
             }
             .padding(.horizontal, TaskSurfaceMetrics.rowHorizontalPadding)
             .padding(.vertical, 12)
+        }
+    }
+
+    private var scopeSection: some View {
+        TaskSurfaceSection(title: "范围", accessibilityIdentifier: "exportScopeSection") {
+            VStack(spacing: 0) {
+                Picker("导出范围", selection: $selectedScopeMode) {
+                    ForEach(ExportScopeMode.allCases, id: \.self) { mode in
+                        Text(mode.displayName).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal, TaskSurfaceMetrics.rowHorizontalPadding)
+                .padding(.vertical, 12)
+                .disabled(isExporting || exportDateBounds == nil)
+                .accessibilityIdentifier("exportScopePicker")
+
+                if selectedScopeMode == .dateRange {
+                    TaskSurfaceSeparator()
+                    DatePicker(
+                        "开始日期",
+                        selection: $startDate,
+                        displayedComponents: .date
+                    )
+                    .font(AppTypography.body)
+                    .tint(theme.accent)
+                    .padding(.horizontal, TaskSurfaceMetrics.rowHorizontalPadding)
+                    .frame(minHeight: TaskSurfaceMetrics.rowMinHeight)
+                    .disabled(isExporting)
+                    .accessibilityIdentifier("exportStartDatePicker")
+
+                    TaskSurfaceSeparator()
+                    DatePicker(
+                        "结束日期",
+                        selection: $endDate,
+                        displayedComponents: .date
+                    )
+                    .font(AppTypography.body)
+                    .tint(theme.accent)
+                    .padding(.horizontal, TaskSurfaceMetrics.rowHorizontalPadding)
+                    .frame(minHeight: TaskSurfaceMetrics.rowMinHeight)
+                    .disabled(isExporting)
+                    .accessibilityIdentifier("exportEndDatePicker")
+                }
+
+                if let validationMessage {
+                    TaskSurfaceSeparator()
+                    Text(validationMessage)
+                        .font(AppTypography.caption)
+                        .foregroundStyle(theme.secondaryText)
+                        .padding(.horizontal, TaskSurfaceMetrics.rowHorizontalPadding)
+                        .padding(.vertical, 12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .accessibilityIdentifier("exportValidationText")
+                }
+            }
+        }
+    }
+
+    private var contentSection: some View {
+        TaskSurfaceSection(title: "内容", accessibilityIdentifier: "exportContentSection") {
+            Toggle(isOn: $includePhotos) {
+                Label("包含照片", systemImage: "photo")
+                    .foregroundStyle(theme.primaryText)
+            }
+            .tint(theme.accent)
+            .padding(.horizontal, TaskSurfaceMetrics.rowHorizontalPadding)
+            .frame(minHeight: TaskSurfaceMetrics.rowMinHeight)
+            .disabled(isExporting || exportDateBounds == nil)
+            .accessibilityIdentifier("exportIncludePhotosToggle")
         }
     }
 
@@ -88,7 +181,7 @@ struct ExportView: View {
             )
         }
         .buttonStyle(.plain)
-        .disabled(isExporting)
+        .disabled(isExporting || makeRequest() == nil)
         .accessibilityIdentifier("exportGenerateButton")
     }
 
@@ -163,31 +256,47 @@ struct ExportView: View {
     }
 
     private func exportSelectedFormat() {
-        guard !isExporting else { return }
+        guard !isExporting, let request = makeRequest() else { return }
         exportTask?.cancel()
         isExporting = true
         exportResult = nil
         exportFailure = nil
         exportAttemptID += 1
         let attemptID = exportAttemptID
-        let format = selectedFormat
         exportTask = Task {
             defer {
                 isExporting = false
                 exportTask = nil
             }
             do {
-                let service = makeExportService(format: format)
-                exportResult = try await service.exportAll(format: format)
+                let service = makeExportService(format: request.format)
+                exportResult = try await service.export(request: request)
             } catch is CancellationError {
                 exportResult = nil
             } catch {
                 exportFailure = ExportFailureState(
                     attemptID: attemptID,
-                    message: "\(format.displayName) 导出失败，请重试。"
+                    message: failureMessage(for: error, format: request.format)
                 )
             }
         }
+    }
+
+    private func makeRequest() -> ExportRequest? {
+        guard exportDateBounds != nil else { return nil }
+        let scope: ExportScope
+        switch selectedScopeMode {
+        case .all:
+            scope = .all
+        case .dateRange:
+            guard dateRangeIsValid else { return nil }
+            scope = .dateRange(start: startDate, end: endDate)
+        }
+        return ExportRequest(
+            scope: scope,
+            format: selectedFormat,
+            includePhotos: includePhotos
+        )
     }
 
     private func makeExportService(format: ExportFormat) -> ExportService {
@@ -209,6 +318,35 @@ struct ExportView: View {
         isExporting = false
     }
 
+    private func clearExportState() {
+        exportResult = nil
+        exportFailure = nil
+    }
+
+    private func loadDateBoundsIfNeeded() async {
+        guard !didLoadDateBounds else { return }
+        didLoadDateBounds = true
+        do {
+            var bounds = try await canonicalService.repository.exportDateBounds()
+            #if DEBUG
+                if bounds == nil, UITestSupport.wantsExportForcePDFFailure {
+                    let date = Date(timeIntervalSince1970: 3_600)
+                    bounds = ExportDateBounds(earliest: date, latest: date)
+                }
+            #endif
+            exportDateBounds = bounds
+            if let bounds {
+                startDate = Calendar.current.startOfDay(for: bounds.earliest)
+                endDate = Calendar.current.startOfDay(for: bounds.latest)
+            }
+        } catch {
+            exportFailure = ExportFailureState(
+                attemptID: exportAttemptID,
+                message: "导出数据读取失败，请重试。"
+            )
+        }
+    }
+
     private func shareURL(for result: ExportResult) -> URL {
         switch result.format {
         case .markdown:
@@ -217,11 +355,49 @@ struct ExportView: View {
             return result.fileURL
         }
     }
+
+    private var validationMessage: String? {
+        guard exportDateBounds != nil else {
+            return "暂无可导出的时刻。"
+        }
+        if selectedScopeMode == .dateRange, !dateRangeIsValid {
+            return "开始日期不能晚于结束日期。"
+        }
+        return nil
+    }
+
+    private var dateRangeIsValid: Bool {
+        Calendar.current.startOfDay(for: startDate) <= Calendar.current.startOfDay(for: endDate)
+    }
+
+    private func failureMessage(for error: Error, format: ExportFormat) -> String {
+        if case ExportError.emptyExport = error {
+            return "所选范围内没有可导出的时刻，请调整日期范围后重试。"
+        }
+        if case ExportError.invalidDateRange = error {
+            return "开始日期不能晚于结束日期。"
+        }
+        return "\(format.displayName) 导出失败，请重试。"
+    }
 }
 
 private struct ExportFailureState: Equatable {
     let attemptID: Int
     let message: String
+}
+
+private enum ExportScopeMode: String, CaseIterable {
+    case all
+    case dateRange
+
+    var displayName: String {
+        switch self {
+        case .all:
+            return "全部"
+        case .dateRange:
+            return "日期范围"
+        }
+    }
 }
 
 #if DEBUG
@@ -247,20 +423,22 @@ private struct ExportFailureState: Equatable {
                         occurredAt: Date(timeIntervalSince1970: 3_600),
                         mood: .normal,
                         tagNames: [],
-                        assets: [
-                            ExportAsset(
-                                id: UUID(
-                                    uuid: (
-                                        0x22, 0x22, 0x22, 0x22,
-                                        0x22, 0x22,
-                                        0x22, 0x22,
-                                        0x22, 0x22,
-                                        0x22, 0x22, 0x22, 0x22, 0x22, 0x22
-                                    )
-                                ),
-                                data: Data([0x00, 0x01])
-                            )
-                        ]
+                        assets: request.includePhotos
+                            ? [
+                                ExportAsset(
+                                    id: UUID(
+                                        uuid: (
+                                            0x22, 0x22, 0x22, 0x22,
+                                            0x22, 0x22,
+                                            0x22, 0x22,
+                                            0x22, 0x22,
+                                            0x22, 0x22, 0x22, 0x22, 0x22, 0x22
+                                        )
+                                    ),
+                                    data: Data([0x00, 0x01])
+                                )
+                            ]
+                            : []
                     )
                 ]
             )
