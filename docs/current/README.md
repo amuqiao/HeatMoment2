@@ -12,6 +12,7 @@
 | [`local-data-architecture.md`](local-data-architecture.md) | 本地 canonical store、恢复点、导出和未来 iCloud 接入边界的开发者导览 |
 | [`sheet-system.md`](sheet-system.md) | 当前任务 sheet 骨架、顶部动作入口、内容容器边界和最小回归测试导览 |
 | [`testing-architecture.md`](testing-architecture.md) | 当前 XCTest/XCUITest 入口、数据隔离、UI 测试 launch arguments 与维护边界 |
+| [`swiftui-foundation.md`](swiftui-foundation.md) | 当前 SwiftUI 小应用骨架、目录边界、能力接入和复用方式 |
 | 本文 | current 层阅读入口、能力矩阵和验证基线 |
 
 ## 能力矩阵
@@ -34,6 +35,7 @@
 | 任务页骨架 | 已落地。设置、外观、编辑、预览、Paywall、筛选和标签创建等 sheet 共享 `AppSheetScaffold` / `AppSheetActionButton` / `TaskSurfaceMetrics` / `TaskPageScrollView` 等骨架；半屏筛选仍保留自身 detent 和即时筛选语义。维护入口见 [`sheet-system.md`](sheet-system.md)。 | `AppSheetScaffold.swift`、`AppSheetNavigationChrome.swift`、`TaskContainerStyle.swift`、`SettingsSheetView.swift`、`MomentEditorView.swift`、`FilterPanelView.swift`、`TagCreateSheetView.swift` |
 | Foundation UI 边界 | 已落地。`DesignSystem` 只保留基础 sheet/container/theme/typography/appearance/swipe 能力；心情节点、时间轴气泡、热力图、统计条、首页背景、顶部按钮、FAB、缩略图条和心情色业务 palette 已归入对应 `Features/*`。 | `DesignSystem/`、`Features/Timeline/`、`Features/Heatmap/`、`Features/Stats/`、`Features/MomentMedia/`、`Features/Mood/MoodPalette.swift` |
 | 设置流 | 已落地。设置页是第一层 sheet，根页按个人化、数据与安全、管理、权益与关于分组；详情页在设置内 `NavigationStack` push 并保留系统返回；“数据与 iCloud”只展示系统 iCloud/同步状态，不表达 App 登录。 | `SettingsSheetView.swift`、`AppSheetNavigationChrome.swift` |
+| SwiftUI 小应用骨架 | 已落地。当前 App composition、Foundation UI、capability contract、Moodments business feature 和 infrastructure 的依赖方向已沉淀为可复用维护说明。 | [`swiftui-foundation.md`](swiftui-foundation.md)、`RootView.swift`、`DesignSystem/`、`Services/`、`Features/` |
 | 外观设置 | 部分落地。模式、主色、网格、图片展示已有 UI、持久化和消费路径；自定义背景图是本地外观文件，不进入 canonical 资料库或 CloudKit。 | `AppearanceThemeView.swift`、`AppearanceOptionCards.swift`、`ThemeManager.swift`、`AppearanceStore.swift` |
 | 主题语义 | 已落地。基础主题 token 和 Moodments 心情色业务 palette 已拆开；主色、危险色、商业固定色和图片查看器媒体色由基础主题入口暴露，心情色由 `MoodPalette` 暴露且不跟随主色。 | `ThemeManager.swift`、`ThemeTokens.swift`、`Colors.swift`、`MoodPalette.swift` |
 

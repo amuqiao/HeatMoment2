@@ -251,9 +251,17 @@ App Composition
 - 边界扫描能在 review 前暴露明显依赖反向引用。
 - `docs/current/testing-architecture.md` 能描述新的测试 harness 分层，计划项落地后不再留在本计划里。
 
-### M-foundation-final: 示范骨架收口
+### M-foundation-final: 示范骨架收口（已关闭）
 
 目标：形成可以被未来项目参考的“骨架说明 + 目录边界 + 能力合同 + 验证方式”。
+
+关闭证据：
+
+- 新增 [`../current/swiftui-foundation.md`](../current/swiftui-foundation.md)，沉淀当前 App composition、Business Features、Foundation UI / Capability Contracts、Capability Internals 的依赖方向。
+- current 文档说明了哪些目录通常保留、哪些 Moodments 业务目录应替换，以及如何新增业务 feature、基础能力、settings entry 和 root sheet。
+- 验证方式已写入 current：开发中优先窄验证，阶段收口或共享基础设施变动后再按风险补 lint/build/test/verify。
+- [`../current/README.md`](../current/README.md) 已加入 SwiftUI 小应用骨架入口和能力矩阵行。
+- 验证通过：`./scripts/check-foundation-boundaries.sh`；文档漂移扫描无结果；`git diff --check`。
 
 工作项：
 
@@ -273,7 +281,6 @@ App Composition
   - 新增 settings entry 的接入清单：分组、row 状态、目标详情页或 action、能力归属。
   - 新增 root sheet 的接入清单：任务层级、关闭/完成动作、是否允许嵌套、对应窄 UI 测试。
   - 哪些代码可以直接复用，哪些代码只可作为 Moodments 业务参考。
-- 清理与当前骨架无关的历史阶段说明，避免后续开发者被非当前事实误导。
 
 验收：
 
