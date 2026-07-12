@@ -106,7 +106,7 @@ canonical recovery catalog/snapshot/coordinator/restore service/migration safety
 
 ## 编辑页局部选择
 
-`MomentEditorView` 是任务卡片栈第一层。编辑器使用全局 `AppSheetScaffold` 承载 sheet 宿主，并显式隐藏系统 navigation bar；顶部 `取消 / 日期 / 时间 / 保存` 放在页内 header 槽位，由统一 `AppSheetHeaderBar` / `AppSheetActionButton` 渲染，不再进入系统 `appSheetChrome` 的 navigation toolbar 槽位。这样顶部栏和心情/标签行处在同一条编辑页 `VStack` 骨架里，`MomentEditorLayoutTokens -> MomentEditorLayoutResolver -> MomentEditorLayoutMetrics` 同时管理顶部栏尺寸、顶部栏到心情/标签行的距离、正文区和图片区的垂直呼吸间隔。保存按钮在模型加载前或草稿不可保存时禁用。情绪、标签、日期和时间选择当前由 SwiftUI 代码实现为局部选择：
+`MomentEditorView` 是任务卡片栈第一层。编辑器使用全局 `AppSheetScaffold` 承载 sheet 宿主，顶部 `取消 / 日期 / 时间 / 保存` 统一进入 `appSheetChrome`：取消和保存使用 `AppSheetActionButton`，日期/时间作为 toolbar principal。`MomentEditorLayoutTokens -> MomentEditorLayoutResolver -> MomentEditorLayoutMetrics` 只管理编辑内容区、日期/时间 principal 间距、顶部到心情/标签行的呼吸间隔、正文区和图片区的垂直呼吸间隔。保存按钮在模型加载前或草稿不可保存时禁用。情绪、标签、日期和时间选择当前由 SwiftUI 代码实现为局部选择：
 
 - 情绪行打开 `MoodPickerView`。
 - 标签行打开 `TagPickerView`，只选择已有标签，不提供新增入口。
@@ -155,13 +155,13 @@ TaskSurfaceMetrics
               -> TaskSurfaceRow / feature content
 ```
 
-`AppSheetScaffold` 只治理 sheet 的宿主 `NavigationStack`、背景和色彩模式；`appSheetChrome` 负责适合系统导航栏的任务页动作槽位，当前用于 `MomentPreviewView` 的「关闭 / 编辑」、`ProPaywallView` 的「关闭」和 `FilterPanelView` 的「清除全部 / 完成」。`MomentEditorView` 仍使用 `AppSheetScaffold`，但顶部动作栏通过页内 `MomentEditorHeaderBar` 接入统一 `AppSheetHeaderBar`，以便编辑页的顶部栏、心情/标签行、正文区和图片区共用同一套 `MomentEditorLayoutTokens`，同时复用全局 sheet action 样式。`TagCreateSheetView` 同样通过页内 `AppSheetHeaderBar` 渲染「取消 / 保存」。内容区域仍由 `TaskPageScrollView`、`TaskResponsiveContent`、功能视图或商业页自身负责；设置栈内子页保留系统 `NavigationStack` push/返回语义，通过 `AppSheetNavigationChrome` 统一标题与 scroll-edge。
+`AppSheetScaffold` 只治理 sheet 的宿主 `NavigationStack`、背景和色彩模式；`appSheetChrome` 负责适合系统导航栏的任务页动作槽位，当前用于 `MomentPreviewView` 的「关闭 / 编辑」、`MomentEditorView` 的「取消 / 日期时间 / 保存」、`TagCreateSheetView` 的「取消 / 标题 / 保存」、`ProPaywallView` 的「关闭」和 `FilterPanelView` 的「清除全部 / 完成」。内容区域仍由 `TaskPageScrollView`、`TaskResponsiveContent`、功能视图或商业页自身负责；设置栈内子页保留系统 `NavigationStack` push/返回语义，通过 `AppSheetNavigationChrome` 统一标题与 scroll-edge。
 
 `TaskSurfaceMetrics` 定义任务页内容列的水平边距、最大可读宽度、分组间距、panel 圆角、panel padding 和 row 最小高度。`TaskPageScrollView` 负责 sheet 背景、滚动和底部安全余量，并读取当前 `AppSheetStyle` 决定普通 / 商业 sheet 背景；`TaskResponsiveContent` 只负责内容列居中、最大宽度和页边距，因此可被统计页等非 sheet 背景场景借用；`TaskSurfaceSection` 负责可选标题和 panel 边界；`TaskSurfacePanel` 只表达任务容器面板；`TaskSurfaceRow` 表达设置类行。用于 UI 验证的 section measurement identifier 是 1pt 透明边界标记，不覆盖整块内容，避免抢走按钮命中区域。
 
 这套骨架只用于“系统任务空间”：设置根页、外观详情、编辑器输入面板、预览阅读卡片、筛选 half-sheet、标签创建 sheet，以及统计/标签/垃圾箱的页边距基线。它不用于首页品牌画布、时间轴 Moment 气泡、日期/时间 popover 或标签选择 popover；这些对象各自保留自身语义。当前 Settings 的 Pro 横幅、个人化、数据与安全、管理、权益与关于分组共享同一内容列；Appearance 的模式、颜色、网格、图片分组共享同一内容列；Editor 的文本输入 panel 和添加照片 CTA 共享同一内容列；Preview 的阅读内容、Paywall 购买态内容、Filter 的筛选内容和 TagCreate 的输入内容也进入统一 sheet/content 骨架。
 
-`TagManageView` 是当前标签新增、重命名、删除的唯一管理入口。右上“+”在打开 `TagCreateSheetView` 前经 `QuotaService` 做标签额度闸门，超额时打开 `ProPaywallView`；`TagCreateSheetView` 在真正创建新标签前再次复核标签额度，避免表单打开后数量变化造成越额写入。`TagCreateSheetView` 使用设置子页上的局部 `.sheet(item:)` 呈现为第二层任务卡片，当前为 `.large` detent 的系统 page sheet；宿主使用 `AppSheetScaffold`，顶部用 `AppSheetHeaderBar` 呈现「取消 / # 标签名称 / 保存」，内容区只保留标签名输入，重命名态复用同一骨架并预填原名。列表行点击进入重命名，左滑使用统一的系统 `.swipeActions(allowsFullSwipe: true)` 展示删除按钮并支持 full swipe。删除成功后调用 `TimelineModel.discardFilterTag` 清理当前筛选中可能残留的标签 id。
+`TagManageView` 是当前标签新增、重命名、删除的唯一管理入口。右上“+”在打开 `TagCreateSheetView` 前经 `QuotaService` 做标签额度闸门，超额时打开 `ProPaywallView`；`TagCreateSheetView` 在真正创建新标签前再次复核标签额度，避免表单打开后数量变化造成越额写入。`TagCreateSheetView` 使用设置子页上的局部 `.sheet(item:)` 呈现为第二层任务卡片，当前为 `.large` detent 的系统 page sheet；宿主使用 `AppSheetScaffold`，顶部通过 `appSheetChrome` 呈现「取消 / # 标签名称 / 保存」，内容区只保留标签名输入，重命名态复用同一骨架并预填原名。列表行点击进入重命名，左滑使用统一的系统 `.swipeActions(allowsFullSwipe: true)` 展示删除按钮并支持 full swipe。删除成功后调用 `TimelineModel.discardFilterTag` 清理当前筛选中可能残留的标签 id。
 
 `AppearanceThemeView` 已有四组设置：
 

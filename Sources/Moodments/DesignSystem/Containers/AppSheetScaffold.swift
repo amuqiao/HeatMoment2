@@ -44,16 +44,13 @@ struct AppSheetScaffold<Content: View>: View {
     @Environment(ThemeManager.self) private var theme
 
     private let style: AppSheetStyle
-    private let hidesSystemNavigationBar: Bool
     @ViewBuilder private let content: Content
 
     init(
         style: AppSheetStyle = .standard,
-        hidesSystemNavigationBar: Bool = false,
         @ViewBuilder content: () -> Content
     ) {
         self.style = style
-        self.hidesSystemNavigationBar = hidesSystemNavigationBar
         self.content = content()
     }
 
@@ -64,97 +61,12 @@ struct AppSheetScaffold<Content: View>: View {
         NavigationStack {
             content
                 .background(background.ignoresSafeArea())
-                .toolbar(hidesSystemNavigationBar ? .hidden : .automatic, for: .navigationBar)
         }
         .environment(\.appSheetStyle, style)
         .environment(\.colorScheme, colorScheme)
         .toolbarColorScheme(colorScheme, for: .navigationBar)
         .tint(style.tint(theme))
         .presentationBackground(background)
-    }
-}
-
-struct AppSheetHeaderBar<Principal: View>: View {
-    let cancellation: AppSheetAction?
-    let confirmation: AppSheetAction?
-    let metrics: AppSheetHeaderMetrics
-    let accessibilityIdentifier: String?
-    @ViewBuilder let principal: Principal
-
-    @Environment(ThemeManager.self) private var theme
-    @Environment(\.appSheetStyle) private var style
-
-    init(
-        cancellation: AppSheetAction? = nil,
-        confirmation: AppSheetAction? = nil,
-        metrics: AppSheetHeaderMetrics = .standard,
-        accessibilityIdentifier: String? = nil,
-        @ViewBuilder principal: () -> Principal
-    ) {
-        self.cancellation = cancellation
-        self.confirmation = confirmation
-        self.metrics = metrics
-        self.accessibilityIdentifier = accessibilityIdentifier
-        self.principal = principal()
-    }
-
-    var body: some View {
-        HStack(spacing: metrics.itemSpacing) {
-            actionSlot(cancellation, alignment: .leading)
-
-            HStack(spacing: metrics.itemSpacing) {
-                principal
-            }
-            .frame(maxWidth: .infinity)
-
-            actionSlot(confirmation, alignment: .trailing)
-        }
-        .font(AppTypography.body)
-        .padding(.horizontal, metrics.horizontalPadding)
-        .padding(.vertical, metrics.verticalPadding)
-        .frame(maxWidth: .infinity, minHeight: metrics.minHeight)
-        .background(style.background(theme))
-        .accessibilityElement(children: .contain)
-        .applyOptionalAccessibilityIdentifier(accessibilityIdentifier)
-    }
-
-    @ViewBuilder
-    private func actionSlot(
-        _ action: AppSheetAction?,
-        alignment: Alignment
-    ) -> some View {
-        if let action {
-            AppSheetActionButton(action)
-                .frame(width: metrics.actionSlotWidth, alignment: alignment)
-        } else {
-            Color.clear
-                .frame(width: metrics.actionSlotWidth)
-                .accessibilityHidden(true)
-        }
-    }
-}
-
-struct AppSheetHeaderMetrics: Equatable {
-    static let standard = AppSheetHeaderMetrics()
-
-    let horizontalPadding: CGFloat
-    let verticalPadding: CGFloat
-    let minHeight: CGFloat
-    let actionSlotWidth: CGFloat
-    let itemSpacing: CGFloat
-
-    init(
-        horizontalPadding: CGFloat = 16,
-        verticalPadding: CGFloat = 10,
-        minHeight: CGFloat = 56,
-        actionSlotWidth: CGFloat = 64,
-        itemSpacing: CGFloat = 8
-    ) {
-        self.horizontalPadding = horizontalPadding
-        self.verticalPadding = verticalPadding
-        self.minHeight = minHeight
-        self.actionSlotWidth = actionSlotWidth
-        self.itemSpacing = itemSpacing
     }
 }
 

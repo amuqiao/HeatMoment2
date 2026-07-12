@@ -54,22 +54,17 @@ App Composition
 - 不把“未来可以复用”理解为复制 Moodments 的业务对象；`Moment`、`Mood`、`Tag`、`Timeline`、`Heatmap` 只能作为 Moodments 业务参考，不进入 Foundation 合同。
 - 不做双骨架并存；职责接管后只保留单一路径。
 
-## Current Baseline
+## Current Fact Source
 
-- 当前工程是单一 Xcode target，`Project.yml` 直接包含 `Sources/Moodments`；现有“模块”主要靠目录和约定，而不是 Swift package / target 强边界。
-- 当前已落地 `@Observable` MVVM、集中 `AppRouter`、根级 sheet/fullScreenCover、`TimelineModel` 环境注入、隐私锁外层遮罩、StoreKit 订阅服务、语言和主题环境注入。
-- 当前数据权威是 `Canonical Repository + GRDB + SQLite + FileAssetStore`；本地备份、恢复点、Markdown/PDF 导出已进入 current 文档。
-- 当前 sheet system 已有 `AppSheetScaffold`、`AppSheetHeaderBar`、`AppSheetActionButton`、`TaskPageScrollView`、`AppSheetNavigationChrome`，并已有针对编辑页、预览页、设置页、筛选页、标签创建页、Paywall 的入口规则。
-- 当前测试入口已收口到 `./scripts/test.sh` 和 `./scripts/verify.sh`；UI 测试有 DEBUG-only 启动参数、内存 canonical runtime、磁盘隔离恢复测试和部分 StoreKit/隐私锁注入。
-- 当前 `docs/current/` 已能描述 as-built 真相；`docs/plans/implementation-plan.md` 只保留 iCloud sync 与 asset GC 等未完成数据生命周期计划。
+本计划不复制当前架构、sheet system、数据源或测试入口清单。已落地事实统一维护在
+[`../current/`](../current/README.md)；继续执行或重新打开本计划前，先读取 current，
+再只把尚未完成的 gap、planned work 和验收条件写回本文件。
 
 ## Remaining Gaps
 
-- `SettingsSheetView` 的入口信息架构已收口；备份恢复和导出能力合同已在 M-foundation-4 从 Settings feature 归位。隐私锁、订阅、同步状态仍按 current 的现有服务消费方式运行，后续只在出现真实复用/测试痛点时继续收口。
-- M-foundation 只保留 canonical 数据源和对应 adapter；`Canonical*` 表示当前唯一 canonical 数据实现。
-- App-facing 类型和服务命名仍泄漏基础设施实现，如 `Canonical*` 在 feature 边界可见。内部实现可以叫 canonical，但 feature 合同应使用业务中性或能力中性名称。
-- 测试支持混合了通用 harness 和 Moodments seed fixture；未来其他小 App 复用时，容易把 Moment/Tag/Mood 种子逻辑一起带走。
-- 当前没有自动化边界检查。单 target 下，任何文件都能引用任何符号；如果没有简单的 `rg`/lint 规则，边界会再次漂移。
+- M-foundation 主线已进入收口态；关闭证据保留在各阶段条目中，as-built 事实维护在 current。
+- 新发现的骨架问题如果仍属于 App composition、Foundation UI、Capability contract 或测试守卫，再作为新的 gap 写入本节。
+- iCloud sync、asset GC 等数据生命周期后续项不写入本计划，继续由 [`implementation-plan.md`](implementation-plan.md) 管理。
 
 ## Planned Work
 

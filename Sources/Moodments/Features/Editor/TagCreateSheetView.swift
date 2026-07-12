@@ -40,25 +40,20 @@ struct TagCreateSheetView: View {
     }
 
     var body: some View {
-        AppSheetScaffold(hidesSystemNavigationBar: true) {
-            VStack(spacing: 0) {
-                AppSheetHeaderBar(
-                    cancellation: cancelAction,
-                    confirmation: saveAction,
-                    accessibilityIdentifier: "tagCreateHeaderBar"
-                ) {
-                    title
-                }
-
-                TaskPageScrollView(
-                    spacing: 0,
-                    contentInsets: EdgeInsets(top: 28, leading: 28, bottom: 56, trailing: 28)
-                ) {
-                    nameField
-                }
-                .scrollDismissesKeyboard(.interactively)
+        AppSheetScaffold {
+            TaskPageScrollView(
+                spacing: 0,
+                contentInsets: EdgeInsets(top: 28, leading: 28, bottom: 56, trailing: 28)
+            ) {
+                nameField
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .scrollDismissesKeyboard(.interactively)
+            .appSheetChrome(
+                cancellation: cancelAction,
+                confirmation: saveAction
+            ) {
+                title
+            }
         }
         .presentationDetents([.large])
         .sheet(item: $paywallTrigger) { trigger in
@@ -99,10 +94,10 @@ struct TagCreateSheetView: View {
             Text(editing == nil ? "标签名称" : "重命名标签")
                 .font(.title3.weight(.semibold))
                 .foregroundStyle(theme.primaryText)
-                .accessibilityIdentifier("tagCreateTitleText")
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(Text(editing == nil ? "# 标签名称" : "# 重命名标签"))
+        .accessibilityIdentifier("tagCreateTitleText")
     }
 
     private var cancelAction: AppSheetAction {

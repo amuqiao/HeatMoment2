@@ -58,7 +58,7 @@ struct MomentEditorView: View {
     }
 
     var body: some View {
-        AppSheetScaffold(hidesSystemNavigationBar: true) {
+        AppSheetScaffold {
             editorRoot
         }
         .alert("放弃编辑？", isPresented: $isDiscardAlertPresented) {
@@ -85,16 +85,7 @@ struct MomentEditorView: View {
                 scale: TimelineResponsiveScale(viewportWidth: proxy.size.width)
             )
 
-            VStack(spacing: 0) {
-                MomentEditorHeaderBar(
-                    layout: layout,
-                    isLoaded: model.isLoaded,
-                    cancellation: cancelAction,
-                    confirmation: saveAction,
-                    occurredAt: occurredAtBinding,
-                    isDatePickerPresented: $isDatePickerPresented,
-                    isTimePickerPresented: $isTimePickerPresented
-                )
+            Group {
                 if model.isLoaded {
                     editorScrollContent(layout: layout)
                 } else {
@@ -102,6 +93,18 @@ struct MomentEditorView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                         .background(theme.sheetBackground.ignoresSafeArea())
                 }
+            }
+            .appSheetChrome(
+                cancellation: cancelAction,
+                confirmation: saveAction
+            ) {
+                MomentEditorTopChrome(
+                    layout: layout,
+                    isLoaded: model.isLoaded,
+                    occurredAt: occurredAtBinding,
+                    isDatePickerPresented: $isDatePickerPresented,
+                    isTimePickerPresented: $isTimePickerPresented
+                )
             }
         }
     }

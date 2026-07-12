@@ -26,6 +26,7 @@ final class TagManageUITests: XCTestCase {
 
         let nameField = app.textFields["tagCreateNameField"]
         XCTAssertTrue(nameField.waitForExistence(timeout: 5))
+        assertTagCreateTitle(app, expectedLabel: "# 标签名称", above: nameField)
 
         let saveButton = app.buttons["tagCreateSaveButton"]
         let cancelButton = app.buttons["tagCreateCancelButton"]
@@ -41,6 +42,7 @@ final class TagManageUITests: XCTestCase {
 
         addButton.tap()
         XCTAssertTrue(nameField.waitForExistence(timeout: 5))
+        assertTagCreateTitle(app, expectedLabel: "# 标签名称", above: nameField)
         XCTAssertTrue(saveButton.waitForExistence(timeout: 5))
 
         nameField.tap()
@@ -142,6 +144,7 @@ final class TagManageUITests: XCTestCase {
 
         let nameField = app.textFields["tagCreateNameField"]
         XCTAssertTrue(nameField.waitForExistence(timeout: 5))
+        assertTagCreateTitle(app, expectedLabel: "# 重命名标签", above: nameField)
         XCTAssertEqual(nameField.value as? String, "生活", "重命名态应预填原名")
 
         replaceText(in: nameField, with: "兴趣")
@@ -295,6 +298,25 @@ final class TagManageUITests: XCTestCase {
             field.typeText(deleteString)
         }
         field.typeText(newValue)
+    }
+
+    private func assertTagCreateTitle(
+        _ app: XCUIApplication,
+        expectedLabel: String,
+        above field: XCUIElement,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        let title = app.descendants(matching: .any)["tagCreateTitleText"]
+        XCTAssertTrue(title.waitForExistence(timeout: 5), "标签 sheet 应显示统一 principal 标题", file: file, line: line)
+        XCTAssertEqual(title.label, expectedLabel, "标签 sheet principal 标题文案应匹配当前模式", file: file, line: line)
+        XCTAssertLessThanOrEqual(
+            title.frame.maxY,
+            field.frame.minY + 1.5,
+            "标签 sheet principal 标题应位于输入区上方",
+            file: file,
+            line: line
+        )
     }
 
     /// 若就近浮窗仍在（未自动收起）则点外部收起；已收起则直接跳过，不视为失败

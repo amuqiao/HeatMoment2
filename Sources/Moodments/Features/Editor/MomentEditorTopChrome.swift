@@ -10,7 +10,7 @@ struct MomentEditorTopChrome: View {
     @Environment(ThemeManager.self) private var theme
 
     var body: some View {
-        HStack(spacing: layout.topChromeItemSpacing) {
+        HStack(spacing: layout.principalItemSpacing) {
             if isLoaded {
                 dateChip
                 timeChip

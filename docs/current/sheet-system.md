@@ -11,7 +11,6 @@ sheet 宿主
   -> AppSheetScaffold：背景、color scheme、tint、NavigationStack 宿主
   -> 顶部动作槽
       -> appSheetChrome：适合系统导航栏的关闭/完成/编辑等动作
-      -> AppSheetHeaderBar：适合页内自定义头部的取消/保存等动作
   -> 内容骨架
       -> TaskPageScrollView / TaskResponsiveContent / TaskSurfaceSection
       -> feature 自己的 List、LazyVGrid、输入面板或阅读内容
@@ -23,19 +22,18 @@ sheet 宿主
 
 | 场景 | 当前入口 | 顶部动作 |
 | --- | --- | --- |
-| Moment 编辑页 | `MomentEditorView` -> `AppSheetScaffold(hidesSystemNavigationBar: true)` | 页内 `MomentEditorHeaderBar` -> `AppSheetHeaderBar` |
+| Moment 编辑页 | `MomentEditorView` -> `AppSheetScaffold` | `appSheetChrome`：取消 / 日期时间 / 保存 |
 | Moment 预览页 | `MomentPreviewView` -> `AppSheetScaffold` | `appSheetChrome`：关闭 / 编辑 |
 | 设置根页 | `SettingsSheetView` -> `AppSheetScaffold` | `appSheetRootNavigationChrome`，无显式关闭按钮 |
 | 设置详情页 | 设置栈 push 子页 | `appSheetDetailNavigationChrome`，保留系统返回 |
 | 筛选 half-sheet | `FilterPanelView` -> `AppSheetScaffold` | `appSheetChrome`：清除全部 / 完成 |
-| 标签创建/重命名 | `TagCreateSheetView` -> `AppSheetScaffold(hidesSystemNavigationBar: true)` | 页内 `AppSheetHeaderBar`：取消 / 保存 |
+| 标签创建/重命名 | `TagCreateSheetView` -> `AppSheetScaffold` | `appSheetChrome`：取消 / # 标签名称 / 保存 |
 | Paywall | `ProPaywallView` -> `AppSheetScaffold(style: .commercial)` | `appSheetChrome`：关闭 |
 
 ## 维护规则
 
 - 新增根级任务 sheet 时，默认从 `AppSheetScaffold` 开始，不在 feature 内单独写 `.presentationBackground(theme.sheetBackground)`。
 - 适合系统导航栏的动作使用 `appSheetChrome` 和 `AppSheetAction`；不要直接在 toolbar 里写裸的关闭、完成或编辑按钮。
-- 需要和页面内容共用自定义垂直骨架的 sheet，使用页内 `AppSheetHeaderBar`；当前例子是编辑页和标签创建页。
 - 顶部动作按钮统一由 `AppSheetActionButton` 渲染；禁用、强调、危险色和 accessibility identifier/hint 都通过 `AppSheetAction` 表达。
 - 设置详情页保留系统 push/返回语义，只挂 `appSheetDetailNavigationChrome`；不要为每个详情页自绘返回按钮。
 - `.themedTaskContainer` 只用于内容层/任务容器，不是新增 sheet chrome 的入口。

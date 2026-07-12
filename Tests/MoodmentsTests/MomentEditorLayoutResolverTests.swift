@@ -2,13 +2,13 @@ import XCTest
 @testable import Moodments
 
 final class MomentEditorLayoutResolverTests: XCTestCase {
-    func testTopChromeToSelectorGapDirectlyControlsContentTopInset() {
+    func testToolbarToSelectorGapDirectlyControlsContentTopInset() {
         let layout = MomentEditorLayoutResolver.resolve(
-            tokens: MomentEditorLayoutTokens(topChromeToSelectorGap: 4),
+            tokens: MomentEditorLayoutTokens(toolbarToSelectorGap: 4),
             scale: TimelineResponsiveScale(viewportWidth: 390)
         )
 
-        XCTAssertEqual(layout.topChromeToSelectorGap, 4)
+        XCTAssertEqual(layout.toolbarToSelectorGap, 4)
         XCTAssertEqual(layout.contentInsets.top, 4)
     }
 
@@ -33,15 +33,15 @@ final class MomentEditorLayoutResolverTests: XCTestCase {
         XCTAssertEqual(layout.selectorMinHeight, 40)
         XCTAssertEqual(layout.selectorHorizontalPadding, 16)
         XCTAssertEqual(layout.bodyMinHeight, 132)
-        XCTAssertEqual(layout.contentInsets.top, layout.topChromeToSelectorGap)
+        XCTAssertEqual(layout.contentInsets.top, layout.toolbarToSelectorGap)
     }
 
     func testResponsiveScaleTightensVerticalBreathingOnNarrowScreens() {
         let compact = MomentEditorLayoutResolver.resolve(
-            tokens: MomentEditorLayoutTokens(topChromeToSelectorGap: 10),
+            tokens: MomentEditorLayoutTokens(toolbarToSelectorGap: 10),
             scale: TimelineResponsiveScale(viewportWidth: 320)
         )
 
-        XCTAssertEqual(compact.topChromeToSelectorGap, 9)
+        XCTAssertEqual(compact.toolbarToSelectorGap, 9)
     }
 }

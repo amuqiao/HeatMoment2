@@ -14,18 +14,17 @@ final class EditorSheetPresentationUITests: XCTestCase {
         XCTAssertTrue(fab.waitForExistence(timeout: 10))
         fab.tap()
 
-        let headerBar = app.otherElements["editorHeaderBar"]
         let moodRow = app.buttons["editorMoodRow"]
-        XCTAssertTrue(headerBar.waitForExistence(timeout: 5))
         XCTAssertTrue(moodRow.waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["editorTagRow"].exists)
         XCTAssertTrue(app.buttons["editorCancelButton"].exists)
-        XCTAssertTrue(app.buttons["editorDateChip"].exists)
+        let dateChip = app.buttons["editorDateChip"]
+        XCTAssertTrue(dateChip.exists)
         XCTAssertTrue(app.buttons["editorTimeChip"].exists)
         XCTAssertLessThanOrEqual(
-            headerBar.frame.maxY,
+            dateChip.frame.maxY,
             moodRow.frame.minY + 1.5,
-            "编辑页顶部栏应由页内 header 承载，并位于心情/标签行上方"
+            "编辑页日期时间 principal 应位于心情/标签行上方"
         )
 
         let saveButton = app.buttons["editorSaveButton"]
