@@ -161,6 +161,7 @@ struct AppSheetHeaderMetrics: Equatable {
 struct AppSheetAction {
     let title: LocalizedStringKey
     let accessibilityIdentifier: String?
+    let accessibilityHint: LocalizedStringKey?
     let role: ButtonRole?
     let isDisabled: Bool
     let isProminent: Bool
@@ -169,6 +170,7 @@ struct AppSheetAction {
     init(
         _ title: LocalizedStringKey,
         accessibilityIdentifier: String? = nil,
+        accessibilityHint: LocalizedStringKey? = nil,
         role: ButtonRole? = nil,
         isDisabled: Bool = false,
         isProminent: Bool = false,
@@ -176,6 +178,7 @@ struct AppSheetAction {
     ) {
         self.title = title
         self.accessibilityIdentifier = accessibilityIdentifier
+        self.accessibilityHint = accessibilityHint
         self.role = role
         self.isDisabled = isDisabled
         self.isProminent = isProminent
@@ -202,6 +205,7 @@ struct AppSheetActionButton: View {
         .disabled(action.isDisabled)
         .lineLimit(1)
         .applyOptionalAccessibilityIdentifier(action.accessibilityIdentifier)
+        .applyOptionalAccessibilityHint(action.accessibilityHint)
     }
 
     private var foregroundColor: Color {
@@ -306,6 +310,15 @@ private extension View {
     func applyOptionalAccessibilityIdentifier(_ identifier: String?) -> some View {
         if let identifier {
             accessibilityIdentifier(identifier)
+        } else {
+            self
+        }
+    }
+
+    @ViewBuilder
+    func applyOptionalAccessibilityHint(_ hint: LocalizedStringKey?) -> some View {
+        if let hint {
+            accessibilityHint(hint)
         } else {
             self
         }

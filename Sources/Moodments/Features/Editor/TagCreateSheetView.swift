@@ -40,22 +40,27 @@ struct TagCreateSheetView: View {
     }
 
     var body: some View {
-        GeometryReader { proxy in
-            ScrollView {
-                form
-                    .frame(maxWidth: 520)
-                    .padding(.horizontal, 28)
-                    .padding(.vertical, 32)
-                    .frame(maxWidth: .infinity)
-                    .frame(minHeight: proxy.size.height, alignment: .center)
+        AppSheetScaffold(hidesSystemNavigationBar: true) {
+            VStack(spacing: 0) {
+                AppSheetHeaderBar(
+                    cancellation: cancelAction,
+                    confirmation: saveAction,
+                    accessibilityIdentifier: "tagCreateHeaderBar"
+                ) {
+                    title
+                }
+
+                TaskPageScrollView(
+                    spacing: 0,
+                    contentInsets: EdgeInsets(top: 28, leading: 28, bottom: 56, trailing: 28)
+                ) {
+                    nameField
+                }
+                .scrollDismissesKeyboard(.interactively)
             }
-            .scrollDismissesKeyboard(.interactively)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(theme.sheetBackground.ignoresSafeArea())
         .presentationDetents([.large])
-        .presentationBackground(theme.sheetBackground)
-        .themedTaskContainer(theme)
         .sheet(item: $paywallTrigger) { trigger in
             ProPaywallView(trigger: trigger)
         }
@@ -66,46 +71,18 @@ struct TagCreateSheetView: View {
         .userFacingErrorAlert(errorPresenter)
     }
 
-    private var form: some View {
-        VStack(spacing: 28) {
-            title
-
-            TextField("输入新的标签名", text: $name)
-                .font(AppTypography.body)
-                .foregroundStyle(theme.primaryText)
-                .padding(.horizontal, 18)
-                .frame(maxWidth: .infinity, minHeight: 58)
-                .background(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(theme.chipFill)
-                )
-                .accessibilityIdentifier("tagCreateNameField")
-                .accessibilityLabel(Text("标签名称输入框"))
-
-            VStack(spacing: 26) {
-                Button {
-                    Task { await save() }
-                } label: {
-                    Text("保存")
-                        .font(AppTypography.button)
-                        .foregroundStyle(theme.onAccentText)
-                        .frame(maxWidth: .infinity, minHeight: 56)
-                        .background(
-                            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                .fill(saveButtonFill)
-                        )
-                }
-                .buttonStyle(.plain)
-                .disabled(trimmedName.isEmpty || isSaving)
-                .accessibilityIdentifier("tagCreateSaveButton")
-                .accessibilityHint(Text(trimmedName.isEmpty ? "标签名称为空时不可保存" : ""))
-
-                Button("取消") { dismiss() }
-                    .font(AppTypography.button)
-                    .foregroundStyle(theme.primaryText)
-                    .accessibilityIdentifier("tagCreateCancelButton")
-            }
-        }
+    private var nameField: some View {
+        TextField("输入新的标签名", text: $name)
+            .font(AppTypography.body)
+            .foregroundStyle(theme.primaryText)
+            .padding(.horizontal, 18)
+            .frame(maxWidth: .infinity, minHeight: 58)
+            .background(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(theme.chipFill)
+            )
+            .accessibilityIdentifier("tagCreateNameField")
+            .accessibilityLabel(Text("标签名称输入框"))
     }
 
     private var title: some View {
@@ -128,8 +105,22 @@ struct TagCreateSheetView: View {
         .accessibilityLabel(Text(editing == nil ? "# 标签名称" : "# 重命名标签"))
     }
 
-    private var saveButtonFill: Color {
-        trimmedName.isEmpty || isSaving ? theme.accentDisabledFill : theme.accent
+    private var cancelAction: AppSheetAction {
+        AppSheetAction("取消", accessibilityIdentifier: "tagCreateCancelButton") {
+            dismiss()
+        }
+    }
+
+    private var saveAction: AppSheetAction {
+        AppSheetAction(
+            "保存",
+            accessibilityIdentifier: "tagCreateSaveButton",
+            accessibilityHint: trimmedName.isEmpty ? "标签名称为空时不可保存" : nil,
+            isDisabled: trimmedName.isEmpty || isSaving,
+            isProminent: true
+        ) {
+            Task { await save() }
+        }
     }
 
     private func save() async {

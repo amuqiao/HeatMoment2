@@ -27,7 +27,7 @@ struct FilterPanelView: View {
     private var selectedMood: Mood? { activeFilter?.mood }
 
     var body: some View {
-        NavigationStack {
+        AppSheetScaffold {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
                     filterSectionTitle("标签")
@@ -59,26 +59,12 @@ struct FilterPanelView: View {
                 .padding(.bottom, 28)
             }
             .scrollContentBackground(.hidden)
-            .background(theme.sheetBackground.ignoresSafeArea())
-            .navigationTitle("筛选")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("清除全部") {
-                        activeFilter = nil
-                    }
-                    .disabled(activeFilter?.isEmpty ?? true)
-                    .accessibilityIdentifier("filterClearButton")
-                }
-
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("完成") { dismiss() }
-                        .accessibilityIdentifier("filterDoneButton")
-                }
-            }
+            .appSheetChrome(
+                title: "筛选",
+                cancellation: clearAction,
+                confirmation: doneAction
+            )
         }
-        .themedTaskContainer(theme)
-        .presentationBackground(theme.sheetBackground)
         .userFacingErrorAlert(errorPresenter)
         .task(id: canonicalService.changeToken) {
             await loadTags()
@@ -91,6 +77,26 @@ struct FilterPanelView: View {
 
     private var moodGridColumns: [GridItem] {
         [GridItem(.adaptive(minimum: 112), spacing: 10, alignment: .leading)]
+    }
+
+    private var clearAction: AppSheetAction {
+        AppSheetAction(
+            "清除全部",
+            accessibilityIdentifier: "filterClearButton",
+            isDisabled: activeFilter?.isEmpty ?? true
+        ) {
+            activeFilter = nil
+        }
+    }
+
+    private var doneAction: AppSheetAction {
+        AppSheetAction(
+            "完成",
+            accessibilityIdentifier: "filterDoneButton",
+            isProminent: true
+        ) {
+            dismiss()
+        }
     }
 
     private func filterSectionTitle(_ title: String) -> some View {
