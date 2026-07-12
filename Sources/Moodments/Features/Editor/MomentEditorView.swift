@@ -60,30 +60,6 @@ struct MomentEditorView: View {
     var body: some View {
         TaskSheetScaffold {
             editorRoot
-                .taskSheetChrome(
-                    cancellation: TaskSheetAction(
-                        "取消",
-                        accessibilityIdentifier: "editorCancelButton"
-                    ) {
-                        handleCancel()
-                    },
-                    confirmation: TaskSheetAction(
-                        "保存",
-                        accessibilityIdentifier: "editorSaveButton",
-                        isDisabled: !model.isLoaded || !model.canSave || isSaving,
-                        isProminent: true
-                    ) {
-                        handleSave()
-                    }
-                ) {
-                    MomentEditorTopChrome(
-                        layout: MomentEditorLayoutMetrics.standard,
-                        isLoaded: model.isLoaded,
-                        occurredAt: occurredAtBinding,
-                        isDatePickerPresented: $isDatePickerPresented,
-                        isTimePickerPresented: $isTimePickerPresented
-                    )
-                }
         }
         .alert("放弃编辑？", isPresented: $isDiscardAlertPresented) {
             Button("放弃编辑", role: .destructive) { dismiss() }
@@ -110,6 +86,15 @@ struct MomentEditorView: View {
             )
 
             VStack(spacing: 0) {
+                MomentEditorHeaderBar(
+                    layout: layout,
+                    isLoaded: model.isLoaded,
+                    cancellation: cancelAction,
+                    confirmation: saveAction,
+                    occurredAt: occurredAtBinding,
+                    isDatePickerPresented: $isDatePickerPresented,
+                    isTimePickerPresented: $isTimePickerPresented
+                )
                 if model.isLoaded {
                     editorScrollContent(layout: layout)
                 } else {
@@ -118,6 +103,26 @@ struct MomentEditorView: View {
                         .background(theme.sheetBackground.ignoresSafeArea())
                 }
             }
+        }
+    }
+
+    private var cancelAction: TaskSheetAction {
+        TaskSheetAction(
+            "取消",
+            accessibilityIdentifier: "editorCancelButton"
+        ) {
+            handleCancel()
+        }
+    }
+
+    private var saveAction: TaskSheetAction {
+        TaskSheetAction(
+            "保存",
+            accessibilityIdentifier: "editorSaveButton",
+            isDisabled: !model.isLoaded || !model.canSave || isSaving,
+            isProminent: true
+        ) {
+            handleSave()
         }
     }
 

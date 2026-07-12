@@ -14,16 +14,23 @@ final class EditorSheetPresentationUITests: XCTestCase {
         XCTAssertTrue(fab.waitForExistence(timeout: 10))
         fab.tap()
 
-        XCTAssertTrue(app.buttons["editorMoodRow"].waitForExistence(timeout: 5))
+        let headerBar = app.otherElements["editorHeaderBar"]
+        let moodRow = app.buttons["editorMoodRow"]
+        XCTAssertTrue(headerBar.waitForExistence(timeout: 5))
+        XCTAssertTrue(moodRow.waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["editorTagRow"].exists)
         XCTAssertTrue(app.buttons["editorCancelButton"].exists)
         XCTAssertTrue(app.buttons["editorDateChip"].exists)
         XCTAssertTrue(app.buttons["editorTimeChip"].exists)
+        XCTAssertLessThanOrEqual(
+            headerBar.frame.maxY,
+            moodRow.frame.minY + 1.5,
+            "编辑页顶部栏应由页内 header 承载，并位于心情/标签行上方"
+        )
 
         let saveButton = app.buttons["editorSaveButton"]
         XCTAssertTrue(saveButton.exists)
         XCTAssertFalse(saveButton.isEnabled)
-        XCTAssertTrue(app.navigationBars.element.exists, "编辑页应使用和预览页一致的系统任务页导航栏")
     }
 
     func testEditorCancelShowsDiscardConfirmationAfterDirtyEdit() {
