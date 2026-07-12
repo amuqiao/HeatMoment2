@@ -380,7 +380,8 @@ private extension CanonicalRecoveryPointSnapshotService {
         }
     }
 
-    func reconcileRecoveryPointDirectoriesWithoutGate() throws -> RecoveryPointDirectoryReconciliationResult {
+    func reconcileRecoveryPointDirectoriesWithoutGate() throws
+        -> RecoveryPointDirectoryReconciliationResult {
         let fileManager = FileManager.default
         guard fileManager.fileExists(atPath: recoveryPointDirectoryURL.path) else {
             return RecoveryPointDirectoryReconciliationResult(removedDirectoryNames: [])

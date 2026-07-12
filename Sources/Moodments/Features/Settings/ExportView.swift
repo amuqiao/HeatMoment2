@@ -5,14 +5,14 @@ struct ExportView: View {
     @Environment(ThemeManager.self) private var theme
 
     @State private var selectedFormat: ExportFormat = .markdown
-    @State private var selectedScopeMode: ExportScopeMode = .all
+    @State private var selectedScopeMode: ScopeMode = .all
     @State private var includePhotos = true
     @State private var startDate = Date()
     @State private var endDate = Date()
     @State private var exportDateBounds: ExportDateBounds?
     @State private var didLoadDateBounds = false
     @State private var exportResult: ExportResult?
-    @State private var exportFailure: ExportFailureState?
+    @State private var exportFailure: FailureState?
     @State private var isExporting = false
     @State private var exportAttemptID = 0
     @State private var exportTask: Task<Void, Never>?
@@ -28,10 +28,14 @@ struct ExportView: View {
             formatSection
             generateButton
             if let exportResult {
-                resultSection(exportResult)
+                ResultSection(result: exportResult)
             }
             if let exportFailure {
-                failureSection(exportFailure)
+                FailureSection(
+                    failure: exportFailure,
+                    isExporting: isExporting,
+                    retry: retry
+                )
             }
         }
         .settingsDetailNavigationChrome("导出")
@@ -81,7 +85,7 @@ struct ExportView: View {
         TaskSurfaceSection(title: "范围", accessibilityIdentifier: "exportScopeSection") {
             VStack(spacing: 0) {
                 Picker("导出范围", selection: $selectedScopeMode) {
-                    ForEach(ExportScopeMode.allCases, id: \.self) { mode in
+                    ForEach(ScopeMode.allCases, id: \.self) { mode in
                         Text(mode.displayName).tag(mode)
                     }
                 }
@@ -188,76 +192,6 @@ struct ExportView: View {
         .accessibilityIdentifier("exportGenerateButton")
     }
 
-    private func resultSection(_ result: ExportResult) -> some View {
-        TaskSurfaceSection(title: "导出结果", accessibilityIdentifier: "exportSuccessState") {
-            VStack(spacing: 0) {
-                TaskSurfaceRow {
-                    Text("格式").foregroundStyle(theme.secondaryText)
-                } trailing: {
-                    Text(result.format.displayName)
-                        .font(AppTypography.caption)
-                        .foregroundStyle(theme.primaryText)
-                        .accessibilityIdentifier("exportResultFormatText")
-                }
-                TaskSurfaceSeparator()
-                TaskSurfaceRow {
-                    Text("文件").foregroundStyle(theme.secondaryText)
-                } trailing: {
-                    Text(result.fileName)
-                        .font(AppTypography.caption)
-                        .foregroundStyle(theme.primaryText)
-                        .multilineTextAlignment(.trailing)
-                        .accessibilityIdentifier("exportFileNameText")
-                }
-                TaskSurfaceSeparator()
-                TaskSurfaceRow {
-                    Text("内容").foregroundStyle(theme.secondaryText)
-                } trailing: {
-                    Text("\(result.momentCount) 条时刻，\(result.assetCount) 张照片")
-                        .font(AppTypography.caption)
-                        .foregroundStyle(theme.primaryText)
-                        .multilineTextAlignment(.trailing)
-                        .accessibilityIdentifier("exportAssetsSummaryText")
-                }
-                TaskSurfaceSeparator()
-                ShareLink(item: shareURL(for: result)) {
-                    TaskSurfaceRow {
-                        Label(result.format.shareTitle, systemImage: "square.and.arrow.up")
-                            .foregroundStyle(theme.primaryText)
-                    } trailing: {
-                        EmptyView()
-                    }
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("exportShareLink")
-            }
-        }
-    }
-
-    private func failureSection(_ failure: ExportFailureState) -> some View {
-        TaskSurfaceSection(title: "导出失败", accessibilityIdentifier: "exportFailureState") {
-            VStack(alignment: .leading, spacing: 12) {
-                Text(failure.message)
-                    .font(AppTypography.body)
-                    .foregroundStyle(theme.primaryText)
-                    .accessibilityIdentifier("exportFailureMessage")
-                Button {
-                    retry(failure)
-                } label: {
-                    Label("重试", systemImage: "arrow.clockwise")
-                        .font(AppTypography.body.weight(.semibold))
-                        .foregroundStyle(theme.accent)
-                }
-                .buttonStyle(.plain)
-                .disabled(isExporting)
-                .accessibilityIdentifier("exportRetryButton")
-            }
-            .padding(.horizontal, TaskSurfaceMetrics.rowHorizontalPadding)
-            .padding(.vertical, 12)
-        }
-        .accessibilityValue("\(failure.attemptID)")
-    }
-
     private func exportSelectedFormat() {
         guard !isExporting, let request = makeRequest() else { return }
         exportTask?.cancel()
@@ -277,7 +211,7 @@ struct ExportView: View {
             } catch is CancellationError {
                 exportResult = nil
             } catch {
-                exportFailure = ExportFailureState(
+                exportFailure = FailureState(
                     attemptID: attemptID,
                     message: failureMessage(for: error, format: request.format),
                     retryAction: .export
@@ -321,10 +255,11 @@ struct ExportView: View {
         didLoadDateBounds = true
         do {
             #if DEBUG
-                if UITestSupport.wantsExportDateBoundsFailOnce,
-                   !didForceDateBoundsFailure {
-                    didForceDateBoundsFailure = true
-                    throw ExportDateBoundsLoadError()
+                if UITestSupport.wantsExportDateBoundsFailOnce {
+                    if !didForceDateBoundsFailure {
+                        didForceDateBoundsFailure = true
+                        throw DateBoundsLoadError()
+                    }
                 }
             #endif
             var bounds = try await canonicalService.repository.exportDateBounds()
@@ -341,7 +276,7 @@ struct ExportView: View {
                 endDate = Calendar.current.startOfDay(for: bounds.latest)
             }
         } catch {
-            exportFailure = ExportFailureState(
+            exportFailure = FailureState(
                 attemptID: exportAttemptID,
                 message: "导出数据读取失败，请重试。",
                 retryAction: .loadDateBounds
@@ -364,7 +299,7 @@ private extension ExportView {
         isExporting = false
     }
 
-    func retry(_ failure: ExportFailureState) {
+    func retry(_ failure: ExportView.FailureState) {
         switch failure.retryAction {
         case .export:
             exportSelectedFormat()
@@ -376,15 +311,6 @@ private extension ExportView {
     func clearExportState() {
         exportResult = nil
         exportFailure = nil
-    }
-
-    func shareURL(for result: ExportResult) -> URL {
-        switch result.format {
-        case .markdown:
-            return result.packageDirectoryURL
-        case .pdf:
-            return result.fileURL
-        }
     }
 
     var validationMessage: String? {
@@ -412,79 +338,6 @@ private extension ExportView {
         return "\(format.displayName) 导出失败，请重试。"
     }
 }
-
-private struct ExportFailureState: Equatable {
-    let attemptID: Int
-    let message: String
-    let retryAction: ExportFailureRetryAction
-}
-
-private enum ExportFailureRetryAction: Equatable {
-    case export
-    case loadDateBounds
-}
-
-private enum ExportScopeMode: String, CaseIterable {
-    case all
-    case dateRange
-
-    var displayName: String {
-        switch self {
-        case .all:
-            return "全部"
-        case .dateRange:
-            return "日期范围"
-        }
-    }
-}
-
-#if DEBUG
-    private struct ExportDateBoundsLoadError: Error {}
-
-    private struct FailingPDFExportSnapshotProvider: ExportSnapshotProviding {
-        func makeSnapshot(request: ExportRequest) async throws -> ExportSnapshot {
-            ExportSnapshot(
-                exportedAt: request.requestedAt,
-                scope: request.scope,
-                includePhotos: request.includePhotos,
-                moments: [
-                    ExportMoment(
-                        id: UUID(
-                            uuid: (
-                                0x11, 0x11, 0x11, 0x11,
-                                0x11, 0x11,
-                                0x11, 0x11,
-                                0x11, 0x11,
-                                0x11, 0x11, 0x11, 0x11, 0x11, 0x11
-                            )
-                        ),
-                        title: "坏图导出测试",
-                        bodyText: "用于验证 PDF 导出失败态和重试入口。",
-                        occurredAt: Date(timeIntervalSince1970: 3_600),
-                        mood: .normal,
-                        tagNames: [],
-                        assets: request.includePhotos
-                            ? [
-                                ExportAsset(
-                                    id: UUID(
-                                        uuid: (
-                                            0x22, 0x22, 0x22, 0x22,
-                                            0x22, 0x22,
-                                            0x22, 0x22,
-                                            0x22, 0x22,
-                                            0x22, 0x22, 0x22, 0x22, 0x22, 0x22
-                                        )
-                                    ),
-                                    data: Data([0x00, 0x01])
-                                )
-                            ]
-                            : []
-                    )
-                ]
-            )
-        }
-    }
-#endif
 
 #Preview {
     ExportView()

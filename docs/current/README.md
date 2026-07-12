@@ -9,6 +9,7 @@
 | 文件 | 职责 |
 | --- | --- |
 | [`implementation-truth.md`](implementation-truth.md) | SwiftUI 版当前 as-built 架构、界面流、主题/时间轴/设置等落地事实与偏离 |
+| [`local-data-architecture.md`](local-data-architecture.md) | 本地 canonical store、恢复点、导出和未来 iCloud 接入边界的开发者导览 |
 | [`testing-architecture.md`](testing-architecture.md) | 当前 XCTest/XCUITest 入口、数据隔离、UI 测试 launch arguments 与维护边界 |
 | 本文 | current 层阅读入口、能力矩阵和验证基线 |
 

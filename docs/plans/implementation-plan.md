@@ -54,6 +54,7 @@ SwiftUI / ViewModel
 - 项目尚未上线，本轮不兼容旧本地存储直升和旧恢复点桥接；后续计划只基于 canonical store 演进。
 - 设置页已经区分“备份与恢复”和“导出”；恢复点是系统自动维护的本机恢复点，导出是只读副本。
 - 当前导出闭环支持全部或日期范围、Markdown/PDF、照片开关、失败重试和临时文件清理；它不写 canonical store、不创建恢复点、不参与 iCloud 同步，详见 [`../current/implementation-truth.md`](../current/implementation-truth.md)。
+- M-architecture-final 已把本地数据闭环的可复用心智模型整理到 [`../current/local-data-architecture.md`](../current/local-data-architecture.md)，并将导出、恢复点 snapshot 和 restore 类型合同按职责拆分为更小文件。
 - 当前 iCloud 仍只有能力/网络/最近本地写入时间的启发式状态展示；尚未实现真实 CloudKit 同步状态机、多设备收敛、冲突记录或重试队列。
 - 当前 asset reachability、pin-aware dry-run、DB orphan record finalizer 和 orphan blob cleanup 已有维护地基；完整后台 GC 调度、export/sync pin 生命周期尚未实现。
 
@@ -70,6 +71,8 @@ SwiftUI / ViewModel
 - Apple ID 不可用、iCloud 关闭、网络不可达、账号变化、配额/权限失败的用户可理解状态。
 - Moment、Tag、asset metadata、tombstone、mutation 顺序和图片文件同步策略。
 - 删除传播、恢复点与同步边界、冲突记录和最小冲突 UI。
+- CloudKit import/export 不能绕过 canonical 事务边界；恢复完成后需要新的 sync epoch / checkpoint 规则处理远端收敛，不能把本机恢复点表达成云备份。
+- asset pin 的 `sync` owner 只能由真实同步任务持有和释放。
 - 单设备、两设备、离线后恢复、图片同步、删除传播、账号变化的真机矩阵。
 
 验收：
