@@ -124,19 +124,25 @@ private struct TimelineDateColumn: View {
 
     private var fullDateStamp: some View {
         VStack(alignment: .leading, spacing: style.verticalSpacing) {
-            Text(dayText)
-                .font(style.dayFont.monospacedDigit())
-                .foregroundStyle(theme.primaryText)
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
-                .allowsTightening(true)
+            HStack(alignment: .lastTextBaseline, spacing: style.dayMonthSpacing) {
+                Text(dayText)
+                    .font(style.dayFont.monospacedDigit())
+                    .foregroundStyle(theme.primaryText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                    .allowsTightening(true)
+                    .fixedSize(horizontal: true, vertical: false)
+                    .layoutPriority(2)
 
-            Text(monthText)
-                .font(style.monthFont)
-                .foregroundStyle(theme.primaryText)
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
-                .allowsTightening(true)
+                Text(monthText)
+                    .font(style.monthFont)
+                    .foregroundStyle(theme.bubbleBodyText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.65)
+                    .allowsTightening(true)
+                    .layoutPriority(1)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             timeTextView
         }
@@ -144,7 +150,7 @@ private struct TimelineDateColumn: View {
 
     private var timeOnlyStamp: some View {
         timeTextView
-            .padding(.top, style.timeOnlyTopPadding)
+            .frame(minHeight: geometry.nodeCenteredLabelMinHeight, alignment: .center)
     }
 
     private var timeTextView: some View {

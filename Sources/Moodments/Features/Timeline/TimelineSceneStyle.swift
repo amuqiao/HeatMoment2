@@ -49,15 +49,15 @@ struct TimelineDateStampStyle: Equatable {
     var dayFont: Font
     var monthFont: Font
     var timeFont: Font
+    var dayMonthSpacing: CGFloat
     var verticalSpacing: CGFloat
-    var timeOnlyTopPadding: CGFloat
 
     static let standard = TimelineDateStampStyle(
         dayFont: AppTypography.timelineDayNumber,
         monthFont: AppTypography.timelineMonth,
         timeFont: AppTypography.timelineTime,
-        verticalSpacing: 2,
-        timeOnlyTopPadding: 4
+        dayMonthSpacing: 2,
+        verticalSpacing: 2
     )
 
     func scaled(with scale: TimelineResponsiveScale) -> Self {
@@ -65,8 +65,8 @@ struct TimelineDateStampStyle: Equatable {
             dayFont: dayFont,
             monthFont: monthFont,
             timeFont: timeFont,
-            verticalSpacing: scale.vertical(verticalSpacing),
-            timeOnlyTopPadding: scale.vertical(timeOnlyTopPadding)
+            dayMonthSpacing: scale.horizontal(dayMonthSpacing),
+            verticalSpacing: scale.vertical(verticalSpacing)
         )
     }
 
@@ -74,8 +74,8 @@ struct TimelineDateStampStyle: Equatable {
         String(describing: lhs.dayFont) == String(describing: rhs.dayFont)
             && String(describing: lhs.monthFont) == String(describing: rhs.monthFont)
             && String(describing: lhs.timeFont) == String(describing: rhs.timeFont)
+            && lhs.dayMonthSpacing == rhs.dayMonthSpacing
             && lhs.verticalSpacing == rhs.verticalSpacing
-            && lhs.timeOnlyTopPadding == rhs.timeOnlyTopPadding
     }
 }
 

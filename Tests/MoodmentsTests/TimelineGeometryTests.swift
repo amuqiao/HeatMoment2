@@ -67,6 +67,13 @@ final class TimelineGeometryTests: XCTestCase {
         XCTAssertEqual(metrics.restingFirstNodeCenterY, 76)
     }
 
+    func testNodeCenteredLabelMinHeightCentersSingleTimeOnNode() {
+        let geometry = TimelineGeometry.standard
+
+        XCTAssertEqual(geometry.nodeCenteredLabelMinHeight, geometry.nodeCenterY * 2)
+        XCTAssertEqual(geometry.nodeCenteredLabelMinHeight, 48)
+    }
+
     func testSceneRailStartsAboveFirstReadingUnitNode() {
         let geometry = TimelineGeometry.standard
         let layout = TimelineViewportLayout.standard

@@ -31,7 +31,7 @@ struct TimelineLayoutTokens: Equatable {
 
     init(
         listHorizontalInset: CGFloat = 16,  // 首页内容左右边距；越大整体越向中间收
-        dateColumnWidth: CGFloat = 38,  // 日期列宽度；越大日期区更宽，时间轴和气泡右移
+        dateColumnWidth: CGFloat = 50,  // 日期列宽度；越大日期区更宽，时间轴和气泡右移
         columnSpacing: CGFloat = 6,  // 日期、节点、气泡之间的横向间距
         nodeColumnWidth: CGFloat = 24,  // 心情节点列宽；越大节点列更宽，气泡起点更靠右
         nodeDiameter: CGFloat = 20,  // 心情节点外圈直径；越大时间轴上的圆点越大

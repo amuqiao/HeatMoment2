@@ -46,6 +46,7 @@ struct TimelineGeometry: Equatable {
 
     var bubbleTailCenterY: CGFloat { nodeCenterY }
     var nodeTopPadding: CGFloat { nodeCenterY - nodeDiameter / 2 }
+    var nodeCenteredLabelMinHeight: CGFloat { nodeCenterY * 2 }
     var bubbleTailGeometry: BubbleTailGeometry {
         BubbleTailGeometry(size: bubbleTailSize, horizontalOffset: bubbleTailHorizontalOffset)
     }

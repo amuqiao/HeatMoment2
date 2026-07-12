@@ -7,11 +7,11 @@ final class TimelineSceneMetricsTests: XCTestCase {
         let geometry = scene.layout.geometry
 
         XCTAssertEqual(geometry.listHorizontalInset, 16)
-        XCTAssertEqual(geometry.dateColumnWidth, 38)
+        XCTAssertEqual(geometry.dateColumnWidth, 50)
         XCTAssertEqual(geometry.interColumnSpacing, 6)
         XCTAssertEqual(geometry.nodeColumnWidth, 24)
-        XCTAssertEqual(geometry.railCenterXInViewport, 72)
-        XCTAssertEqual(geometry.bubbleLeadingXInReadingUnit, 74)
+        XCTAssertEqual(geometry.railCenterXInViewport, 84)
+        XCTAssertEqual(geometry.bubbleLeadingXInReadingUnit, 86)
         XCTAssertEqual(geometry.rowInsets.leading, 16)
         XCTAssertEqual(scene.layout.viewport.restingRailTopY, 50)
         XCTAssertEqual(scene.layout.home.topChromeHorizontalPadding, 18)
@@ -24,12 +24,12 @@ final class TimelineSceneMetricsTests: XCTestCase {
         let geometry = scene.layout.geometry
 
         XCTAssertEqual(geometry.listHorizontalInset, 14)
-        XCTAssertEqual(geometry.dateColumnWidth, 33.5)
+        XCTAssertEqual(geometry.dateColumnWidth, 44)
         XCTAssertEqual(geometry.interColumnSpacing, 5.5)
         XCTAssertEqual(geometry.nodeColumnWidth, 21)
-        XCTAssertEqual(geometry.railCenterXInViewport, 63.5)
+        XCTAssertEqual(geometry.railCenterXInViewport, 74)
         XCTAssertLessThan(geometry.rowInsets.leading, 16)
-        XCTAssertLessThan(geometry.bubbleLeadingXInReadingUnit, 66)
+        XCTAssertLessThan(geometry.bubbleLeadingXInReadingUnit, 78)
     }
 
     func testResponsiveSceneKeepsTimelineUsableOnWidePhones() {
@@ -37,11 +37,11 @@ final class TimelineSceneMetricsTests: XCTestCase {
         let geometry = scene.layout.geometry
 
         XCTAssertEqual(geometry.listHorizontalInset, 17.5)
-        XCTAssertEqual(geometry.dateColumnWidth, 42)
+        XCTAssertEqual(geometry.dateColumnWidth, 55)
         XCTAssertEqual(geometry.interColumnSpacing, 6.5)
         XCTAssertEqual(geometry.nodeColumnWidth, 26.5)
-        XCTAssertEqual(geometry.railCenterXInViewport, 79.25)
-        XCTAssertGreaterThan(geometry.bubbleLeadingXInReadingUnit, 81)
+        XCTAssertEqual(geometry.railCenterXInViewport, 92.25)
+        XCTAssertGreaterThan(geometry.bubbleLeadingXInReadingUnit, 94)
     }
 
     func testResponsiveSceneSeparatesVisualStyleReplacementFromTimelineAnchors() {
@@ -53,10 +53,10 @@ final class TimelineSceneMetricsTests: XCTestCase {
         let scene = TimelineSceneMetrics.responsive(for: 390, baseStyle: style)
         let geometry = scene.layout.geometry
 
-        XCTAssertEqual(geometry.dateColumnWidth, 38)
+        XCTAssertEqual(geometry.dateColumnWidth, 50)
         XCTAssertEqual(geometry.nodeDiameter, 20)
         XCTAssertEqual(geometry.nodeColumnWidth, 24)
-        XCTAssertEqual(geometry.nodeCenterXInReadingUnit, 56)
+        XCTAssertEqual(geometry.nodeCenterXInReadingUnit, 68)
         XCTAssertEqual(scene.style.node.innerDiameterRatio, 0.65)
         XCTAssertEqual(scene.style.bubble.cornerRadius, 24)
         XCTAssertEqual(scene.style.chromeIcon.settingsSize, CGSize(width: 36, height: 36))
@@ -105,16 +105,16 @@ final class TimelineSceneMetricsTests: XCTestCase {
 
     func testResponsiveSceneScalesDateStampSpacing() {
         var style = TimelineSceneStyle.standard
+        style.dateStamp.dayMonthSpacing = 5
         style.dateStamp.verticalSpacing = 5
-        style.dateStamp.timeOnlyTopPadding = 5
 
         let narrow = TimelineSceneMetrics.responsive(for: 320, baseStyle: style)
         let base = TimelineSceneMetrics.responsive(for: 390, baseStyle: style)
 
+        XCTAssertEqual(base.style.dateStamp.dayMonthSpacing, 5)
         XCTAssertEqual(base.style.dateStamp.verticalSpacing, 5)
-        XCTAssertEqual(base.style.dateStamp.timeOnlyTopPadding, 5)
+        XCTAssertEqual(narrow.style.dateStamp.dayMonthSpacing, 4.5)
         XCTAssertEqual(narrow.style.dateStamp.verticalSpacing, 4.5)
-        XCTAssertEqual(narrow.style.dateStamp.timeOnlyTopPadding, 4.5)
     }
 
     private func assertBubbleTailGap(width: CGFloat, gap: CGFloat) {
