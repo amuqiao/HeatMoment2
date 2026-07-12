@@ -167,7 +167,7 @@ struct HeatmapGridView: View {
             selectedGranularity == .day
             && (selectedDate.map { Self.calendar.isDate($0, inSameDayAs: cell.date) } ?? false)
         return RoundedRectangle(cornerRadius: 3, style: .continuous)
-            .fill(mood.map { theme.moodColor($0) } ?? theme.heatmapEmptyCell)
+            .fill(mood.map { MoodPalette.color($0, mode: theme.mode) } ?? theme.heatmapEmptyCell)
             .frame(width: Self.cellSize, height: Self.cellSize)
             .overlay(
                 RoundedRectangle(cornerRadius: 3, style: .continuous)

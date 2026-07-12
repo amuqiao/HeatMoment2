@@ -29,7 +29,7 @@ struct TimelineHomeView: View {
         GeometryReader { proxy in
             let scene = TimelineSceneMetrics.responsive(
                 for: proxy.size.width,
-                baseStyle: theme.timelineSceneStyle
+                baseStyle: .standard
             )
 
             ZStack {

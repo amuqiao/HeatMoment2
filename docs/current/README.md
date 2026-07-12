@@ -32,9 +32,10 @@
 | Canonical 恢复点地基 | 已落地并接入生产设置页和启动路径。catalog、asset manifest、content-hash pin、真实 SQLite snapshot、stage/arm/boot replace/rollback 和 migration safety gate 均已有定向测试。 | `CanonicalRecoveryPointStore.swift`、`CanonicalRecoveryPointSnapshotService.swift`、`CanonicalRecoveryCoordinator.swift`、`CanonicalRestoreExecutor.swift`、`CanonicalBootRestoreGate.swift`、`CanonicalMigrationSafetyGate.swift` |
 | 编辑页日期/时间选择 | 已落地。日期和时间由局部 `.popover` 打开系统 `DatePicker`，即时回写 `occurredAt`。 | `MomentEditorView.swift`、`DateTimePopovers.swift` |
 | 任务页骨架 | 已落地。设置、外观、编辑、预览、Paywall、筛选和标签创建等 sheet 共享 `AppSheetScaffold` / `AppSheetActionButton` / `TaskSurfaceMetrics` / `TaskPageScrollView` 等骨架；半屏筛选仍保留自身 detent 和即时筛选语义。维护入口见 [`sheet-system.md`](sheet-system.md)。 | `AppSheetScaffold.swift`、`AppSheetNavigationChrome.swift`、`TaskContainerStyle.swift`、`SettingsSheetView.swift`、`MomentEditorView.swift`、`FilterPanelView.swift`、`TagCreateSheetView.swift` |
+| Foundation UI 边界 | 已落地。`DesignSystem` 只保留基础 sheet/container/theme/typography/appearance/swipe 能力；心情节点、时间轴气泡、热力图、统计条、首页背景、顶部按钮、FAB、缩略图条和心情色业务 palette 已归入对应 `Features/*`。 | `DesignSystem/`、`Features/Timeline/`、`Features/Heatmap/`、`Features/Stats/`、`Features/MomentMedia/`、`Features/Mood/MoodPalette.swift` |
 | 设置流 | 已落地。设置页是第一层 sheet，详情页在设置内 `NavigationStack` push 并保留系统返回；根页和详情页通过 `AppSheetNavigationChrome` 统一。 | `SettingsSheetView.swift`、`AppSheetNavigationChrome.swift` |
 | 外观设置 | 部分落地。模式、主色、网格、图片展示已有 UI、持久化和消费路径；自定义背景图是本地外观文件，不进入 canonical 资料库或 CloudKit。 | `AppearanceThemeView.swift`、`AppearanceOptionCards.swift`、`ThemeManager.swift`、`AppearanceStore.swift` |
-| 主题语义 | 已落地。主色、心情色、危险色、商业固定色和图片查看器媒体色由不同语义入口暴露，心情色、危险色、商业固定色不跟随主色。 | `ThemeManager.swift`、`ThemeTokens.swift`、`Colors.swift` |
+| 主题语义 | 已落地。基础主题 token 和 Moodments 心情色业务 palette 已拆开；主色、危险色、商业固定色和图片查看器媒体色由基础主题入口暴露，心情色由 `MoodPalette` 暴露且不跟随主色。 | `ThemeManager.swift`、`ThemeTokens.swift`、`Colors.swift`、`MoodPalette.swift` |
 
 ## 当前验证基线
 

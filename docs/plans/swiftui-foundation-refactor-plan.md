@@ -65,9 +65,6 @@ App Composition
 
 ## Remaining Gaps
 
-- 早期文档和代码注释存在过期文档路径，需要统一改到 `docs/current/`、`docs/plans/` 或 `docs/product-mental-model.md`，避免影子文档和断链误导维护。
-- `DesignSystem` 同时包含基础容器和 Moodments 业务组件。`AppSheetScaffold` 这类容器可复用；`MoodNodeView`、`HeatmapGridView`、`BubbleCardView`、`MoodStatBarView` 等是业务语义 UI，不适合作为通用骨架基础层。
-- 主题 token 中混有基础视觉语义和 Moodments 情绪语义。心情色是 Moodments 产品公理，不能变成所有未来 App 的基础主题合同。
 - `SettingsSheetView` 聚合统计、标签、垃圾箱、备份恢复、导出、语言、外观、关于、Paywall 等多类入口；设置页的信息架构已经可用，但能力归属仍容易退化成“所有支撑逻辑都塞进 Settings feature”。
 - `BackupRestoreServicing` 定义在 `Features/Settings` 下；`ExportView` 直接从环境取 `CanonicalLibraryService` 并组装导出服务；这些跨 feature 能力合同的位置不够稳定。
 - App-facing 类型和服务命名仍泄漏基础设施实现，如 `Canonical*` 在 feature 边界可见。内部实现可以叫 canonical，但 feature 合同应使用业务中性或能力中性名称。
@@ -134,9 +131,16 @@ App Composition
 - `RootView` 中业务 switch 的剩余部分有明确归属；不存在空 push path、无写入方 fullScreen path 或新旧并存路由。
 - 现有预览、编辑、设置、Paywall、图片查看器、隐私锁、pending restore 行为不回归。
 
-### M-foundation-2: 拆清 Foundation UI 与业务 UI
+### M-foundation-2: 拆清 Foundation UI 与业务 UI（已关闭）
 
 目标：让 sheet、容器、按钮、排版、设置列表等基础 UI 可复用；让 Moodments 的心情、热力图、气泡、时间轴语义留在业务层。
+
+关闭证据：
+
+- `DesignSystem` 只保留基础 sheet/container/theme/typography/appearance/swipe 能力；`Mood`、`Moment`、`Tag`、`Timeline`、`Heatmap` 业务 UI 已迁入对应 `Features/*`。
+- `MoodPalette` 已从基础主题 token 拆出，归入 `Features/Mood`；`TimelineSceneStyle` 归入 `Features/Timeline`；照片轨道尺寸规则归入 `Features/MomentMedia`，旧 `MomentPhotoRailView` 已删除。
+- 验证通过：`./scripts/build.sh`；`./scripts/test.sh --only MoodmentsTests/MoodPaletteTests --only MoodmentsTests/TimelineSceneMetricsTests --only MoodmentsTests/MomentCardLayoutTests`。
+- 边界扫描通过：`DesignSystem` 中无 `Mood`、`Moment`、`Tag`、`Heatmap`、`Timeline`、`Canonical`、`Repository`、`Service`、`MoodPalette` 和旧主题门面引用。
 
 工作项：
 

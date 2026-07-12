@@ -12,7 +12,7 @@ enum ThemeMode: String, CaseIterable, Sendable {
     case light
 }
 
-/// 背景纹理（见 docs/current/implementation-truth.md §5.3.3）：仅影响 `TimelineHomeView` 背景渲染，不影响卡片/文字/其它页面。
+/// 背景纹理（见 docs/current/implementation-truth.md §5.3.3）：仅影响首页主场景背景渲染，不影响卡片/文字/其它页面。
 enum BackgroundTexture: String, CaseIterable, Sendable {
     case grid
     case dot
@@ -37,9 +37,9 @@ enum ImageDisplayMode: String, CaseIterable, Sendable {
 /// （见 docs/current/implementation-truth.md §4.3/§5.3.7）。
 ///
 /// 本类型同时承担「当前 ColorScheme 下强调色语义解析」职责（见 docs/current/implementation-truth.md §4.3）：View 层不直接读取
-/// 十六进制值，统一通过本类型暴露的已解析颜色属性消费；心情色/危险色分别经 `moodColor(_:)`/
-/// `danger` 转发，**均不读取 `accentColor`**，是「心情色/危险色独立于主色」（公理1、docs/current/implementation-truth.md §5.3.5/
-/// §5.3.6）的结构性保证。
+/// 十六进制值，统一通过本类型暴露的已解析颜色属性消费；危险色经 `danger` 转发且
+/// **不读取 `accentColor`**。情绪色属于业务语义，由业务 palette 直接消费当前 `mode` 解析，
+/// 不进入基础主题合同。
 @MainActor
 @Observable
 final class ThemeManager {
@@ -202,10 +202,6 @@ final class ThemeManager {
     /// 当前模式 + 主色解析后的稳定运行时 token。新增颜色消费优先经此对象理解语义边界。
     var tokens: AppThemeTokens { AppThemeTokens.resolve(mode: mode, accentColor: accentColor) }
 
-    /// 首页时间轴场景样式入口。当前返回默认样式；未来皮肤管理应从这里切换样式包，
-    /// 而不是让 timeline 子视图各自读取皮肤配置。
-    var timelineSceneStyle: TimelineSceneStyle { .standard }
-
     /// 当前应用主题对应的系统 `ColorScheme`。任务容器页必须显式消费它，避免 SwiftUI
     /// 已呈现 sheet 中的 `List` / `NavigationBar` 和 token 模式脱节。
     var colorScheme: ColorScheme { mode.colorScheme }
@@ -215,10 +211,6 @@ final class ThemeManager {
 
     /// 外观页主色选项色块，与运行时主色解析同源。
     func accentSwatch(_ option: AccentColorOption) -> Color { tokens.accentSwatch(option) }
-
-    /// 心情色（转发 `MoodPalette.color(_:mode:)`，见公理1）：View 层统一经此消费；
-    /// 签名/实现均不读取 `accentColor`，是「切主色时心情色不变」的结构性保证。
-    func moodColor(_ mood: Mood) -> Color { tokens.moodColor(mood) }
 
     /// 固定危险色：删除/失败等动作统一经此消费，不得误用
     /// `accent`（见 docs/current/implementation-truth.md §5.3.5：危险色与主色解耦、不跟随主题）。
@@ -335,8 +327,4 @@ final class ThemeManager {
     /// 外观页缩略样本弱描边/弱笔触。
     var previewMuted: Color { tokens.previewMuted }
 
-    /// 心情统计条形的空轨道。
-    func moodStatTrack(_ mood: Mood) -> Color {
-        tokens.moodStatTrack(mood)
-    }
 }

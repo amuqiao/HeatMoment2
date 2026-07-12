@@ -1,10 +1,9 @@
 import SwiftUI
 
-/// Moment 详情/编辑照片轨道的稳定尺寸规则。
+/// Moment 编辑/预览照片轨道的稳定尺寸规则。
 ///
-/// 外层页面仍由 `TaskPageScrollView` / `TaskResponsiveContent` 负责内容列宽度；本规则只约束
-/// 横向照片轨道内部：所有照片同高，宽度按图片比例决定，但经过上下限夹取，避免超窄/超宽
-/// 图片破坏编辑页和预览页的稳定阅读节奏。
+/// 外层页面由任务内容列负责宽度；本规则只约束横向照片轨道内部：
+/// 所有照片同高，宽度按图片比例决定并经过上下限夹取，避免极端图片破坏阅读节奏。
 enum MomentPhotoRailLayout {
     static let itemHeight: CGFloat = 168
     static let itemSpacing: CGFloat = 12

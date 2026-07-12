@@ -361,8 +361,8 @@ private struct AppearanceImageDisplayPreview: View {
     private var photoFill: LinearGradient {
         LinearGradient(
             colors: [
-                theme.moodColor(.normal).opacity(theme.mode == .dark ? 0.55 : 0.28),
-                theme.moodColor(.normal).opacity(theme.mode == .dark ? 0.22 : 0.16)
+                MoodPalette.color(.normal, mode: theme.mode).opacity(theme.mode == .dark ? 0.55 : 0.28),
+                MoodPalette.color(.normal, mode: theme.mode).opacity(theme.mode == .dark ? 0.22 : 0.16)
             ],
             startPoint: .bottomLeading,
             endPoint: .topTrailing

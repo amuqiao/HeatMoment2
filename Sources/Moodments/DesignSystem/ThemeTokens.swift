@@ -103,14 +103,6 @@ struct AppThemeTokens {
         )
     }
 
-    func moodColor(_ mood: Mood) -> Color {
-        MoodPalette.color(mood, mode: mode)
-    }
-
-    func moodStatTrack(_ mood: Mood) -> Color {
-        MoodPalette.statTrack(moodColor: moodColor(mood))
-    }
-
     func accentSwatch(_ option: AccentColorOption) -> Color {
         AccentPalette.color(option, mode: mode)
     }

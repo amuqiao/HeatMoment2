@@ -14,15 +14,19 @@ struct MoodNodeView: View {
 
     @Environment(ThemeManager.self) private var theme
 
+    private var moodColor: Color {
+        MoodPalette.color(mood, mode: theme.mode)
+    }
+
     var body: some View {
         let innerDiameter = diameter * style.innerDiameterRatio
 
         ZStack {
             Circle()
-                .fill(theme.moodColor(mood).opacity(style.outerOpacity))
+                .fill(moodColor.opacity(style.outerOpacity))
                 .frame(width: diameter, height: diameter)
             Circle()
-                .fill(theme.moodColor(mood))
+                .fill(moodColor)
                 .frame(width: innerDiameter, height: innerDiameter)
         }
         .frame(width: diameter, height: diameter)

@@ -21,6 +21,10 @@ struct MoodStatBarView: View {
         return "\(Int((fraction * 100).rounded()))%"
     }
 
+    private var moodColor: Color {
+        MoodPalette.color(mood, mode: theme.mode)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
@@ -35,9 +39,9 @@ struct MoodStatBarView: View {
             GeometryReader { geometry in
                 ZStack(alignment: .leading) {
                     Capsule()
-                        .fill(theme.moodStatTrack(mood))
+                        .fill(MoodPalette.statTrack(moodColor: moodColor))
                     Capsule()
-                        .fill(theme.moodColor(mood))
+                        .fill(moodColor)
                         .frame(width: geometry.size.width * fraction)
                 }
             }

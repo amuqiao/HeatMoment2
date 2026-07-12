@@ -5,18 +5,17 @@ import XCTest
 /// 心情色独立性验收（见 `docs/product-mental-model.md` 公理1「心情色一致性」、
 /// `docs/current/implementation-truth.md` §5.3.6/§5.4，`docs/plans/implementation-plan.md` 阶段6）：
 /// `MoodPalette.color(_:mode:)` 的签名内没有 `AccentColorOption` 参数——这是「切主色时
-/// 心情色不变」的结构性保证；本文件从数值层面交叉验证该保证在 `ThemeManager` 集成后依然成立。
+/// 心情色不变」的结构性保证。
 final class MoodPaletteTests: XCTestCase {
-    /// 对暗色模式，8 情绪心情色在切换任意主色前后必须恒等（`ThemeManager.moodColor(_:)` 与
-    /// `accentColor` 无关，见 `ThemeManager` 头部注释）。
+    /// 对暗色模式，8 情绪心情色在切换任意主色前后必须恒等。
     @MainActor
     func testMoodColorsUnaffectedByAccentColorSwitchInDarkMode() {
         let theme = ThemeManager(store: Self.makeIsolatedStore())
-        let baseline = Mood.allCases.map { theme.moodColor($0) }
+        let baseline = Mood.allCases.map { MoodPalette.color($0, mode: theme.mode) }
 
         for accent in AccentColorOption.allCases {
             theme.setAccentColor(accent)
-            let current = Mood.allCases.map { theme.moodColor($0) }
+            let current = Mood.allCases.map { MoodPalette.color($0, mode: theme.mode) }
             XCTAssertEqual(current, baseline, "切主色到 \(accent) 后心情色不应变化")
         }
     }
@@ -26,11 +25,11 @@ final class MoodPaletteTests: XCTestCase {
     func testMoodColorsUnaffectedByAccentColorSwitchInLightMode() {
         let theme = ThemeManager(store: Self.makeIsolatedStore())
         theme.setMode(.light)
-        let baseline = Mood.allCases.map { theme.moodColor($0) }
+        let baseline = Mood.allCases.map { MoodPalette.color($0, mode: theme.mode) }
 
         for accent in AccentColorOption.allCases {
             theme.setAccentColor(accent)
-            let current = Mood.allCases.map { theme.moodColor($0) }
+            let current = Mood.allCases.map { MoodPalette.color($0, mode: theme.mode) }
             XCTAssertEqual(current, baseline, "亮色模式下切主色到 \(accent) 后心情色不应变化")
         }
     }
