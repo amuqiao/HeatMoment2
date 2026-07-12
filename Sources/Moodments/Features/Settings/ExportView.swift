@@ -22,6 +22,9 @@ struct ExportView: View {
 
     init(exportService: any ExportServicing) {
         self.exportService = exportService
+        let defaultRange = ExportDateRangeDefaults.recentThreeDays()
+        _startDate = State(initialValue: defaultRange.start)
+        _endDate = State(initialValue: defaultRange.end)
     }
 
     var body: some View {
@@ -238,9 +241,10 @@ struct ExportView: View {
             let bounds = try await exportService.exportDateBounds()
             exportDateBounds = bounds
             exportFailure = nil
-            if let bounds {
-                startDate = Calendar.current.startOfDay(for: bounds.earliest)
-                endDate = Calendar.current.startOfDay(for: bounds.latest)
+            if bounds != nil {
+                let defaultRange = ExportDateRangeDefaults.recentThreeDays()
+                startDate = defaultRange.start
+                endDate = defaultRange.end
             }
         } catch {
             exportFailure = FailureState(

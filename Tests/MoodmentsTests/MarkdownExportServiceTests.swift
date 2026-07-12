@@ -179,6 +179,48 @@ final class MarkdownExportServiceTests: XCTestCase {
         XCTAssertFalse(markdown.contains("范围外较晚"))
     }
 
+    func testExportDateRangeIncludesWholeEndDayAndExcludesNextDay() async throws {
+        let fixture = try makeCanonicalFixture()
+        defer { fixture.cleanup() }
+        _ = try await fixture.runtime.repository.createMoment(
+            title: "结束当天",
+            bodyText: "",
+            occurredAt: Date(timeIntervalSince1970: 172_799),
+            mood: .happy
+        )
+        _ = try await fixture.runtime.repository.createMoment(
+            title: "次日零点",
+            bodyText: "",
+            occurredAt: Date(timeIntervalSince1970: 172_800),
+            mood: .normal
+        )
+        let service = ExportService(
+            snapshotProvider: CanonicalExportSnapshotStore(
+                repository: fixture.runtime.repository,
+                calendar: Self.utcCalendar
+            ),
+            outputRootURL: outputRootURL,
+            markdownRenderer: MarkdownExportRenderer(timeZone: TimeZone(secondsFromGMT: 0)!)
+        )
+
+        let result = try await service.export(
+            request: ExportRequest(
+                scope: .dateRange(
+                    start: Date(timeIntervalSince1970: 86_400),
+                    end: Date(timeIntervalSince1970: 86_400)
+                ),
+                format: .markdown,
+                includePhotos: true,
+                requestedAt: Date(timeIntervalSince1970: 200_000)
+            )
+        )
+
+        XCTAssertEqual(result.momentCount, 1)
+        let markdown = try String(contentsOf: result.fileURL, encoding: .utf8)
+        XCTAssertTrue(markdown.contains("## 结束当天"))
+        XCTAssertFalse(markdown.contains("次日零点"))
+    }
+
     func testExportDateRangeRejectsStartAfterEnd() async throws {
         let fixture = try makeCanonicalFixture()
         defer { fixture.cleanup() }
