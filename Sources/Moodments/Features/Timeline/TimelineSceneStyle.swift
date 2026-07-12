@@ -181,14 +181,20 @@ struct TimelineTagChipStyle: Equatable {
 struct HomeChromeIconStyle: Equatable {
     var calendarSize: CGSize
     var calendarCornerRadius: CGFloat
+    var calendarHeaderHeightRatio: CGFloat
+    var calendarDayFontRatio: CGFloat
     var settingsSize: CGSize
+    var settingsDotDiameter: CGFloat
     var strokeWidth: CGFloat
 
     static let standard = HomeChromeIconStyle(
-        calendarSize: CGSize(width: 32, height: 32),
-        calendarCornerRadius: 8,
-        settingsSize: CGSize(width: 28, height: 28),
-        strokeWidth: 1.5
+        calendarSize: CGSize(width: 28, height: 28),
+        calendarCornerRadius: 6,
+        calendarHeaderHeightRatio: 0.30,
+        calendarDayFontRatio: 0.50,
+        settingsSize: CGSize(width: 30, height: 30),
+        settingsDotDiameter: 9.5,
+        strokeWidth: 2.5
     )
 
     func scaled(with scale: TimelineResponsiveScale) -> Self {
@@ -198,10 +204,13 @@ struct HomeChromeIconStyle: Equatable {
                 height: scale.component(calendarSize.height)
             ),
             calendarCornerRadius: scale.component(calendarCornerRadius),
+            calendarHeaderHeightRatio: calendarHeaderHeightRatio,
+            calendarDayFontRatio: calendarDayFontRatio,
             settingsSize: CGSize(
                 width: scale.component(settingsSize.width),
                 height: scale.component(settingsSize.height)
             ),
+            settingsDotDiameter: scale.component(settingsDotDiameter),
             strokeWidth: scale.component(strokeWidth)
         )
     }

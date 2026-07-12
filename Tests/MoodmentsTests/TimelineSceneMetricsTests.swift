@@ -19,6 +19,23 @@ final class TimelineSceneMetricsTests: XCTestCase {
         XCTAssertEqual(scene.layout.home.bottomActionClearance, 94)
     }
 
+    func testResponsiveSceneUsesCompactHomeChromeIcons() {
+        let narrow = TimelineSceneMetrics.responsive(for: 320)
+        let base = TimelineSceneMetrics.responsive(for: 390)
+        let wide = TimelineSceneMetrics.responsive(for: 430)
+
+        XCTAssertEqual(base.style.chromeIcon.calendarSize, CGSize(width: 28, height: 28))
+        XCTAssertEqual(base.style.chromeIcon.calendarCornerRadius, 6)
+        XCTAssertEqual(base.style.chromeIcon.calendarHeaderHeightRatio, 0.30)
+        XCTAssertEqual(base.style.chromeIcon.calendarDayFontRatio, 0.50)
+        XCTAssertEqual(base.style.chromeIcon.settingsSize, CGSize(width: 30, height: 30))
+        XCTAssertEqual(base.style.chromeIcon.settingsDotDiameter, 9.5)
+        XCTAssertEqual(narrow.style.chromeIcon.strokeWidth, 2.5)
+        XCTAssertEqual(narrow.style.chromeIcon.settingsDotDiameter, 8.5)
+        XCTAssertEqual(wide.style.chromeIcon.strokeWidth, 3)
+        XCTAssertEqual(wide.style.chromeIcon.settingsDotDiameter, 10.5)
+    }
+
     func testResponsiveSceneKeepsTimelineUsableOnNarrowPhones() {
         let scene = TimelineSceneMetrics.responsive(for: 320)
         let geometry = scene.layout.geometry

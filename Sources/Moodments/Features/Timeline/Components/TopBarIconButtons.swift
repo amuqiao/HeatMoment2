@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// 顶部栏左侧：方形圆角徽标，内嵌当日日期数字，点击展开 `YearHeatmapView`（见 docs/current/implementation-truth.md §5.6）。
-/// 线性描边、中性色，不跟随主色着色。
+/// 透明内芯 + 顶部实心帽 + 粗外框，中性色随亮/暗模式反转，不跟随主色着色。
 struct CalendarIconButtonView: View {
     var style: HomeChromeIconStyle = .standard
     let action: () -> Void
@@ -14,21 +14,54 @@ struct CalendarIconButtonView: View {
 
     var body: some View {
         Button(action: action) {
-            RoundedRectangle(cornerRadius: style.calendarCornerRadius, style: .continuous)
-                .stroke(theme.neutralIconStroke, lineWidth: style.strokeWidth)
-                .frame(width: style.calendarSize.width, height: style.calendarSize.height)
-                .overlay(
-                    Text(dayNumber)
-                        .font(.caption.bold())
-                        .foregroundStyle(theme.neutralIconStroke)
-                )
+            ZStack(alignment: .top) {
+                Rectangle()
+                    .fill(theme.neutralIconStroke)
+                    .frame(height: calendarHeaderHeight)
+                    .frame(maxHeight: .infinity, alignment: .top)
+
+                RoundedRectangle(cornerRadius: style.calendarCornerRadius, style: .continuous)
+                    .stroke(theme.neutralIconStroke, lineWidth: style.strokeWidth)
+
+                Text(dayNumber)
+                    .font(
+                        .system(
+                            size: calendarDayFontSize,
+                            weight: .bold,
+                            design: .rounded
+                        )
+                        .monospacedDigit()
+                    )
+                    .foregroundStyle(theme.neutralIconStroke)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+                    .frame(
+                        width: style.calendarSize.width,
+                        height: style.calendarSize.height - calendarHeaderHeight,
+                        alignment: .center
+                    )
+                    .offset(y: calendarHeaderHeight)
+            }
+            .clipShape(
+                RoundedRectangle(cornerRadius: style.calendarCornerRadius, style: .continuous)
+            )
+            .frame(width: style.calendarSize.width, height: style.calendarSize.height)
         }
+        .buttonStyle(.plain)
         .accessibilityLabel(Text("年度心情热力图"))
+    }
+
+    private var calendarDayFontSize: CGFloat {
+        min(style.calendarSize.width, style.calendarSize.height) * style.calendarDayFontRatio
+    }
+
+    private var calendarHeaderHeight: CGFloat {
+        style.calendarSize.height * style.calendarHeaderHeightRatio
     }
 }
 
 /// 顶部栏右侧：六边形描边图标，点击打开 `SettingsSheetView`（见 docs/current/implementation-truth.md §5.6）。
-/// 线性描边、中性色，不跟随主色着色。
+/// 粗描边六边形 + 中心实心点，中性色随亮/暗模式反转，不跟随主色着色。
 struct HexagonIconButtonView: View {
     var style: HomeChromeIconStyle = .standard
     let action: () -> Void
@@ -37,10 +70,28 @@ struct HexagonIconButtonView: View {
 
     var body: some View {
         Button(action: action) {
-            HexagonShape()
-                .stroke(theme.neutralIconStroke, lineWidth: style.strokeWidth)
-                .frame(width: style.settingsSize.width, height: style.settingsSize.height)
+            ZStack {
+                HexagonShape()
+                    .stroke(
+                        theme.neutralIconStroke,
+                        style: StrokeStyle(
+                            lineWidth: style.strokeWidth,
+                            lineCap: .round,
+                            lineJoin: .round
+                        )
+                    )
+                    .padding(style.strokeWidth / 2)
+
+                Circle()
+                    .fill(theme.neutralIconStroke)
+                    .frame(
+                        width: style.settingsDotDiameter,
+                        height: style.settingsDotDiameter
+                    )
+            }
+            .frame(width: style.settingsSize.width, height: style.settingsSize.height)
         }
+        .buttonStyle(.plain)
         .accessibilityLabel(Text("设置"))
     }
 }
