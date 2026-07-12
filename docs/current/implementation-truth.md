@@ -7,17 +7,21 @@
 当前 App 是单根首页结构：
 
 ```text
-RootView
-  -> TimelineHomeView
-      -> TimelineHomeChromeView
-      -> HomeContextPanel(YearHeatmapView)
-      -> TimelineViewportView
-      -> TimelineContextMarkerBar
-      -> TimelineFilterSheetPresenter(FilterPanelView)
-      -> FAB
-  -> rootSheet: preview / editor / settings / paywall
-  -> fullScreenCover: image viewer
+MoodmentsApp
+  -> app fullScreenCover: privacy lock / pending local restore
+  -> RootView
+      -> TimelineHomeView
+          -> TimelineHomeChromeView
+          -> HomeContextPanel(YearHeatmapView)
+          -> TimelineViewportView
+          -> TimelineContextMarkerBar
+          -> TimelineFilterSheetPresenter(FilterPanelView)
+          -> FAB
+      -> rootSheet: preview / editor / settings / paywall
+      -> app readiness: launch restore result / canonical prepare / default tag seed
 ```
+
+`RootView` 当前是 App shell：只治理 root scene、根级任务 sheet 呈现策略和进入交互前的 app readiness；Moodments 首页由 `TimelineHomeView` 提供。隐私锁和 pending local restore 属于 `MoodmentsApp` 的 App composition full-screen policy；图片查看器不走全局 Router，而由 `MomentPreviewView` 局部 `.fullScreenCover(item:)` 就近呈现，避免保留无写入方的第二条全局路径。
 
 `TimelineModel` 在 `RootView` 创建并注入首页与热力图，承载 `activeFilter`、`heatmapFocusDate` 和 `heatmapAnchorGranularity`。这让“看哪些记录”和“定位到哪里”在代码层保持双状态源，并能表达日/月两种时间 anchor 粒度。
 

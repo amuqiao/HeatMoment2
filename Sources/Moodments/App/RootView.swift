@@ -1,9 +1,9 @@
 import SwiftUI
 
-/// 根视图：装载时间轴首页，并把 `AppRouter` 的跨页导航意图呈现为对应浮层——
-/// 任务卡片栈用 `.sheet(item:)`（page sheet，多层叠加的下沉由系统负责，见 14 ADR-003）、
-/// 沉浸全屏用 `.fullScreenCover(item:)`。年度热力图、筛选、日期/时间等首页/字段局部层
-/// 不在此处——由触发处局部状态就近驱动、不进 Router。
+/// App shell：装载可替换的 Moodments 首页，并把 `AppRouter` 的跨页导航意图呈现为全局浮层。
+///
+/// 根级任务卡片栈使用 `.sheet(item:)`。年度热力图、筛选、日期/时间、图片查看器等
+/// 就地或二层浮层由触发 feature 局部状态驱动，不进入 Router。
 ///
 /// **`TimelineModel` 上提**（阶段5必要重构，见该类型头部注释）：在此创建并通过 `.environment()`
 /// 注入整棵树（含 `TimelineHomeView` 与 `YearHeatmapView`），使时间轴与热力图
@@ -36,34 +36,9 @@ struct RootView: View {
 
     var body: some View {
         @Bindable var router = router
-        Group {
-            if canonicalService.isPrepared && isReadyForInteraction {
-                TimelineHomeView()
-            } else {
-                ZStack {
-                    HomeSceneBackgroundView().ignoresSafeArea()
-                    ProgressView()
-                }
-            }
-        }
+        rootScene
         .sheet(item: $router.rootSheet) { sheet in
-            switch sheet {
-            case let .preview(id): MomentPreviewView(momentID: id)
-            case let .editor(mode):
-                MomentEditorView(
-                    mode: mode, canonicalService: canonicalService,
-                    subscriptionService: subscriptionService
-                )
-            case .settings: SettingsSheetView(backupRestoreService: backupRestoreService)
-            case let .paywall(trigger): ProPaywallView(trigger: trigger)
-            }
-        }
-        // 预留路由入口（见 AppRouter.FullCover 说明）：当前无写入方，图片查看器由预览局部呈现。
-        .fullScreenCover(item: $router.fullScreenCover) { cover in
-            switch cover {
-            case let .imageViewer(momentID, index):
-                ImageViewerView(momentID: momentID, startIndex: index)
-            }
+            rootTaskSheet(sheet)
         }
         .environment(timelineModel)
         .alert("本地备份恢复完成", isPresented: $showsLaunchRestoreSuccess) {
@@ -73,64 +48,118 @@ struct RootView: View {
         }
         .userFacingErrorAlert(errorPresenter)
         .task {
-            if !didHandleLaunchRestoreResult {
-                didHandleLaunchRestoreResult = true
-                switch launchRestoreResult {
-                case .none:
-                    break
-                case let .restored(context):
-                    launchRestoreSuccessMessage = Self.launchRestoreSuccessMessage(
-                        context: context
-                    )
-                    showsLaunchRestoreSuccess = true
-                case let .failed(failure):
-                    errorPresenter.report(
-                        message: "本地备份恢复失败，当前数据未被替换。",
-                        underlying: failure
-                    )
-                }
-            }
-            do {
-                try await canonicalService.prepareIfNeeded()
-                #if DEBUG
-                    await UITestSupport.seedIfRequested(canonicalService)
-                    await UITestSupport.seedImageMomentIfRequested(canonicalService)
-                    await UITestSupport.seedMomentQuotaIfRequested(canonicalService)
-                    await UITestSupport.seedCanonicalRecoveryPointIfRequested(
-                        canonicalService,
-                        coordinator: canonicalRecoveryCoordinator
-                    )
-                #endif
-            } catch {
-                errorPresenter.report(
-                    message: "初始化本地资料库失败，请重启应用重试。",
-                    underlying: error
+            await prepareForInteraction()
+        }
+    }
+
+    // MARK: - Root Scene
+
+    @ViewBuilder
+    private var rootScene: some View {
+        if canonicalService.isPrepared && isReadyForInteraction {
+            moodmentsHomeScene
+        } else {
+            loadingScene
+        }
+    }
+
+    /// Moodments business home. Future small apps can replace this scene without taking over app-level
+    /// privacy lock, restore overlays, language, theme, StoreKit, or global sheet policy.
+    private var moodmentsHomeScene: some View {
+        TimelineHomeView()
+    }
+
+    private var loadingScene: some View {
+        ZStack {
+            HomeSceneBackgroundView().ignoresSafeArea()
+            ProgressView()
+        }
+    }
+
+    // MARK: - Presentation Policy
+
+    @ViewBuilder
+    private func rootTaskSheet(_ sheet: RootSheet) -> some View {
+        switch sheet {
+        case let .preview(id):
+            MomentPreviewView(momentID: id)
+        case let .editor(mode):
+            MomentEditorView(
+                mode: mode,
+                canonicalService: canonicalService,
+                subscriptionService: subscriptionService
+            )
+        case .settings:
+            SettingsSheetView(backupRestoreService: backupRestoreService)
+        case let .paywall(trigger):
+            ProPaywallView(trigger: trigger)
+        }
+    }
+
+    // MARK: - App Readiness
+
+    private func prepareForInteraction() async {
+        handleLaunchRestoreResultIfNeeded()
+
+        do {
+            try await canonicalService.prepareIfNeeded()
+            #if DEBUG
+                await UITestSupport.seedIfRequested(canonicalService)
+                await UITestSupport.seedImageMomentIfRequested(canonicalService)
+                await UITestSupport.seedMomentQuotaIfRequested(canonicalService)
+                await UITestSupport.seedCanonicalRecoveryPointIfRequested(
+                    canonicalService,
+                    coordinator: canonicalRecoveryCoordinator
                 )
-                return
-            }
-            // 首启默认标签预置：无条件调用（生产与 UI 测试
-            // 均需要），是否真正执行预置由 `DefaultTagSeeder` 内部的持久化「首启已完成」标记
-            // 判定（而非标签表是否为空——用户删除默认标签后表可能变空/不完整，若仍按
-            // 表内容判定会导致已删除的默认标签复活，见该类型头部 review 修复说明）。经后台
-            // canonical repository 写入。`cloudKitEnabled` 决定首启窗口内是否需要
-            // 「首同步去重」的等待（阶段7计划决策3）——本地/单测/UI 测试路径恒 `false`，行为
-            // 与阶段 1–6 完全等价、零额外延迟；非首启（flag 已置位）任何路径下都零延迟。
-            do {
-                #if DEBUG
-                    let shouldSeedDefaultTags = !UITestSupport.wantsSkipDefaultTags
-                #else
-                    let shouldSeedDefaultTags = true
-                #endif
-                if shouldSeedDefaultTags {
-                    try await canonicalService.seedDefaultTagsIfNeeded(
-                        cloudKitEnabled: syncStatusService.cloudKitEnabled
-                    )
-                }
-            } catch {
-                errorPresenter.report(message: "初始化默认标签失败，请重启应用重试。", underlying: error)
-                return
-            }
-            isReadyForInteraction = true
+            #endif
+        } catch {
+            errorPresenter.report(
+                message: "初始化本地资料库失败，请重启应用重试。",
+                underlying: error
+            )
+            return
+        }
+
+        do {
+            try await seedDefaultTagsIfNeeded()
+        } catch {
+            errorPresenter.report(message: "初始化默认标签失败，请重启应用重试。", underlying: error)
+            return
+        }
+
+        isReadyForInteraction = true
+    }
+
+    private func handleLaunchRestoreResultIfNeeded() {
+        guard !didHandleLaunchRestoreResult else { return }
+        didHandleLaunchRestoreResult = true
+
+        switch launchRestoreResult {
+        case .none:
+            break
+        case let .restored(context):
+            launchRestoreSuccessMessage = Self.launchRestoreSuccessMessage(context: context)
+            showsLaunchRestoreSuccess = true
+        case let .failed(failure):
+            errorPresenter.report(
+                message: "本地备份恢复失败，当前数据未被替换。",
+                underlying: failure
+            )
+        }
+    }
+
+    private func seedDefaultTagsIfNeeded() async throws {
+        // 首启默认标签预置：无条件调用（生产与 UI 测试均需要），是否真正执行预置由
+        // `DefaultTagSeeder` 内部的持久化「首启已完成」标记判定，而非标签表是否为空。
+        #if DEBUG
+            let shouldSeedDefaultTags = !UITestSupport.wantsSkipDefaultTags
+        #else
+            let shouldSeedDefaultTags = true
+        #endif
+        if shouldSeedDefaultTags {
+            try await canonicalService.seedDefaultTagsIfNeeded(
+                cloudKitEnabled: syncStatusService.cloudKitEnabled
+            )
         }
     }
 

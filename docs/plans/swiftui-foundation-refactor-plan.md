@@ -10,6 +10,7 @@
 - 这个项目也要成为以后 SwiftUI 小应用的示范骨架：日记、打卡、番茄日记等项目可以复用基础能力，再替换业务 feature。
 - 复用的是稳定能力和组合方式，不是强行复用 Moodments 的首页、时间轴、心情、标签、热力图业务形状。
 - 架构要借鉴成熟模板项目的“稳定合同 + 单向依赖 + 能力注册/装配”思想，但遵循 SwiftUI 原生范式，不照搬 FastAPI 分层命名。
+- 本项目尚未上线；M-foundation 重构不承担旧架构兼容压力。每个阶段只能保留一条真实运行路径，不为了过渡保留双路由、双服务、双数据源或无写入方的预留入口。
 
 这里说的“模板效果”是稳定静态接入骨架，不是运行时插件系统：
 
@@ -51,6 +52,7 @@ App Composition
 - 不为了“模板感”引入 registry everywhere、复杂 DI 容器或自定义导航框架。
 - 不引入动态插件、自动路由发现、通用页面 DSL、通用业务 DSL 或运行时 feature loading。
 - 不把“未来可以复用”理解为复制 Moodments 的业务对象；`Moment`、`Mood`、`Tag`、`Timeline`、`Heatmap` 只能作为 Moodments 业务参考，不进入 Foundation 合同。
+- 不做新旧骨架并存的兼容层；若新边界已经接管职责，旧入口必须删除或改到单一路径。
 
 ## Current Baseline
 
@@ -66,7 +68,6 @@ App Composition
 - 早期文档和代码注释存在过期文档路径，需要统一改到 `docs/current/`、`docs/plans/` 或 `docs/product-mental-model.md`，避免影子文档和断链误导维护。
 - `DesignSystem` 同时包含基础容器和 Moodments 业务组件。`AppSheetScaffold` 这类容器可复用；`MoodNodeView`、`HeatmapGridView`、`BubbleCardView`、`MoodStatBarView` 等是业务语义 UI，不适合作为通用骨架基础层。
 - 主题 token 中混有基础视觉语义和 Moodments 情绪语义。心情色是 Moodments 产品公理，不能变成所有未来 App 的基础主题合同。
-- `RootView` 和 `AppRouter.RootSheet` 仍直接表达 preview/editor/settings/paywall 等 Moodments 业务路由；这对当前 App 正确，但还不是可替换业务首页的清晰 AppShell。
 - `SettingsSheetView` 聚合统计、标签、垃圾箱、备份恢复、导出、语言、外观、关于、Paywall 等多类入口；设置页的信息架构已经可用，但能力归属仍容易退化成“所有支撑逻辑都塞进 Settings feature”。
 - `BackupRestoreServicing` 定义在 `Features/Settings` 下；`ExportView` 直接从环境取 `CanonicalLibraryService` 并组装导出服务；这些跨 feature 能力合同的位置不够稳定。
 - App-facing 类型和服务命名仍泄漏基础设施实现，如 `Canonical*` 在 feature 边界可见。内部实现可以叫 canonical，但 feature 合同应使用业务中性或能力中性名称。
@@ -103,9 +104,15 @@ App Composition
 - 过期文档路径引用扫描无结果。
 - 已实现能力边界能反向映射到当前 `Sources/Moodments` 目录，不出现空泛层名。
 
-### M-foundation-1: 稳定 AppShell 与路由表达
+### M-foundation-1: 稳定 AppShell 与路由表达（已关闭）
 
 目标：让根应用壳只负责全局装配和呈现规则，业务首页和业务 sheet 作为可替换组合件接入。
+
+关闭证据：
+
+- `RootView` 已拆成 root scene、presentation policy、app readiness 三个私有边界。
+- `AppRouter` 已删除空 push 路由和无写入方全局 full-screen 路由；图片查看器只保留 `MomentPreviewView` 局部 `.fullScreenCover(item:)` 这一条真实路径。
+- 验证通过：`./scripts/build.sh`；`./scripts/test.sh --only MoodmentsUITests/EditorSheetPresentationUITests --only MoodmentsUITests/DeleteRestorePurgeUITests/testPreviewIsCardNotPush --only MoodmentsUITests/DeleteRestorePurgeUITests/testPreviewEditButtonPresentsNestedEditor`。
 
 工作项：
 
@@ -113,18 +120,18 @@ App Composition
   - app readiness / launch restore / default seed 属于 app composition。
   - root home content 属于 Moodments business feature。
   - root sheet/full screen presentation policy 属于 app shell。
-- 保留 SwiftUI 原生 `.sheet(item:)`、`.fullScreenCover(item:)` 和 `NavigationStack`；不引入自定义导航框架。
+- 保留 SwiftUI 原生 `.sheet(item:)`、`.fullScreenCover(isPresented:)`、局部 `.fullScreenCover(item:)` 和 `NavigationStack`；不引入自定义导航框架，也不保留未使用的全局路由预留字段。
 - 将 `RootSheet` 的基础呈现规则与 Moodments 业务 case 分清职责。业务 case 可以继续存在，但 AppShell 文档和代码结构要表达“这里负责呈现策略”，而不是把业务页面接线散落到各处。
 - 明确三类浮层合同：
   - 根级任务 sheet：预览、编辑、设置、权益说明。
   - 就地选择层：筛选、日期、时间、心情/标签字段选择。
-  - 沉浸全屏：图片查看器、隐私锁、pending restore。
+  - 沉浸全屏：隐私锁、pending restore 由 App composition 挂载；图片查看器由发起 feature 就近挂载。
 - 保持 Moodments 产品公理：“永不离开主场景”和“两种浮层层级”不被架构抽象破坏。
 
 验收：
 
 - Moodments 首页不需要承载隐私锁、主题、语言、StoreKit、恢复 pending overlay 等 App 级能力；这些能力由 App composition 统一治理。
-- `RootView` 中业务 switch 的剩余部分有明确归属，未来迁移方向清楚。
+- `RootView` 中业务 switch 的剩余部分有明确归属；不存在空 push path、无写入方 fullScreen path 或新旧并存路由。
 - 现有预览、编辑、设置、Paywall、图片查看器、隐私锁、pending restore 行为不回归。
 
 ### M-foundation-2: 拆清 Foundation UI 与业务 UI

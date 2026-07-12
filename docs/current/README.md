@@ -18,7 +18,8 @@
 
 | 能力 | 当前状态 | 事实源 |
 | --- | --- | --- |
-| 单根首页 | 已落地。`TimelineHomeView` 是根体验，根级任务卡片由 `RootView` 的 `.sheet(item:)` 承载。 | `RootView.swift`、`TimelineHomeView.swift` |
+| App shell | 已落地。`RootView` 已拆成 root scene、根级任务 sheet 呈现策略和 app readiness；`AppRouter` 只保留当前真实使用的 `rootSheet` 与 `isLocked`，不保留空 push path 或无写入方 fullScreen path。 | `RootView.swift`、`AppRouter.swift` |
+| 单根首页 | 已落地。`TimelineHomeView` 是根体验，根级任务卡片由 `RootView` 的 `.sheet(item:)` 承载；图片查看器由 `MomentPreviewView` 局部 `.fullScreenCover(item:)` 呈现。 | `RootView.swift`、`TimelineHomeView.swift`、`MomentPreviewView.swift` |
 | 首页场景壳 | 已落地。顶部 chrome、热力图上下文槽位、筛选 half-sheet presenter、时间轴列表和 FAB 已拆成独立组合点。 | `TimelineHomeView.swift`、`TimelineHomeChromeView.swift`、`TimelineHomePresentation.swift` |
 | 时间轴阅读单元 | 已落地。每行由日期列、心情节点、气泡内容组成；三者是可分别调样式的对象，但左滑删除的视觉目标是这一整条阅读单元。 | `TimelineGeometry.swift`、`TimelineViewportView.swift`、`TimelineRowView.swift`、`MoodNodeView.swift`、`BubbleCardView.swift` |
 | 时间轴连续性 | 已落地。连续轨道由 `TimelineRailSceneLayer` 承载在 `TimelineViewportView` 场景层；阅读单元位于行前景。轨道坐标、首屏标题槽位、底部超出、滚动相位和可见性均已收口到专门类型。 | `TimelineViewportMetrics.swift`、`TimelineRailVisibility.swift`、`TimelineRailSceneLayer.swift` |

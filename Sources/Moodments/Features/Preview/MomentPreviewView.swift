@@ -168,7 +168,7 @@ private struct EditorPresentation: Identifiable {
 }
 
 /// 预览内「点图片」的第二层沉浸全屏呈现上下文（`.fullScreenCover(item:)` 驱动，本视图局部持有，
-/// 不进 `router.fullScreenCover`——避免 sheet 之上从根 present 冲突，见阶段 4 计划决策B）。
+/// 不进入全局 Router；图片查看器只有这一条真实呈现路径，避免 sheet 之上从根 present 冲突）。
 private struct ViewerContext: Identifiable {
     let id = UUID()
     let startIndex: Int
