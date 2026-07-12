@@ -17,7 +17,7 @@ final class BackupRestoreUITests: XCTestCase {
 
         recoveryPoint.tap()
 
-        XCTAssertTrue(app.navigationBars["恢复预览"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["恢复备份"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["recoveryPointRestoreReplaceWarning"].exists)
         XCTAssertTrue(app.staticTexts["recoveryPointRestoreRestartInstruction"].exists)
         XCTAssertTrue(app.buttons["recoveryPointRestoreButton"].exists)
@@ -40,7 +40,7 @@ final class BackupRestoreUITests: XCTestCase {
         XCTAssertTrue(restoreButton.waitForExistence(timeout: 5))
         restoreButton.tap()
 
-        let confirmation = app.alerts["恢复此备份？"]
+        let confirmation = app.alerts["恢复到这份备份？"]
         XCTAssertTrue(confirmation.waitForExistence(timeout: 5))
         confirmation.buttons["recoveryPointRestoreConfirmButton"].firstMatch.tap()
 
@@ -50,6 +50,11 @@ final class BackupRestoreUITests: XCTestCase {
         app = launchLocalBackupApp(runID: runID)
         let restored = app.alerts["本地备份恢复完成"]
         XCTAssertTrue(restored.waitForExistence(timeout: 10))
+        XCTAssertTrue(
+            restored.staticTexts.matching(
+                NSPredicate(format: "label CONTAINS %@ AND label CONTAINS %@", "本机内容", "恢复前备份")
+            ).firstMatch.exists
+        )
         restored.buttons["好的"].tap()
 
         let restoredRow = app.buttons.matching(

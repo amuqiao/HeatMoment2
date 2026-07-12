@@ -172,9 +172,9 @@ struct RootView: View {
     private static func launchRestoreSuccessMessage(
         context: BackupPendingRestoreContext
     ) -> String {
-        var message = "已恢复到 \(dateFormatter.string(from: context.selectedCreatedAt)) 的本机资料库。"
+        var message = "已恢复到 \(dateFormatter.string(from: context.selectedCreatedAt)) 的本机内容。"
         if let safetyCreatedAt = context.restoreSafetyCreatedAt {
-            message += " 恢复前安全点已保留在 \(dateFormatter.string(from: safetyCreatedAt))。"
+            message += " 已保存 \(dateFormatter.string(from: safetyCreatedAt)) 的恢复前备份。"
         }
         return message
     }

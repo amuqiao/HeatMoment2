@@ -22,7 +22,7 @@ enum CanonicalRecoveryWriteRecorder {
             do {
                 try await coordinator.createStableChangesRecoveryPointIfNeeded()
             } catch {
-                errorPresenter.report(message: "创建本地恢复点失败，请稍后重试。", underlying: error)
+                errorPresenter.report(message: "创建本地备份失败，请稍后重试。", underlying: error)
             }
         }
     }
