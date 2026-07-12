@@ -12,20 +12,6 @@ extension ExportView {
         case loadDateBounds
     }
 
-    enum ScopeMode: String, CaseIterable {
-        case all
-        case dateRange
-
-        var displayName: String {
-            switch self {
-            case .all:
-                return "全部"
-            case .dateRange:
-                return "日期范围"
-            }
-        }
-    }
-
     #if DEBUG
         struct DateBoundsLoadError: Error {}
     #endif

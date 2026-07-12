@@ -11,7 +11,7 @@ final class MarkdownExportUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["exportReadonlyText"].exists)
 
         let generateButton = app.buttons["exportGenerateButton"]
-        XCTAssertTrue(generateButton.waitForExistence(timeout: 5))
+        XCTAssertTrue(waitForEnabled(generateButton, timeout: 10))
         generateButton.tap()
 
         XCTAssertTrue(app.otherElements["exportSuccessState"].waitForExistence(timeout: 10))
@@ -36,7 +36,7 @@ final class MarkdownExportUITests: XCTestCase {
         formatPicker.buttons["PDF"].tap()
 
         let generateButton = app.buttons["exportGenerateButton"]
-        XCTAssertTrue(generateButton.waitForExistence(timeout: 5))
+        XCTAssertTrue(waitForEnabled(generateButton, timeout: 10))
         generateButton.tap()
 
         XCTAssertTrue(app.otherElements["exportSuccessState"].waitForExistence(timeout: 10))
@@ -53,17 +53,11 @@ final class MarkdownExportUITests: XCTestCase {
 
         openExportPage(app)
 
-        let scopePicker = app.segmentedControls["exportScopePicker"]
-        XCTAssertTrue(scopePicker.waitForExistence(timeout: 5))
-        XCTAssertTrue(scopePicker.buttons["全部"].exists)
-        XCTAssertTrue(scopePicker.buttons["日期范围"].exists)
         XCTAssertTrue(app.switches["exportIncludePhotosToggle"].exists)
-
-        scopePicker.buttons["日期范围"].tap()
-
         XCTAssertTrue(exportControlExists(app, identifier: "exportStartDatePicker"))
         XCTAssertTrue(exportControlExists(app, identifier: "exportEndDatePicker"))
-        XCTAssertTrue(app.buttons["exportGenerateButton"].isEnabled)
+        XCTAssertFalse(app.segmentedControls["exportScopePicker"].exists)
+        XCTAssertTrue(waitForEnabled(app.buttons["exportGenerateButton"], timeout: 10))
     }
 
     func testSettingsExportPageRetriesDateBoundsLoadFailure() {
@@ -80,9 +74,10 @@ final class MarkdownExportUITests: XCTestCase {
 
         app.buttons["exportRetryButton"].tap()
 
-        XCTAssertTrue(app.segmentedControls["exportScopePicker"].waitForExistence(timeout: 10))
+        XCTAssertTrue(waitForEnabled(app.buttons["exportGenerateButton"], timeout: 10))
+        XCTAssertTrue(exportControlExists(app, identifier: "exportStartDatePicker"))
+        XCTAssertTrue(exportControlExists(app, identifier: "exportEndDatePicker"))
         XCTAssertFalse(app.otherElements["exportFailureState"].exists)
-        XCTAssertTrue(app.buttons["exportGenerateButton"].isEnabled)
     }
 
     func testSettingsExportPageShowsFailureAndRetryForInvalidPDFImage() {
@@ -97,7 +92,7 @@ final class MarkdownExportUITests: XCTestCase {
         formatPicker.buttons["PDF"].tap()
 
         let generateButton = app.buttons["exportGenerateButton"]
-        XCTAssertTrue(generateButton.waitForExistence(timeout: 5))
+        XCTAssertTrue(waitForEnabled(generateButton, timeout: 10))
         generateButton.tap()
 
         let failureState = app.otherElements["exportFailureState"]
@@ -132,6 +127,12 @@ final class MarkdownExportUITests: XCTestCase {
         timeout: TimeInterval
     ) -> Bool {
         let predicate = NSPredicate(format: "value != %@", previousValue)
+        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
+        return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
+    }
+
+    private func waitForEnabled(_ element: XCUIElement, timeout: TimeInterval) -> Bool {
+        let predicate = NSPredicate(format: "exists == true AND enabled == true")
         let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
         return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
     }

@@ -6,7 +6,6 @@ struct ExportView: View {
     @Environment(ThemeManager.self) private var theme
 
     @State private var selectedFormat: ExportFormat = .markdown
-    @State private var selectedScopeMode: ScopeMode = .all
     @State private var includePhotos = true
     @State private var startDate = Date()
     @State private var endDate = Date()
@@ -48,9 +47,6 @@ struct ExportView: View {
         .onChange(of: selectedFormat) { _, _ in
             clearExportState()
         }
-        .onChange(of: selectedScopeMode) { _, _ in
-            clearExportState()
-        }
         .onChange(of: includePhotos) { _, _ in
             clearExportState()
         }
@@ -72,11 +68,11 @@ struct ExportView: View {
     private var summarySection: some View {
         TaskSurfaceSection(accessibilityIdentifier: "exportSummarySection") {
             VStack(alignment: .leading, spacing: 8) {
-                Text("导出会生成副本，不会改变当前数据，也不会影响 iCloud 同步。")
+                Text("导出会生成副本，不会改变当前内容。")
                     .font(AppTypography.body)
                     .foregroundStyle(theme.primaryText)
                     .accessibilityIdentifier("exportReadonlyText")
-                Text("当前支持 Markdown 和 PDF；Markdown 会保留相对照片目录，PDF 会把照片嵌入文档。")
+                Text("Markdown 适合长期保存和再次编辑；PDF 适合查看和分享。")
                     .font(AppTypography.caption)
                     .foregroundStyle(theme.secondaryText)
                     .accessibilityIdentifier("exportScopeText")
@@ -87,46 +83,20 @@ struct ExportView: View {
     }
 
     private var scopeSection: some View {
-        TaskSurfaceSection(title: "范围", accessibilityIdentifier: "exportScopeSection") {
+        TaskSurfaceSection(title: "导出范围", accessibilityIdentifier: "exportScopeSection") {
             VStack(spacing: 0) {
-                Picker("导出范围", selection: $selectedScopeMode) {
-                    ForEach(ScopeMode.allCases, id: \.self) { mode in
-                        Text(mode.displayName).tag(mode)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .padding(.horizontal, TaskSurfaceMetrics.rowHorizontalPadding)
-                .padding(.vertical, 12)
-                .disabled(isExporting || exportDateBounds == nil)
-                .accessibilityIdentifier("exportScopePicker")
+                exportDatePickerRow(
+                    title: "开始日期",
+                    date: $startDate,
+                    identifier: "exportStartDatePicker"
+                )
 
-                if selectedScopeMode == .dateRange {
-                    TaskSurfaceSeparator()
-                    DatePicker(
-                        "开始日期",
-                        selection: $startDate,
-                        displayedComponents: .date
-                    )
-                    .font(AppTypography.body)
-                    .tint(theme.accent)
-                    .padding(.horizontal, TaskSurfaceMetrics.rowHorizontalPadding)
-                    .frame(minHeight: TaskSurfaceMetrics.rowMinHeight)
-                    .disabled(isExporting)
-                    .accessibilityIdentifier("exportStartDatePicker")
-
-                    TaskSurfaceSeparator()
-                    DatePicker(
-                        "结束日期",
-                        selection: $endDate,
-                        displayedComponents: .date
-                    )
-                    .font(AppTypography.body)
-                    .tint(theme.accent)
-                    .padding(.horizontal, TaskSurfaceMetrics.rowHorizontalPadding)
-                    .frame(minHeight: TaskSurfaceMetrics.rowMinHeight)
-                    .disabled(isExporting)
-                    .accessibilityIdentifier("exportEndDatePicker")
-                }
+                TaskSurfaceSeparator()
+                exportDatePickerRow(
+                    title: "结束日期",
+                    date: $endDate,
+                    identifier: "exportEndDatePicker"
+                )
 
                 if let validationMessage {
                     TaskSurfaceSeparator()
@@ -140,6 +110,25 @@ struct ExportView: View {
                 }
             }
         }
+    }
+
+    private func exportDatePickerRow(
+        title: String,
+        date: Binding<Date>,
+        identifier: String
+    ) -> some View {
+        TaskSurfaceRow {
+            Text(title)
+                .foregroundStyle(theme.secondaryText)
+                .accessibilityHidden(true)
+        } trailing: {
+            DatePicker(title, selection: date, displayedComponents: .date)
+                .labelsHidden()
+                .datePickerStyle(.compact)
+                .tint(theme.accent)
+                .accessibilityIdentifier(identifier)
+        }
+        .disabled(isExporting || exportDateBounds == nil)
     }
 
     private var contentSection: some View {
@@ -226,16 +215,9 @@ struct ExportView: View {
 
     private func makeRequest() -> ExportRequest? {
         guard exportDateBounds != nil else { return nil }
-        let scope: ExportScope
-        switch selectedScopeMode {
-        case .all:
-            scope = .all
-        case .dateRange:
-            guard dateRangeIsValid else { return nil }
-            scope = .dateRange(start: startDate, end: endDate)
-        }
+        guard dateRangeIsValid else { return nil }
         return ExportRequest(
-            scope: scope,
+            scope: .dateRange(start: startDate, end: endDate),
             format: selectedFormat,
             includePhotos: includePhotos
         )
@@ -303,7 +285,7 @@ private extension ExportView {
         guard exportDateBounds != nil else {
             return "暂无可导出的时刻。"
         }
-        if selectedScopeMode == .dateRange, !dateRangeIsValid {
+        if !dateRangeIsValid {
             return "开始日期不能晚于结束日期。"
         }
         return nil
@@ -315,7 +297,7 @@ private extension ExportView {
 
     func failureMessage(for error: Error, format: ExportFormat) -> String {
         if case ExportError.emptyExport = error {
-            return "所选范围内没有可导出的时刻，请调整日期范围后重试。"
+            return "所选日期内没有可导出的时刻，请调整后重试。"
         }
         if case ExportError.invalidDateRange = error {
             return "开始日期不能晚于结束日期。"
