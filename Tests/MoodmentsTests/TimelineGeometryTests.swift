@@ -131,6 +131,14 @@ final class TimelineGeometryTests: XCTestCase {
         XCTAssertEqual(layout.bottomActionClearance, 94)
     }
 
+    func testTimelineBottomTailKeepsFabClearanceInsideScrollableContent() {
+        let viewport = TimelineViewportLayout.standard
+        let home = TimelineHomeLayout.standard
+
+        XCTAssertEqual(viewport.railBottomOvershoot, 48)
+        XCTAssertEqual(viewport.bottomTailClearance(protecting: home.bottomActionClearance), 94)
+    }
+
     func testViewportRailBoundsDoNotDependOnListRowPreferences() {
         let geometry = TimelineGeometry.standard
         let layout = TimelineViewportLayout.standard

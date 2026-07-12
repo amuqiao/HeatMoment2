@@ -49,6 +49,10 @@ struct TimelineViewportLayout: Equatable {
     var restingFirstReadingUnitTopY: CGFloat {
         restingRailTopY + railTopToFirstMomentTopGap
     }
+
+    func bottomTailClearance(protecting bottomActionClearance: CGFloat) -> CGFloat {
+        max(railBottomOvershoot, bottomActionClearance)
+    }
 }
 
 /// 首页时间轴 viewport 的运行时坐标。

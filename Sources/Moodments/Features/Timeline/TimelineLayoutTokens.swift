@@ -44,7 +44,7 @@ struct TimelineLayoutTokens: Equatable {
         expandedTitleSlotBottomY: CGFloat = 44,  // 展开态标题槽底部位置
         expandedTitleTopPadding: CGFloat = 0,  // 展开态标题顶部补偿
         titleToRailTopGap: CGFloat = 6,  // “时刻”标题底部到时间轴顶点的呼吸间隔
-        railBottomOvershoot: CGFloat = 48,  // 时间轴底部额外延伸；越大底部留白和轨道延伸越多
+        railBottomOvershoot: CGFloat = 48,  // 时间轴轨道底部视觉延伸；滚动尾部净空会同时保护 FAB
         topChromeHorizontalPadding: CGFloat = 18,  // 顶部日历/设置区左右边距
         topChromeVerticalPadding: CGFloat = 8,  // 顶部日历/设置区上下边距
         fabDiameter: CGFloat = 64,  // 底部新建按钮直径

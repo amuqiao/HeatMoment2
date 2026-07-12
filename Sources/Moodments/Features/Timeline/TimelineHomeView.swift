@@ -44,9 +44,6 @@ struct TimelineHomeView: View {
                 .safeAreaInset(edge: .top, spacing: 0) {
                     topBarStack(layout: scene.layout.home, style: scene.style.chromeIcon)
                 }
-                .safeAreaInset(edge: .bottom, spacing: 0) {
-                    Color.clear.frame(height: scene.layout.home.bottomActionClearance)
-                }
             }
             .accessibilityHidden(isModalContextPresented)
             .overlay(alignment: .bottom) {

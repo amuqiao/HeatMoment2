@@ -157,9 +157,10 @@ struct TimelineViewportView: View {
                             }
 
                             if railVisibility.showsRail {
-                                timelineBottomOvershoot(
+                                timelineBottomTail(
                                     geometry: scene.layout.geometry,
-                                    layout: scene.layout.viewport
+                                    layout: scene.layout.viewport,
+                                    bottomContentClearance: scene.layout.home.bottomActionClearance
                                 )
                             }
                         }
@@ -223,12 +224,13 @@ struct TimelineViewportView: View {
             .accessibilityHidden(true)
     }
 
-    private func timelineBottomOvershoot(
+    private func timelineBottomTail(
         geometry: TimelineGeometry,
-        layout: TimelineViewportLayout
+        layout: TimelineViewportLayout,
+        bottomContentClearance: CGFloat
     ) -> some View {
         Color.clear
-            .frame(height: layout.railBottomOvershoot)
+            .frame(height: layout.bottomTailClearance(protecting: bottomContentClearance))
             .listRowSeparator(.hidden)
             .listRowBackground(Color.clear)
             .listRowInsets(geometry.rowInsets)
