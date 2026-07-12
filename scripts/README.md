@@ -8,7 +8,7 @@
 
 ```text
 日常门面：dev.sh
-稳定入口：bootstrap.sh / gen.sh / build.sh / test.sh / lint.sh / run.sh / verify.sh / clean.sh
+稳定入口：bootstrap.sh / gen.sh / build.sh / test.sh / lint.sh / check-foundation-boundaries.sh / run.sh / verify.sh / clean.sh
 公共能力：lib/common.sh / lib/sim.sh
 ```
 
@@ -18,7 +18,7 @@
 - 自动化、CI、文档证据和明确阶段验证使用稳定入口，例如 `./scripts/test.sh --ui`、`./scripts/verify.sh`。
 - 公共逻辑只放 `lib/`，顶层脚本只做仓库定位、参数分发、`-h`、快速失败和调用底层工具。
 - 不手敲 `xcodebuild` 作为常规流程；如果现有入口不够用，先扩展脚本入口。
-- 不兼容旧格式和多余参数；除 `-h|--help` 外，任何未知参数都必须在发生副作用前失败。
+- 不接受未知参数和多余参数；除 `-h|--help` 外，任何未知参数都必须在发生副作用前失败。
 
 ## 职责边界
 
@@ -30,6 +30,7 @@
 | `build.sh` | Debug 模拟器构建，不签名 | 运行测试、安装 App |
 | `test.sh` | XCTest / XCUITest 统一入口，支持套件级和定向测试 | lint、打包、真机验证 |
 | `lint.sh` | `swiftlint` + `swift-format` 检查；`--fix` 才改文件 | 构建、测试 |
+| `check-foundation-boundaries.sh` | 只读扫描 Foundation UI、Feature capability 和 Settings 能力归属，防止反向依赖回流 | Swift 格式、构建、XCTest/XCUITest |
 | `run.sh` | 启动模拟器、构建、安装并启动 App | 跑测试、真机部署 |
 | `verify.sh` | 固定一条龙：lint -> build -> test --all | 快速定向验证、安装工具链 |
 | `clean.sh` | 删除 `DerivedData/` 和生成的 `.xcodeproj` | 清理模拟器数据、删除入库源码 |
@@ -44,6 +45,7 @@
 开发中定位问题       ./scripts/test.sh --only Target[/Class[/testMethod]]
 开发中验证一类测试   ./scripts/test.sh --unit
 界面流程改动         ./scripts/test.sh --ui
+架构边界收口         ./scripts/check-foundation-boundaries.sh
 阶段完成 / 提交前    ./scripts/verify.sh
 ```
 
@@ -59,6 +61,7 @@
 
 - 单元测试覆盖业务规则、状态计算、repository/service 生命周期，不依赖 UI。
 - UI 测试覆盖关键用户流程和产品约束，不按每个按钮机械拆用例。
+- 边界扫描覆盖 foundation / feature / capability / 文档路径的明显回漂，不替代编译或测试。
 - 开发中可以用 `test.sh` 定向快速回归；阶段完成、计划项验收和提交前验证以 `verify.sh` 为准。
 - `verify.sh` 是本地与 CI 的共同入口，固定顺序失败即停，不做“尽量继续”。
 

@@ -4,7 +4,7 @@
 
 ## 文档边界
 
-`current` 回答“现在实际怎么实现”。它不承诺未来优化，不替代计划层，也不把 Flutter 版实现细节当作 SwiftUI 事实。当前数据权威是 `Canonical Repository + GRDB + SQLite + FileAssetStore`，旧本地存储实现已经从生产源码和旧架构测试中清理。
+`current` 回答“现在实际怎么实现”。它不承诺未来优化，不替代计划层，也不把 Flutter 版实现细节当作 SwiftUI 事实。当前数据权威是 `Canonical Repository + GRDB + SQLite + FileAssetStore`。
 
 | 文件 | 职责 |
 | --- | --- |
@@ -82,4 +82,4 @@
 ./scripts/test.sh --unit
 ```
 
-结果：通过。`./scripts/test.sh --unit` 执行 266 条单元测试，4 条 skipped，0 失败。该轮清理删除旧本地存储源码、旧 repository / 旧恢复点测试和旧导入标记，保留并改造产品公理测试到 canonical repository：删除生命周期额度、发生时间排序、恢复位置、默认标签、筛选聚合、热力图、UI 写入边界、恢复点服务映射。
+结果：通过。`./scripts/test.sh --unit` 执行 266 条单元测试，4 条 skipped，0 失败；覆盖 canonical repository、删除生命周期额度、发生时间排序、恢复位置、默认标签、筛选聚合、热力图、UI 写入边界和恢复点服务映射。

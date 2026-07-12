@@ -10,7 +10,7 @@
 - 这个项目也要成为以后 SwiftUI 小应用的示范骨架：日记、打卡、番茄日记等项目可以复用基础能力，再替换业务 feature。
 - 复用的是稳定能力和组合方式，不是强行复用 Moodments 的首页、时间轴、心情、标签、热力图业务形状。
 - 架构要借鉴成熟模板项目的“稳定合同 + 单向依赖 + 能力注册/装配”思想，但遵循 SwiftUI 原生范式，不照搬 FastAPI 分层命名。
-- 本项目尚未上线；M-foundation 重构不承担旧架构兼容压力。每个阶段只能保留一条真实运行路径，不为了过渡保留双路由、双服务、双数据源或无写入方的预留入口。
+- 本项目尚未上线；M-foundation 每个阶段只保留一条真实运行路径，不保留双路由、双服务、双数据源或无写入方的预留入口。
 
 这里说的“模板效果”是稳定静态接入骨架，不是运行时插件系统：
 
@@ -52,13 +52,13 @@ App Composition
 - 不为了“模板感”引入 registry everywhere、复杂 DI 容器或自定义导航框架。
 - 不引入动态插件、自动路由发现、通用页面 DSL、通用业务 DSL 或运行时 feature loading。
 - 不把“未来可以复用”理解为复制 Moodments 的业务对象；`Moment`、`Mood`、`Tag`、`Timeline`、`Heatmap` 只能作为 Moodments 业务参考，不进入 Foundation 合同。
-- 不做新旧骨架并存的兼容层；若新边界已经接管职责，旧入口必须删除或改到单一路径。
+- 不做双骨架并存；职责接管后只保留单一路径。
 
 ## Current Baseline
 
 - 当前工程是单一 Xcode target，`Project.yml` 直接包含 `Sources/Moodments`；现有“模块”主要靠目录和约定，而不是 Swift package / target 强边界。
 - 当前已落地 `@Observable` MVVM、集中 `AppRouter`、根级 sheet/fullScreenCover、`TimelineModel` 环境注入、隐私锁外层遮罩、StoreKit 订阅服务、语言和主题环境注入。
-- 当前数据权威已收口到 `Canonical Repository + GRDB + SQLite + FileAssetStore`，SwiftData 已清理出主链路；本地备份、恢复点、Markdown/PDF 导出已进入 current 文档。
+- 当前数据权威是 `Canonical Repository + GRDB + SQLite + FileAssetStore`；本地备份、恢复点、Markdown/PDF 导出已进入 current 文档。
 - 当前 sheet system 已有 `AppSheetScaffold`、`AppSheetHeaderBar`、`AppSheetActionButton`、`TaskPageScrollView`、`AppSheetNavigationChrome`，并已有针对编辑页、预览页、设置页、筛选页、标签创建页、Paywall 的入口规则。
 - 当前测试入口已收口到 `./scripts/test.sh` 和 `./scripts/verify.sh`；UI 测试有 DEBUG-only 启动参数、内存 canonical runtime、磁盘隔离恢复测试和部分 StoreKit/隐私锁注入。
 - 当前 `docs/current/` 已能描述 as-built 真相；`docs/plans/implementation-plan.md` 只保留 iCloud sync 与 asset GC 等未完成数据生命周期计划。
@@ -66,7 +66,7 @@ App Composition
 ## Remaining Gaps
 
 - `SettingsSheetView` 的入口信息架构已收口；备份恢复和导出能力合同已在 M-foundation-4 从 Settings feature 归位。隐私锁、订阅、同步状态仍按 current 的现有服务消费方式运行，后续只在出现真实复用/测试痛点时继续收口。
-- 旧 SwiftData / 旧本地存储不再作为兼容目标；本项目尚未上线，M-foundation 不保留双数据源、双 adapter 或旧恢复点桥接。`Canonical*` 表示当前唯一 canonical 数据实现，不是旧架构兼容层。
+- M-foundation 只保留 canonical 数据源和对应 adapter；`Canonical*` 表示当前唯一 canonical 数据实现。
 - App-facing 类型和服务命名仍泄漏基础设施实现，如 `Canonical*` 在 feature 边界可见。内部实现可以叫 canonical，但 feature 合同应使用业务中性或能力中性名称。
 - 测试支持混合了通用 harness 和 Moodments seed fixture；未来其他小 App 复用时，容易把 Moment/Tag/Mood 种子逻辑一起带走。
 - 当前没有自动化边界检查。单 target 下，任何文件都能引用任何符号；如果没有简单的 `rg`/lint 规则，边界会再次漂移。
@@ -84,7 +84,6 @@ App Composition
   - `current`：已经实现的架构、运行流、数据模型、能力路径、验证基线。
   - `contract`：业务 feature 或基础能力调用方可以依赖的稳定能力边界、输入输出、状态语义。
   - `plans`：尚未完成的 gap、planned work、acceptance。
-- 删除过期文档路径相关引用和描述；过期路径不得保留为兼容入口。
 - 将散落在计划、current 和代码注释里的内容按归属移动或改写：current 只保留 as-built 和已实现能力边界，plans 只保留未完成工作。
 - 在 current 或 plan 的最近相关页面中写清 SwiftUI 应用骨架边界，固定 `App Composition -> Business Features -> Foundation Capability Boundaries -> Capability Internals` 的单向依赖；不扩展成通用 framework 设计。
 - 建立现有目录到目标层的映射表，标明哪些目录保持、哪些文件需要迁移、哪些只是重命名或换归属。
@@ -98,7 +97,6 @@ App Composition
 
 - 文档地图明确说明 product、current、plans 的实际文件位置；不存在与地图冲突的引用。
 - current 不承诺未来能力；plans 不伪装成已实现事实。
-- 过期文档路径引用扫描无结果。
 - 已实现能力边界能反向映射到当前 `Sources/Moodments` 目录，不出现空泛层名。
 
 ### M-foundation-1: 稳定 AppShell 与路由表达（已关闭）
@@ -197,7 +195,7 @@ App Composition
 - `BackupRestoreServicing` 与备份恢复值类型已从 `Features/Settings` 迁到 `Services/Backup/BackupRestoreService.swift`；`BackupRestoreView` 和 `SettingsSheetView` 只消费协议，生产 `CanonicalBackupRestoreService` 只在 App composition 注入。
 - `ExportServicing` / `CanonicalExportService` 已归入 `Services/Export/ExportService.swift`；`ExportView` 不再读取 `CanonicalLibraryService` 或组装 `CanonicalExportSnapshotStore`，导出日期范围、临时目录清理和导出动作都通过同一个 capability 合同进入。
 - `RootView` 和 `MoodmentsApp` 明确注入 `backupRestoreService` / `exportService`，Settings feature 不再直接创建备份或导出 concrete service。
-- 不保留旧 SwiftData、本地旧存储或旧恢复点兼容 adapter；导出和备份恢复仍只读/只写 canonical source，不绕过 canonical 事务边界。
+- 导出和备份恢复仍只读/只写 canonical source，不绕过 canonical 事务边界。
 - 验证通过：`./scripts/build.sh`；`./scripts/test.sh --only MoodmentsTests/BackupRestoreServiceTests --only MoodmentsTests/MarkdownExportServiceTests --only MoodmentsTests/PDFExportServiceTests`；`./scripts/test.sh --only MoodmentsUITests/MarkdownExportUITests/testSettingsExportPageGeneratesMarkdownAndShowsShareLink --only MoodmentsUITests/BackupRestoreUITests/testBackupListShowsSystemMaintainedRecoveryPointAndPreview`。
 
 工作项：
@@ -205,17 +203,17 @@ App Composition
 - Backup / Recovery capability：
   - 将 `BackupRestoreServicing`、恢复点摘要、prepare restore、pending restore 相关合同移出 `Features/Settings`。
   - 保持“设置内选择恢复点 -> arm pending restore -> 冷启动 boot gate consume”的成熟流程。
-  - 不提供旧恢复点桥接、不保留旧本地存储恢复路径。
+  - 恢复只走 canonical recovery point 路径。
 - Export capability：
   - 保留一套 `ExportRequest -> ExportSnapshot -> writer` 思路。
   - Markdown/PDF 共用 snapshot，不写 canonical store，不创建恢复点，不影响 iCloud 状态。
   - `ExportView` 只消费 `ExportServicing`；canonical snapshot adapter 与 repository 内部记录隔离，避免设置页拿 canonical row 当稳定 API。
-  - 不提供第二套导出 source，也不保留 SwiftData/旧本地存储导出路径。
+  - 导出只走 canonical snapshot adapter。
 - App composition：
   - `MoodmentsApp` / `RootView` 负责把 `CanonicalBackupRestoreService`、`CanonicalExportService` 接到设置页。
   - Settings feature 只表达入口、状态和用户动作，不装配具体 service。
 - 非本阶段项：
-  - `CanonicalLibraryService` 是当前唯一数据权威 facade，不是旧架构兼容层；本阶段不为了“模板感”额外包一层平行 `LibraryService`。
+  - `CanonicalLibraryService` 是当前唯一数据权威 facade；本阶段不为了“模板感”额外包一层平行 `LibraryService`。
   - 隐私锁、订阅、同步状态和统计/时间轴查询保持 current 的单一路径；只有出现真实复用或测试痛点时再进入单独计划项。
 
 验收：
@@ -223,24 +221,29 @@ App Composition
 - Features 不直接创建 `ExportService` 或 `CanonicalBackupRestoreService`。
 - 备份恢复和导出 capability contract 有稳定值类型输入输出；实现细节可以替换而不改设置页面。
 - 本地备份恢复和 Markdown/PDF 导出路径测试不回归。
-- 备份恢复和导出仍不绕过 canonical 事务边界，也不保留旧数据源兼容路径。
+- 备份恢复和导出仍不绕过 canonical 事务边界。
 
-### M-foundation-5: 测试骨架与边界守卫
+### M-foundation-5: 测试骨架与边界守卫（已关闭）
 
 目标：让项目不只“现在看起来干净”，还可以长期防止边界回漂。
 
+关闭证据：
+
+- 新增 `scripts/check-foundation-boundaries.sh`，只读扫描 `DesignSystem` 业务语义泄漏、Feature 直接创建备份/导出 concrete service、Settings 重新定义跨能力 service protocol 等明显边界回漂。
+- `scripts/README.md` 已加入边界扫描入口和“窄验证优先、阶段收口再全量”的测试策略。
+- `docs/current/testing-architecture.md` 已记录当前测试入口、UI test launch arguments、边界扫描职责，以及“不为模板感提前提取 UI test robot/harness”的约束。
+- 验证通过：`bash -n ./scripts/check-foundation-boundaries.sh`；`./scripts/check-foundation-boundaries.sh`；`./scripts/check-foundation-boundaries.sh -h`；`./scripts/clean.sh -h`。
+
 工作项：
 
-- 拆分 DEBUG UI 测试支持：
-  - 通用 launch/test harness：reset、isolated UserDefaults、in-memory runtime hook、capability injection。
-  - Moodments fixture：moments、tags、quota、backup seed。
 - 建立边界扫描脚本或验证步骤：
   - Foundation UI 不引用 Moodments 业务类型。
   - Feature 不直接 new capability concrete service。
   - Settings 不定义跨 feature 服务协议。
   - current 文档不写未来计划，plans 不伪装成已实现事实。
-- 为每个 foundation capability 记录最小验证入口：单元测试、窄 UI 测试或脚本验证。
+- 为 foundation / capability 相关改动记录最小验证入口：单元测试、窄 UI 测试或脚本验证。
 - 保持“相关功能优先窄验证，阶段收口再全量 verify”的策略，避免每次 UI 微调都跑巨长全量交互。
+- DEBUG UI 测试支持暂不做大规模拆分；当前项目规模下继续保留原生 XCTest/XCUITest 写法，只有出现真实重复启动参数、等待逻辑或不稳定时再提取通用 harness。
 
 验收：
 
@@ -270,7 +273,7 @@ App Composition
   - 新增 settings entry 的接入清单：分组、row 状态、目标详情页或 action、能力归属。
   - 新增 root sheet 的接入清单：任务层级、关闭/完成动作、是否允许嵌套、对应窄 UI 测试。
   - 哪些代码可以直接复用，哪些代码只可作为 Moodments 业务参考。
-- 清理过时注释和旧文档引用，避免后续开发者被不存在的文档、旧架构命名或历史阶段说明误导。
+- 清理与当前骨架无关的历史阶段说明，避免后续开发者被非当前事实误导。
 
 验收：
 

@@ -22,7 +22,7 @@ clean.sh — 清理构建产物：删除 DerivedData 与生成的 Moodments.xcod
   build/run 重新生成）。不动 Sources/Tests/Project.yml 等入库文件。
 
 不负责:
-  清理 SwiftData 本地库 / 模拟器已安装的 App（用 xcrun simctl 自行处理）。
+  清理模拟器已安装的 App 或应用容器数据（用 xcrun simctl 自行处理）。
 
 示例:
   ./scripts/clean.sh && ./scripts/gen.sh

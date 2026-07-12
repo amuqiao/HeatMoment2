@@ -38,7 +38,7 @@ sheet 宿主
 - 需要和页面内容共用自定义垂直骨架的 sheet，使用页内 `AppSheetHeaderBar`；当前例子是编辑页和标签创建页。
 - 顶部动作按钮统一由 `AppSheetActionButton` 渲染；禁用、强调、危险色和 accessibility identifier/hint 都通过 `AppSheetAction` 表达。
 - 设置详情页保留系统 push/返回语义，只挂 `appSheetDetailNavigationChrome`；不要为每个详情页自绘返回按钮。
-- `.themedTaskContainer` 只保留为内容层/任务容器兼容入口，不是新增 sheet chrome 的入口。
+- `.themedTaskContainer` 只用于内容层/任务容器，不是新增 sheet chrome 的入口。
 - 首页、时间轴气泡、日期/时间 popover、标签选择 popover 不属于任务 sheet system，不套 `AppSheetScaffold`。
 
 ## 验证入口

@@ -49,9 +49,8 @@ SwiftUI / ViewModel
 
 ## Current Baseline
 
-- 本地读写权威、UI 主流程、恢复点、Markdown/PDF 导出和 UI 测试种子已经切到 canonical 架构，详见 [`../current/implementation-truth.md`](../current/implementation-truth.md)。
-- 旧本地存储实现、旧 repository、旧恢复点实现、旧导入器和旧架构测试已经从源码与测试目标中清理。
-- 项目尚未上线，本轮不兼容旧本地存储直升和旧恢复点桥接；后续计划只基于 canonical store 演进。
+- 本地读写权威、UI 主流程、恢复点、Markdown/PDF 导出和 UI 测试种子使用 canonical 架构，详见 [`../current/implementation-truth.md`](../current/implementation-truth.md)。
+- 后续本地数据生命周期计划只基于 canonical store 演进。
 - 设置页已经区分“备份与恢复”和“导出”；恢复点是系统自动维护的本机恢复点，导出是只读副本。
 - 当前导出闭环支持全部或日期范围、Markdown/PDF、照片开关、失败重试和临时文件清理；它不写 canonical store、不创建恢复点、不参与 iCloud 同步，详见 [`../current/implementation-truth.md`](../current/implementation-truth.md)。
 - M-architecture-final 已把本地数据闭环的可复用心智模型整理到 [`../current/local-data-architecture.md`](../current/local-data-architecture.md)，并将导出、恢复点 snapshot 和 restore 类型合同按职责拆分为更小文件。
