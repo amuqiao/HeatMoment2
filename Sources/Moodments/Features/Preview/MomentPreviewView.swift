@@ -24,7 +24,7 @@ struct MomentPreviewView: View {
     }
 
     var body: some View {
-        TaskSheetScaffold {
+        AppSheetScaffold {
             Group {
                 if let previewData {
                     content(for: previewData)
@@ -33,8 +33,8 @@ struct MomentPreviewView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
-            .taskSheetChrome(
-                cancellation: TaskSheetAction(
+            .appSheetChrome(
+                cancellation: AppSheetAction(
                     "关闭",
                     accessibilityIdentifier: "momentPreviewCloseButton"
                 ) {
@@ -60,9 +60,9 @@ struct MomentPreviewView: View {
         }
     }
 
-    private var previewEditAction: TaskSheetAction? {
+    private var previewEditAction: AppSheetAction? {
         guard let record = previewData?.record else { return nil }
-        return TaskSheetAction(
+        return AppSheetAction(
             "编辑",
             accessibilityIdentifier: "momentPreviewEditButton"
         ) {

@@ -42,7 +42,7 @@ struct MomentEditorLayoutTokens: Equatable {
         topChromeMinHeight: CGFloat = 56,  // 顶部操作栏最小高度
         topChromeActionSlotWidth: CGFloat = 64,  // 取消/保存按钮槽宽，保证中间日期时间居中
         topChromeItemSpacing: CGFloat = 8,  // 顶部操作栏内部元素间距
-        topChromeToSelectorGap: CGFloat = 0,  // 顶部操作栏底部到心情/标签行顶部的呼吸间隔
+        topChromeToSelectorGap: CGFloat = 4,  // 顶部操作栏底部到心情/标签行顶部的呼吸间隔
         selectorRowGap: CGFloat = 12,  // 心情容器和标签容器之间的横向间距
         selectorMinHeight: CGFloat = 40,  // 心情/标签容器最小高度
         selectorIconWidth: CGFloat = 28,  // 心情/标签容器左侧图标槽宽

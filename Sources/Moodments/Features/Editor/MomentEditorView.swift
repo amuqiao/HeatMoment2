@@ -58,7 +58,7 @@ struct MomentEditorView: View {
     }
 
     var body: some View {
-        TaskSheetScaffold {
+        AppSheetScaffold(hidesSystemNavigationBar: true) {
             editorRoot
         }
         .alert("放弃编辑？", isPresented: $isDiscardAlertPresented) {
@@ -106,8 +106,8 @@ struct MomentEditorView: View {
         }
     }
 
-    private var cancelAction: TaskSheetAction {
-        TaskSheetAction(
+    private var cancelAction: AppSheetAction {
+        AppSheetAction(
             "取消",
             accessibilityIdentifier: "editorCancelButton"
         ) {
@@ -115,8 +115,8 @@ struct MomentEditorView: View {
         }
     }
 
-    private var saveAction: TaskSheetAction {
-        TaskSheetAction(
+    private var saveAction: AppSheetAction {
+        AppSheetAction(
             "保存",
             accessibilityIdentifier: "editorSaveButton",
             isDisabled: !model.isLoaded || !model.canSave || isSaving,

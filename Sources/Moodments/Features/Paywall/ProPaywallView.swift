@@ -20,7 +20,7 @@ struct ProPaywallView: View {
     @State private var infoMessage: LocalizedStringKey?
 
     var body: some View {
-        TaskSheetScaffold(style: .commercial) {
+        AppSheetScaffold(style: .commercial) {
             Group {
                 if subscriptionService.isPro {
                     alreadyProContent
@@ -28,9 +28,9 @@ struct ProPaywallView: View {
                     purchaseContent
                 }
             }
-            .taskSheetChrome(
+            .appSheetChrome(
                 title: "Pro 会员",
-                cancellation: TaskSheetAction("关闭") {
+                cancellation: AppSheetAction("关闭") {
                     dismiss()
                 }
             )
