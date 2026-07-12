@@ -133,7 +133,7 @@ TaskSurfaceMetrics
 
 `AppSheetScaffold` 只治理任务型 sheet 的宿主 `NavigationStack`、背景和色彩模式；`appSheetChrome` 负责适合系统导航栏的任务页动作槽位，当前用于 `MomentPreviewView` 的「关闭 / 编辑」和 `ProPaywallView` 的「关闭」。`MomentEditorView` 仍使用 `AppSheetScaffold`，但顶部动作栏通过页内 `MomentEditorHeaderBar` 接入统一 `AppSheetHeaderBar`，以便编辑页的顶部栏、心情/标签行、正文区和图片区共用同一套 `MomentEditorLayoutTokens`，同时复用全局 sheet action 样式。内容区域仍由 `TaskPageScrollView`、`TaskResponsiveContent`、功能视图或商业页自身负责。`FilterPanelView`、设置栈内子页、标签创建 sheet 仍保留各自导航语义，不强制套入任务卡片 chrome。
 
-`TaskSurfaceMetrics` 定义任务页内容列的水平边距、最大可读宽度、分组间距、panel 圆角、panel padding 和 row 最小高度。`TaskPageScrollView` 负责 sheet 背景、滚动和底部安全余量；`TaskResponsiveContent` 只负责内容列居中、最大宽度和页边距，因此可被统计页等非 sheet 背景场景借用；`TaskSurfaceSection` 负责可选标题和 panel 边界；`TaskSurfacePanel` 只表达任务容器面板；`TaskSurfaceRow` 表达设置类行。用于 UI 验证的 section measurement identifier 是 1pt 透明边界标记，不覆盖整块内容，避免抢走按钮命中区域。
+`TaskSurfaceMetrics` 定义任务页内容列的水平边距、最大可读宽度、分组间距、panel 圆角、panel padding 和 row 最小高度。`TaskPageScrollView` 负责 sheet 背景、滚动和底部安全余量，并读取当前 `AppSheetStyle` 决定普通 / 商业 sheet 背景；`TaskResponsiveContent` 只负责内容列居中、最大宽度和页边距，因此可被统计页等非 sheet 背景场景借用；`TaskSurfaceSection` 负责可选标题和 panel 边界；`TaskSurfacePanel` 只表达任务容器面板；`TaskSurfaceRow` 表达设置类行。用于 UI 验证的 section measurement identifier 是 1pt 透明边界标记，不覆盖整块内容，避免抢走按钮命中区域。
 
 这套骨架只用于“系统任务空间”：设置根页、外观详情、编辑器输入面板、预览阅读卡片，以及统计/标签/垃圾箱的页边距基线。它不用于首页品牌画布、时间轴 Moment 气泡、筛选 popover、日期/时间 popover 或标签创建 sheet；这些对象各自保留自身语义。当前 Settings 的 Pro 横幅、设置分组、支持分组、关于分组共享同一内容列；Appearance 的模式、颜色、网格、图片分组共享同一内容列；Editor 的文本输入 panel 和添加照片 CTA 共享同一内容列；Preview 的阅读内容也进入同一任务页滚动骨架。
 
@@ -157,7 +157,7 @@ TaskSurfaceMetrics
 - 模式、主色会影响已接入 `ThemeManager` 的背景、文字、气泡、chip、热力图空格、顶栏图标描边、首页背景纹理、行动强调前景和外观页分组缩略卡等。亮色不是暗色反相：首页仍使用轻灰紫画布，任务 sheet 使用 iOS 分组浅色体系，首页气泡和 sheet panel 不互相复用。
 - 心情色通过 `theme.moodColor(_:)` 解析，不读取主色。
 - 危险色通过 `theme.danger` 解析，不读取主色。
-- `ProPaywallView` / `AboutView` 使用固定商业 token，并在本页局部注入 `.light` color scheme：浅色背景、浅色行/面板、固定红和固定商业文字不跟随用户主色或暗/亮模式，也不被设置任务容器的暗色环境污染。Paywall 的月订阅 / 终身买断结构仍按当前 StoreKit 契约展示；双方案视觉样式是否继续改造仍归 Paywall 专项裁决。
+- `ProPaywallView` / `AboutView` 使用固定商业 token，并在本页局部注入 `.light` color scheme：浅色背景、浅色行/面板、固定红和固定商业文字不跟随用户主色或暗/亮模式，也不被设置任务容器的暗色环境污染。Paywall 由 `AppSheetScaffold(style: .commercial)` 承载，购买态内容复用 `TaskPageScrollView` 的统一内容列；月订阅 / 终身买断结构仍按当前 StoreKit 契约展示；双方案视觉样式是否继续改造仍归 Paywall 专项裁决。
 - `ImageViewerView` 使用固定媒体 token：沉浸黑底、白色 chrome 和黑色 chrome scrim，不跟随主题主色。
 - `AppSheetScaffold` 是根级任务 sheet 的 SwiftUI 宿主封装：编辑器、预览和 Paywall 统一由它注入任务背景、color scheme、toolbar color scheme 和 tint。`TaskContainerStyle` 保留内容层封装：`TaskPageScrollView` / `TaskSurfacePanel` 表达响应式宽度与 panel 语义；统计页只借用 `TaskResponsiveContent` 的内容列，不继承 sheet 背景；仍需系统行级能力的标签和垃圾箱列表保留 `List` / `.swipeActions`，通过 `taskListContentFrame()` 和共享 row inset 对齐同一最大宽度基线。这样避免系统默认浅色 grouped list 在暗色主题下盖住正确文字色，也避免不同任务页各自写死宽度。
 - `SettingsNavigationChrome` 是设置流专属导航外壳，不并入通用任务容器：设置根页保留系统默认标题样式，设置详情页统一 `.inline` 居中系统标题；导航栏背景保留 SwiftUI / UIKit 系统 scroll-edge 行为，顶部透明、滚动压入内容后由系统 material 接管，不自绘标题、不写死 `UINavigationBarAppearance` 或导航栏背景色。`MoodStatsView`、`TagManageView`、`TrashView`、`LanguageSettingsView`、`AppearanceThemeView`、`AboutView` 都挂同一详情页导航契约；`AppearanceThemeView` 的系统标题与设置入口统一为「外观主题」。

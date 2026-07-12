@@ -83,17 +83,14 @@ struct ProPaywallView: View {
     // MARK: - 购买态
 
     private var purchaseContent: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                header
-                benefits
-                purchaseButtons
-                restoreButton
-                if SubscriptionService.canMakePayments {
-                    redeemCodeButton
-                }
+        TaskPageScrollView(spacing: 20, accessibilityIdentifier: "paywallContentScroll") {
+            header
+            benefits
+            purchaseButtons
+            restoreButton
+            if SubscriptionService.canMakePayments {
+                redeemCodeButton
             }
-            .padding(20)
         }
     }
 

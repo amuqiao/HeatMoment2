@@ -56,6 +56,7 @@ extension View {
 
 struct TaskPageScrollView<Content: View>: View {
     @Environment(ThemeManager.self) private var theme
+    @Environment(\.appSheetStyle) private var appSheetStyle
 
     private let spacing: CGFloat
     private let contentInsets: EdgeInsets
@@ -81,7 +82,7 @@ struct TaskPageScrollView<Content: View>: View {
                 content
             }
         }
-        .background(theme.sheetBackground.ignoresSafeArea())
+        .background(appSheetStyle.background(theme).ignoresSafeArea())
 
         if let accessibilityIdentifier {
             scrollView.accessibilityIdentifier(accessibilityIdentifier)
