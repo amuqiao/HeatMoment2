@@ -34,7 +34,7 @@ struct MomentEditorLayoutTokens: Equatable {
         pageHorizontalInset: CGFloat = 16,  // 编辑页内容左右边距
         pageBottomInset: CGFloat = 56,  // 滚动内容底部避让距离
         principalItemSpacing: CGFloat = 8,  // 日期/时间 principal 内部元素间距
-        toolbarToSelectorGap: CGFloat = 4,  // 系统导航栏底部到心情/标签行顶部的呼吸间隔
+        toolbarToSelectorGap: CGFloat = 0,  // 系统导航栏底部到心情/标签行顶部的呼吸间隔
         selectorRowGap: CGFloat = 12,  // 心情容器和标签容器之间的横向间距
         selectorMinHeight: CGFloat = 40,  // 心情/标签容器最小高度
         selectorIconWidth: CGFloat = 28,  // 心情/标签容器左侧图标槽宽
