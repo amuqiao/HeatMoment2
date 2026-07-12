@@ -3,8 +3,8 @@ import SwiftUI
 /// 年度心情热力图主页顶部上下文区（见 `docs/current/implementation-truth.md` §4.3、
 /// `docs/current/implementation-truth.md` §2.2：导航栏下方原位展开、非模态、不入 Router）。
 ///
-/// **呈现形态（P0 落地）**：由 `TimelineHomeView` 的顶部 `safeAreaInset` 原位呈现，继承
-/// `theme.canvasBackground`，不是全屏黑遮罩模态，也不是漂浮卡片。
+/// **呈现形态**：由 `TimelineHomeView` 的顶部 `safeAreaInset` 原位呈现，保持全宽上下文区；
+/// 自身不再重复铺首页背景，不是全屏黑遮罩模态，也不是任务 sheet。
 ///
 /// **与筛选正交**（公理2）：点月/点日只写 `TimelineModel.heatmapFocusDate`（驱动滚动），
 /// 从不读写 `activeFilter`；年度聚合虽然**读** `activeFilter` 作为聚合口径（阶段5决策1），
@@ -48,7 +48,11 @@ struct YearHeatmapView: View {
         .padding(.top, 12)
         .padding(.bottom, 14)
         .frame(maxWidth: .infinity)
-        .background(HomeSceneBackgroundView())
+        .background {
+            Rectangle()
+                .fill(.thinMaterial)
+                .overlay(theme.homeContextSurfaceTint)
+        }
         .overlay(alignment: .bottom) {
             Rectangle()
                 .fill(theme.heatmapSeparator)

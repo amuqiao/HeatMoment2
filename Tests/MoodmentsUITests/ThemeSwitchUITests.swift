@@ -274,6 +274,66 @@ final class ThemeSwitchUITests: XCTestCase {
         )
     }
 
+    /// 自定义背景图只能改变预览内容，不能改变外观页既有分组/选项骨架。
+    func testCustomBackgroundImageKeepsAppearancePreviewSkeletonStable() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTestReset", "-uiTestBackgroundImageInjection"]
+        app.launch()
+
+        XCTAssertTrue(app.buttons["新建时刻"].waitForExistence(timeout: 10))
+        openAppearanceThemeView(app)
+
+        let modeSection = app.otherElements["appearanceModeSection"]
+        let darkOption = app.buttons["appearanceModeOption-dark"]
+        let darkPreview = app.otherElements["appearanceModePreview-dark"]
+        XCTAssertTrue(modeSection.waitForExistence(timeout: 5))
+        XCTAssertTrue(darkOption.waitForExistence(timeout: 5))
+        XCTAssertTrue(darkPreview.waitForExistence(timeout: 5))
+        let modeSectionFrameBefore = modeSection.frame
+        let darkPreviewFrameBefore = darkPreview.frame
+
+        let textureSection = app.otherElements["appearanceTextureSection"]
+        let gridOption = app.buttons["appearanceTextureOption-grid"]
+        let customOption = app.buttons["appearanceTextureOption-customImage"]
+        let customPreview = app.otherElements["appearanceTexturePreview-customImage"]
+        scrollUntilVisible(customOption, app: app)
+        XCTAssertTrue(textureSection.waitForExistence(timeout: 5))
+        XCTAssertTrue(gridOption.waitForExistence(timeout: 5))
+        XCTAssertTrue(customOption.waitForExistence(timeout: 5))
+        XCTAssertTrue(customPreview.waitForExistence(timeout: 5))
+        let textureSectionFrameBefore = textureSection.frame
+        let gridOptionFrameBefore = gridOption.frame
+        let customPreviewFrameBefore = customPreview.frame
+
+        let injectButton = app.buttons["appearanceCustomBackgroundInjectButton"]
+        scrollUntilVisible(injectButton, app: app)
+        XCTAssertTrue(injectButton.waitForExistence(timeout: 5))
+        injectButton.tap()
+
+        XCTAssertTrue(waitUntilSelected(customOption), "注入自定义背景图后应立即选中自定义图片")
+
+        scrollUntilVisible(customOption, app: app)
+        let textureSectionFrameAfter = textureSection.frame
+        let gridOptionFrameAfter = gridOption.frame
+        let customPreviewFrameAfter = customPreview.frame
+
+        XCTAssertEqual(textureSectionFrameAfter.width, textureSectionFrameBefore.width, accuracy: 1)
+        XCTAssertEqual(
+            textureSectionFrameAfter.height, textureSectionFrameBefore.height, accuracy: 2)
+        XCTAssertEqual(gridOptionFrameAfter.width, gridOptionFrameBefore.width, accuracy: 1)
+        XCTAssertEqual(gridOptionFrameAfter.height, gridOptionFrameBefore.height, accuracy: 1)
+        XCTAssertEqual(customPreviewFrameAfter.width, customPreviewFrameBefore.width, accuracy: 1)
+        XCTAssertEqual(customPreviewFrameAfter.height, customPreviewFrameBefore.height, accuracy: 1)
+
+        scrollToTop(app)
+        XCTAssertTrue(darkOption.waitForExistence(timeout: 5))
+        let darkPreviewFrameAfter = darkPreview.frame
+        XCTAssertEqual(modeSection.frame.width, modeSectionFrameBefore.width, accuracy: 1)
+        XCTAssertEqual(modeSection.frame.height, modeSectionFrameBefore.height, accuracy: 2)
+        XCTAssertEqual(darkPreviewFrameAfter.width, darkPreviewFrameBefore.width, accuracy: 1)
+        XCTAssertEqual(darkPreviewFrameAfter.height, darkPreviewFrameBefore.height, accuracy: 1)
+    }
+
     /// 切图片展示方式（滚动→轮播）即时生效：选中态立即切换，无需保存按钮。
     func testSwitchingImageDisplayModeUpdatesSelectionImmediately() {
         let app = XCUIApplication()
@@ -313,6 +373,10 @@ final class ThemeSwitchUITests: XCTestCase {
     /// 在 `AppearanceThemeView` 内下滑到底，使末尾分组（「图片」）进入可见区域。
     private func scrollToBottom(_ app: XCUIApplication) {
         for _ in 0..<3 { app.swipeUp() }
+    }
+
+    private func scrollToTop(_ app: XCUIApplication) {
+        for _ in 0..<3 { app.swipeDown() }
     }
 
     private func scrollUntilVisible(_ element: XCUIElement, app: XCUIApplication) {

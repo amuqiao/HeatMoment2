@@ -315,6 +315,9 @@ final class ThemeManager {
     /// 首页顶部 chrome 收起态的材质叠色。
     var topChromeOverlay: Color { tokens.topChromeOverlay }
 
+    /// 首页上下文 surface 的统一材质叠色。
+    var homeContextSurfaceTint: Color { tokens.homeContextSurfaceTint }
+
     /// 首页热力图上下文底部分隔线。
     var heatmapSeparator: Color { tokens.heatmapSeparator }
 

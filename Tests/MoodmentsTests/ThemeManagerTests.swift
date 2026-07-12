@@ -94,6 +94,7 @@ final class ThemeManagerTests: XCTestCase {
         XCTAssertEqual(theme.previewMuted, Color(hex: 0x3A3A3C))
         XCTAssertEqual(theme.secondaryText, Color(hex: 0x8E8E93))
         XCTAssertEqual(theme.mutedText, Color(hex: 0x8E8E93))
+        XCTAssertEqual(theme.homeContextSurfaceTint, Color(hex: 0x121221).opacity(0.22))
 
         theme.setMode(.light)
 
@@ -108,6 +109,7 @@ final class ThemeManagerTests: XCTestCase {
         XCTAssertEqual(theme.previewMuted, Color(hex: 0xE5E5EA))
         XCTAssertEqual(theme.secondaryText, Color(hex: 0x6C6C70))
         XCTAssertEqual(theme.mutedText, Color(hex: 0x8E8E93))
+        XCTAssertEqual(theme.homeContextSurfaceTint, Color(hex: 0xF2F2F6).opacity(0.12))
     }
 
     func testAccentDerivedThemeTokensFollowCurrentAccentAndMode() {

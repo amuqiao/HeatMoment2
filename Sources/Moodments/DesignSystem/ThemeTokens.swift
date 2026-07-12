@@ -37,6 +37,7 @@ struct AppThemeTokens {
     let homeTextureColor: Color
     let customBackgroundOverlay: Color
     let topChromeOverlay: Color
+    let homeContextSurfaceTint: Color
     let heatmapSeparator: Color
     let previewBackground: Color
     let previewMuted: Color
@@ -82,6 +83,7 @@ struct AppThemeTokens {
             homeTextureColor: AccentPalette.homeTextureColor(accent: accent, mode: mode),
             customBackgroundOverlay: BrandCanvasPalette.customBackgroundOverlay(mode),
             topChromeOverlay: BrandCanvasPalette.topChromeOverlay(mode),
+            homeContextSurfaceTint: BrandCanvasPalette.contextSurfaceTint(mode),
             heatmapSeparator: BrandCanvasPalette.heatmapSeparator(mode),
             previewBackground: TaskContainerPalette.previewBackground(mode),
             previewMuted: TaskContainerPalette.previewMuted(mode),
@@ -125,6 +127,10 @@ enum BrandCanvasPalette {
 
     static func topChromeOverlay(_ mode: ThemeMode) -> Color {
         canvasBackground(mode).opacity(0.36)
+    }
+
+    static func contextSurfaceTint(_ mode: ThemeMode) -> Color {
+        canvasBackground(mode).opacity(mode == .dark ? 0.22 : 0.12)
     }
 
     static func heatmapSeparator(_ mode: ThemeMode) -> Color {

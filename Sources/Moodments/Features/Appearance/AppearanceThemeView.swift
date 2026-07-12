@@ -76,6 +76,7 @@ struct AppearanceThemeView: View {
                     title: "暗色模式",
                     texture: theme.backgroundTexture,
                     customImageURL: theme.customBackgroundImageURL,
+                    customImageRevision: theme.customBackgroundImageRevision,
                     isSelected: theme.mode == .dark,
                     identifier: "appearanceModeOption-dark"
                 ) {
@@ -86,6 +87,7 @@ struct AppearanceThemeView: View {
                     title: "亮色模式",
                     texture: theme.backgroundTexture,
                     customImageURL: theme.customBackgroundImageURL,
+                    customImageRevision: theme.customBackgroundImageRevision,
                     isSelected: theme.mode == .light,
                     identifier: "appearanceModeOption-light"
                 ) {
@@ -116,13 +118,14 @@ struct AppearanceThemeView: View {
     private var textureSection: some View {
         let isCustomImageSelected = theme.backgroundTexture == .customImage
         let customImageURL = theme.customBackgroundImageURL
+        let customImageRevision = theme.customBackgroundImageRevision
 
         return TaskSurfaceSection(
-            title: "网格",
+            title: "背景",
             accessibilityIdentifier: "appearanceTextureSection"
         ) {
             LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 68), spacing: 12)],
+                columns: [GridItem(.adaptive(minimum: 68, maximum: 86), spacing: 12)],
                 spacing: 14
             ) {
                 AppearanceTextureOptionCard(
@@ -154,10 +157,12 @@ struct AppearanceThemeView: View {
                         texture: .customImage,
                         title: "自定义",
                         isSelected: isCustomImageSelected,
-                        customImageURL: customImageURL
+                        customImageURL: customImageURL,
+                        customImageRevision: customImageRevision
                     )
                 }
                 .buttonStyle(.plain)
+                .frame(maxWidth: .infinity)
                 .accessibilityIdentifier("appearanceTextureOption-customImage")
                 .accessibilityLabel(Text("背景纹理：自定义图片"))
                 .accessibilityAddTraits(isCustomImageSelected ? [.isSelected] : [])

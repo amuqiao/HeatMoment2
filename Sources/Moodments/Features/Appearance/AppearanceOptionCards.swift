@@ -1,5 +1,33 @@
 import SwiftUI
-import UIKit
+
+private enum AppearancePreviewMetrics {
+    static let cornerRadius: CGFloat = 13
+    static let texturePreviewHeight: CGFloat = 106
+    static let textureOptionHeight: CGFloat = 132
+    static let modeOverviewSize = CGSize(width: 88, height: 132)
+}
+
+private extension View {
+    @ViewBuilder
+    func appearancePreviewMeasurementIdentifier(_ identifier: String) -> some View {
+        #if DEBUG
+            let shouldExposeIdentifier = UITestSupport.wantsTaskSurfaceMeasurementIdentifiers
+        #else
+            let shouldExposeIdentifier = false
+        #endif
+
+        if shouldExposeIdentifier {
+            overlay {
+                Color.clear
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityIdentifier(identifier)
+                    .allowsHitTesting(false)
+            }
+        } else {
+            self
+        }
+    }
+}
 
 struct AppearanceInlineNotice: View {
     @Environment(ThemeManager.self) private var theme
@@ -30,6 +58,7 @@ struct AppearanceModeOptionCard: View {
     let title: String
     let texture: BackgroundTexture
     let customImageURL: URL?
+    let customImageRevision: Int
     let isSelected: Bool
     let identifier: String
     let action: () -> Void
@@ -41,9 +70,14 @@ struct AppearanceModeOptionCard: View {
                     mode: mode,
                     accentColor: theme.accentColor,
                     texture: texture,
-                    customImageURL: customImageURL
+                    customImageURL: customImageURL,
+                    customImageRevision: customImageRevision
                 )
-                .frame(width: 88, height: 132)
+                .frame(
+                    width: AppearancePreviewMetrics.modeOverviewSize.width,
+                    height: AppearancePreviewMetrics.modeOverviewSize.height
+                )
+                .appearancePreviewMeasurementIdentifier("appearanceModePreview-\(mode.rawValue)")
 
                 Text(title)
                     .font(AppTypography.cardTitle)
@@ -54,6 +88,7 @@ struct AppearanceModeOptionCard: View {
                 AppearanceSelectionRadio(isSelected: isSelected)
             }
             .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier(identifier)
@@ -104,8 +139,11 @@ struct AppearanceTextureOptionCard: View {
                 texture: texture,
                 title: title,
                 isSelected: isSelected,
-                customImageURL: nil
+                customImageURL: nil,
+                customImageRevision: 0
             )
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier(identifier)
@@ -121,6 +159,7 @@ struct AppearanceTextureOptionLabel: View {
     let title: String
     let isSelected: Bool
     let customImageURL: URL?
+    let customImageRevision: Int
 
     var body: some View {
         VStack(spacing: 8) {
@@ -128,10 +167,13 @@ struct AppearanceTextureOptionLabel: View {
                 mode: theme.mode,
                 accentColor: theme.accentColor,
                 texture: texture,
-                customImageURL: customImageURL
+                customImageURL: customImageURL,
+                customImageRevision: customImageRevision
             )
-            .frame(height: 106)
+            .frame(maxWidth: .infinity)
+            .frame(height: AppearancePreviewMetrics.texturePreviewHeight)
             .overlay(selectionBorder)
+            .appearancePreviewMeasurementIdentifier("appearanceTexturePreview-\(texture.rawValue)")
 
             Text(title)
                 .font(AppTypography.caption.weight(.semibold))
@@ -139,10 +181,13 @@ struct AppearanceTextureOptionLabel: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
         }
+        .frame(maxWidth: .infinity)
+        .frame(height: AppearancePreviewMetrics.textureOptionHeight, alignment: .top)
+        .contentShape(Rectangle())
     }
 
     private var selectionBorder: some View {
-        RoundedRectangle(cornerRadius: 12, style: .continuous)
+        RoundedRectangle(cornerRadius: AppearancePreviewMetrics.cornerRadius, style: .continuous)
             .stroke(
                 isSelected ? theme.accent : theme.separator.opacity(0.65),
                 lineWidth: isSelected ? 2 : 1
@@ -210,6 +255,7 @@ private struct AppearanceThemeOverviewPreview: View {
     let accentColor: AccentColorOption
     let texture: BackgroundTexture
     let customImageURL: URL?
+    let customImageRevision: Int
 
     private var tokens: AppThemeTokens {
         AppThemeTokens.resolve(mode: mode, accentColor: accentColor)
@@ -219,10 +265,9 @@ private struct AppearanceThemeOverviewPreview: View {
         ZStack {
             AppearancePreviewCanvas(
                 tokens: tokens,
-                mode: mode,
-                accentColor: accentColor,
                 texture: texture,
-                customImageURL: customImageURL
+                customImageURL: customImageURL,
+                customImageRevision: customImageRevision
             )
 
             VStack(alignment: .leading, spacing: 8) {
@@ -247,8 +292,10 @@ private struct AppearanceThemeOverviewPreview: View {
             .padding(10)
         }
         .overlay(
-            RoundedRectangle(cornerRadius: 13, style: .continuous)
-                .stroke(tokens.accent.opacity(texture == .customImage ? 0.55 : 0.22), lineWidth: 1)
+            RoundedRectangle(
+                cornerRadius: AppearancePreviewMetrics.cornerRadius, style: .continuous
+            )
+            .stroke(tokens.accent.opacity(texture == .customImage ? 0.55 : 0.22), lineWidth: 1)
         )
     }
 }
@@ -258,6 +305,7 @@ private struct AppearanceBackgroundTexturePreview: View {
     let accentColor: AccentColorOption
     let texture: BackgroundTexture
     let customImageURL: URL?
+    let customImageRevision: Int
 
     private var tokens: AppThemeTokens {
         AppThemeTokens.resolve(mode: mode, accentColor: accentColor)
@@ -266,60 +314,38 @@ private struct AppearanceBackgroundTexturePreview: View {
     var body: some View {
         AppearancePreviewCanvas(
             tokens: tokens,
-            mode: mode,
-            accentColor: accentColor,
             texture: texture,
-            customImageURL: customImageURL
+            customImageURL: customImageURL,
+            customImageRevision: customImageRevision
         )
     }
 }
 
 private struct AppearancePreviewCanvas: View {
     let tokens: AppThemeTokens
-    let mode: ThemeMode
-    let accentColor: AccentColorOption
     let texture: BackgroundTexture
     let customImageURL: URL?
+    let customImageRevision: Int
 
     var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 13, style: .continuous)
-                .fill(tokens.canvasBackground)
-
-            backgroundContent
+        GeometryReader { proxy in
+            BackgroundTextureSurface(
+                canvasBackground: tokens.canvasBackground,
+                texture: texture,
+                textureColor: tokens.homeTextureColor,
+                customImageURL: customImageURL,
+                customImageRevision: customImageRevision,
+                customBackgroundOverlay: tokens.customBackgroundOverlay
+            )
+            .frame(width: proxy.size.width, height: proxy.size.height)
+            .clipShape(
+                RoundedRectangle(
+                    cornerRadius: AppearancePreviewMetrics.cornerRadius,
+                    style: .continuous
+                )
+            )
         }
-        .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
-    }
-
-    @ViewBuilder
-    private var backgroundContent: some View {
-        switch texture {
-        case .grid:
-            GridTextureLayer(color: tokens.homeTextureColor)
-        case .dot:
-            DotTextureLayer(color: tokens.homeTextureColor)
-        case .none:
-            EmptyView()
-        case .customImage:
-            if customImageURL != nil {
-                CustomBackgroundPreviewImage(url: customImageURL)
-                    .overlay(tokens.customBackgroundOverlay)
-            }
-        }
-    }
-}
-
-private struct CustomBackgroundPreviewImage: View {
-    let url: URL?
-
-    var body: some View {
-        if let url, let image = UIImage(contentsOfFile: url.path) {
-            Image(uiImage: image)
-                .resizable()
-                .scaledToFill()
-        } else {
-            Color.clear
-        }
+        .clipped()
     }
 }
 
@@ -361,8 +387,10 @@ private struct AppearanceImageDisplayPreview: View {
     private var photoFill: LinearGradient {
         LinearGradient(
             colors: [
-                MoodPalette.color(.normal, mode: theme.mode).opacity(theme.mode == .dark ? 0.55 : 0.28),
-                MoodPalette.color(.normal, mode: theme.mode).opacity(theme.mode == .dark ? 0.22 : 0.16)
+                MoodPalette.color(.normal, mode: theme.mode).opacity(
+                    theme.mode == .dark ? 0.55 : 0.28),
+                MoodPalette.color(.normal, mode: theme.mode).opacity(
+                    theme.mode == .dark ? 0.22 : 0.16),
             ],
             startPoint: .bottomLeading,
             endPoint: .topTrailing

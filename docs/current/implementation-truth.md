@@ -55,7 +55,7 @@ TimelineDateColumn
 
 ## 热力图与定位
 
-`YearHeatmapView` 由 `TimelineHomeView` 的首页局部 `isHeatmapPresented` 状态驱动，插入顶部 `safeAreaInset` 中的 `topBar` 下方。它不是 sheet、不是 full screen cover，也不进 `AppRouter`；展开后作为主页顶部上下文区参与布局，继承 `theme.canvasBackground`，并用底部分隔线和主页内容区分。
+`YearHeatmapView` 由 `TimelineHomeView` 的首页局部 `isHeatmapPresented` 状态驱动，插入顶部 `safeAreaInset` 中的 `topBar` 下方。它不是 sheet、不是 full screen cover，也不进 `AppRouter`；展开后保持全宽首页上下文区，使用 material + `homeContextSurfaceTint` 浮在唯一的 `HomeSceneBackgroundView` 之上。热力图自身不再实例化首页背景，避免 `customImage` 在热力图区域重新裁切成第二套背景。
 
 热力图当前行为：
 
@@ -158,9 +158,9 @@ TaskSurfaceMetrics
 
 `AppSheetScaffold` 只治理 sheet 的宿主 `NavigationStack`、背景和色彩模式；`appSheetChrome` 负责适合系统导航栏的任务页动作槽位，当前用于 `MomentPreviewView` 的「关闭 / 编辑」、`MomentEditorView` 的「取消 / 日期时间 / 保存」、`TagCreateSheetView` 的「取消 / 标题 / 保存」、`ProPaywallView` 的「关闭」和 `FilterPanelView` 的「清除全部 / 完成」。内容区域仍由 `TaskPageScrollView`、`TaskResponsiveContent`、功能视图或商业页自身负责；设置栈内子页保留系统 `NavigationStack` push/返回语义，通过 `AppSheetNavigationChrome` 统一标题与 scroll-edge。
 
-`TaskSurfaceMetrics` 定义任务页内容列的水平边距、最大可读宽度、分组间距、panel 圆角、panel padding 和 row 最小高度。`TaskPageScrollView` 负责 sheet 背景、滚动和底部安全余量，并读取当前 `AppSheetStyle` 决定普通 / 商业 sheet 背景；`TaskResponsiveContent` 只负责内容列居中、最大宽度和页边距，因此可被统计页等非 sheet 背景场景借用；`TaskSurfaceSection` 负责可选标题和 panel 边界；`TaskSurfacePanel` 只表达任务容器面板；`TaskSurfaceRow` 表达设置类行。用于 UI 验证的 section measurement identifier 是 1pt 透明边界标记，不覆盖整块内容，避免抢走按钮命中区域。
+`TaskSurfaceMetrics` 定义任务页内容列的水平边距、最大可读宽度、分组间距、panel 圆角、panel padding 和 row 最小高度。`TaskPageScrollView` 负责 sheet 背景、滚动和底部安全余量，并读取当前 `AppSheetStyle` 决定普通 / 商业 sheet 背景；`TaskResponsiveContent` 只负责内容列居中、最大宽度和页边距，可被统计页等设置栈详情复用；`TaskSurfaceSection` 负责可选标题和 panel 边界；`TaskSurfacePanel` 只表达任务容器面板；`TaskSurfaceRow` 表达设置类行。用于 UI 验证的 section measurement identifier 是 1pt 透明边界标记，不覆盖整块内容，避免抢走按钮命中区域。
 
-这套骨架只用于“系统任务空间”：设置根页、外观详情、编辑器输入面板、预览阅读卡片、筛选 half-sheet、标签创建 sheet，以及统计/标签/垃圾箱的页边距基线。它不用于首页品牌画布、时间轴 Moment 气泡、日期/时间 popover 或标签选择 popover；这些对象各自保留自身语义。当前 Settings 的 Pro 横幅、个人化、数据与安全、管理、权益与关于分组共享同一内容列；Appearance 的模式、颜色、网格、图片分组共享同一内容列；Editor 的文本输入 panel 和添加照片 CTA 共享同一内容列；Preview 的阅读内容、Paywall 购买态内容、Filter 的筛选内容和 TagCreate 的输入内容也进入统一 sheet/content 骨架。
+这套骨架只用于“系统任务空间”：设置根页、外观详情、编辑器输入面板、预览阅读卡片、筛选 half-sheet、标签创建 sheet，以及统计/标签/垃圾箱的页边距基线。它不用于首页品牌画布、首页热力图上下文 surface、时间轴 Moment 气泡、日期/时间 popover 或标签选择 popover；这些对象各自保留自身语义。当前 Settings 的 Pro 横幅、个人化、数据与安全、管理、权益与关于分组共享同一内容列；Appearance 的模式、颜色、背景、图片分组共享同一内容列；Editor 的文本输入 panel 和添加照片 CTA 共享同一内容列；Preview 的阅读内容、Paywall 购买态内容、Filter 的筛选内容、TagCreate 的输入内容和 MoodStats 的统计卡片也进入统一 sheet/content 骨架。
 
 `TagManageView` 是当前标签新增、重命名、删除的唯一管理入口。右上“+”在打开 `TagCreateSheetView` 前经 `QuotaService` 做标签额度闸门，超额时打开 `ProPaywallView`；`TagCreateSheetView` 在真正创建新标签前再次复核标签额度，避免表单打开后数量变化造成越额写入。`TagCreateSheetView` 使用设置子页上的局部 `.sheet(item:)` 呈现为第二层任务卡片，当前为 `.large` detent 的系统 page sheet；宿主使用 `AppSheetScaffold`，顶部通过 `appSheetChrome` 呈现「取消 / # 标签名称 / 保存」，内容区只保留标签名输入，重命名态复用同一骨架并预填原名。列表行点击进入重命名，左滑使用统一的系统 `.swipeActions(allowsFullSwipe: true)` 展示删除按钮并支持 full swipe。删除成功后调用 `TimelineModel.discardFilterTag` 清理当前筛选中可能残留的标签 id。
 
@@ -169,7 +169,7 @@ TaskSurfaceMetrics
 ```text
 模式
 颜色
-网格
+背景
 图片
 ```
 
@@ -186,13 +186,13 @@ TaskSurfaceMetrics
 - 危险色通过 `theme.danger` 解析，不读取主色。
 - `ProPaywallView` / `AboutView` 使用固定商业 token，并在本页局部注入 `.light` color scheme：浅色背景、浅色行/面板、固定红和固定商业文字不跟随用户主色或暗/亮模式，也不被设置任务容器的暗色环境污染。Paywall 由 `AppSheetScaffold(style: .commercial)` 承载，购买态内容复用 `TaskPageScrollView` 的统一内容列；月订阅 / 终身买断结构仍按当前 StoreKit 契约展示；双方案视觉样式是否继续改造仍归 Paywall 专项裁决。
 - `ImageViewerView` 使用固定媒体 token：沉浸黑底、白色 chrome 和黑色 chrome scrim，不跟随主题主色。
-- `AppSheetScaffold` 是根级任务 sheet 的 SwiftUI 宿主封装：编辑器、预览和 Paywall 统一由它注入任务背景、color scheme、toolbar color scheme 和 tint。`TaskContainerStyle` 保留内容层封装：`TaskPageScrollView` / `TaskSurfacePanel` 表达响应式宽度与 panel 语义；统计页只借用 `TaskResponsiveContent` 的内容列，不继承 sheet 背景；仍需系统行级能力的标签和垃圾箱列表保留 `List` / `.swipeActions`，通过 `taskListContentFrame()` 和共享 row inset 对齐同一最大宽度基线。这样避免系统默认浅色 grouped list 在暗色主题下盖住正确文字色，也避免不同任务页各自写死宽度。
+- `AppSheetScaffold` 是根级任务 sheet 的 SwiftUI 宿主封装：编辑器、预览和 Paywall 统一由它注入任务背景、color scheme、toolbar color scheme 和 tint。`TaskContainerStyle` 保留内容层封装：`TaskPageScrollView` / `TaskSurfacePanel` 表达响应式宽度与 panel 语义；统计页也使用 `TaskPageScrollView` 和 `sheetPanelBackground`，不再继承首页品牌画布；仍需系统行级能力的标签和垃圾箱列表保留 `List` / `.swipeActions`，通过 `taskListContentFrame()` 和共享 row inset 对齐同一最大宽度基线。这样避免系统默认浅色 grouped list 在暗色主题下盖住正确文字色，也避免不同任务页各自写死宽度。
 - `AppSheetNavigationChrome` 是保留系统 `NavigationStack` 的 sheet 导航外壳：根页保留系统默认标题样式，详情页统一 `.inline` 居中系统标题；导航栏背景保留 SwiftUI / UIKit 系统 scroll-edge 行为，顶部透明、滚动压入内容后由系统 material 接管，不自绘标题、不写死 `UINavigationBarAppearance` 或导航栏背景色。`SettingsSheetView`、`MoodStatsView`、`TagManageView`、`TrashView`、`LanguageSettingsView`、`AppearanceThemeView`、`AboutView` 都挂同一导航契约；`AppearanceThemeView` 的系统标题与设置入口统一为「外观主题」。
 - 设置栈内的 `TagManageView`、`TrashView`、`LanguageSettingsView` 已归入任务容器语义，背景使用 `sheetBackground`，行/面板使用 `sheetPanelBackground`，文字使用 `primaryText` / `secondaryText`，不再复用首页品牌画布和气泡 token。
-- `backgroundTexture` 已驱动首页主场景背景，`HomeSceneBackgroundView` 统一渲染网格线、点阵、无和自定义图片；作用范围包括时间轴背后区域、顶部 chrome 展开态和首页热力图上下文，不作用于设置页、编辑器 sheet、气泡卡片或其它页面。
+- `backgroundTexture` 已驱动首页主场景背景；`BackgroundTextureSurface` 是网格线、点阵、无和自定义图片的唯一背景内容层，宿主先决定尺寸，本层只在宿主尺寸内绘制 variant。`HomeSceneBackgroundView` 只由首页 scene host 挂载一次；作用范围是时间轴背后的唯一场景画布，不作用于设置页、编辑器 sheet、气泡卡片、首页热力图自身或其它页面。顶部 chrome 和首页热力图上下文只使用 material / context surface 覆盖在该画布上，不重新铺背景图。
 - 自定义背景图片由 `AppearanceThemeView` 通过系统 `PhotosPicker` 选择，`ThemeManager` 在后台压缩后写入 `AppearanceStore` 暴露的 Application Support 固定文件；写入成功后才切到 `.customImage`，写入失败不改变当前背景。UI 测试下使用 `-uiTestBackgroundImageInjection` 暴露调试注入按钮。
 - `imageDisplayMode` 已有 UI、状态和持久化，并驱动时间轴气泡图片区在横向缩略图布局和轮播布局之间切换；它只改变照片展示行为，不改变主题颜色语义。
-- `AppearanceThemeView` 使用 `TaskPageScrollView` 任务内容列和自适应 `LazyVGrid` 分组骨架。模式区两张卡是当前外观状态在暗/亮模式下的总览预览，会同时体现当前背景纹理/自定义图片、导航文字层、FAB/主色和模式色板；颜色区使用响应式 swatch 网格，不允许固定宽度溢出屏幕；网格区的选项卡只表达纯背景纹理效果，不再展示 FAB 或导航元素；图片区只表达滚动/轮播展示差异。外观页组件消费 `ThemeManager` 和 `AppThemeTokens.resolve`，但不进入 `AppRouter`，也不把首页品牌画布、气泡卡片和 sheet panel 混成同一个容器。
+- `AppearanceThemeView` 使用 `TaskPageScrollView` 任务内容列和自适应 `LazyVGrid` 分组骨架。模式区两张卡是当前外观状态在暗/亮模式下的总览预览，会同时体现当前背景纹理/自定义图片、导航文字层、FAB/主色和模式色板；颜色区使用响应式 swatch 网格，不允许固定宽度溢出屏幕；背景区的选项卡只表达纯背景纹理效果，不再展示 FAB 或导航元素，且和模式总览共用 `BackgroundTextureSurface` 底图合同；图片区只表达滚动/轮播展示差异。自定义图片在所有预览中都按容器 `scaledToFill + clipped`，不能用原图尺寸反推设置页分组高度。外观页组件消费 `ThemeManager` 和 `AppThemeTokens.resolve`，但不进入 `AppRouter`，也不把首页品牌画布、气泡卡片和 sheet panel 混成同一个容器。
 
 ## 已知偏离
 
@@ -211,7 +211,7 @@ TaskSurfaceMetrics
 ./scripts/verify.sh
 ```
 
-结果：`ThemeManagerTests` 执行 7 个测试、0 失败，覆盖自定义背景图写入/修正、五层 token 暗/亮取值、主色派生前景矩阵和商业固定色独立性；`ThemeSwitchUITests` 执行 10 个测试、0 失败，覆盖切换亮/暗、主色、主色 swatch 不溢出屏幕、外观页分组同宽、主色驱动模式总览同步、背景纹理、自定义背景图、图片展示模式，以及设置/外观任务容器在 sheet 已挂载时跟随模式更新；最终 `./scripts/verify.sh` 全部通过。
+结果：`ThemeManagerTests` 执行 7 个测试、0 失败，覆盖自定义背景图写入/修正、五层 token 暗/亮取值、主色派生前景矩阵和商业固定色独立性；`ThemeSwitchUITests` 覆盖切换亮/暗、主色、主色 swatch 不溢出屏幕、外观页分组同宽、主色驱动模式总览同步、背景纹理、自定义背景图、外观页背景预览骨架、图片展示模式，以及设置/外观任务容器在 sheet 已挂载时跟随模式更新；最终 `./scripts/verify.sh` 全部通过。
 
 ## P0 验证事实
 

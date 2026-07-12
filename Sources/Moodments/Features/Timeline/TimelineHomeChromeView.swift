@@ -35,9 +35,7 @@ struct TimelineHomeChromeView: View {
 
     @ViewBuilder
     private var chromeBackground: some View {
-        if isContextPanelPresented {
-            HomeSceneBackgroundView().ignoresSafeArea(edges: .top)
-        } else if isTitleCollapsed {
+        if isContextPanelPresented || isTitleCollapsed {
             Rectangle()
                 .fill(.ultraThinMaterial)
                 .overlay(theme.topChromeOverlay)

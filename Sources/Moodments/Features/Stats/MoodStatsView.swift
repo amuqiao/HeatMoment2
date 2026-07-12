@@ -19,13 +19,10 @@ struct MoodStatsView: View {
     }
 
     var body: some View {
-        ScrollView {
-            TaskResponsiveContent(spacing: 24) {
-                heatmapCard
-                barsCard
-            }
+        TaskPageScrollView(spacing: 24) {
+            heatmapCard
+            barsCard
         }
-        .background(theme.canvasBackground.ignoresSafeArea())
         .appSheetDetailNavigationChrome("心情统计")
         .themedTaskContainer(theme)
         .toolbar {
@@ -86,13 +83,15 @@ struct MoodStatsView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("心情日期分布")
                 .font(AppTypography.cardTitle)
-                .foregroundStyle(theme.bubbleTitleText)
+                .foregroundStyle(theme.primaryText)
             HeatmapGridView(year: model.year, moodByDay: model.moodByDay)
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous).fill(theme.bubbleBackground))
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(theme.sheetPanelBackground)
+        )
         // 注：不在卡片容器上叠加 `.accessibilityIdentifier`——会覆盖 `HeatmapGridView` 各日期格
         // 自己的 identifier（见 `FilterPanelView` 同类教训，登记于 `YearHeatmapView`）。
     }
@@ -102,7 +101,7 @@ struct MoodStatsView: View {
         return VStack(alignment: .leading, spacing: 16) {
             Text("心情统计")
                 .font(AppTypography.cardTitle)
-                .foregroundStyle(theme.bubbleTitleText)
+                .foregroundStyle(theme.primaryText)
             ForEach(Mood.allCases) { mood in
                 MoodStatBarView(mood: mood, count: model.moodCounts[mood] ?? 0, totalCount: total)
             }
@@ -110,7 +109,9 @@ struct MoodStatsView: View {
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous).fill(theme.bubbleBackground))
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(theme.sheetPanelBackground)
+        )
         // 注：不在卡片容器上叠加 `.accessibilityIdentifier`——会覆盖 `MoodStatBarView` 各条形
         // 自己的 identifier（见 `FilterPanelView` 同类教训，登记于 `YearHeatmapView`）。
     }
