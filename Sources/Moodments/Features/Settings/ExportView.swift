@@ -38,7 +38,7 @@ struct ExportView: View {
                 )
             }
         }
-        .settingsDetailNavigationChrome("导出")
+        .appSheetDetailNavigationChrome("导出")
         .themedTaskContainer(theme)
         .onChange(of: selectedFormat) { _, _ in
             clearExportState()

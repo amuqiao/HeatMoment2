@@ -82,7 +82,7 @@ struct SettingsSheetView: View {
                     .foregroundStyle(theme.secondaryText)
                     .frame(maxWidth: .infinity, alignment: .center)
             }
-            .settingsRootNavigationChrome("设置")
+            .appSheetRootNavigationChrome("设置")
             .sheet(item: $paywallTrigger) { trigger in
                 ProPaywallView(trigger: trigger)
             }

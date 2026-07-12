@@ -22,7 +22,7 @@ struct AppearanceThemeView: View {
             textureSection
             imageDisplaySection
         }
-        .settingsDetailNavigationChrome("外观主题")
+        .appSheetDetailNavigationChrome("外观主题")
         .themedTaskContainer(theme)
         .onChange(of: customBackgroundPickerItem) { _, newItem in
             guard let newItem else { return }

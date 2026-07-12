@@ -30,7 +30,7 @@ struct LanguageSettingsView: View {
                 }
             }
         }
-        .settingsDetailNavigationChrome("语言")
+        .appSheetDetailNavigationChrome("语言")
         .themedTaskContainer(theme)
     }
 

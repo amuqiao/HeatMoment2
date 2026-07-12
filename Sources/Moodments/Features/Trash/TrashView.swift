@@ -59,7 +59,7 @@ struct TrashView: View {
             }
         }
         .background(theme.sheetBackground.ignoresSafeArea())
-        .settingsDetailNavigationChrome("垃圾箱")
+        .appSheetDetailNavigationChrome("垃圾箱")
         .themedTaskContainer(theme)
         .task { await reload() }
         .alert(

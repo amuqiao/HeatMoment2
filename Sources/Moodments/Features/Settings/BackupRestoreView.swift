@@ -18,7 +18,7 @@ struct BackupRestoreView: View {
                 unavailableSection
             }
         }
-        .settingsDetailNavigationChrome("备份与恢复")
+        .appSheetDetailNavigationChrome("备份与恢复")
         .themedTaskContainer(theme)
         .task {
             await reload()
@@ -206,7 +206,7 @@ private struct RecoveryPointRestorePreviewView: View {
             .disabled(isPreparingRestore)
             .accessibilityIdentifier("recoveryPointRestoreButton")
         }
-        .settingsDetailNavigationChrome("恢复预览")
+        .appSheetDetailNavigationChrome("恢复预览")
         .themedTaskContainer(theme)
         .task {
             await loadCurrentCounts()
