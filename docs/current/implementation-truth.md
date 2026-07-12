@@ -122,7 +122,27 @@ canonical recovery catalog/snapshot/coordinator/restore service/migration safety
 
 ## 设置与外观
 
-`SettingsSheetView` 是根级第一层 sheet，使用 `AppSheetScaffold + TaskPageScrollView`，由统一 sheet 宿主提供 `NavigationStack`、背景、色彩模式和 tint。根页不提供显式关闭按钮，依赖系统 sheet 下滑关闭；设置子页包括统计、标签、垃圾箱、语言、外观、关于，均在设置栈内 push 并保留系统返回；Pro 横幅使用设置内部局部 `.sheet(item:)` 打开 `ProPaywallView`。
+`SettingsSheetView` 是根级第一层 sheet，使用 `AppSheetScaffold + TaskPageScrollView`，由统一 sheet 宿主提供 `NavigationStack`、背景、色彩模式和 tint。根页不提供显式关闭按钮，依赖系统 sheet 下滑关闭；根页只编排入口和设置栈内导航，具体能力实现留在各 feature / capability。设置入口由 `SettingsNavigationEntry -> SettingsRoute -> settingsDestination(for:)` 统一表达，row 只声明标题、identifier 和目标 route；详情页均在设置栈内 push 并保留系统返回；Pro 横幅使用设置内部局部 `.sheet(item:)` 打开 `ProPaywallView`。
+
+当前设置页信息架构：
+
+```text
+Pro 横幅
+个人化
+  外观主题 -> 详情页
+  语言     -> 详情页
+数据与安全
+  数据与 iCloud -> 行内同步状态，不是账号/登录入口
+  备份与恢复    -> 详情页
+  导出          -> 详情页
+  面容解锁      -> 根页开关或不可用状态
+管理
+  标签管理 -> 详情页
+  垃圾箱   -> 详情页
+  心情统计 -> 详情页
+权益与关于
+  关于心绪日记 -> 详情页
+```
 
 任务页的响应式骨架收口在 `AppSheetScaffold.swift` 和 `TaskContainerStyle.swift`：
 
@@ -139,7 +159,7 @@ TaskSurfaceMetrics
 
 `TaskSurfaceMetrics` 定义任务页内容列的水平边距、最大可读宽度、分组间距、panel 圆角、panel padding 和 row 最小高度。`TaskPageScrollView` 负责 sheet 背景、滚动和底部安全余量，并读取当前 `AppSheetStyle` 决定普通 / 商业 sheet 背景；`TaskResponsiveContent` 只负责内容列居中、最大宽度和页边距，因此可被统计页等非 sheet 背景场景借用；`TaskSurfaceSection` 负责可选标题和 panel 边界；`TaskSurfacePanel` 只表达任务容器面板；`TaskSurfaceRow` 表达设置类行。用于 UI 验证的 section measurement identifier 是 1pt 透明边界标记，不覆盖整块内容，避免抢走按钮命中区域。
 
-这套骨架只用于“系统任务空间”：设置根页、外观详情、编辑器输入面板、预览阅读卡片、筛选 half-sheet、标签创建 sheet，以及统计/标签/垃圾箱的页边距基线。它不用于首页品牌画布、时间轴 Moment 气泡、日期/时间 popover 或标签选择 popover；这些对象各自保留自身语义。当前 Settings 的 Pro 横幅、设置分组、支持分组、关于分组共享同一内容列；Appearance 的模式、颜色、网格、图片分组共享同一内容列；Editor 的文本输入 panel 和添加照片 CTA 共享同一内容列；Preview 的阅读内容、Paywall 购买态内容、Filter 的筛选内容和 TagCreate 的输入内容也进入统一 sheet/content 骨架。
+这套骨架只用于“系统任务空间”：设置根页、外观详情、编辑器输入面板、预览阅读卡片、筛选 half-sheet、标签创建 sheet，以及统计/标签/垃圾箱的页边距基线。它不用于首页品牌画布、时间轴 Moment 气泡、日期/时间 popover 或标签选择 popover；这些对象各自保留自身语义。当前 Settings 的 Pro 横幅、个人化、数据与安全、管理、权益与关于分组共享同一内容列；Appearance 的模式、颜色、网格、图片分组共享同一内容列；Editor 的文本输入 panel 和添加照片 CTA 共享同一内容列；Preview 的阅读内容、Paywall 购买态内容、Filter 的筛选内容和 TagCreate 的输入内容也进入统一 sheet/content 骨架。
 
 `TagManageView` 是当前标签新增、重命名、删除的唯一管理入口。右上“+”在打开 `TagCreateSheetView` 前经 `QuotaService` 做标签额度闸门，超额时打开 `ProPaywallView`；`TagCreateSheetView` 在真正创建新标签前再次复核标签额度，避免表单打开后数量变化造成越额写入。`TagCreateSheetView` 使用设置子页上的局部 `.sheet(item:)` 呈现为第二层任务卡片，当前为 `.large` detent 的系统 page sheet；宿主使用 `AppSheetScaffold`，顶部用 `AppSheetHeaderBar` 呈现「取消 / # 标签名称 / 保存」，内容区只保留标签名输入，重命名态复用同一骨架并预填原名。列表行点击进入重命名，左滑使用统一的系统 `.swipeActions(allowsFullSwipe: true)` 展示删除按钮并支持 full swipe。删除成功后调用 `TimelineModel.discardFilterTag` 清理当前筛选中可能残留的标签 id。
 

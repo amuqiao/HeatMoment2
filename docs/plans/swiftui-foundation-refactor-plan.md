@@ -65,7 +65,7 @@ App Composition
 
 ## Remaining Gaps
 
-- `SettingsSheetView` 聚合统计、标签、垃圾箱、备份恢复、导出、语言、外观、关于、Paywall 等多类入口；设置页的信息架构已经可用，但能力归属仍容易退化成“所有支撑逻辑都塞进 Settings feature”。
+- `SettingsSheetView` 的入口信息架构已收口；备份恢复、导出、隐私锁等能力合同仍需要在 M-foundation-4 从 Settings feature 进一步归位。
 - `BackupRestoreServicing` 定义在 `Features/Settings` 下；`ExportView` 直接从环境取 `CanonicalLibraryService` 并组装导出服务；这些跨 feature 能力合同的位置不够稳定。
 - App-facing 类型和服务命名仍泄漏基础设施实现，如 `Canonical*` 在 feature 边界可见。内部实现可以叫 canonical，但 feature 合同应使用业务中性或能力中性名称。
 - 测试支持混合了通用 harness 和 Moodments seed fixture；未来其他小 App 复用时，容易把 Moment/Tag/Mood 种子逻辑一起带走。
@@ -158,9 +158,16 @@ App Composition
 - Foundation UI 中不出现 `Mood`、`Moment`、`Tag`、`Heatmap`、`Timeline` 等业务模型依赖；允许业务层用 foundation 容器组装这些语义。
 - Moment 编辑页顶部呼吸间隔、sheet 按钮样式、设置详情页返回样式都由同一套 sheet/container 合同约束。
 
-### M-foundation-3: 收口 Settings 信息架构与能力入口
+### M-foundation-3: 收口 Settings 信息架构与能力入口（已关闭）
 
 目标：设置页只做入口编排和详情页导航，不再成为支撑能力实现的落脚点。
+
+关闭证据：
+
+- `SettingsSheetView` 已按“个人化 / 数据与安全 / 管理 / 权益与关于”分组；`数据与 iCloud` 是行内系统同步状态，不是账号或登录入口；`面容解锁` 是根页轻量开关或不可用状态。
+- 设置详情入口已改为 `SettingsNavigationEntry -> SettingsRoute -> settingsDestination(for:)`，row 只声明标题、identifier 和目标 route，不再在每个 row 内 inline 拼 destination。
+- 验证通过：`./scripts/build.sh`；`./scripts/test.sh --only MoodmentsUITests/EditorSheetPresentationUITests/testSettingsRootHasNoExplicitCloseAndChildPageKeepsBackButton --only MoodmentsUITests/EditorSheetPresentationUITests/testSettingsTaskSurfacesShareHorizontalBounds --only MoodmentsUITests/EditorSheetPresentationUITests/testSettingsPrimaryDetailPagesUseUnifiedNavigationTitles --only MoodmentsUITests/EditorSheetPresentationUITests/testSettingsSupportDetailPagesUseUnifiedNavigationTitles`。
+- 未关闭项：`BackupRestoreServicing`、导出 snapshot 组装、隐私锁服务等跨 feature capability 合同仍归 M-foundation-4，不在 M3 假装完成。
 
 工作项：
 
@@ -179,7 +186,7 @@ App Composition
 
 - 用户能清楚区分本地存储、自动恢复点、导出副本、iCloud 同步、面容解锁、Pro 权益。
 - 设置根页没有“登录/账号”暗示；iCloud 明确是系统能力，不是 Moodments 账号。
-- Settings feature 不再定义跨 feature 服务协议；协议和实现归属 capability 层。
+- 设置根页不表达登录/账号，也不把支撑能力实现写入 row；跨 feature 服务协议和实现归属在 M-foundation-4 关闭。
 
 ### M-foundation-4: 能力合同与数据 adapter 归位
 

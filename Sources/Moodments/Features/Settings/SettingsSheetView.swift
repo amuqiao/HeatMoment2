@@ -1,13 +1,31 @@
 import SwiftUI
 
-/// 设置（见 `docs/current/implementation-truth.md` §4.11）：Pro 横幅 + 分组卡片 A（心情统计/标签
-/// 管理/垃圾箱）+ 分组卡片 B（iCloud/面容/语言禁用占位 + 外观主题）+ 关于 + 底部版本信息。
+/// 设置根页只编排入口和设置栈内导航；具体能力实现留在各 feature / capability。
 ///
 /// **浮层归属**（docs/current/implementation-truth.md §2.2）：本视图本身是 `router.rootSheet == .settings`
 /// 驱动的任务卡片栈第一层；`MoodStatsView`/`TagManageView`/`TrashView`/`AppearanceThemeView`/
 /// `AboutView` 均为本视图内 `NavigationStack` 的 push 子页（不进 Router）；Pro 横幅用**局部**
 /// `.sheet(item:)` 弹 `ProPaywallView`（不改 `router.rootSheet`，否则会替换掉设置本身）。
 struct SettingsSheetView: View {
+    private enum SettingsRoute: Hashable {
+        case appearance
+        case language
+        case backupRestore
+        case export
+        case tagManage
+        case trash
+        case moodStats
+        case about
+    }
+
+    private struct SettingsNavigationEntry: Identifiable {
+        let route: SettingsRoute
+        let title: String
+        let identifier: String
+
+        var id: SettingsRoute { route }
+    }
+
     let backupRestoreService: (any BackupRestoreServicing)?
 
     @Environment(ThemeManager.self) private var theme
@@ -34,52 +52,24 @@ struct SettingsSheetView: View {
         TaskPageScrollView {
             proBanner
 
-            TaskSurfaceSection(accessibilityIdentifier: "settingsPrimarySection") {
-                settingsNavigationRow(
-                    title: "心情统计",
-                    identifier: "settingsMoodStatsRow"
-                ) {
-                    MoodStatsView(canonicalService: canonicalService)
-                }
-                TaskSurfaceSeparator()
-                settingsNavigationRow(
-                    title: "标签管理",
-                    identifier: "settingsTagManageRow"
-                ) {
-                    TagManageView()
-                }
-                TaskSurfaceSeparator()
-                settingsNavigationRow(title: "垃圾箱", identifier: "settingsTrashRow") {
-                    TrashView()
-                }
+            TaskSurfaceSection(title: "个人化", accessibilityIdentifier: "settingsPersonalSection") {
+                settingsNavigationRows(personalEntries)
             }
 
-            TaskSurfaceSection(accessibilityIdentifier: "settingsSupportSection") {
+            TaskSurfaceSection(title: "数据与安全", accessibilityIdentifier: "settingsDataSecuritySection") {
                 iCloudSyncRow
                 TaskSurfaceSeparator()
-                settingsNavigationRow(title: "备份与恢复", identifier: "settingsBackupRestoreRow") {
-                    BackupRestoreView(backupRestoreService: backupRestoreService)
-                }
-                TaskSurfaceSeparator()
-                settingsNavigationRow(title: "导出", identifier: "settingsExportRow") {
-                    ExportView()
-                }
+                settingsNavigationRows(dataSecurityEntries)
                 TaskSurfaceSeparator()
                 biometricLockRow
-                TaskSurfaceSeparator()
-                settingsNavigationRow(title: "语言", identifier: "settingsLanguageRow") {
-                    LanguageSettingsView()
-                }
-                TaskSurfaceSeparator()
-                settingsNavigationRow(title: "外观主题", identifier: "settingsAppearanceRow") {
-                    AppearanceThemeView()
-                }
             }
 
-            TaskSurfaceSection(accessibilityIdentifier: "settingsAboutSection") {
-                settingsNavigationRow(title: "关于心绪日记", identifier: "settingsAboutRow") {
-                    AboutView()
-                }
+            TaskSurfaceSection(title: "管理", accessibilityIdentifier: "settingsManagementSection") {
+                settingsNavigationRows(managementEntries)
+            }
+
+            TaskSurfaceSection(title: "权益与关于", accessibilityIdentifier: "settingsAboutSection") {
+                settingsNavigationRows(aboutEntries)
             }
 
             Text("版本 \(Self.versionText)")
@@ -91,10 +81,46 @@ struct SettingsSheetView: View {
         .sheet(item: $paywallTrigger) { trigger in
             ProPaywallView(trigger: trigger)
         }
+        .navigationDestination(for: SettingsRoute.self) { route in
+            settingsDestination(for: route)
+        }
         .userFacingErrorAlert(errorPresenter)
         .task {
             await syncStatusService.refresh()
         }
+    }
+
+    private var personalEntries: [SettingsNavigationEntry] {
+        [
+            SettingsNavigationEntry(
+                route: .appearance, title: "外观主题", identifier: "settingsAppearanceRow"),
+            SettingsNavigationEntry(route: .language, title: "语言", identifier: "settingsLanguageRow"),
+        ]
+    }
+
+    private var dataSecurityEntries: [SettingsNavigationEntry] {
+        [
+            SettingsNavigationEntry(
+                route: .backupRestore, title: "备份与恢复", identifier: "settingsBackupRestoreRow"),
+            SettingsNavigationEntry(route: .export, title: "导出", identifier: "settingsExportRow"),
+        ]
+    }
+
+    private var managementEntries: [SettingsNavigationEntry] {
+        [
+            SettingsNavigationEntry(
+                route: .tagManage, title: "标签管理", identifier: "settingsTagManageRow"),
+            SettingsNavigationEntry(route: .trash, title: "垃圾箱", identifier: "settingsTrashRow"),
+            SettingsNavigationEntry(
+                route: .moodStats, title: "心情统计", identifier: "settingsMoodStatsRow"),
+        ]
+    }
+
+    private var aboutEntries: [SettingsNavigationEntry] {
+        [
+            SettingsNavigationEntry(
+                route: .about, title: "关于心绪日记", identifier: "settingsAboutRow")
+        ]
     }
 
     /// Pro 会员态下横幅替换为「已是 Pro 会员」态（docs/current/implementation-truth.md §4.11，已裁决见 docs/plans/README.md #11）：
@@ -139,11 +165,10 @@ struct SettingsSheetView: View {
         )
     }
 
-    /// iCloud 同步状态行内展示（见 `docs/plans/implementation-plan.md` §9.2、阶段7计划「浮层归属」：
-    /// 行内展示、非 push 子页）。
+    /// iCloud 状态行内展示：系统能力提示，不表达成 App 登录或账号入口。
     private var iCloudSyncRow: some View {
         TaskSurfaceRow {
-            Text("iCloud 数据同步")
+            Text("数据与 iCloud")
         } trailing: {
             Text(syncStatusService.status.displayText)
                 .font(AppTypography.caption)
@@ -151,7 +176,7 @@ struct SettingsSheetView: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("settingsICloudRow")
-        .accessibilityLabel(Text("iCloud 数据同步，\(syncStatusService.status.displayText)"))
+        .accessibilityLabel(Text("数据与 iCloud，\(syncStatusService.status.displayText)"))
     }
 
     /// 「面容解锁」行（见 docs/current/implementation-truth.md §10.1.2）：Face ID 图标 + 系统开关。设备既无生物识别也未设置任何
@@ -177,39 +202,65 @@ struct SettingsSheetView: View {
             .frame(minHeight: TaskSurfaceMetrics.rowMinHeight)
             .accessibilityIdentifier("settingsBiometricRow")
         } else {
-            disabledPlaceholderRow(title: "面容解锁", identifier: "settingsBiometricRow")
+            disabledStatusRow(title: "面容解锁", status: "不可用", identifier: "settingsBiometricRow")
         }
     }
 
-    private func disabledPlaceholderRow(title: String, identifier: String) -> some View {
+    private func disabledStatusRow(title: String, status: String, identifier: String) -> some View {
         TaskSurfaceRow {
             Text(title).foregroundStyle(theme.mutedText)
         } trailing: {
-            Text("即将推出")
+            Text(status)
                 .font(AppTypography.caption)
                 .foregroundStyle(theme.mutedText)
         }
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier(identifier)
-        .accessibilityLabel(Text("\(title)，即将推出"))
+        .accessibilityLabel(Text("\(title)，\(status)"))
     }
 
-    private func settingsNavigationRow<Destination: View>(
-        title: LocalizedStringKey,
-        identifier: String,
-        @ViewBuilder destination: () -> Destination
-    ) -> some View {
-        NavigationLink {
-            destination()
-        } label: {
+    @ViewBuilder
+    private func settingsNavigationRows(_ entries: [SettingsNavigationEntry]) -> some View {
+        ForEach(Array(entries.enumerated()), id: \.element.id) { index, entry in
+            settingsNavigationRow(entry)
+            if index < entries.count - 1 {
+                TaskSurfaceSeparator()
+            }
+        }
+    }
+
+    private func settingsNavigationRow(_ entry: SettingsNavigationEntry) -> some View {
+        NavigationLink(value: entry.route) {
             TaskSurfaceRow {
-                Text(title).foregroundStyle(theme.primaryText)
+                Text(entry.title).foregroundStyle(theme.primaryText)
             } trailing: {
                 TaskDisclosureIndicator()
             }
         }
         .buttonStyle(.plain)
-        .accessibilityIdentifier(identifier)
+        .accessibilityIdentifier(entry.identifier)
+    }
+
+    @ViewBuilder
+    private func settingsDestination(for route: SettingsRoute) -> some View {
+        switch route {
+        case .appearance:
+            AppearanceThemeView()
+        case .language:
+            LanguageSettingsView()
+        case .backupRestore:
+            BackupRestoreView(backupRestoreService: backupRestoreService)
+        case .export:
+            ExportView()
+        case .tagManage:
+            TagManageView()
+        case .trash:
+            TrashView()
+        case .moodStats:
+            MoodStatsView(canonicalService: canonicalService)
+        case .about:
+            AboutView()
+        }
     }
 
     private static var versionText: String {

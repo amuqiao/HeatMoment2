@@ -93,17 +93,20 @@ final class EditorSheetPresentationUITests: XCTestCase {
         settingsButton.tap()
 
         let proBanner = app.buttons["settingsProBanner"]
-        let primarySection = app.otherElements["settingsPrimarySection"]
-        let supportSection = app.otherElements["settingsSupportSection"]
+        let personalSection = app.otherElements["settingsPersonalSection"]
+        let dataSecuritySection = app.otherElements["settingsDataSecuritySection"]
+        let managementSection = app.otherElements["settingsManagementSection"]
         let aboutSection = app.otherElements["settingsAboutSection"]
         XCTAssertTrue(proBanner.waitForExistence(timeout: 5))
-        XCTAssertTrue(primarySection.waitForExistence(timeout: 5))
-        XCTAssertTrue(supportSection.waitForExistence(timeout: 5))
+        XCTAssertTrue(personalSection.waitForExistence(timeout: 5))
+        XCTAssertTrue(dataSecuritySection.waitForExistence(timeout: 5))
+        XCTAssertTrue(managementSection.waitForExistence(timeout: 5))
         XCTAssertTrue(aboutSection.waitForExistence(timeout: 5))
 
-        assertHorizontallyAligned(primarySection, with: proBanner, message: "Pro 横幅应和主设置组同宽")
-        assertHorizontallyAligned(supportSection, with: primarySection, message: "设置分组之间应同宽")
-        assertHorizontallyAligned(aboutSection, with: primarySection, message: "关于分组应和主设置组同宽")
+        assertHorizontallyAligned(personalSection, with: proBanner, message: "Pro 横幅应和个人化组同宽")
+        assertHorizontallyAligned(dataSecuritySection, with: personalSection, message: "设置分组之间应同宽")
+        assertHorizontallyAligned(managementSection, with: personalSection, message: "管理分组应和个人化组同宽")
+        assertHorizontallyAligned(aboutSection, with: personalSection, message: "关于分组应和个人化组同宽")
     }
 
     func testSettingsPrimaryDetailPagesUseUnifiedNavigationTitles() {
