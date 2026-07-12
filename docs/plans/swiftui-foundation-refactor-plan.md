@@ -65,8 +65,8 @@ App Composition
 
 ## Remaining Gaps
 
-- `SettingsSheetView` 的入口信息架构已收口；备份恢复、导出、隐私锁等能力合同仍需要在 M-foundation-4 从 Settings feature 进一步归位。
-- `BackupRestoreServicing` 定义在 `Features/Settings` 下；`ExportView` 直接从环境取 `CanonicalLibraryService` 并组装导出服务；这些跨 feature 能力合同的位置不够稳定。
+- `SettingsSheetView` 的入口信息架构已收口；备份恢复和导出能力合同已在 M-foundation-4 从 Settings feature 归位。隐私锁、订阅、同步状态仍按 current 的现有服务消费方式运行，后续只在出现真实复用/测试痛点时继续收口。
+- 旧 SwiftData / 旧本地存储不再作为兼容目标；本项目尚未上线，M-foundation 不保留双数据源、双 adapter 或旧恢复点桥接。`Canonical*` 表示当前唯一 canonical 数据实现，不是旧架构兼容层。
 - App-facing 类型和服务命名仍泄漏基础设施实现，如 `Canonical*` 在 feature 边界可见。内部实现可以叫 canonical，但 feature 合同应使用业务中性或能力中性名称。
 - 测试支持混合了通用 harness 和 Moodments seed fixture；未来其他小 App 复用时，容易把 Moment/Tag/Mood 种子逻辑一起带走。
 - 当前没有自动化边界检查。单 target 下，任何文件都能引用任何符号；如果没有简单的 `rg`/lint 规则，边界会再次漂移。
@@ -188,50 +188,42 @@ App Composition
 - 设置根页没有“登录/账号”暗示；iCloud 明确是系统能力，不是 Moodments 账号。
 - 设置根页不表达登录/账号，也不把支撑能力实现写入 row；跨 feature 服务协议和实现归属在 M-foundation-4 关闭。
 
-### M-foundation-4: 能力合同与数据 adapter 归位
+### M-foundation-4: 能力合同与数据 adapter 归位（已关闭）
 
 目标：把支撑能力从 feature 页面中抽出来，形成可复用、可测试、可替换的 capability 合同；同时保持 Moodments 数据模型只有 canonical 一套权威。
 
+关闭证据：
+
+- `BackupRestoreServicing` 与备份恢复值类型已从 `Features/Settings` 迁到 `Services/Backup/BackupRestoreService.swift`；`BackupRestoreView` 和 `SettingsSheetView` 只消费协议，生产 `CanonicalBackupRestoreService` 只在 App composition 注入。
+- `ExportServicing` / `CanonicalExportService` 已归入 `Services/Export/ExportService.swift`；`ExportView` 不再读取 `CanonicalLibraryService` 或组装 `CanonicalExportSnapshotStore`，导出日期范围、临时目录清理和导出动作都通过同一个 capability 合同进入。
+- `RootView` 和 `MoodmentsApp` 明确注入 `backupRestoreService` / `exportService`，Settings feature 不再直接创建备份或导出 concrete service。
+- 不保留旧 SwiftData、本地旧存储或旧恢复点兼容 adapter；导出和备份恢复仍只读/只写 canonical source，不绕过 canonical 事务边界。
+- 验证通过：`./scripts/build.sh`；`./scripts/test.sh --only MoodmentsTests/BackupRestoreServiceTests --only MoodmentsTests/MarkdownExportServiceTests --only MoodmentsTests/PDFExportServiceTests`；`./scripts/test.sh --only MoodmentsUITests/MarkdownExportUITests/testSettingsExportPageGeneratesMarkdownAndShowsShareLink --only MoodmentsUITests/BackupRestoreUITests/testBackupListShowsSystemMaintainedRecoveryPointAndPreview`。
+
 工作项：
 
-- Library capability：
-  - feature 只依赖 read model / mutation use case / value snapshot。
-  - canonical repository、GRDB、SQLite、FileAssetStore 仍是内部实现。
-  - feature 边界避免暴露 `Canonical*` 命名。
-  - 显式化查询合同：timeline page、filter condition、export date range、trash list、stats query。
-  - 根据真实必要性评估 tag AND 下推 SQL；如果当前数据量和复杂度不需要，先以合同记录限制，不为模板感过早优化。
 - Backup / Recovery capability：
   - 将 `BackupRestoreServicing`、恢复点摘要、prepare restore、pending restore 相关合同移出 `Features/Settings`。
   - 保持“设置内选择恢复点 -> arm pending restore -> 冷启动 boot gate consume”的成熟流程。
+  - 不提供旧恢复点桥接、不保留旧本地存储恢复路径。
 - Export capability：
   - 保留一套 `ExportRequest -> ExportSnapshot -> writer` 思路。
   - Markdown/PDF 共用 snapshot，不写 canonical store，不创建恢复点，不影响 iCloud 状态。
-  - Moment 业务负责 snapshot adapter；导出文件 writer 保持格式能力。
-  - export snapshot adapter 与 repository 内部记录隔离，避免外部功能拿 canonical row 当稳定 API。
-- Privacy Lock capability：
-  - 偏好、验证、scenePhase 锁定、隐私遮罩归 app capability。
-  - 设置页只消费开关状态和动作。
-- Entitlement / Quota capability：
-  - 展示态 `EntitlementSnapshot` 与放行态 entitlement check 分离。
-  - `QuotaService` 保持纯策略，不把 UI 状态当授权事实。
-- Sync indicator capability：
-  - 在真实 CloudKit 同步状态机落地前，只作为系统 iCloud 能力和本地写入状态提示。
-  - 不参与本地写入、导出、备份恢复或 Pro 授权判断。
-- Appearance / Localization capability：
-  - 外观和语言继续作为 app-wide environment 能力。
-  - 文案切换的 UIKit navigation title 例外保留在 current truth，不包装成不存在的即时刷新承诺。
-- 数据 adapter：
-  - 将 export、backup、stats、heatmap 的 snapshot adapter 与 repository 内部记录隔离。
-  - 保持 `occurredAt: Date` 为发生时间唯一事实；日期/时间控件只是编辑同一字段的两个视图。
+  - `ExportView` 只消费 `ExportServicing`；canonical snapshot adapter 与 repository 内部记录隔离，避免设置页拿 canonical row 当稳定 API。
+  - 不提供第二套导出 source，也不保留 SwiftData/旧本地存储导出路径。
+- App composition：
+  - `MoodmentsApp` / `RootView` 负责把 `CanonicalBackupRestoreService`、`CanonicalExportService` 接到设置页。
+  - Settings feature 只表达入口、状态和用户动作，不装配具体 service。
+- 非本阶段项：
+  - `CanonicalLibraryService` 是当前唯一数据权威 facade，不是旧架构兼容层；本阶段不为了“模板感”额外包一层平行 `LibraryService`。
+  - 隐私锁、订阅、同步状态和统计/时间轴查询保持 current 的单一路径；只有出现真实复用或测试痛点时再进入单独计划项。
 
 验收：
 
-- Features 不直接创建 `ExportService`、`CanonicalBackupRestoreService`、StoreKit session、LocalAuthentication context 或 repository。
-- Capability contract 有稳定值类型输入输出；实现细节可以替换而不改业务页面。
-- 本地创建、编辑、删除、恢复、导出、隐私锁、Pro 放行路径测试不回归。
-- 查询合同覆盖首页时间轴、筛选、热力图、统计、垃圾箱、导出日期范围。
-- 业务 adapter 能解释 Moment/Mood/Tag 到基础能力 snapshot 的映射。
-- 备份恢复和导出仍不绕过 canonical 事务边界。
+- Features 不直接创建 `ExportService` 或 `CanonicalBackupRestoreService`。
+- 备份恢复和导出 capability contract 有稳定值类型输入输出；实现细节可以替换而不改设置页面。
+- 本地备份恢复和 Markdown/PDF 导出路径测试不回归。
+- 备份恢复和导出仍不绕过 canonical 事务边界，也不保留旧数据源兼容路径。
 
 ### M-foundation-5: 测试骨架与边界守卫
 

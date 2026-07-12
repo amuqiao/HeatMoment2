@@ -1,6 +1,6 @@
 import Foundation
 
-/// 设置页使用的恢复点服务边界，只覆盖列表、当前摘要和“准备恢复”。
+/// 本机自动恢复点能力边界，只覆盖列表、当前摘要和“准备恢复”。
 ///
 /// 启动期真正消费 pending restore 的 boot gate 不属于这个协议；切换到 canonical
 /// adapter 前，必须先把对应 storage runtime 的 boot restore gate 接入 App 启动路径。

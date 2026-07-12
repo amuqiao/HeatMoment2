@@ -27,6 +27,7 @@ struct SettingsSheetView: View {
     }
 
     let backupRestoreService: (any BackupRestoreServicing)?
+    let exportService: any ExportServicing
 
     @Environment(ThemeManager.self) private var theme
     @Environment(ErrorPresenter.self) private var errorPresenter
@@ -38,8 +39,12 @@ struct SettingsSheetView: View {
     @State private var isBiometricLockEnabled = BiometricLockPreference.isEnabled()
     private let biometricService = BiometricLockService()
 
-    init(backupRestoreService: (any BackupRestoreServicing)? = nil) {
+    init(
+        backupRestoreService: (any BackupRestoreServicing)? = nil,
+        exportService: any ExportServicing
+    ) {
         self.backupRestoreService = backupRestoreService
+        self.exportService = exportService
     }
 
     var body: some View {
@@ -251,7 +256,7 @@ struct SettingsSheetView: View {
         case .backupRestore:
             BackupRestoreView(backupRestoreService: backupRestoreService)
         case .export:
-            ExportView()
+            ExportView(exportService: exportService)
         case .tagManage:
             TagManageView()
         case .trash:
@@ -269,11 +274,14 @@ struct SettingsSheetView: View {
 }
 
 #Preview {
-    SettingsSheetView()
+    let canonicalService = CanonicalLibraryService.makeInMemoryForPreview()
+    SettingsSheetView(
+        exportService: PreviewExportService()
+    )
         .environment(ThemeManager())
         .environment(ErrorPresenter())
         .environment(TimelineModel())
         .environment(SubscriptionService())
         .environment(SyncStatusService(cloudKitEnabled: false))
-        .environment(CanonicalLibraryService.makeInMemoryForPreview())
+        .environment(canonicalService)
 }

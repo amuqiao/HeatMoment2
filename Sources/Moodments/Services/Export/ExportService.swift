@@ -4,6 +4,136 @@ protocol ExportSnapshotProviding: Sendable {
     func makeSnapshot(request: ExportRequest) async throws -> ExportSnapshot
 }
 
+protocol ExportServicing: Sendable {
+    func cleanupTemporaryExports() throws
+    func exportDateBounds() async throws -> ExportDateBounds?
+    func export(request: ExportRequest) async throws -> ExportResult
+}
+
+struct CanonicalExportService: ExportServicing {
+    let repository: CanonicalLibraryRepository
+
+    func cleanupTemporaryExports() throws {
+        try ExportService.cleanupTemporaryExports()
+    }
+
+    func exportDateBounds() async throws -> ExportDateBounds? {
+        try await repository.exportDateBounds()
+    }
+
+    func export(request: ExportRequest) async throws -> ExportResult {
+        let service = ExportService(
+            snapshotProvider: CanonicalExportSnapshotStore(repository: repository)
+        )
+        return try await service.export(request: request)
+    }
+}
+
+#if DEBUG
+    struct PreviewExportService: ExportServicing {
+        func cleanupTemporaryExports() throws {}
+
+        func exportDateBounds() async throws -> ExportDateBounds? {
+            let date = Date(timeIntervalSince1970: 3_600)
+            return ExportDateBounds(earliest: date, latest: date)
+        }
+
+        func export(request: ExportRequest) async throws -> ExportResult {
+            let service = ExportService(snapshotProvider: PreviewExportSnapshotProvider())
+            return try await service.export(request: request)
+        }
+    }
+
+    private struct PreviewExportSnapshotProvider: ExportSnapshotProviding {
+        func makeSnapshot(request: ExportRequest) async throws -> ExportSnapshot {
+            ExportSnapshot(
+                exportedAt: request.requestedAt,
+                scope: request.scope,
+                includePhotos: request.includePhotos,
+                moments: [
+                    ExportMoment(
+                        id: UUID(
+                            uuid: (
+                                0x33, 0x33, 0x33, 0x33,
+                                0x33, 0x33,
+                                0x33, 0x33,
+                                0x33, 0x33,
+                                0x33, 0x33, 0x33, 0x33, 0x33, 0x33
+                            )
+                        ),
+                        title: "预览导出",
+                        bodyText: "用于 SwiftUI Preview 的导出样例。",
+                        occurredAt: Date(timeIntervalSince1970: 3_600),
+                        mood: .happy,
+                        tagNames: ["预览"],
+                        assets: []
+                    )
+                ]
+            )
+        }
+    }
+
+    struct DebugFailingPDFExportService: ExportServicing {
+        func cleanupTemporaryExports() throws {
+            try ExportService.cleanupTemporaryExports()
+        }
+
+        func exportDateBounds() async throws -> ExportDateBounds? {
+            let date = Date(timeIntervalSince1970: 3_600)
+            return ExportDateBounds(earliest: date, latest: date)
+        }
+
+        func export(request: ExportRequest) async throws -> ExportResult {
+            let service = ExportService(snapshotProvider: DebugFailingPDFExportSnapshotProvider())
+            return try await service.export(request: request)
+        }
+    }
+
+    private struct DebugFailingPDFExportSnapshotProvider: ExportSnapshotProviding {
+        func makeSnapshot(request: ExportRequest) async throws -> ExportSnapshot {
+            ExportSnapshot(
+                exportedAt: request.requestedAt,
+                scope: request.scope,
+                includePhotos: request.includePhotos,
+                moments: [
+                    ExportMoment(
+                        id: UUID(
+                            uuid: (
+                                0x11, 0x11, 0x11, 0x11,
+                                0x11, 0x11,
+                                0x11, 0x11,
+                                0x11, 0x11,
+                                0x11, 0x11, 0x11, 0x11, 0x11, 0x11
+                            )
+                        ),
+                        title: "坏图导出测试",
+                        bodyText: "用于验证 PDF 导出失败态和重试入口。",
+                        occurredAt: Date(timeIntervalSince1970: 3_600),
+                        mood: .normal,
+                        tagNames: [],
+                        assets: request.includePhotos
+                            ? [
+                                ExportAsset(
+                                    id: UUID(
+                                        uuid: (
+                                            0x22, 0x22, 0x22, 0x22,
+                                            0x22, 0x22,
+                                            0x22, 0x22,
+                                            0x22, 0x22,
+                                            0x22, 0x22, 0x22, 0x22, 0x22, 0x22
+                                        )
+                                    ),
+                                    data: Data([0x00, 0x01])
+                                )
+                            ]
+                            : []
+                    )
+                ]
+            )
+        }
+    }
+#endif
+
 struct ExportService {
     private let snapshotProvider: any ExportSnapshotProviding
     private let outputRootURL: URL?

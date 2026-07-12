@@ -11,6 +11,7 @@ import SwiftUI
 struct RootView: View {
     let canonicalRecoveryCoordinator: CanonicalRecoveryCoordinator?
     let backupRestoreService: (any BackupRestoreServicing)?
+    let exportService: any ExportServicing
     let launchRestoreResult: BackupBootRestoreResult
 
     @Environment(AppRouter.self) private var router
@@ -27,10 +28,12 @@ struct RootView: View {
     init(
         canonicalRecoveryCoordinator: CanonicalRecoveryCoordinator? = nil,
         backupRestoreService: (any BackupRestoreServicing)? = nil,
+        exportService: any ExportServicing,
         launchRestoreResult: BackupBootRestoreResult = .none
     ) {
         self.canonicalRecoveryCoordinator = canonicalRecoveryCoordinator
         self.backupRestoreService = backupRestoreService
+        self.exportService = exportService
         self.launchRestoreResult = launchRestoreResult
     }
 
@@ -90,7 +93,10 @@ struct RootView: View {
                 subscriptionService: subscriptionService
             )
         case .settings:
-            SettingsSheetView(backupRestoreService: backupRestoreService)
+            SettingsSheetView(
+                backupRestoreService: backupRestoreService,
+                exportService: exportService
+            )
         case let .paywall(trigger):
             ProPaywallView(trigger: trigger)
         }

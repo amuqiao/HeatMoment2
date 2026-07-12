@@ -1,7 +1,8 @@
 import SwiftUI
 
 struct ExportView: View {
-    @Environment(CanonicalLibraryService.self) private var canonicalService
+    let exportService: any ExportServicing
+
     @Environment(ThemeManager.self) private var theme
 
     @State private var selectedFormat: ExportFormat = .markdown
@@ -19,6 +20,10 @@ struct ExportView: View {
     #if DEBUG
         @State private var didForceDateBoundsFailure = false
     #endif
+
+    init(exportService: any ExportServicing) {
+        self.exportService = exportService
+    }
 
     var body: some View {
         TaskPageScrollView(accessibilityIdentifier: "exportScrollView") {
@@ -56,7 +61,7 @@ struct ExportView: View {
             clearExportState()
         }
         .task {
-            try? ExportService.cleanupTemporaryExports()
+            try? exportService.cleanupTemporaryExports()
             await loadDateBoundsIfNeeded()
         }
         .onDisappear {
@@ -206,8 +211,7 @@ struct ExportView: View {
                 exportTask = nil
             }
             do {
-                let service = makeExportService(format: request.format)
-                exportResult = try await service.export(request: request)
+                exportResult = try await exportService.export(request: request)
             } catch is CancellationError {
                 exportResult = nil
             } catch {
@@ -237,19 +241,6 @@ struct ExportView: View {
         )
     }
 
-    private func makeExportService(format: ExportFormat) -> ExportService {
-        #if DEBUG
-            if format == .pdf, UITestSupport.wantsExportForcePDFFailure {
-                return ExportService(snapshotProvider: FailingPDFExportSnapshotProvider())
-            }
-        #endif
-        return ExportService(
-            snapshotProvider: CanonicalExportSnapshotStore(
-                repository: canonicalService.repository
-            )
-        )
-    }
-
     private func loadDateBoundsIfNeeded() async {
         guard !didLoadDateBounds else { return }
         didLoadDateBounds = true
@@ -262,13 +253,7 @@ struct ExportView: View {
                     }
                 }
             #endif
-            var bounds = try await canonicalService.repository.exportDateBounds()
-            #if DEBUG
-                if bounds == nil, UITestSupport.wantsExportForcePDFFailure {
-                    let date = Date(timeIntervalSince1970: 3_600)
-                    bounds = ExportDateBounds(earliest: date, latest: date)
-                }
-            #endif
+            let bounds = try await exportService.exportDateBounds()
             exportDateBounds = bounds
             exportFailure = nil
             if let bounds {
@@ -340,7 +325,6 @@ private extension ExportView {
 }
 
 #Preview {
-    ExportView()
+    ExportView(exportService: PreviewExportService())
         .environment(ThemeManager())
-        .environment(CanonicalLibraryService.makeInMemoryForPreview())
 }

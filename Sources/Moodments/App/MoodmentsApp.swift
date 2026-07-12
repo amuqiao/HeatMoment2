@@ -25,6 +25,7 @@ struct MoodmentsApp: App {
     private let canonicalLibraryService: CanonicalLibraryService
     private let canonicalRecoveryCoordinator: CanonicalRecoveryCoordinator?
     private let backupRestoreService: (any BackupRestoreServicing)?
+    private let exportService: any ExportServicing
     private let launchRestoreResult: BackupBootRestoreResult
 
     /// 语言偏好（见 `LanguagePreference`、阶段7计划决策4）：与 `LanguageSettingsView` 共享同一
@@ -61,6 +62,7 @@ struct MoodmentsApp: App {
         canonicalLibraryService = runtime.canonicalLibraryService
         canonicalRecoveryCoordinator = runtime.canonicalRecoveryCoordinator
         backupRestoreService = runtime.backupRestoreService
+        exportService = runtime.exportService
         self.syncStatusService = runtime.syncStatusService
         // 外观持久化：生产用真实 `UserDefaults.standard`（`AppearanceStore()` 默认）；
         // DEBUG 下 UI 测试改用隔离套件（避免测试间相互污染）+ 按需注入必失败场景
@@ -77,6 +79,7 @@ struct MoodmentsApp: App {
             RootView(
                 canonicalRecoveryCoordinator: canonicalRecoveryCoordinator,
                 backupRestoreService: backupRestoreService,
+                exportService: exportService,
                 launchRestoreResult: launchRestoreResult
             )
             .environment(localBackupRestoreState)
@@ -183,7 +186,8 @@ struct MoodmentsApp: App {
                     canonicalLibraryService: canonicalLibraryService,
                     canonicalRecoveryCoordinator: nil,
                     syncStatusService: SyncStatusService(cloudKitEnabled: false),
-                    backupRestoreService: nil
+                    backupRestoreService: nil,
+                    exportService: makeExportService(repository: canonicalLibraryService.repository)
                 )
             }
         #endif
@@ -200,8 +204,18 @@ struct MoodmentsApp: App {
             syncStatusService: SyncStatusService(cloudKitEnabled: hasICloudCapability),
             backupRestoreService: CanonicalBackupRestoreService(
                 coordinator: canonicalRecoveryCoordinator
-            )
+            ),
+            exportService: makeExportService(repository: canonicalRuntime.repository)
         )
+    }
+
+    private static func makeExportService(repository: CanonicalLibraryRepository) -> any ExportServicing {
+        #if DEBUG
+            if UITestSupport.wantsExportForcePDFFailure {
+                return DebugFailingPDFExportService()
+            }
+        #endif
+        return CanonicalExportService(repository: repository)
     }
 
     private static func performPendingCanonicalRestore() -> BackupBootRestoreResult {
@@ -255,5 +269,6 @@ struct MoodmentsApp: App {
         let canonicalRecoveryCoordinator: CanonicalRecoveryCoordinator?
         let syncStatusService: SyncStatusService
         let backupRestoreService: (any BackupRestoreServicing)?
+        let exportService: any ExportServicing
     }
 }
