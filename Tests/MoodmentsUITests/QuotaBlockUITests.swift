@@ -16,6 +16,11 @@ final class QuotaBlockUITests: XCTestCase {
 
         XCTAssertTrue(app.navigationBars["Pro 会员"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["editorSaveButton"].exists, "超额时编辑器不应被打开")
+
+        let closeButton = app.buttons["paywallCloseButton"]
+        XCTAssertTrue(closeButton.waitForExistence(timeout: 5))
+        closeButton.tap()
+        XCTAssertTrue(app.buttons["新建时刻"].waitForExistence(timeout: 5), "关闭 Paywall 后应回到时间轴")
     }
 
     /// 标签额度：首启已默认预置 3 个标签（工作/生活/健康，占满免费额度，见 `DefaultTagSeeder`

@@ -30,7 +30,7 @@ struct ProPaywallView: View {
             }
             .appSheetChrome(
                 title: "Pro 会员",
-                cancellation: AppSheetAction("关闭") {
+                cancellation: AppSheetAction("关闭", accessibilityIdentifier: "paywallCloseButton") {
                     dismiss()
                 }
             )

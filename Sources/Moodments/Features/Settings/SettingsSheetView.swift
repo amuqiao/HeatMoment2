@@ -25,73 +25,76 @@ struct SettingsSheetView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            TaskPageScrollView {
-                proBanner
-
-                TaskSurfaceSection(accessibilityIdentifier: "settingsPrimarySection") {
-                    settingsNavigationRow(
-                        title: "心情统计",
-                        identifier: "settingsMoodStatsRow"
-                    ) {
-                        MoodStatsView(canonicalService: canonicalService)
-                    }
-                    TaskSurfaceSeparator()
-                    settingsNavigationRow(
-                        title: "标签管理",
-                        identifier: "settingsTagManageRow"
-                    ) {
-                        TagManageView()
-                    }
-                    TaskSurfaceSeparator()
-                    settingsNavigationRow(title: "垃圾箱", identifier: "settingsTrashRow") {
-                        TrashView()
-                    }
-                }
-
-                TaskSurfaceSection(accessibilityIdentifier: "settingsSupportSection") {
-                    iCloudSyncRow
-                    TaskSurfaceSeparator()
-                    settingsNavigationRow(title: "备份与恢复", identifier: "settingsBackupRestoreRow") {
-                        BackupRestoreView(backupRestoreService: backupRestoreService)
-                    }
-                    TaskSurfaceSeparator()
-                    settingsNavigationRow(title: "导出", identifier: "settingsExportRow") {
-                        ExportView()
-                    }
-                    TaskSurfaceSeparator()
-                    biometricLockRow
-                    TaskSurfaceSeparator()
-                    settingsNavigationRow(title: "语言", identifier: "settingsLanguageRow") {
-                        LanguageSettingsView()
-                    }
-                    TaskSurfaceSeparator()
-                    settingsNavigationRow(title: "外观主题", identifier: "settingsAppearanceRow") {
-                        AppearanceThemeView()
-                    }
-                }
-
-                TaskSurfaceSection(accessibilityIdentifier: "settingsAboutSection") {
-                    settingsNavigationRow(title: "关于心绪日记", identifier: "settingsAboutRow") {
-                        AboutView()
-                    }
-                }
-
-                Text("版本 \(Self.versionText)")
-                    .font(AppTypography.caption)
-                    .foregroundStyle(theme.secondaryText)
-                    .frame(maxWidth: .infinity, alignment: .center)
-            }
-            .appSheetRootNavigationChrome("设置")
-            .sheet(item: $paywallTrigger) { trigger in
-                ProPaywallView(trigger: trigger)
-            }
-            .userFacingErrorAlert(errorPresenter)
-            .task {
-                await syncStatusService.refresh()
-            }
+        AppSheetScaffold {
+            settingsContent
         }
-        .themedTaskContainer(theme)
+    }
+
+    private var settingsContent: some View {
+        TaskPageScrollView {
+            proBanner
+
+            TaskSurfaceSection(accessibilityIdentifier: "settingsPrimarySection") {
+                settingsNavigationRow(
+                    title: "心情统计",
+                    identifier: "settingsMoodStatsRow"
+                ) {
+                    MoodStatsView(canonicalService: canonicalService)
+                }
+                TaskSurfaceSeparator()
+                settingsNavigationRow(
+                    title: "标签管理",
+                    identifier: "settingsTagManageRow"
+                ) {
+                    TagManageView()
+                }
+                TaskSurfaceSeparator()
+                settingsNavigationRow(title: "垃圾箱", identifier: "settingsTrashRow") {
+                    TrashView()
+                }
+            }
+
+            TaskSurfaceSection(accessibilityIdentifier: "settingsSupportSection") {
+                iCloudSyncRow
+                TaskSurfaceSeparator()
+                settingsNavigationRow(title: "备份与恢复", identifier: "settingsBackupRestoreRow") {
+                    BackupRestoreView(backupRestoreService: backupRestoreService)
+                }
+                TaskSurfaceSeparator()
+                settingsNavigationRow(title: "导出", identifier: "settingsExportRow") {
+                    ExportView()
+                }
+                TaskSurfaceSeparator()
+                biometricLockRow
+                TaskSurfaceSeparator()
+                settingsNavigationRow(title: "语言", identifier: "settingsLanguageRow") {
+                    LanguageSettingsView()
+                }
+                TaskSurfaceSeparator()
+                settingsNavigationRow(title: "外观主题", identifier: "settingsAppearanceRow") {
+                    AppearanceThemeView()
+                }
+            }
+
+            TaskSurfaceSection(accessibilityIdentifier: "settingsAboutSection") {
+                settingsNavigationRow(title: "关于心绪日记", identifier: "settingsAboutRow") {
+                    AboutView()
+                }
+            }
+
+            Text("版本 \(Self.versionText)")
+                .font(AppTypography.caption)
+                .foregroundStyle(theme.secondaryText)
+                .frame(maxWidth: .infinity, alignment: .center)
+        }
+        .appSheetRootNavigationChrome("设置")
+        .sheet(item: $paywallTrigger) { trigger in
+            ProPaywallView(trigger: trigger)
+        }
+        .userFacingErrorAlert(errorPresenter)
+        .task {
+            await syncStatusService.refresh()
+        }
     }
 
     /// Pro 会员态下横幅替换为「已是 Pro 会员」态（04 §4.11，已裁决见 13-open-questions.md #11）：

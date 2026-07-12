@@ -118,7 +118,7 @@ canonical recovery catalog/snapshot/coordinator/restore service/migration safety
 
 ## 设置与外观
 
-`SettingsSheetView` 是根级第一层 sheet，内部使用 `NavigationStack + TaskPageScrollView`。根页不提供显式关闭按钮，依赖系统 sheet 下滑关闭；设置子页包括统计、标签、垃圾箱、语言、外观、关于，均在设置栈内 push 并保留系统返回；Pro 横幅使用设置内部局部 `.sheet(item:)` 打开 `ProPaywallView`。
+`SettingsSheetView` 是根级第一层 sheet，使用 `AppSheetScaffold + TaskPageScrollView`，由统一 sheet 宿主提供 `NavigationStack`、背景、色彩模式和 tint。根页不提供显式关闭按钮，依赖系统 sheet 下滑关闭；设置子页包括统计、标签、垃圾箱、语言、外观、关于，均在设置栈内 push 并保留系统返回；Pro 横幅使用设置内部局部 `.sheet(item:)` 打开 `ProPaywallView`。
 
 任务页的响应式骨架收口在 `AppSheetScaffold.swift` 和 `TaskContainerStyle.swift`：
 

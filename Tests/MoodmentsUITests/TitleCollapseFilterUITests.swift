@@ -70,6 +70,35 @@ final class TitleCollapseFilterUITests: XCTestCase {
         )
     }
 
+    /// “清除全部”属于统一 sheet chrome 动作，必须一次性清空已选条件并保留 sheet 手动完成语义。
+    func testFilterClearAllRemovesSelectedConditions() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTestSeedMoments"]
+        app.launch()
+
+        collapseTitleAndOpenFilter(app)
+
+        let workTagOption = app.buttons["filterTagOption-工作"]
+        XCTAssertTrue(workTagOption.waitForExistence(timeout: 5))
+        workTagOption.tap()
+
+        let clearButton = app.buttons["filterClearButton"]
+        XCTAssertTrue(clearButton.waitForExistence(timeout: 5))
+        clearButton.tap()
+
+        dismissFilterSheet(app)
+
+        let workMarker = app.buttons
+            .matching(NSPredicate(format: "label CONTAINS %@", "#工作"))
+            .firstMatch
+        let seededRow = app.buttons
+            .matching(NSPredicate(format: "label CONTAINS %@", "测试时刻 1"))
+            .firstMatch
+        XCTAssertTrue(seededRow.waitForExistence(timeout: 5), "清除全部后应恢复未筛选时间轴")
+        XCTAssertFalse(workMarker.exists, "清除全部后不应保留 #工作 筛选标记")
+        XCTAssertFalse(app.staticTexts["timelineFilteredEmptyState"].exists, "清除全部后不应停留在筛选空态")
+    }
+
     /// 收起筛选半屏 sheet：点「完成」（`filterDoneButton`）。点选条件后 sheet 必须仍保持打开，
     /// 这里找不到完成按钮即视为“点选后自动关闭”的回归。
     private func dismissFilterSheet(_ app: XCUIApplication) {

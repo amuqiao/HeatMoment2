@@ -10,6 +10,7 @@
 | --- | --- |
 | [`implementation-truth.md`](implementation-truth.md) | SwiftUI 版当前 as-built 架构、界面流、主题/时间轴/设置等落地事实与偏离 |
 | [`local-data-architecture.md`](local-data-architecture.md) | 本地 canonical store、恢复点、导出和未来 iCloud 接入边界的开发者导览 |
+| [`sheet-system.md`](sheet-system.md) | 当前任务 sheet 骨架、顶部动作入口、内容容器边界和最小回归测试导览 |
 | [`testing-architecture.md`](testing-architecture.md) | 当前 XCTest/XCUITest 入口、数据隔离、UI 测试 launch arguments 与维护边界 |
 | 本文 | current 层阅读入口、能力矩阵和验证基线 |
 
@@ -29,7 +30,7 @@
 | Markdown / PDF 导出 | 已落地。设置页“导出”详情页可导出全部活跃 Moment 为 Markdown 或 PDF；导出只读，不改变 canonical store，不创建恢复点，不参与 iCloud 同步。 | `ExportService.swift`、`MarkdownExportRenderer.swift`、`PDFExportRenderer.swift`、`ExportView.swift` |
 | Canonical 恢复点地基 | 已落地并接入生产设置页和启动路径。catalog、asset manifest、content-hash pin、真实 SQLite snapshot、stage/arm/boot replace/rollback 和 migration safety gate 均已有定向测试。 | `CanonicalRecoveryPointStore.swift`、`CanonicalRecoveryPointSnapshotService.swift`、`CanonicalRecoveryCoordinator.swift`、`CanonicalRestoreExecutor.swift`、`CanonicalBootRestoreGate.swift`、`CanonicalMigrationSafetyGate.swift` |
 | 编辑页日期/时间选择 | 已落地。日期和时间由局部 `.popover` 打开系统 `DatePicker`，即时回写 `occurredAt`。 | `MomentEditorView.swift`、`DateTimePopovers.swift` |
-| 任务页骨架 | 已落地。设置、外观、编辑、预览、Paywall、筛选和标签创建等 sheet 共享 `AppSheetScaffold` / `AppSheetActionButton` / `TaskSurfaceMetrics` / `TaskPageScrollView` 等骨架；半屏筛选仍保留自身 detent 和即时筛选语义。 | `AppSheetScaffold.swift`、`AppSheetNavigationChrome.swift`、`TaskContainerStyle.swift`、`SettingsSheetView.swift`、`MomentEditorView.swift`、`FilterPanelView.swift`、`TagCreateSheetView.swift` |
+| 任务页骨架 | 已落地。设置、外观、编辑、预览、Paywall、筛选和标签创建等 sheet 共享 `AppSheetScaffold` / `AppSheetActionButton` / `TaskSurfaceMetrics` / `TaskPageScrollView` 等骨架；半屏筛选仍保留自身 detent 和即时筛选语义。维护入口见 [`sheet-system.md`](sheet-system.md)。 | `AppSheetScaffold.swift`、`AppSheetNavigationChrome.swift`、`TaskContainerStyle.swift`、`SettingsSheetView.swift`、`MomentEditorView.swift`、`FilterPanelView.swift`、`TagCreateSheetView.swift` |
 | 设置流 | 已落地。设置页是第一层 sheet，详情页在设置内 `NavigationStack` push 并保留系统返回；根页和详情页通过 `AppSheetNavigationChrome` 统一。 | `SettingsSheetView.swift`、`AppSheetNavigationChrome.swift` |
 | 外观设置 | 部分落地。模式、主色、网格、图片展示已有 UI、持久化和消费路径；自定义背景图是本地外观文件，不进入 canonical 资料库或 CloudKit。 | `AppearanceThemeView.swift`、`AppearanceOptionCards.swift`、`ThemeManager.swift`、`AppearanceStore.swift` |
 | 主题语义 | 已落地。主色、心情色、危险色、商业固定色和图片查看器媒体色由不同语义入口暴露，心情色、危险色、商业固定色不跟随主色。 | `ThemeManager.swift`、`ThemeTokens.swift`、`Colors.swift` |
