@@ -113,22 +113,27 @@ final class LocateFilterUITests: XCTestCase {
 
         let currentYear = Calendar.current.component(.year, from: Date())
         let currentMonth = Calendar.current.component(.month, from: Date())
-        let monthWithoutSeedRecords = currentMonth == 1 ? 2 : 1
+        let monthWithoutSeedRecords = currentMonth == 12 ? 1 : currentMonth + 1
+        let currentMonthButton = app.buttons["heatmapMonthLabel-\(currentYear)-\(currentMonth)"]
         XCTAssertFalse(
             app.buttons["heatmapMonthLabel-\(currentYear)-\(monthWithoutSeedRecords)"].exists,
             "无记录月份不应提供可点击月份定位入口"
         )
         XCTAssertTrue(
-            app.buttons["heatmapMonthLabel-\(currentYear)-\(currentMonth)"].waitForExistence(
-                timeout: 5),
+            app.staticTexts["heatmapMonthText-\(currentYear)-\(monthWithoutSeedRecords)"]
+                .waitForExistence(timeout: 5),
+            "无记录月份仍应提供对齐的月份文本"
+        )
+        XCTAssertTrue(
+            currentMonthButton.waitForExistence(timeout: 5),
             "有记录月份应提供可点击月份定位入口"
         )
+        XCTAssertTrue(
+            waitForHittable(currentMonthButton, timeout: 5),
+            "打开热力图后应自动横向定位到当前月份"
+        )
 
-        let monthLabel = app.buttons
-            .matching(NSPredicate(format: "identifier BEGINSWITH %@", "heatmapMonthLabel-"))
-            .firstMatch
-        XCTAssertTrue(monthLabel.waitForExistence(timeout: 5), "热力图应提供可点击月份标签")
-        monthLabel.tap()
+        currentMonthButton.tap()
 
         app.buttons["heatmapCloseButton"].tap()
 
@@ -136,9 +141,10 @@ final class LocateFilterUITests: XCTestCase {
             .firstMatch
         XCTAssertTrue(timeMarker.waitForExistence(timeout: 5), "点选月份后应出现时间上下文标记")
         XCTAssertTrue(
-            timeMarker.label.contains("月"),
+            timeMarker.label.contains("\(currentMonth)月"),
             "月份定位标记应表达月份上下文"
         )
+        XCTAssertFalse(timeMarker.label.contains("日"), "月份定位标记不应退化成日定位文案")
     }
 
     // MARK: - Helpers
@@ -156,5 +162,16 @@ final class LocateFilterUITests: XCTestCase {
         let predicate = NSPredicate(format: "exists == false")
         let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
         return XCTWaiter().wait(for: [expectation], timeout: timeout) == .completed
+    }
+
+    private func waitForHittable(_ element: XCUIElement, timeout: TimeInterval) -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if element.exists && element.isHittable {
+                return true
+            }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        }
+        return element.exists && element.isHittable
     }
 }

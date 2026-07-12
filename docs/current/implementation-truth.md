@@ -60,7 +60,8 @@ TimelineDateColumn
 热力图当前行为：
 
 - 年度聚合会读取当前 `activeFilter`，用于展示当前筛选口径下的年度分布。
-- 点日期写入日粒度 anchor；点有记录的月份标签写入月粒度 anchor。两者都只更新 `timelineModel.heatmapFocusDate` 和 `timelineModel.heatmapAnchorGranularity`；当前热力图口径下没有记录的月份只显示文本，不提供月份定位按钮。
+- 打开年度网格后，网格自身横向滚动会优先把已选 anchor 所在月份带入视野；没有已选 anchor 且正在查看当前年时，把当前月份带入视野。这只改变热力图内部滚动位置，不写入时间轴定位状态。该网格组件同时服务首页热力图和心情统计页；统计页仍是纯展示，不写时间轴定位状态。
+- 点日期写入日粒度 anchor；点有记录的月份标签写入月粒度 anchor。两者都只更新 `timelineModel.heatmapFocusDate` 和 `timelineModel.heatmapAnchorGranularity`；当前热力图口径下没有记录的月份只显示同尺寸文本，不提供月份定位按钮。
 - `HeatmapGridView` 在月粒度选中时用当前主色低透明蒙层覆盖对应月份列区，蒙层位于日期格上方且不拦截点击；日粒度选中时仍用日期格描边。
 - `TimelineViewportView` 监听包含 anchor 日期、粒度和目标行的派生滚动请求后，在当前可见 `entries` 中计算滚动目标；日 anchor 只命中同一天真实记录，月 anchor 只命中同一月真实记录，不会退到更早日期或更早月份。
 - 换年会清空 `heatmapFocusDate`。

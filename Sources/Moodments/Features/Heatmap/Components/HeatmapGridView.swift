@@ -23,6 +23,8 @@ struct HeatmapGridView: View {
 
     private static let cellSize: CGFloat = 14
     private static let cellSpacing: CGFloat = 3
+    private static let monthLabelWidth: CGFloat = 44
+    private static let monthLabelHeight: CGFloat = 32
     private static let calendar = Calendar.current
 
     private struct DayCell {
@@ -38,6 +40,11 @@ struct HeatmapGridView: View {
         let endColumn: Int
     }
 
+    private struct MonthScrollTarget: Hashable {
+        let year: Int
+        let month: Int
+    }
+
     /// 一次性预计算的网格布局（阶段5 review 修复：此前 `cells` 是计算属性，被
     /// `grid`/`columnCount`/`monthColumnLabels` 三处各自重复触发重算，且 `grid` 内每格用
     /// `allCells.first(where:)` 做 O(n) 线性扫描——年内约371个网格位 × 约180+条记录，
@@ -47,6 +54,7 @@ struct HeatmapGridView: View {
         let columnCount: Int
         let monthColumnLabels: [(month: Int, column: Int)]
         let monthColumnRanges: [MonthColumnRange]
+        let monthsByStartColumn: [Int: Int]
     }
 
     private let layout: GridLayout
@@ -115,20 +123,38 @@ struct HeatmapGridView: View {
                 : maxColumn
             return MonthColumnRange(month: item.month, startColumn: item.column, endColumn: endColumn)
         }
+        let monthsByStartColumn = Dictionary(
+            uniqueKeysWithValues: monthColumnLabels.map { ($0.column, $0.month) }
+        )
 
         return GridLayout(
             cellsByPosition: cellsByPosition, columnCount: maxColumn + 1,
-            monthColumnLabels: monthColumnLabels,
-            monthColumnRanges: monthColumnRanges)
+            monthColumnLabels: monthColumnLabels, monthColumnRanges: monthColumnRanges,
+            monthsByStartColumn: monthsByStartColumn)
     }
 
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 4) {
-                gridWithMonthSelection
-                monthLabelsRow
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal, showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 4) {
+                    gridWithMonthSelection
+                    monthLabelsRow
+                }
+                .padding(.horizontal, 4)
             }
-            .padding(.horizontal, 4)
+            .onAppear {
+                scrollToInitialMonth(using: proxy)
+            }
+            .onChange(of: selectedMonthScrollTarget) { _, target in
+                guard let target else { return }
+                scrollToMonth(target, using: proxy, animated: true)
+            }
+            .onChange(of: year) { _, _ in
+                guard selectedMonthScrollTarget == nil,
+                    let target = currentMonthScrollTarget
+                else { return }
+                scrollToMonth(target, using: proxy, animated: true)
+            }
         }
     }
 
@@ -196,7 +222,7 @@ struct HeatmapGridView: View {
 
     private var monthLabelsRow: some View {
         ZStack(alignment: .topLeading) {
-            Color.clear.frame(height: 32)
+            monthScrollTargetsRow
             ForEach(layout.monthColumnLabels, id: \.column) { item in
                 monthLabel(item)
                     .offset(x: CGFloat(item.column) * Self.columnStride)
@@ -209,27 +235,50 @@ struct HeatmapGridView: View {
         )
     }
 
+    private var monthScrollTargetsRow: some View {
+        HStack(spacing: Self.cellSpacing) {
+            ForEach(0..<layout.columnCount, id: \.self) { column in
+                if let month = layout.monthsByStartColumn[column] {
+                    Color.clear
+                        .frame(width: Self.cellSize, height: Self.monthLabelHeight)
+                        .id(MonthScrollTarget(year: year, month: month))
+                } else {
+                    Color.clear
+                        .frame(width: Self.cellSize, height: Self.monthLabelHeight)
+                }
+            }
+        }
+        .accessibilityHidden(true)
+    }
+
     @ViewBuilder
     private func monthLabel(_ item: (month: Int, column: Int)) -> some View {
+        let hasRecords = monthsWithRecords.contains(item.month)
         let label = Text("\(item.month)月")
             .font(.caption2)
-            .foregroundStyle(theme.secondaryText)
+            .foregroundStyle(theme.secondaryText.opacity(hasRecords ? 1 : 0.55))
+            .frame(
+                width: Self.monthLabelWidth,
+                height: Self.monthLabelHeight,
+                alignment: .leading
+            )
 
-        if monthsWithRecords.contains(item.month),
+        if hasRecords,
            let onSelectMonth,
            let monthDate = Self.monthDate(year: year, month: item.month) {
             Button {
                 onSelectMonth(monthDate)
             } label: {
                 label
-                    .frame(minWidth: 44, minHeight: 32, alignment: .leading)
             }
             .buttonStyle(.plain)
             .contentShape(Rectangle())
-            .accessibilityLabel(Text("\(item.month)月，点击定位"))
+            .accessibilityLabel(Text("\(item.month)月，有记录，点击定位"))
             .accessibilityIdentifier("heatmapMonthLabel-\(year)-\(item.month)")
         } else {
             label
+                .accessibilityLabel(Text(monthAccessibilityLabel(item.month, hasRecords: hasRecords)))
+                .accessibilityIdentifier("heatmapMonthText-\(year)-\(item.month)")
         }
     }
 
@@ -254,6 +303,54 @@ struct HeatmapGridView: View {
 
     private static var columnStride: CGFloat { cellSize + cellSpacing }
     private static var gridHeight: CGFloat { cellSize * 7 + cellSpacing * 6 }
+
+    private var selectedMonthScrollTarget: MonthScrollTarget? {
+        if let selectedDate,
+           Self.calendar.component(.year, from: selectedDate) == year {
+            return MonthScrollTarget(
+                year: year,
+                month: Self.calendar.component(.month, from: selectedDate)
+            )
+        }
+        return nil
+    }
+
+    private var currentMonthScrollTarget: MonthScrollTarget? {
+        let now = Date()
+        guard Self.calendar.component(.year, from: now) == year else {
+            return nil
+        }
+        return MonthScrollTarget(
+            year: year,
+            month: Self.calendar.component(.month, from: now)
+        )
+    }
+
+    private func scrollToInitialMonth(using proxy: ScrollViewProxy) {
+        guard let target = selectedMonthScrollTarget ?? currentMonthScrollTarget else { return }
+        scrollToMonth(target, using: proxy, animated: false)
+    }
+
+    private func scrollToMonth(
+        _ target: MonthScrollTarget,
+        using proxy: ScrollViewProxy,
+        animated: Bool
+    ) {
+        let scroll = {
+            proxy.scrollTo(target, anchor: .center)
+        }
+        if animated {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                scroll()
+            }
+        } else {
+            scroll()
+        }
+    }
+
+    private func monthAccessibilityLabel(_ month: Int, hasRecords: Bool) -> String {
+        hasRecords ? "\(month)月，有记录" : "\(month)月，没有记录"
+    }
 
     private static func monthDate(year: Int, month: Int) -> Date? {
         calendar.date(from: DateComponents(year: year, month: month, day: 1))
