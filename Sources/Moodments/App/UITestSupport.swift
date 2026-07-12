@@ -95,7 +95,7 @@
             ProcessInfo.processInfo.arguments.contains { $0.hasPrefix("-uiTest") }
         }
 
-        /// `-uiTestFailAppearanceSave`：外观偏好写入必失败，供 05 §5.3.7 异常反馈验收
+        /// `-uiTestFailAppearanceSave`：外观偏好写入必失败，供 docs/current/implementation-truth.md §5.3.7 异常反馈验收
         /// （`AppearanceSaveFailureUITests`）——断言界面已乐观更新（不回滚）+ 出现对应失败提示。
         static var wantsAppearanceSaveFailure: Bool {
             ProcessInfo.processInfo.arguments.contains("-uiTestFailAppearanceSave")

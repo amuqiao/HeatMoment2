@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// 心情统计页（见 `docs/design/04-screen-specs.md` §4.12）：顶栏「‹设置 | 年份」+ 卡片1
+/// 心情统计页（见 `docs/current/implementation-truth.md` §4.12）：顶栏「‹设置 | 年份」+ 卡片1
 /// 「心情日期分布」热力图 + 卡片2「心情统计」8 情绪条形；设置栈内 `NavigationLink` push
-/// （见 08-architecture.md §2.2），**不定位时间轴、不接 `activeFilter`**（独立全量，见
+/// （见 docs/current/implementation-truth.md §2.2），**不定位时间轴、不接 `activeFilter`**（独立全量，见
 /// `MoodStatsModel` 头部注释）。
 struct MoodStatsView: View {
     @Environment(ThemeManager.self) private var theme

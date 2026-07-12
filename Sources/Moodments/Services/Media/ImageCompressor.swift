@@ -9,11 +9,11 @@ enum ImageCompressorError: Error, Equatable {
     case jpegEncodingFailed
 }
 
-/// 原图 → JPEG 压缩管线（见 `docs/design/07-data-persistence.md` §5）：入库前统一转 JPEG
+/// 原图 → JPEG 压缩管线（见 `docs/current/local-data-architecture.md` §5）：入库前统一转 JPEG
 /// （HEIC 解码后重编码），长边上限约 2048px、质量约 0.8、单张目标 < 500KB。
 ///
 /// 纯函数、`Sendable`、不持有任何状态，可在任意隔离域调用；耗时的解码/编码工作建议由调用方
-/// 通过 `Task.detached` 显式切到后台执行（见 `docs/design/08-architecture.md` §5：
+/// 通过 `Task.detached` 显式切到后台执行（见 `docs/current/implementation-truth.md` §5：
 /// 「耗时工作切后台」），本类型自身不做隔离域切换。
 enum ImageCompressor {
     struct Configuration: Sendable, Equatable {
@@ -38,7 +38,7 @@ enum ImageCompressor {
 
     /// - Parameters:
     ///   - data: 原始图片数据（HEIC/JPEG/PNG 等 `UIImage` 可解码的格式）。
-    ///   - configuration: 压缩规格，默认对齐 07 §5。
+    ///   - configuration: 压缩规格，默认对齐 docs/current/local-data-architecture.md §5。
     /// - Returns: 压缩后的 JPEG `Data`。
     /// - Throws: `ImageCompressorError.invalidImageData` 若无法解码；
     ///   `ImageCompressorError.jpegEncodingFailed` 若 JPEG 编码失败。
@@ -67,7 +67,7 @@ enum ImageCompressor {
         guard longestSide > maxDimension, longestSide > 0 else { return image }
         let scale = maxDimension / longestSide
         let newSize = CGSize(width: size.width * scale, height: size.height * scale)
-        // `format.scale = 1`：长边≈2048px 指的是落库图片的**真实像素**尺寸（07 §5），
+        // `format.scale = 1`：长边≈2048px 指的是落库图片的**真实像素**尺寸（docs/current/local-data-architecture.md §5），
         // 与渲染宿主设备的 Retina 屏幕倍率（2x/3x）无关；不显式指定的话
         // `UIGraphicsImageRenderer` 默认取当前 trait 环境的屏幕倍率，会让实际像素尺寸
         // 变成 `newSize` 的 2–3 倍，JPEG 编码/解码不携带该倍率信息，解码后尺寸会跑偏。

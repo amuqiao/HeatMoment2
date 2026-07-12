@@ -1,6 +1,6 @@
 # 当前实现真相
 
-本文是 SwiftUI 版 Moodments 的 current 入口，只记录当前代码已经落地的事实、已知偏离和验证基线。产品公理以 [`../product-mental-model.md`](../product-mental-model.md) 为准；未来计划进入 [`../plans/implementation-plan.md`](../plans/implementation-plan.md)。
+本文是 SwiftUI 版 Moodments 的 current 入口，只记录当前代码已经落地的事实、已知偏离、已实现能力边界和验证基线。产品公理以 [`../product-mental-model.md`](../product-mental-model.md) 为准；未来计划进入 [`../plans/`](../plans/README.md)。
 
 ## 文档边界
 

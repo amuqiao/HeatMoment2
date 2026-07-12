@@ -7,11 +7,11 @@
 	<key>NSPrivacyTrackingDomains</key>
 	<array/>
 	<!--
-	见 docs/design/10-security-privacy.md §10.2：无自有服务器，不接入第三方追踪/分析 SDK；
+	见 docs/current/implementation-truth.md §10.2：无自有服务器，不接入第三方追踪/分析 SDK；
 	图片/文本仅存本地与用户个人 iCloud 私有库。以下声明覆盖本 App 实际使用的两类隐私相关 API：
-	- LocalAuthentication（隐私锁/面容解锁，见 10 §10.1）：仅用于设备本地生物识别/密码验证，
+	- LocalAuthentication（隐私锁/面容解锁，见 docs/current/implementation-truth.md §10.1）：仅用于设备本地生物识别/密码验证，
 	  验证结果不离开设备、不上传给开发者或第三方。
-	- CloudKit（iCloud 私有库同步，见 09-icloud-sync.md）：数据只流转于「用户设备 ↔ 用户自己的
+	- CloudKit（iCloud 私有库同步，见 docs/plans/implementation-plan.md）：数据只流转于「用户设备 ↔ 用户自己的
 	  iCloud」之间，开发者无法访问用户私有数据库内容。
 	-->
 	<key>NSPrivacyCollectedDataTypes</key>

@@ -1,10 +1,10 @@
 import SwiftUI
 
-/// 年度心情日期分布网格（见 `docs/design/04-screen-specs.md` §4.3/§4.12、
-/// `docs/design/05-design-system.md` §5.7）：行=周几（周日~周六）、列=按周横向排布，
+/// 年度心情日期分布网格（见 `docs/current/implementation-truth.md` §4.3/§4.12、
+/// `docs/current/implementation-truth.md` §5.7）：行=周几（周日~周六）、列=按周横向排布，
 /// 底部月份标签；有记录的日期格用**当天最后一条时刻的心情色**着色（依公理1），无记录为空态格。
 ///
-/// 复用于两处（05 §5.7「卡片1不承担定位时间轴功能...仅视觉范式相似」）：
+/// 复用于两处（docs/current/implementation-truth.md §5.7「卡片1不承担定位时间轴功能...仅视觉范式相似」）：
 /// - `YearHeatmapView`：`onSelectDay` / `onSelectMonth` 非 `nil`，点格/点月驱动时间 anchor；
 /// - `MoodStatsView`：`onSelectDay` 为 `nil`，纯展示、不可交互、不接 `selectedDate`。
 struct HeatmapGridView: View {

@@ -20,7 +20,7 @@ struct UserFacingError: Identifiable, Equatable {
 ///
 /// 与本类型职责边界：**真正的不变量违反**（如程序内部逻辑保证被打破）仍应 `assertionFailure`
 /// 暴露，不归本类型处理——本类型只处理「外部世界可能失败、但程序状态仍然自洽」的可恢复场景。
-/// 外观（`AppearanceThemeView`）保存失败是例外：05 §5.3.7 明确要求页内非模态提示、不回滚
+/// 外观（`AppearanceThemeView`）保存失败是例外：docs/current/implementation-truth.md §5.3.7 明确要求页内非模态提示、不回滚
 /// 视觉，不走本类型（见 `ThemeManager.appearanceSaveFailed`/`photoDisplaySaveFailed`）。
 @MainActor
 @Observable

@@ -1,6 +1,6 @@
 import XCTest
 
-/// 新建时刻完整流程验收（见 `docs/design/03-user-flows.md` §3.1、
+/// 新建时刻完整流程验收（见 `docs/product-mental-model.md` §3.1、
 /// `docs/plans/implementation-plan.md` 阶段 3 验收：情绪→标签→日期→标题→保存→出现在时间轴）。
 ///
 /// 标签选择用首启默认预置的标签（工作/生活/健康，见 `DefaultTagSeeder`），不新建标签
@@ -121,7 +121,7 @@ final class CreateMomentFlowUITests: XCTestCase {
         XCTAssertTrue(tagRow.waitForExistence(timeout: 5))
     }
 
-    /// 点击浮窗外部收起当前就近浮窗（popover 语义，见 04-screen-specs.md §4.5/§4.6/§4.8）：
+    /// 点击浮窗外部收起当前就近浮窗（popover 语义，见 docs/current/implementation-truth.md §4.5/§4.6/§4.8）：
     /// 直接命中系统为 `.popover` 自动生成的 `PopoverDismissRegion` 无障碍元素（覆盖浮窗之外的
     /// 整个可交互区域），比对一个猜测的屏幕坐标做 `tap()` 更可靠——曾实测坐标 tap 未必落在
     /// 该区域内、导致浮窗未真正收起。

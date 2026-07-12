@@ -1,8 +1,8 @@
 import Foundation
 import SwiftUI
 
-/// 应用内语言偏好（见 `docs/design/12-quality-assurance.md` §12.2、
-/// `docs/design/04-screen-specs.md` §4.11「语言」行、阶段7计划决策4）：zh-Hans / English /
+/// 应用内语言偏好（见 `docs/current/testing-architecture.md` §12.2、
+/// `docs/current/implementation-truth.md` §4.11「语言」行、阶段7计划决策4）：zh-Hans / English /
 /// 「跟随系统」三选一，`AppStorage` 持久化，驱动 `MoodmentsApp` 注入 `.environment(\.locale, ...)`。
 ///
 /// **默认值 = `.zhHans`（而非「跟随系统」）**：本 App 面向的是中文用户为主的产品（开发区域
@@ -60,7 +60,7 @@ enum LanguagePreference: String, CaseIterable, Identifiable, Sendable {
         resolvedLocale ?? Locale.autoupdatingCurrent
     }
 
-    /// 设置页语言选择行展示名（见 04-screen-specs.md §4.11、`LanguageSettingsView`）。
+    /// 设置页语言选择行展示名（见 docs/current/implementation-truth.md §4.11、`LanguageSettingsView`）。
     var displayNameKey: LocalizedStringKey {
         switch self {
         case .zhHans: "简体中文"

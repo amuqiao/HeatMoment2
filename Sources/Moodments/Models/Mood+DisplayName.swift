@@ -1,7 +1,7 @@
 import Foundation
 
 /// 情绪展示名：正式多语言由 `Localizable.xcstrings` String Catalog 承载
-/// （见 08-architecture.md §7 `Localization/`、阶段 7 D 本地化）。`Mood.localizedNameKey`
+/// （见 docs/current/implementation-truth.md §7 `Localization/`、阶段 7 D 本地化）。`Mood.localizedNameKey`
 /// （见 `Mood.swift`）是最终 i18n key，本属性经 `LanguagePreference.localizedString(_:)`
 /// 按当前语言偏好解析出展示文本。
 ///

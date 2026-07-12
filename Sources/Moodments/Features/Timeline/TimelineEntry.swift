@@ -1,7 +1,7 @@
 import Foundation
 
 /// 时间轴一行的 value projection，统一「真实 Moment」与「预置引导 Moment」两种来源
-/// （见 02-information-architecture.md 空态引导、04-screen-specs.md §4.1）。
+/// （见 docs/product-mental-model.md 空态引导、docs/current/implementation-truth.md §4.1）。
 ///
 /// `TimelineRowView` 只消费这个投影对象，不直接持有 GRDB row。这样时间轴 viewport、
 /// 滚动定位、左滑删除动画和行样式只依赖稳定值；写入副作用和预览路由通过 `momentID`
@@ -39,10 +39,10 @@ struct TimelineEntry: Identifiable, Equatable {
         )
     }
 
-    /// 预置引导 Moment 不可删/不可编辑/不可点开预览（见 02-information-architecture.md）。
+    /// 预置引导 Moment 不可删/不可编辑/不可点开预览（见 docs/product-mental-model.md）。
     var isGuided: Bool { kind == .guided }
 
-    /// 无障碍朗读文案（见 04-screen-specs.md §4.1：「5月17日 17:06，心情开心，标题《XXX》」）。
+    /// 无障碍朗读文案（见 docs/current/implementation-truth.md §4.1：「5月17日 17:06，心情开心，标题《XXX》」）。
     var accessibilityLabel: String {
         let dateText = Self.accessibilityDateFormatter.string(from: occurredAt)
         return LanguagePreference.localizedString("\(dateText)，心情\(mood.displayName)，标题《\(title)》")

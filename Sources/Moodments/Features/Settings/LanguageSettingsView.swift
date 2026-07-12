@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// 语言子页（见 `docs/design/04-screen-specs.md` §4.11「语言」行、
-/// `docs/design/12-quality-assurance.md` §12.2、阶段7计划决策4）：zh-Hans / English /
-/// 「跟随系统」三选一，设置栈内 push（同垃圾箱/标签管理/外观主题等子页，08-architecture.md §2.2）。
+/// 语言子页（见 `docs/current/implementation-truth.md` §4.11「语言」行、
+/// `docs/current/testing-architecture.md` §12.2、阶段7计划决策4）：zh-Hans / English /
+/// 「跟随系统」三选一，设置栈内 push（同垃圾箱/标签管理/外观主题等子页，docs/current/implementation-truth.md §2.2）。
 ///
 /// 点选立即写入 `LanguagePreference.storageKey`（`@AppStorage`），`MoodmentsApp` 读同一 key
 /// 驱动 `.environment(\.locale, ...)` 即时刷新整棵树——本视图自身不持有导航/呈现状态，切换后

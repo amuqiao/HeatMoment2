@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// 上下文标记横条（见 `docs/product-mental-model.md`「上下文标记」对象、
-/// `docs/design/04-screen-specs.md` §4.1、`docs/design/03-user-flows.md` §3.3）：
+/// `docs/current/implementation-truth.md` §4.1、`docs/product-mental-model.md` §3.3）：
 /// 告诉用户「现在看的是完整记录，还是某个筛选/某个时间位置」——筛选标记（`#标签`/情绪）
 /// 与时间标记（年/月/日）**可同时存在但含义不同**：移除筛选标记改变「看哪些记录」
 /// （清 `TimelineModel.activeFilter` 某一维度）；移除时间标记改变「是否停在某个时间位置」

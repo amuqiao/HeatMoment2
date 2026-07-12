@@ -1,9 +1,9 @@
 import SwiftUI
 
-/// 心情统计条形（见 `docs/design/04-screen-specs.md` §4.12、`docs/design/05-design-system.md` §5.6/§5.4）：
+/// 心情统计条形（见 `docs/current/implementation-truth.md` §4.12/§5.6/§5.4）：
 /// 「emoji+名称」（左）+「N 次」（右）+ 进度条；轨道底色为该情绪心情色 15% 透明度叠加，
 /// 填充为该情绪满值强度色，宽度按占比渲染。文字/emoji/数字三重编码，不依赖颜色单独传达
-/// （见 05 §5.10.3 色盲友好设计），情绪色只用于填充/图形，不渲染成文字（见 05 §5.10.1 结论）。
+/// （见 docs/current/implementation-truth.md §5.10.3 色盲友好设计/§5.10.1 结论），情绪色只用于填充/图形，不渲染成文字。
 struct MoodStatBarView: View {
     let mood: Mood
     let count: Int

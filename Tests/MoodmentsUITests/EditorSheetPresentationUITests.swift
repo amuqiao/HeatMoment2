@@ -1,6 +1,6 @@
 import XCTest
 
-/// 导航骨架验收（见 08-architecture.md §2.2）：点击悬浮新建按钮以任务卡片栈（`.sheet`）打开
+/// 导航骨架验收（见 docs/current/implementation-truth.md §2.2）：点击悬浮新建按钮以任务卡片栈（`.sheet`）打开
 /// 真实编辑器（阶段3），断言情绪行/取消/保存等真实控件存在（旧阶段2占位文案「编辑器 · 阶段3」
 /// 已随真实内容落地失效）。
 final class EditorSheetPresentationUITests: XCTestCase {

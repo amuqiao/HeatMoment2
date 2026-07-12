@@ -1,11 +1,11 @@
 import Foundation
 import Observation
 
-/// 集中式导航路由（见 `docs/design/08-architecture.md` §3）：全局导航意图（根级任务卡片栈、
+/// 集中式导航路由（见 `docs/current/implementation-truth.md` §3）：全局导航意图（根级任务卡片栈、
 /// push 栈、应用锁）集中到一个可观察路由 model，通过 `@Environment` 注入全树。
 ///
 /// 页面局部状态（如首页的热力图展开、定位 `heatmapFocusDate` / 筛选 `activeFilter`）**不进 Router**，
-/// 由对应 feature view / view model 持有（见 08 §3/§4）。
+/// 由对应 feature view / view model 持有（见 docs/current/implementation-truth.md §3/§4）。
 ///
 /// **首页顶部上下文区 / 就地选择层不进 Router**：年度热力图、首页筛选 half-sheet、
 /// 编辑字段 popover 都由触发处自身持有局部状态，不是「跨页级」导航意图。
@@ -61,7 +61,7 @@ enum EditorMode: Hashable {
     }
 }
 
-/// Paywall 的触发来源，三类触发 UI 完全一致，只是关闭后回退目标不同（见 08 §6、11-monetization.md）。
+/// Paywall 的触发来源，三类触发 UI 完全一致，只是关闭后回退目标不同（见 docs/current/implementation-truth.md §6）。
 enum PaywallTrigger: Hashable {
     case banner
     case quotaMoment

@@ -1,7 +1,7 @@
 import XCTest
 @testable import Moodments
 
-/// `SyncStatusService.evaluate(_:)` 纯逻辑推导测试（见 `docs/design/09-icloud-sync.md` §9.2）：
+/// `SyncStatusService.evaluate(_:)` 纯逻辑推导测试（见 `docs/plans/implementation-plan.md` §9.2）：
 /// 不依赖真实网络/CloudKit，直接构造 `SyncStatusEvaluationInput` 验证三态推导。
 final class SyncStatusServiceTests: XCTestCase {
     func testCloudKitDisabledIsAlwaysOffline() {

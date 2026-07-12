@@ -13,8 +13,8 @@ struct TimelineViewportView: View {
     // 避免小阈值下「时刻 ⌄」与仍完整可见的大标题同屏并存（见阶段2 code review）。
     private static let collapseThreshold: CGFloat = -44
 
-    /// 定位命中行的高亮叠加透明度（见 05-design-system.md「选中列整列高亮...建议用主色
-    /// 12–16% 透明度叠加」，取值已登记 `docs/design/13-open-questions.md` 待真机复核）。
+    /// 定位命中行的高亮叠加透明度（见 docs/current/implementation-truth.md「选中列整列高亮...建议用主色
+    /// 12–16% 透明度叠加」，取值已登记 `docs/plans/README.md` 待真机复核）。
     private static let locateHighlightOpacity: Double = 0.14
 
     let filter: FilterCondition?
@@ -52,7 +52,7 @@ struct TimelineViewportView: View {
 
     /// 空态展示预置引导 Moment，仅当**未筛选且真的一条真实记录都没有**时触发
     /// （与阶段2语义完全一致：`filter == nil` 时 `realEntries` 就是「未删除全量」，
-    /// 为空即代表用户从未记录过，见 02-information-architecture.md）。
+    /// 为空即代表用户从未记录过，见 docs/product-mental-model.md）。
     private var entries: [TimelineEntry] {
         if filter == nil, isLoaded, realEntries.isEmpty {
             return GuidedMoment.all.map(TimelineEntry.guided)
@@ -60,8 +60,8 @@ struct TimelineViewportView: View {
         return realEntries
     }
 
-    /// 筛选后 0 条命中（区别于「从未记录过」的引导空态），见 04-screen-specs.md §4.1 状态、
-    /// 03-user-flows.md §3.3「筛选后 0 条命中时...展示对应空态文案」。
+    /// 筛选后 0 条命中（区别于「从未记录过」的引导空态），见 docs/current/implementation-truth.md §4.1 状态、
+    /// docs/product-mental-model.md §3.3「筛选后 0 条命中时...展示对应空态文案」。
     private var isFilteredEmpty: Bool { filter != nil && isLoaded && realEntries.isEmpty }
 
     /// 当前定位命中的行 id（供逐行高亮），纯粹由 `heatmapFocusDate` + 当前 `entries` 派生，
@@ -256,7 +256,7 @@ struct TimelineViewportView: View {
     }
 
     /// 首页左滑删除 = 软删除进垃圾箱，无需二次确认（垃圾箱兜底，见公理3「删除是生命周期」）；
-    /// 不释放篇数额度（见 07-data-persistence.md §3）；缩略图缓存不动（原图仍在，仅移出主时间轴）。
+    /// 不释放篇数额度（见 docs/current/local-data-architecture.md §3）；缩略图缓存不动（原图仍在，仅移出主时间轴）。
     private func handleDelete(_ entry: TimelineEntry) {
         guard let momentID = entry.momentID else { return }
         Task {
@@ -289,7 +289,7 @@ struct TimelineViewportView: View {
         }
     }
 
-    // MARK: - 标题两态（见 04-screen-specs.md §4.1）
+    // MARK: - 标题两态（见 docs/current/implementation-truth.md §4.1）
 
     /// 展开态：滚到顶时的大标题，纯场景标识，不可点、不触发筛选。
     private func expandedTitle(style: TimelineTitleStyle) -> some View {

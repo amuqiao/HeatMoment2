@@ -2,7 +2,7 @@ import XCTest
 @testable import Moodments
 
 /// `MomentEditorModel` 保存校验 / 默认情绪回退 / 脏检测测试（见 `docs/plans/implementation-plan.md`
-/// 阶段 3、`docs/design/03-user-flows.md` §3.1）。
+/// 阶段 3、`docs/product-mental-model.md` §3.1）。
 @MainActor
 final class EditorSaveValidationTests: XCTestCase {
     private var canonicalService: CanonicalLibraryService!

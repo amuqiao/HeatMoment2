@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 
-/// 图片查看器（见 `docs/design/04-screen-specs.md` §4.10、08-architecture.md §2.2）：
+/// 图片查看器（见 `docs/current/implementation-truth.md` §4.10/§2.2）：
 /// `.fullScreenCover` 呈现，无层叠语义的沉浸全屏，横向分页浏览一个 Moment 的全部原图 +
 /// 捏合/双击缩放 + 关闭。一次性经 canonical repository 取全量原图
 /// （用户已明确要打开查看器，不同于缩略图的懒加载路径，见阶段 4 计划）。
@@ -94,7 +94,7 @@ struct ImageViewerView: View {
     }
 }
 
-/// 支持捏合缩放 + 双击放大的图片页（见 04-screen-specs.md §4.10）。
+/// 支持捏合缩放 + 双击放大的图片页（见 docs/current/implementation-truth.md §4.10）。
 private struct ZoomableImageView: View {
     let uiImage: UIImage
 

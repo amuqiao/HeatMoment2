@@ -1,6 +1,6 @@
 import XCTest
 
-/// 隐私锁生命周期冒烟（见 `docs/design/10-security-privacy.md` §10.1、阶段7计划决策6）：
+/// 隐私锁生命周期冒烟（见 `docs/current/implementation-truth.md` §10.1、阶段7计划决策6）：
 /// 真实 Face ID/密码系统交互无法被 `XCUITest` 驱动（同 `PhotosPicker` 限制），借助 DEBUG-only
 /// 注入 hook（`-uiTestForcePrivacyLockEnabled` 强制开启隐私锁 + `-uiTestBiometricAlwaysSucceed`/
 /// `-uiTestBiometricAlwaysFail` 伪造 `BiometricLockService` 验证结果，见 `UITestSupport`）验证
@@ -14,7 +14,7 @@ final class PrivacyLockUITests: XCTestCase {
     private let lockTitle = "「时刻」已锁定"
 
     /// 冷启动 + 验证恒失败：隐私锁应持续遮盖，时间轴内容（FAB）不可交互，且展示可重试的失败态
-    /// （见 10 §10.1.3「验证通过前不渲染任何 Moment 内容」）。
+    /// （见 docs/current/implementation-truth.md §10.1.3「验证通过前不渲染任何 Moment 内容」）。
     func testColdStartKeepsContentHiddenUntilVerified() {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTestReset", "-uiTestForcePrivacyLockEnabled", "-uiTestBiometricAlwaysFail"]
@@ -24,7 +24,7 @@ final class PrivacyLockUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["privacyLockFailedHint"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["新建时刻"].isHittable, "验证通过前时间轴内容应被锁遮挡、不可交互")
 
-        // 重试按钮应仍可点击（允许用户重试，不因一次失败进入死锁态，见 10 §10.1.1）。
+        // 重试按钮应仍可点击（允许用户重试，不因一次失败进入死锁态，见 docs/current/implementation-truth.md §10.1.1）。
         let retryButton = app.buttons["privacyLockUnlockButton"]
         XCTAssertTrue(retryButton.exists)
         retryButton.tap()
@@ -43,7 +43,7 @@ final class PrivacyLockUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts[lockTitle].exists, "验证通过后锁应消失")
     }
 
-    /// 未开启隐私锁（默认关闭态，见 10 §10.1.2 截图为关闭态）：冷启动不应出现隐私锁遮罩。
+    /// 未开启隐私锁（默认关闭态，见 docs/current/implementation-truth.md §10.1.2 截图为关闭态）：冷启动不应出现隐私锁遮罩。
     func testLockNotShownWhenPreferenceDisabled() {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTestReset"]
@@ -53,7 +53,7 @@ final class PrivacyLockUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts[lockTitle].exists)
     }
 
-    /// 回前台重新锁定（「立即锁定」策略，见 10 §10.1.3）：验证恒失败场景下，把 App 切到后台
+    /// 回前台重新锁定（「立即锁定」策略，见 docs/current/implementation-truth.md §10.1.3）：验证恒失败场景下，把 App 切到后台
     /// 再切回前台，隐私锁应重新出现并持续遮盖（不因曾经在冷启动侧已展示过锁屏就跳过后续锁定）。
     func testReturningFromBackgroundLocksAgain() {
         let app = XCUIApplication()

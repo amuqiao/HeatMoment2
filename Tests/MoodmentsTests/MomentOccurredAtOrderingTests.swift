@@ -2,7 +2,7 @@ import XCTest
 @testable import Moodments
 
 /// 以「发生时间」而非「创建时间」组织排序的专项测试（见 `docs/product-mental-model.md` 公理 8
-/// 「以发生时间组织」，`docs/design/07-data-persistence.md` §3：排序/分页均以 `occurredAt`
+/// 「以发生时间组织」，`docs/current/local-data-architecture.md` §3：排序/分页均以 `occurredAt`
 /// 为主键，支持补记）。
 final class MomentOccurredAtOrderingTests: XCTestCase {
     private var runtime: CanonicalLibraryRuntime!

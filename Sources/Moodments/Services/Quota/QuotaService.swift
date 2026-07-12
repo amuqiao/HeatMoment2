@@ -1,7 +1,7 @@
 import Foundation
 
 /// Pro 权益判定的注入点。阶段 1 只提供默认非 Pro 的实现；
-/// 真正基于 StoreKit 2 的判定在阶段 7 由 `SubscriptionService` 实现并注入（见 08-architecture.md §6）。
+/// 真正基于 StoreKit 2 的判定在阶段 7 由 `SubscriptionService` 实现并注入（见 docs/current/implementation-truth.md §6）。
 protocol EntitlementProviding: Sendable {
     var isPro: Bool { get }
 }
@@ -21,14 +21,14 @@ enum QuotaKind: Sendable, Equatable {
     case tags
 }
 
-/// 限额校验结果。UI 只消费该结果、不自行判断额度（见 08-architecture.md §6）。
+/// 限额校验结果。UI 只消费该结果、不自行判断额度（见 docs/current/implementation-truth.md §6）。
 enum QuotaCheck: Sendable, Equatable {
     case allowed
     case exceeded(QuotaKind)
 }
 
 /// 免费额度 + Pro 判定校验（唯一权威落点）。
-/// 限额数值唯一权威见 `Models/Quota.swift`（引用 `06-domain-model.md` §2），本类型只做比较，不重复定义数值。
+/// 限额数值唯一权威见 `Models/Quota.swift`（引用 `docs/product-mental-model.md` §2），本类型只做比较，不重复定义数值。
 struct QuotaService: Sendable {
     private let entitlementProvider: EntitlementProviding
 
@@ -58,7 +58,7 @@ struct QuotaService: Sendable {
 
     /// 还可再添加的照片数（Pro 不限，返回 `Int.max`）：供选择器上限等 UI 派生使用，
     /// 判定权威仍是 `checkCanAddPhoto`。集中在此以免 View 直接用 `Quota` 常量做减法、
-    /// 且对 `isPro` 无感知（见 08-architecture.md §6）。
+    /// 且对 `isPro` 无感知（见 docs/current/implementation-truth.md §6）。
     func remainingPhotoSlots(currentPhotoCount: Int) -> Int {
         guard !entitlementProvider.isPro else { return .max }
         return max(0, Quota.freePhotosPerMomentLimit - currentPhotoCount)

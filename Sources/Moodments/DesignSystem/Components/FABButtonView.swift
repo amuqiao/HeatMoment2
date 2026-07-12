@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 悬浮新建按钮（FAB，见 05-design-system.md §5.6）：直径约 64pt 圆形，居中吸底，
+/// 悬浮新建按钮（FAB，见 docs/current/implementation-truth.md §5.6）：直径约 64pt 圆形，居中吸底，
 /// 填充色 = 当前主色，内容为白色描边加号图标，带轻微阴影制造「悬浮」层次。
 struct FABButtonView: View {
     let diameter: CGFloat

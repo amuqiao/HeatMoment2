@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 
-/// 横排缩略图（见 `docs/design/05-design-system.md` §5.5/§5.7、07 §5）：经 `ThumbnailCache`
+/// 横排缩略图（见 `docs/current/implementation-truth.md` §5.5/§5.7、docs/current/local-data-architecture.md §5）：经 `ThumbnailCache`
 /// 按需加载——命中缓存直接展示，未命中才向仓库现场取原图生成并回写缓存。时间轴气泡与预览
 /// 照片区共用同一组件（见阶段 4 计划）。
 ///

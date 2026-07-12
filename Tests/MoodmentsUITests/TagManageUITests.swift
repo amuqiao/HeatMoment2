@@ -1,12 +1,12 @@
 import XCTest
 
-/// 标签管理验收（见 `docs/design/04-screen-specs.md` §4.13、`docs/product-mental-model.md`
+/// 标签管理验收（见 `docs/current/implementation-truth.md` §4.13、`docs/product-mental-model.md`
 /// 公理7「标签是归类不是所有权」，`docs/plans/implementation-plan.md` 阶段6）：
 /// 删除标签清理筛选态陈旧 id、重命名、删标签不删时刻。
 ///
 /// 默认标签「工作/生活/健康」由 `DefaultTagSeeder` 在每次 UI 测试冷启动预置一次（首启标记经
 /// `UITestSupport.resetDefaultTagSeedFlagIfUITestRun()` 在 `init()` 复位，等价于每次都是「真正
-/// 首启」，见 `docs/design/07-data-persistence.md` §4、`App/RootView.swift`），本文件全程依赖
+/// 首启」，见 `docs/current/local-data-architecture.md` §4、`App/RootView.swift`），本文件全程依赖
 /// 该预置、不需要额外的 `UITestSupport` 标签种子钩子。
 final class TagManageUITests: XCTestCase {
     /// 标签新增归属设置页标签管理：免费额度未满时，右上「+」打开新建标签卡片，保存后回到列表。

@@ -1,13 +1,13 @@
 import SwiftUI
 
 /// 「上次选择情绪」持久化 key（见阶段 3 计划决策5：`@AppStorage` 本地持久化，
-/// 03-user-flows.md §3.1：有历史选择则用上次选择，否则回退 `Mood.normal`）。
+/// docs/product-mental-model.md §3.1：有历史选择则用上次选择，否则回退 `Mood.normal`）。
 enum EditorMoodMemory {
     static let storageKey = "com.moodments.lastUsedMood"
 }
 
-/// 新建/编辑一条时刻（任务卡片栈，见 `docs/design/04-screen-specs.md` §4.4、
-/// `docs/design/03-user-flows.md` §3.1、`docs/design/08-architecture.md` §2.2）。
+/// 新建/编辑一条时刻（任务卡片栈，见 `docs/current/implementation-truth.md` §4.4、
+/// `docs/product-mental-model.md` §3.1、`docs/current/implementation-truth.md` §2.2）。
 ///
 /// 情绪/标签/日期/时间选择均为**就近浮窗**（局部 `@State` 驱动，不进 `AppRouter`，依 ADR-006）；
 /// 标签选择只消费已有标签。标签新增、重命名、删除归属设置页 `TagManageView`。
@@ -142,7 +142,7 @@ struct MomentEditorView: View {
         .background(theme.sheetBackground.ignoresSafeArea())
     }
 
-    // MARK: - 情绪 + 标签行（同一行左右布局，见 05-design-system.md §5.7）
+    // MARK: - 情绪 + 标签行（同一行左右布局，见 docs/current/implementation-truth.md §5.7）
 
     private func moodAndTagRow(layout: MomentEditorLayoutMetrics) -> some View {
         HStack(spacing: layout.selectorRowGap) {
@@ -256,7 +256,7 @@ struct MomentEditorView: View {
         Binding(get: { model.occurredAt }, set: { model.occurredAt = $0 })
     }
 
-    // MARK: - 取消 / 保存（见 03-user-flows.md §3.1）
+    // MARK: - 取消 / 保存（见 docs/product-mental-model.md §3.1）
 
     private func handleCancel() {
         if model.isDirty {

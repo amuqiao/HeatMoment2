@@ -2,7 +2,7 @@ import Observation
 import SwiftUI
 import UIKit
 
-/// 外观模式（暗/亮），见 05-design-system.md §5.3.1。
+/// 外观模式（暗/亮），见 docs/current/implementation-truth.md §5.3.1。
 ///
 /// 这是应用**自己的**主题开关（在 `AppearanceThemeView` 里选择），不等同于系统「深色模式」，
 /// 二者语义不同——本 App 的默认外观是暗色 + 紫罗兰，且不跟随系统外观自动切换
@@ -12,7 +12,7 @@ enum ThemeMode: String, CaseIterable, Sendable {
     case light
 }
 
-/// 背景纹理（见 05 §5.3.3）：仅影响 `TimelineHomeView` 背景渲染，不影响卡片/文字/其它页面。
+/// 背景纹理（见 docs/current/implementation-truth.md §5.3.3）：仅影响 `TimelineHomeView` 背景渲染，不影响卡片/文字/其它页面。
 enum BackgroundTexture: String, CaseIterable, Sendable {
     case grid
     case dot
@@ -20,25 +20,25 @@ enum BackgroundTexture: String, CaseIterable, Sendable {
     case customImage
 }
 
-/// 图片展示方式（见 05 §5.3.4）：内容行为偏好，与模式/主色/纹理三条外观轴独立，
+/// 图片展示方式（见 docs/current/implementation-truth.md §5.3.4）：内容行为偏好，与模式/主色/纹理三条外观轴独立，
 /// 只改变气泡内图片浏览方式，不改变颜色。
 enum ImageDisplayMode: String, CaseIterable, Sendable {
     case scroll
     case carousel
 }
 
-/// 组合式主题：模式 × 主色 × 背景纹理 × 图片展示（见 05-design-system.md §5.3）。
+/// 组合式主题：模式 × 主色 × 背景纹理 × 图片展示（见 docs/current/implementation-truth.md §5.3）。
 ///
 /// **状态**：四轴均为 `private(set)`——外部只能经下方 4 个语义 setter 修改，结构上保证
 /// 「任何一次修改都会同时触发持久化」，不存在绕过 `AppearanceStore` 直接改视觉状态的路径。
 /// **持久化**：`init` 用 `AppearanceStore.load()` 回填四轴 + `correctedPreferenceCount`
-/// （坏配置回落默认值的计数，见 05 §5.3.7）；每个 setter 落库前先乐观更新内存态（当前界面
+/// （坏配置回落默认值的计数，见 docs/current/implementation-truth.md §5.3.7）；每个 setter 落库前先乐观更新内存态（当前界面
 /// 立即生效），再 `try store.save(...)`，失败置对应失败标记但**不回滚**已生效的视觉状态
-/// （见 08-architecture.md §4.3、05 §5.3.7）。
+/// （见 docs/current/implementation-truth.md §4.3/§5.3.7）。
 ///
-/// 本类型同时承担「当前 ColorScheme 下强调色语义解析」职责（见 08 §4.3）：View 层不直接读取
+/// 本类型同时承担「当前 ColorScheme 下强调色语义解析」职责（见 docs/current/implementation-truth.md §4.3）：View 层不直接读取
 /// 十六进制值，统一通过本类型暴露的已解析颜色属性消费；心情色/危险色分别经 `moodColor(_:)`/
-/// `danger` 转发，**均不读取 `accentColor`**，是「心情色/危险色独立于主色」（公理1、05 §5.3.5/
+/// `danger` 转发，**均不读取 `accentColor`**，是「心情色/危险色独立于主色」（公理1、docs/current/implementation-truth.md §5.3.5/
 /// §5.3.6）的结构性保证。
 @MainActor
 @Observable
@@ -50,15 +50,15 @@ final class ThemeManager {
     private(set) var customBackgroundImageURL: URL?
     private(set) var customBackgroundImageRevision = 0
 
-    /// 载入时坏配置被回落默认值的轴数（见 05 §5.3.7「已修正 N 项本地偏好配置」）；
+    /// 载入时坏配置被回落默认值的轴数（见 docs/current/implementation-truth.md §5.3.7「已修正 N 项本地偏好配置」）；
     /// `AppearanceThemeView` 据此展示一次性页内提示，不走全局 `.alert`。
     let correctedPreferenceCount: Int
 
-    /// 主色/模式/纹理保存失败标记（见 05 §5.3.7：与照片显示保存失败分开反馈）。
+    /// 主色/模式/纹理保存失败标记（见 docs/current/implementation-truth.md §5.3.7：与照片显示保存失败分开反馈）。
     private(set) var appearanceSaveFailed = false
     /// 自定义背景图文件不可用时的本地修正提示，不复用“保存失败”语义。
     private(set) var customBackgroundImageRecovered = false
-    /// 图片展示保存失败标记（见 05 §5.3.7：单独反馈，不与上面合并）。
+    /// 图片展示保存失败标记（见 docs/current/implementation-truth.md §5.3.7：单独反馈，不与上面合并）。
     private(set) var photoDisplaySaveFailed = false
 
     private let store: AppearanceStore
@@ -210,7 +210,7 @@ final class ThemeManager {
     /// 已呈现 sheet 中的 `List` / `NavigationBar` 和 token 模式脱节。
     var colorScheme: ColorScheme { mode.colorScheme }
 
-    /// 当前主色，解析自 `accentColor` + `mode`（见 05 §5.3.2 Any/Dark 双值机制）。
+    /// 当前主色，解析自 `accentColor` + `mode`（见 docs/current/implementation-truth.md §5.3.2 Any/Dark 双值机制）。
     var accent: Color { tokens.accent }
 
     /// 外观页主色选项色块，与运行时主色解析同源。
@@ -221,7 +221,7 @@ final class ThemeManager {
     func moodColor(_ mood: Mood) -> Color { tokens.moodColor(mood) }
 
     /// 固定危险色：删除/失败等动作统一经此消费，不得误用
-    /// `accent`（见 05 §5.3.5：危险色与主色解耦、不跟随主题）。
+    /// `accent`（见 docs/current/implementation-truth.md §5.3.5：危险色与主色解耦、不跟随主题）。
     var danger: Color { tokens.danger }
 
     /// 强调色实底上的文字/图标。
@@ -263,7 +263,7 @@ final class ThemeManager {
     /// 图片查看器 chrome 前景。
     var onImageViewerChrome: Color { tokens.onImageViewerChrome }
 
-    /// 画布背景色（见 05 §5.2.1）。
+    /// 画布背景色（见 docs/current/implementation-truth.md §5.2.1）。
     var canvasBackground: Color { tokens.canvasBackground }
 
     /// 气泡卡片背景色。

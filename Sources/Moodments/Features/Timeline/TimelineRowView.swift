@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// 时间轴一行：日期列 + 心情节点（按该条情绪的心情色着色）+ 气泡卡片（见 05-design-system.md §5.5）。
+/// 时间轴一行：日期列 + 心情节点（按该条情绪的心情色着色）+ 气泡卡片（见 docs/current/implementation-truth.md §5.5）。
 /// 预置引导 Moment 不可点、不可删（`isGuided`），真实 Moment 点击弹出预览阅读卡片
-/// （见 04-screen-specs.md §4.1）、左滑露出删除动作（软删除进垃圾箱，见 04 §4.14）。
+/// （见 docs/current/implementation-truth.md §4.1/§4.14）、左滑露出删除动作（软删除进垃圾箱）。
 ///
 /// **架构边界**：连续时间轴轨道是稳定骨架；日期、心情节点和气泡是同一条 Moment 的阅读单元。
 /// 左滑删除使用 SwiftUI `List` 行的成熟 `.swipeActions` 语义；独立轨道层不进入可滑动内容。
@@ -147,7 +147,7 @@ private struct TimelineRowActivateAccessibilityModifier: ViewModifier {
     }
 }
 
-/// 左滑删除动作 + 无障碍替代路径（见 04-screen-specs.md §4.1：首页删除无需二次确认，
+/// 左滑删除动作 + 无障碍替代路径（见 docs/current/implementation-truth.md §4.1：首页删除无需二次确认，
 /// 有垃圾箱兜底，见公理3）。`onDelete == nil` 时不挂行操作（引导 Moment 不可删）。
 private struct TimelineDeleteSwipeActionModifier: ViewModifier {
     let onDelete: (() -> Void)?

@@ -1,6 +1,6 @@
 import Foundation
 
-/// 首启默认标签预置（见 `docs/design/07-data-persistence.md` §4）：**仅在真正首次启动**
+/// 首启默认标签预置（见 `docs/current/local-data-architecture.md` §4）：**仅在真正首次启动**
 /// （见下方 `hasCompletedFirstSeedKey` 持久标记）预置「工作 / 生活 / 健康」三个默认标签
 /// （已裁决）。注意副作用：免费标签上限为 3，预置 3 个即占满免费额度——新用户要自建标签需先
 /// 删除已有标签或升级 Pro，此为已知且可接受的取舍。本类型不区分生产/UI 测试场景，二者都需要
@@ -17,10 +17,10 @@ import Foundation
 ///
 /// 写入统一经 canonical repository，默认标签不绕开资料库写入边界。
 ///
-/// **首同步去重**（阶段7计划决策3、`docs/design/09-icloud-sync.md`）：CloudKit 已启用时，
+/// **首同步去重**（阶段7计划决策3、`docs/plans/implementation-plan.md`）：CloudKit 已启用时，
 /// 若冷启动瞬间本地 `Tag` 表恰好还没来得及接收另一台设备早已同步上去的默认标签，直接按名创建
 /// 会与稍后同步下来的数据产生重复。改为**按名去重**（应用层查重，CloudKit 不支持 `.unique`，
-/// 见 07 §2）——三个默认名逐一检查，缺哪个补哪个；并在检查前**等待一次首次同步信号或短超时**
+/// 见 docs/current/local-data-architecture.md §2）——三个默认名逐一检查，缺哪个补哪个；并在检查前**等待一次首次同步信号或短超时**
 /// （`firstSyncGraceTimeout`），给刚启动的 CloudKit 同步一个窗口期把已有数据拉下来。这一等待
 /// 与去重**只发生在首启窗口内**（已置位后的后续每次启动直接短路返回，不再有等待、不再有
 /// 任何 canonical repository 查询）；CloudKit 未启用（本地容器，含全部单测/UI 测试路径）时同样跳过
@@ -42,7 +42,7 @@ enum DefaultTagSeeder {
     ///     （本地/单测路径，行为与阶段 1–6 完全等价，不引入等待）。
     ///   - firstImportSignal: 供未来接入真实 CloudKit 首次 import 完成通知使用的注入点；
     ///     `nil`（默认）时只依赖 `firstSyncGraceTimeout` 短超时兜底（见类型头部说明——真实
-    ///     CloudKit import 事件粒度是 `09-icloud-sync.md` §9.2 标注的开放问题，本类型不强依赖它）。
+    ///     CloudKit import 事件粒度是 `docs/plans/implementation-plan.md` §9.2 标注的开放问题，本类型不强依赖它）。
     ///   - userDefaultsSuiteName: 持久标记所在的 `UserDefaults` suite；`nil` 表示 `.standard`（生产路径）。
     /// - Throws: 底层仓库存取失败时抛出，不做静默兜底（见 CLAUDE.md「不擅自添加兜底策略」）。
     @discardableResult

@@ -1,6 +1,6 @@
 import XCTest
 
-/// 语言切换验收（见 `docs/design/12-quality-assurance.md` §12.2、`docs/design/04-screen-specs.md`
+/// 语言切换验收（见 `docs/current/testing-architecture.md` §12.2、`docs/current/implementation-truth.md`
 /// §4.11「语言」行、阶段7计划决策4）：设置页「语言」子页三选一，切换后**无需重启**（不需要
 /// 杀掉/重新打开 App 进程）即让核心流程文案随之改变。
 ///

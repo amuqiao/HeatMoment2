@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// 新建/重命名标签任务卡片（见 `docs/design/04-screen-specs.md` §4.7/§4.13）：任务卡片栈的
-/// 第二层（从 `TagManageView` 打开，见 08-architecture.md §2.2），供标签管理新增/重命名
+/// 新建/重命名标签任务卡片（见 `docs/current/implementation-truth.md` §4.7/§4.13）：任务卡片栈的
+/// 第二层（从 `TagManageView` 打开，见 docs/current/implementation-truth.md §2.2），供标签管理新增/重命名
 /// 共用同一实现（阶段6：`editing` 非 `nil` 即重命名态，预填原名）。
 ///
 /// **创建态**：保存时由 `LocalLibraryMutationService` 做同名复用、标签额度终判和新建写入；

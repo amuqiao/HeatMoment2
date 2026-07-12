@@ -2,7 +2,7 @@ import XCTest
 import UIKit
 @testable import Moodments
 
-/// `ImageCompressor` 压缩管线测试（见 `docs/design/07-data-persistence.md` §5：
+/// `ImageCompressor` 压缩管线测试（见 `docs/current/local-data-architecture.md` §5：
 /// 长边≈2048、质量≈0.8、单张<500KB）。
 final class ImageCompressorTests: XCTestCase {
     func testCompressToJPEGProducesDecodableJPEGWithinConfiguredBounds() throws {

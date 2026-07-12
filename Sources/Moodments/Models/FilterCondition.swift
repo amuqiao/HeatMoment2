@@ -2,8 +2,8 @@ import Foundation
 
 /// 筛选条件值类型——时间轴的标签/心情筛选（就近浮窗）产出的当前条件。
 ///
-/// 语义（已裁决，见 `docs/design/04-screen-specs.md` §「筛选组合逻辑」与
-/// `docs/design/13-open-questions.md` #19）：
+/// 语义（已裁决，见 `docs/current/implementation-truth.md` §「筛选组合逻辑」与
+/// `docs/plans/README.md` #19）：
 /// - 标签**可多选**，选中的多个标签之间按 **AND（交集）**：一条时刻必须同时挂有全部选中标签才命中；
 /// - 心情**单选**（一次一个）；
 /// - 标签维度与心情维度之间也是 AND：最终命中条件 = （含全部选中标签）且（命中所选心情，若选了）。

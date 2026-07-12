@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 隐私锁（见 `docs/design/10-security-privacy.md` §10.1、08-architecture.md §2.2）：应用级
+/// 隐私锁（见 `docs/current/implementation-truth.md` §10.1/§2.2）：应用级
 /// `.fullScreenCover`，挂载于比 `AppRouter.rootSheet`/应用内内容层更外层的位置（见
 /// `MoodmentsApp.body`），验证通过前不渲染任何 Moment 内容、无手势关闭。出现即自动发起一次
 /// 验证（`.task`），失败/取消展示重试按钮，不吞错（见 `BiometricLockService`）。
@@ -54,7 +54,7 @@ struct PrivacyLockView: View {
         // 内容被本视图从最外层完全遮盖，见 `MoodmentsApp.body` 的挂载位置）。
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("privacyLockView")
-        // 防止 VoiceOver 焦点穿透到底层敏感内容（10 §10.1.5）。
+        // 防止 VoiceOver 焦点穿透到底层敏感内容（docs/current/implementation-truth.md §10.1.5）。
         .accessibilityAddTraits(.isModal)
         .task {
             await verify()
@@ -78,7 +78,7 @@ struct PrivacyLockView: View {
             }
         } catch {
             // 不吞错：验证过程异常（用户取消、系统繁忙等 `LAError`）允许用户手动重试，不属于
-            // App 级不可恢复错误（10 §10.1.1）；异常本身已由系统级交互呈现给用户，此处只切换
+            // App 级不可恢复错误（docs/current/implementation-truth.md §10.1.1）；异常本身已由系统级交互呈现给用户，此处只切换
             // 到「可重试」态，不重复弹出面向用户的错误提示。
             lastAttemptFailed = true
         }

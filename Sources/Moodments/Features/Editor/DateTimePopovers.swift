@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// 日期/时间就地选择用的 `Calendar` 合成工具：两个就近浮窗各自只编辑发生时间的一部分
-/// （日期 / 时:分），合成时保留不可见组件不变（见 `docs/design/04-screen-specs.md` §4.8）。
+/// （日期 / 时:分），合成时保留不可见组件不变（见 `docs/current/implementation-truth.md` §4.8）。
 enum OccurredAtComposer {
     /// 用 `date` 的年/月/日 + `timeSource` 的时/分/秒合成新的 `Date`。
     static func mergingDate(
@@ -53,7 +53,7 @@ enum OccurredAtComposer {
     }
 }
 
-/// 发生时间·日期就近浮窗（见 04-screen-specs.md §4.8）：graphical 日历，支持选择任意
+/// 发生时间·日期就近浮窗（见 docs/current/implementation-truth.md §4.8）：graphical 日历，支持选择任意
 /// 过去/未来日期以支持补记；选择后立即用 `Calendar` 合成回填 `occurredAt`（保留原时:分:秒），
 /// 无需额外确认按钮。
 struct DatePickerSheetView: View {
@@ -80,7 +80,7 @@ struct DatePickerSheetView: View {
     }
 }
 
-/// 发生时间·时间就近浮窗（见 04-screen-specs.md §4.8）：时/分双滚轮，选择后立即用
+/// 发生时间·时间就近浮窗（见 docs/current/implementation-truth.md §4.8）：时/分双滚轮，选择后立即用
 /// `Calendar` 合成回填 `occurredAt`（保留原年月日和不可见秒），无需额外确认按钮。
 struct TimePickerSheetView: View {
     @Binding var occurredAt: Date

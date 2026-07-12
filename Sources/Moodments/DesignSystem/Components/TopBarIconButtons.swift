@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 顶部栏左侧：方形圆角徽标，内嵌当日日期数字，点击展开 `YearHeatmapView`（见 05 §5.6）。
+/// 顶部栏左侧：方形圆角徽标，内嵌当日日期数字，点击展开 `YearHeatmapView`（见 docs/current/implementation-truth.md §5.6）。
 /// 线性描边、中性色，不跟随主色着色。
 struct CalendarIconButtonView: View {
     var style: HomeChromeIconStyle = .standard
@@ -27,7 +27,7 @@ struct CalendarIconButtonView: View {
     }
 }
 
-/// 顶部栏右侧：六边形描边图标，点击打开 `SettingsSheetView`（见 05 §5.6）。
+/// 顶部栏右侧：六边形描边图标，点击打开 `SettingsSheetView`（见 docs/current/implementation-truth.md §5.6）。
 /// 线性描边、中性色，不跟随主色着色。
 struct HexagonIconButtonView: View {
     var style: HomeChromeIconStyle = .standard

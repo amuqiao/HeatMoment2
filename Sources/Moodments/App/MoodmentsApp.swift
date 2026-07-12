@@ -13,7 +13,7 @@ struct MoodmentsApp: App {
     @State private var subscriptionService = SubscriptionService()
     @State private var syncStatusService: SyncStatusService
     /// 冷启动尚未完成过一次 `.active` 激活：用于区分「冷启动」与「后台恢复」两类均需锁定的
-    /// 时机（10 §10.1.3），避免把 `.inactive` 间的瞬时切换（如下拉控制中心）误判为需要重新锁定。
+    /// 时机（docs/current/implementation-truth.md §10.1.3），避免把 `.inactive` 间的瞬时切换（如下拉控制中心）误判为需要重新锁定。
     @State private var hasCompletedInitialActivation = false
     /// 是否已经历过一次「真正进入后台」（`scenePhase == .background`），独立于 `oldPhase` 判定
     /// （阶段7 review 修复）：真机从后台恢复常见路径是 `.background → .inactive → .active`，
@@ -64,7 +64,7 @@ struct MoodmentsApp: App {
         self.syncStatusService = runtime.syncStatusService
         // 外观持久化：生产用真实 `UserDefaults.standard`（`AppearanceStore()` 默认）；
         // DEBUG 下 UI 测试改用隔离套件（避免测试间相互污染）+ 按需注入必失败场景
-        // （`-uiTestFailAppearanceSave`，见 `UITestSupport`/05 §5.3.7 异常反馈验收）。
+        // （`-uiTestFailAppearanceSave`，见 `UITestSupport`/docs/current/implementation-truth.md §5.3.7 异常反馈验收）。
         #if DEBUG
             _theme = State(initialValue: ThemeManager(store: UITestSupport.makeAppearanceStore()))
         #else
@@ -80,7 +80,7 @@ struct MoodmentsApp: App {
                 launchRestoreResult: launchRestoreResult
             )
             .environment(localBackupRestoreState)
-            // 隐私锁挂在比 `rootSheet`/应用内上下文层更外层的位置（见 10 §10.1.3、08 §2.2、
+            // 隐私锁挂在比 `rootSheet`/应用内上下文层更外层的位置（见 docs/current/implementation-truth.md §10.1.3/§2.2、
             // 阶段7计划必守约束「隐私锁挂最外层盖住 rootSheet/应用内遮罩」）：`.fullScreenCover`
             // 直接挂在 `RootView()` 之上（而非其内部），结构上包裹住 `RootView` 内部自己的
             // `.sheet` 和页面内容，解锁只置 `router.isLocked = false`，不触碰 `rootSheet`。
@@ -107,7 +107,7 @@ struct MoodmentsApp: App {
                 PendingLocalRestoreView(context: localBackupRestoreState.pendingContext)
                     .interactiveDismissDisabled()
             }
-            // 多任务快照防护（10 §10.1.3）：`scenePhase != .active` 时（含即将进入后台的
+            // 多任务快照防护（docs/current/implementation-truth.md §10.1.3）：`scenePhase != .active` 时（含即将进入后台的
             // `.inactive` 瞬间）用品牌遮罩覆盖真实内容，防止敏感内容出现在多任务预览/录屏中；
             // 仅在隐私锁功能开启时才需要这层防护（未开启该功能的用户不必承受额外遮罩闪烁）。
             .overlay {
@@ -118,7 +118,7 @@ struct MoodmentsApp: App {
             .task {
                 // 冷启动锁定已由 `router` 初始值（`init` 内 `isLocked = isEnabled()`）在首帧完成，
                 // 此处不再 mutate（避免首帧竞态）；仅标记「已完成首次激活」，供下方 `onChange`
-                // 区分「后台→前台重锁」与冷启动/瞬时切换（10 §10.1.3）。
+                // 区分「后台→前台重锁」与冷启动/瞬时切换（docs/current/implementation-truth.md §10.1.3）。
                 hasCompletedInitialActivation = true
                 subscriptionService.startObservingTransactionUpdates()
                 await subscriptionService.refreshEntitlements()
@@ -132,7 +132,7 @@ struct MoodmentsApp: App {
                     didEnterBackground = true
                     return
                 }
-                // 「立即锁定」策略（10 §10.1.3）：只对「真正从后台恢复」触发，不对 `.inactive`
+                // 「立即锁定」策略（docs/current/implementation-truth.md §10.1.3）：只对「真正从后台恢复」触发，不对 `.inactive`
                 // 之间的瞬时切换（如下拉控制中心、系统弹层，从未真正进入 `.background`）
                 // 重复触发。
                 guard newPhase == .active, hasCompletedInitialActivation, didEnterBackground
@@ -154,7 +154,7 @@ struct MoodmentsApp: App {
             .environment(subscriptionService)
             .environment(syncStatusService)
             .environment(\.canonicalRecoveryCoordinator, canonicalRecoveryCoordinator)
-            // 语言偏好注入（见 `LanguagePreference`、12-quality-assurance.md §12.2）：
+            // 语言偏好注入（见 `LanguagePreference`、docs/current/testing-architecture.md §12.2）：
             // `.environment(\.locale, ...)` 随 `languagePreferenceRawValue` 变化自动重算，
             // 驱动整棵树重渲染；`Mood.displayName` 等无法读取 View 环境的纯值类型改用
             // `LanguagePreference.localizedString(_:)` 同步读取同一份偏好（见其头部说明），

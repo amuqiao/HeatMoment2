@@ -7,8 +7,8 @@ import Foundation
 enum TimelineLocator {
     /// 从「当前可见（已筛选）集」`entries` 中，挑选定位应滚动到的锚点 id。
     ///
-    /// 调用方决定 `date` 的粒度以实现「月/日」定位语义（见 04-screen-specs.md §4.3、
-    /// 13-open-questions.md 相关裁决）：传入某日 23:59:59 定位到该日最新一条；
+    /// 调用方决定 `date` 的粒度以实现「月/日」定位语义（见 docs/current/implementation-truth.md §4.3、
+    /// docs/plans/README.md 相关裁决）：传入某日 23:59:59 定位到该日最新一条；
     /// 传入某月最后一刻定位到该月最新一条。找不到同一天/同一月的条目时返回 `nil`，
     /// 不能退到更早月份或更早日期，否则会破坏「点的是哪个时间位置」的上下文语义。
     ///

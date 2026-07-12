@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// 年度心情热力图主页顶部上下文区（见 `docs/design/04-screen-specs.md` §4.3、
-/// `docs/design/08-architecture.md` §2.2：导航栏下方原位展开、非模态、不入 Router）。
+/// 年度心情热力图主页顶部上下文区（见 `docs/current/implementation-truth.md` §4.3、
+/// `docs/current/implementation-truth.md` §2.2：导航栏下方原位展开、非模态、不入 Router）。
 ///
 /// **呈现形态（P0 落地）**：由 `TimelineHomeView` 的顶部 `safeAreaInset` 原位呈现，继承
 /// `theme.canvasBackground`，不是全屏黑遮罩模态，也不是漂浮卡片。
@@ -134,7 +134,7 @@ struct YearHeatmapView: View {
         .accessibilityIdentifier("heatmapEmptyState")
     }
 
-    /// 切换年份：换整年回看范围、清除时间锚点（见 04-screen-specs.md §4.3）。
+    /// 切换年份：换整年回看范围、清除时间锚点（见 docs/current/implementation-truth.md §4.3）。
     private func handleSelectYear(_ year: Int) {
         heatmapModel.year = year
         timelineModel.clearHeatmapAnchor()
@@ -143,7 +143,7 @@ struct YearHeatmapView: View {
     /// 点格定位：日锚点取当天最新一条——传入当天 23:59:59，`TimelineLocator.scrollTargetID`
     /// 据此挑出「occurredAt <= 当天末刻」中最大的一条，即当天最晚记录（见阶段5计划决策4、
     /// `TimelineLocator` 头部说明）；再次点击同一天 → `heatmapFocusDate = nil` 取消定位
-    /// （不主动滚动、不撤销已发生的滚动位置，只清高亮，见 04 §4.3）。
+    /// （不主动滚动、不撤销已发生的滚动位置，只清高亮，见 docs/current/implementation-truth.md §4.3）。
     private func handleSelectDay(_ date: Date) {
         let calendar = Calendar.current
         if timelineModel.heatmapAnchorGranularity == .day,

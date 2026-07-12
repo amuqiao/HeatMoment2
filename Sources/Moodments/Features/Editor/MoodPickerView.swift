@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 情绪选择就近浮窗（见 `docs/design/04-screen-specs.md` §4.5、05-design-system.md §5.6/§5.7）：
+/// 情绪选择就近浮窗（见 `docs/current/implementation-truth.md` §4.5/§5.6/§5.7）：
 /// `Mood.allCases` 8 行 emoji+名称，当前项右侧 `✓` + 8% 主色高亮；点选即选中并回填、关闭浮窗
 /// （由调用方在 `onSelect` 内把 `isPresented` 置为 `false`，本视图不持有呈现状态）。
 ///

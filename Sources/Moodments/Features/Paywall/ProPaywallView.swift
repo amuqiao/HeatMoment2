@@ -2,9 +2,9 @@ import StoreKit
 import SwiftUI
 import UIKit
 
-/// Pro 权益卡片（任务卡片栈，见 `docs/design/08-architecture.md` §2.2、`11-monetization.md`）：
+/// Pro 权益卡片（任务卡片栈，见 `docs/current/implementation-truth.md` §2.2）：
 /// 三类触发来源（设置横幅 / 篇数 / 照片 / 标签额度 / 恢复购买）共用同一内容，只是关闭后回退
-/// 目标不同（11 §11.3）——本视图不主动重试触发前的原操作：购买/恢复成功后 `dismiss()` 即完成
+/// 目标不同（docs/current/implementation-truth.md §11.3）——本视图不主动重试触发前的原操作：购买/恢复成功后 `dismiss()` 即完成
 /// 「放行」，因为限额闸门本身会在用户下一次交互时重新现场判定（权威判定见
 /// `SubscriptionService.currentEntitlementIsPro()`），不由本视图猜测调用方状态。
 struct ProPaywallView: View {
@@ -62,7 +62,7 @@ struct ProPaywallView: View {
         }
     }
 
-    // MARK: - 已是 Pro 会员态（见 04-screen-specs.md §4.11，13-open-questions.md #11）
+    // MARK: - 已是 Pro 会员态（见 docs/current/implementation-truth.md §4.11，docs/plans/README.md #11）
 
     private var alreadyProContent: some View {
         VStack(spacing: 16) {
@@ -107,7 +107,7 @@ struct ProPaywallView: View {
     }
 
     /// 三类触发（设置横幅 / 篇数 / 照片 / 标签额度）内容一致，只有标题因触发来源不同措辞
-    /// （11 §11.3：Paywall 页面内容/布局在两类触发下完全一致，只是关闭后的回退目标不同）。
+    /// （docs/current/implementation-truth.md §11.3：Paywall 页面内容/布局在两类触发下完全一致，只是关闭后的回退目标不同）。
     private var triggerHeadline: LocalizedStringKey {
         switch trigger {
         case .banner: "立即升级成为 Pro 用户"
@@ -118,7 +118,7 @@ struct ProPaywallView: View {
         }
     }
 
-    /// 权益条目完整朗读对比文案（见 `docs/design/12-quality-assurance.md` §12.4）。
+    /// 权益条目完整朗读对比文案（见 `docs/current/testing-architecture.md` §12.4）。
     private var benefits: some View {
         VStack(alignment: .leading, spacing: 12) {
             benefitRow(text: "发布无限的心情日记，普通用户最多只能发布 10 篇日记")
@@ -148,7 +148,7 @@ struct ProPaywallView: View {
         }
     }
 
-    /// 价格用 `Product.displayPrice` 动态渲染，不写死文本（见 11 §11.1）。
+    /// 价格用 `Product.displayPrice` 动态渲染，不写死文本（见 docs/current/implementation-truth.md §11.1）。
     private func purchaseButton(
         product: Product?,
         title: LocalizedStringKey,

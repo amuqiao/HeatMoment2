@@ -1,8 +1,8 @@
 import XCTest
 @testable import Moodments
 
-/// `AppearanceStore` 持久化验收（见 `docs/design/07-data-persistence.md` §6、
-/// `docs/design/05-design-system.md` §5.3.7，`docs/plans/implementation-plan.md` 阶段6）：
+/// `AppearanceStore` 持久化验收（见 `docs/current/local-data-architecture.md` §6、
+/// `docs/current/implementation-truth.md` §5.3.7，`docs/plans/implementation-plan.md` 阶段6）：
 /// round-trip、坏 rawValue 逐轴回落默认值 + 精确计数、缺失 key 不算「已修正」。
 final class AppearanceStoreTests: XCTestCase {
     private var suiteName: String!

@@ -1,12 +1,12 @@
 import SwiftUI
 
-/// 标签/心情筛选面板（见 `docs/design/04-screen-specs.md` §4.2）：从首页收起态标题
+/// 标签/心情筛选面板（见 `docs/current/implementation-truth.md` §4.2）：从首页收起态标题
 /// 「时刻 ⌄」升起的**半屏 bottom sheet**（交互模型 v2 修订，见 ADR-006 `[AMENDED v2]`——
 /// 筛选从就近浮窗 popover 解耦为 `.presentationDetents([.medium, .large])` 的 sheet，因其
 /// 要同时承载心情单选 + 标签多选，popover 里会拥挤）。呈现容器改变，但筛选其余性质不变：
 /// **不进 `AppRouter`**、由触发处局部 `@State` 驱动、就地即时生效。
 ///
-/// **筛选组合逻辑**（已裁决，见 04 §4.2、`docs/design/13-open-questions.md` #19）：标签
+/// **筛选组合逻辑**（已裁决，见 docs/current/implementation-truth.md §4.2、`docs/plans/README.md` #19）：标签
 /// **多选**、彼此 **AND**（交集）；心情**单选**；标签维度与心情维度之间也是 AND。
 /// 每次点选**即时更新** `activeFilter`（就地生效，无「确认」按钮）；「完成」仅收起 sheet、
 /// 不做提交。筛选面板只选择已有标签；新增、重命名、删除标签归属设置页 `TagManageView`。
@@ -199,7 +199,7 @@ struct FilterPanelView: View {
         .accessibilityValue(Text(isSelected ? "已选中" : ""))
     }
 
-    /// 点已选标签取消该项，点未选标签追加（多选累加，见 04 §4.2）。
+    /// 点已选标签取消该项，点未选标签追加（多选累加，见 docs/current/implementation-truth.md §4.2）。
     private func toggleTag(_ tagID: UUID) {
         var updated = activeFilter ?? FilterCondition()
         if updated.tagIDs.contains(tagID) {

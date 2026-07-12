@@ -7,7 +7,7 @@ private enum PhotoLoadError: Error {
     case emptyData
 }
 
-/// 编辑器照片区（见 `docs/design/04-screen-specs.md` §4.4、05-design-system.md §5.7）：
+/// 编辑器照片区（见 `docs/current/implementation-truth.md` §4.4/§5.7）：
 /// 未加时为主色实心大按钮「添加照片」；已加后为「日志图片 N 张」+ 横排缩略图（⊖ 删除角标，
 /// 提供 `accessibilityAction` 替代路径）+ ⊕ 追加。第 4 张触发 Paywall——额度判定完全经
 /// `MomentEditorModel`（`checkCanAddPhoto`/`remainingPhotoSlots`）消费 `QuotaService` 结果，
@@ -239,7 +239,7 @@ struct EditorPhotoSection: View {
         }
     }
 
-    /// 压缩耗时工作显式切到后台执行（见 08-architecture.md §5：耗时工作切后台），
+    /// 压缩耗时工作显式切到后台执行（见 docs/current/implementation-truth.md §5：耗时工作切后台），
     /// `ImageCompressor` 自身是不做隔离域切换的纯函数；`Task.detached` 内不持有 `errorPresenter`
     /// （`@MainActor` 隔离），错误改为在 `await` 恢复后于调用方所在上下文上报，不吞错。
     private func compress(_ data: Data) async -> Data? {

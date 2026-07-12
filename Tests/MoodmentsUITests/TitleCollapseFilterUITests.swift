@@ -1,9 +1,9 @@
 import XCTest
 
-/// 标题两态验收（见 04-screen-specs.md §4.1、08-architecture.md §2.2 裁决 B）：
+/// 标题两态验收（见 docs/current/implementation-truth.md §4.1/§2.2 裁决 B）：
 /// 大标题态（滚到顶）纯场景标识、不可点、不触发筛选；上滑折叠后，收起态「时刻 ⌄」
 /// 才是筛选入口，点击以**半屏 bottom sheet**（交互模型 v2，从旧就近浮窗解耦，见
-/// `docs/design/14-design-decisions.md` ADR-006 `[AMENDED v2]`）打开 `FilterPanelView`。
+/// `docs/current/implementation-truth.md` ADR-006 `[AMENDED v2]`）打开 `FilterPanelView`。
 ///
 /// `FilterPanelView` 落地真实内容（旧占位文案「筛选 · 阶段5」已失效），断言用真实面板的
 /// 心情候选 chip（`filterMoodOption-<rawValue>`）与标签 chip（`filterTagOption-*`）。

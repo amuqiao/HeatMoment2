@@ -63,7 +63,7 @@ App Composition
 
 ## Remaining Gaps
 
-- `AGENTS.md` 和代码注释多处引用 `docs/design/`，但仓库当前没有该目录；设计契约层缺位，导致“应该怎样设计”和“现在实际怎样实现”容易混在 current、plan 或代码注释里。
+- 早期文档和代码注释存在过期文档路径，需要统一改到 `docs/current/`、`docs/plans/` 或 `docs/product-mental-model.md`，避免影子文档和断链误导维护。
 - `DesignSystem` 同时包含基础容器和 Moodments 业务组件。`AppSheetScaffold` 这类容器可复用；`MoodNodeView`、`HeatmapGridView`、`BubbleCardView`、`MoodStatBarView` 等是业务语义 UI，不适合作为通用骨架基础层。
 - 主题 token 中混有基础视觉语义和 Moodments 情绪语义。心情色是 Moodments 产品公理，不能变成所有未来 App 的基础主题合同。
 - `RootView` 和 `AppRouter.RootSheet` 仍直接表达 preview/editor/settings/paywall 等 Moodments 业务路由；这对当前 App 正确，但还不是可替换业务首页的清晰 AppShell。
@@ -77,22 +77,18 @@ App Composition
 
 ### M-foundation-0: 文档路由与合同归属校准
 
-目标：先按 `current / contract / plans` 校准文档归属，再开始移动代码，避免把未来计划写成当前事实，也避免为了“契约层”创建第二套影子文档。
+目标：先按 `current / contract / plans` 校准文档归属，再开始移动代码，避免把未来计划写成当前事实，也避免创建第二套影子文档。
 
 工作项：
 
-- 复核 `AGENTS.md`、`docs/current/`、`docs/plans/` 和代码注释中的文档地图，确认本仓库的 contract 文档到底放在哪里。
+- 复核 `AGENTS.md`、`docs/current/`、`docs/plans/` 和代码注释中的文档地图，确认文档事实源只落在当前三层职责内。
 - 按 `$implementation-contract-plans` 分类现有内容：
   - `current`：已经实现的架构、运行流、数据模型、能力路径、验证基线。
   - `contract`：业务 feature 或基础能力调用方可以依赖的稳定能力边界、输入输出、状态语义。
   - `plans`：尚未完成的 gap、planned work、acceptance。
-- 若继续沿用 `AGENTS.md` 里的 `docs/design/` 作为 contract 位置，只创建/恢复最小合同文档，不写 current 实现流水账，也不写未来计划。首批候选合同文档为：
-  - `docs/design/README.md`：contract 文档地图，以及 product / current / plans 的链接关系。
-  - `docs/design/swiftui-architecture-skeleton.md`：App composition、feature、capability、infrastructure 的稳定依赖边界。
-  - `docs/design/capability-boundaries.md`：sheet、settings、data/export/backup、privacy lock、pro、sync indicator、testing harness 的稳定能力合同。
-- 若不继续使用 `docs/design/`，则同步修正 `AGENTS.md`、current、plans 和代码注释里的文档路径，不保留指向不存在目录的引用。
-- 将散落在计划、current 和代码注释里的内容按归属移动或改写：current 只保留 as-built，contract 只保留稳定调用边界，plans 只保留未完成工作。
-- 编写或修正 SwiftUI 应用骨架合同，固定 `App Composition -> Business Features -> Foundation Capability Contracts -> Capability Internals` 的单向依赖；不扩展成通用 framework 设计。
+- 删除过期文档路径相关引用和描述；过期路径不得保留为兼容入口。
+- 将散落在计划、current 和代码注释里的内容按归属移动或改写：current 只保留 as-built 和已实现能力边界，plans 只保留未完成工作。
+- 在 current 或 plan 的最近相关页面中写清 SwiftUI 应用骨架边界，固定 `App Composition -> Business Features -> Foundation Capability Boundaries -> Capability Internals` 的单向依赖；不扩展成通用 framework 设计。
 - 建立现有目录到目标层的映射表，标明哪些目录保持、哪些文件需要迁移、哪些只是重命名或换归属。
 - 明确“可复用基础能力”和“Moodments 业务能力”的判断准则：
   - 能被日记、打卡、番茄日记复用的是 foundation。
@@ -102,11 +98,10 @@ App Composition
 
 验收：
 
-- 文档地图明确说明 current、contract、plans 的实际文件位置；不存在与地图冲突的引用。
-- current 不承诺未来能力；contract 不复制内部实现流水账；plans 不伪装成已实现事实。
-- 如继续使用 `docs/design/`，其中只放稳定合同；如不使用，则 `AGENTS.md` 和旧引用已同步更新。
-- 新合同能反向映射到当前 `Sources/Moodments` 目录，不出现空泛层名。
-- 不存在指向不存在 contract 文档的链接或代码注释。
+- 文档地图明确说明 product、current、plans 的实际文件位置；不存在与地图冲突的引用。
+- current 不承诺未来能力；plans 不伪装成已实现事实。
+- 过期文档路径引用扫描无结果。
+- 已实现能力边界能反向映射到当前 `Sources/Moodments` 目录，不出现空泛层名。
 
 ### M-foundation-1: 稳定 AppShell 与路由表达
 
@@ -265,7 +260,7 @@ App Composition
   - 新增 settings entry 的接入清单：分组、row 状态、目标详情页或 action、能力归属。
   - 新增 root sheet 的接入清单：任务层级、关闭/完成动作、是否允许嵌套、对应窄 UI 测试。
   - 哪些代码可以直接复用，哪些代码只可作为 Moodments 业务参考。
-- 清理过时注释和旧文档引用，避免后续开发者被不存在的设计文档、旧架构命名或历史阶段说明误导。
+- 清理过时注释和旧文档引用，避免后续开发者被不存在的文档、旧架构命名或历史阶段说明误导。
 
 验收：
 

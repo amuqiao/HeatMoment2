@@ -2,8 +2,8 @@ import StoreKitTest
 import XCTest
 @testable import Moodments
 
-/// StoreKit 购买/恢复/到期降级验收（见 `docs/design/11-monetization.md`、
-/// `docs/design/12-quality-assurance.md` §12.3「StoreKit 测试」）：用 `StoreKitTest` 框架 +
+/// StoreKit 购买/恢复/到期降级验收（见 `docs/current/implementation-truth.md`、
+/// `docs/current/testing-architecture.md` §12.3「StoreKit 测试」）：用 `StoreKitTest` 框架 +
 /// `Config/Moodments.storekit` 本地配置驱动，不依赖真实 App Store Connect 网络。
 ///
 /// **本机沙盒环境限制（阶段7验证中登记，非本实现缺陷）**：`SKTestSession` 的购买/恢复/过期
@@ -52,7 +52,7 @@ final class PurchaseTests: XCTestCase {
         XCTAssertTrue(isPro)
     }
 
-    /// 恢复购买（见 11 §11.2）：另建一个 `SubscriptionService` 实例（模拟「重新打开 App」，
+    /// 恢复购买（见 docs/current/implementation-truth.md §11.2）：另建一个 `SubscriptionService` 实例（模拟「重新打开 App」，
     /// 不复用同一实例的内存态），验证 `restorePurchases()` 能从 `Transaction.currentEntitlements`
     /// 重新核对出既有购买。
     func testRestorePurchasesFindsExistingLifetimeEntitlement() async throws {
@@ -67,8 +67,8 @@ final class PurchaseTests: XCTestCase {
         XCTAssertTrue(service.isPro)
     }
 
-    /// 订阅到期后自动降级为免费态（见 12 §12.3）：`SKTestSession.expireSubscription` 强制让
-    /// 该笔月订阅交易过期，`currentEntitlementIsPro()` 现场重查应不再命中（11 §11.4：任何放行
+    /// 订阅到期后自动降级为免费态（见 docs/current/testing-architecture.md §12.3）：`SKTestSession.expireSubscription` 强制让
+    /// 该笔月订阅交易过期，`currentEntitlementIsPro()` 现场重查应不再命中（docs/current/implementation-truth.md §11.4：任何放行
     /// 判断都以当次查询为准，不依赖过期缓存）。
     func testExpiredMonthlySubscriptionDowngradesToFree() async throws {
         try await skipIfDaemonUnavailable {

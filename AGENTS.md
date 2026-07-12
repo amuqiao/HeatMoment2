@@ -2,17 +2,17 @@
 
 iOS SwiftUI 复刻 App「时刻」(App Store 商店名「心绪日记」/ 关于页 Moodments):本地优先、无自建后端的个人情绪日记。iPhone + iPad,iOS/iPadOS 17+,Swift 6（严格并发）。
 
-## 文档四层（改动前先读；冲突时以公理层为准）
+## 文档职责（改动前先读；冲突时以公理层为准）
 
-- **公理层（产品是什么 · 唯一准绳）**：`docs/product-mental-model.md` —— 9 对象 / 8 公理。任一实现或设计与它冲突，是实现/设计错了。
-- **设计层 / 契约（应该怎么做的规格）**：`docs/design/`（15 份，`README.md` 是文档地图；架构见 `08`，决策记录见 `14-design-decisions.md` ADR）。前瞻规格与下游稳定契约，将来式。
-- **实现真相层 / current（现在实际怎么实现的）**：`docs/current/`（`README.md` 能力/状态矩阵 + 验证基线；`implementation-truth.md` as-built 架构、界面流、主题落地与偏离）。**现在式、仅已落地**；对设计的偏离记这里，不写进设计层。
-- **计划层（还没做的主动计划）**：`docs/plans/implementation-plan.md` —— 当前差距、计划工作与验收条件；计划项落地后把 as-built 真相并入 `docs/current/`，计划层只保留未完成工作或关闭证据。
-- **一手资料归档（不被引用）**：`docs/_source/`（真机截图 + 产品观测）。设计体系独立自维护，勿反向依赖它。
+- **公理层（产品是什么 · 唯一准绳）**：`docs/product-mental-model.md` —— 9 对象 / 8 公理。任一实现或计划与它冲突，是实现/计划错了。
+- **实现真相层 / current（现在实际怎么实现的）**：`docs/current/`（`README.md` 能力/状态矩阵 + 验证基线；`implementation-truth.md` as-built 架构、界面流、主题落地与偏离）。**现在式、仅已落地**；已实现能力的稳定边界也在对应 current 页面维护。
+- **计划层（还没做的主动计划）**：`docs/plans/`（`README.md` 是计划地图）—— 当前差距、计划工作与验收条件；计划项落地后把 as-built 真相并入 `docs/current/`，计划层只保留未完成工作或关闭证据。
 
-计划完成闭环：验收通过后把该项 as-built 真相并入 `docs/current/`，plan 层对应条目只留验收证据或移除（不再把已实现事实堆进设计层）。
+按 `$implementation-contract-plans`：`current` 只写已实现事实和已实现能力边界，`plans` 只写未完成 gap / planned work / acceptance；不要创建第二套事实源或影子文档。
 
-不要在 `AGENTS.md` / `CLAUDE.md` 或别处复制设计事实（限额、色值、枚举等）；引用上述文档，保持单一事实源。
+计划完成闭环：验收通过后把该项 as-built 真相并入 `docs/current/`，plan 层对应条目只留验收证据或移除（不再把已实现事实堆进计划层）。
+
+不要在 `AGENTS.md` / `CLAUDE.md` 或别处复制产品/实现事实（限额、色值、枚举等）；引用上述文档，保持单一事实源。
 
 ## 工程与命令（一律走 scripts，勿手敲 xcodebuild / 手改工程）
 
@@ -26,14 +26,14 @@ iOS SwiftUI 复刻 App「时刻」(App Store 商店名「心绪日记」/ 关于
 
 ## 每计划项闭环（硬门槛）
 
-**实现 → 同计划项写测试（单元 XCTest / UI XCUITest / 订阅 StoreKitTest）→ `./scripts/verify.sh` 通过 → 才标 ✅ 并填验收证据。**
-只凭 diff 或"代码写完了"判断成功不允许；宣布完成前必须有 build/test/lint 的通过输出。计划项的验收标准记录在 `implementation-plan.md`。
+**实现 → 同计划项写测试（单元 XCTest / UI XCUITest / 订阅 StoreKitTest）→ 最小必要验证通过 → 才标 ✅ 并填验收证据。**
+只凭 diff 或"代码写完了"判断成功不允许；宣布完成前必须有 build/test/lint 或文档 drift 检查等与改动匹配的通过输出。计划项的验收标准记录在 `docs/plans/` 对应计划文档。
 
 ## 不可违背的产品公理（细节见 product-mental-model.md）
 
 心情色一致性 · 定位 ≠ 筛选 · 删除是生命周期 · 两种浮层层级（任务卡片栈下沉入栈 / 就地选择层不入任务卡片栈）· 永不离开主场景 · 标签是归类非所有权 · 以发生时间组织 · 对象归属（新交互先归到某对象）。
 
-## 关键技术约定（细节见 design/08、14）
+## 关键技术约定（细节见 docs/current/README.md 与 docs/plans/README.md）
 
 - 架构：`@Observable` MVVM + 集中 `AppRouter`（`@MainActor @Observable`）。
 - 数据：Canonical Repository + GRDB + SQLite + `FileAssetStore`（本地优先）；CloudKit 私有库同步后续按 canonical 数据模型接入。

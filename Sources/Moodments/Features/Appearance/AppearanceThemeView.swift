@@ -5,7 +5,7 @@ private enum BackgroundImageLoadError: Error {
     case emptyData
 }
 
-/// 外观主题子页（见 `docs/design/04-screen-specs.md` §4.15、05-design-system.md §5.3/§5.7）：
+/// 外观主题子页（见 `docs/current/implementation-truth.md` §4.15/§5.3/§5.7）：
 /// 模式 / 颜色（主色）/ 网格（背景纹理）/ 图片（图片展示）4 个分组，**乐观更新即时生效**。
 ///
 /// 本页是设置任务容器，不是首页画布：页面骨架使用任务容器 token；每个选项内部的小缩略图

@@ -1,9 +1,9 @@
 import Foundation
 
-/// 「面容解锁」开关的本地持久化（见 `docs/design/10-security-privacy.md` §10.1.2）：
+/// 「面容解锁」开关的本地持久化（见 `docs/current/implementation-truth.md` §10.1.2）：
 /// **设备级本地偏好**，存 `UserDefaults`（非敏感信息，评估为不需要 Keychain 的过度设计），
 /// **不参与 iCloud 同步**（同一账号下不同设备可能希望不同的锁定策略，如 iPad 常驻家中可不锁）。
-/// 默认关闭（截图为关闭态，见 10 §10.1.2）。
+/// 默认关闭（截图为关闭态，见 docs/current/implementation-truth.md §10.1.2）。
 enum BiometricLockPreference {
     private static let key = "com.moodments.privacyLock.enabled"
 

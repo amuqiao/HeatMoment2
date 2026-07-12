@@ -1,6 +1,6 @@
 import XCTest
 
-/// 免费额度拦截验收（见 `docs/design/03-user-flows.md` §3.1、
+/// 免费额度拦截验收（见 `docs/product-mental-model.md` §3.1、
 /// `docs/plans/implementation-plan.md` 阶段 3 验收：第 11 篇 / 第 4 标签 / 第 4 张照片）。
 final class QuotaBlockUITests: XCTestCase {
     /// 篇数额度：预置 10 篇（占满免费额度）后点新建，应直接弹出 Paywall、编辑器不打开

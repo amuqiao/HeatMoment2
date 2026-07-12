@@ -3,7 +3,7 @@ import XCTest
 @testable import Moodments
 
 /// 心情色独立性验收（见 `docs/product-mental-model.md` 公理1「心情色一致性」、
-/// `docs/design/05-design-system.md` §5.3.6/§5.4，`docs/plans/implementation-plan.md` 阶段6）：
+/// `docs/current/implementation-truth.md` §5.3.6/§5.4，`docs/plans/implementation-plan.md` 阶段6）：
 /// `MoodPalette.color(_:mode:)` 的签名内没有 `AccentColorOption` 参数——这是「切主色时
 /// 心情色不变」的结构性保证；本文件从数值层面交叉验证该保证在 `ThemeManager` 集成后依然成立。
 final class MoodPaletteTests: XCTestCase {
@@ -47,12 +47,12 @@ final class MoodPaletteTests: XCTestCase {
         }
     }
 
-    /// 「正常」情绪亮色态取真机实测精确值 `#58BBB3`（见 05 §5.2.1/§5.4）。
+    /// 「正常」情绪亮色态取真机实测精确值 `#58BBB3`（见 docs/current/implementation-truth.md §5.2.1/§5.4）。
     func testNormalMoodLightColorMatchesMeasuredValue() {
         XCTAssertEqual(MoodPalette.color(.normal, mode: .light), Color(hex: 0x58BBB3))
     }
 
-    /// 「正常」情绪暗色态取真机实测精确值 `#15BEB4`（见 05 §5.2.1）。
+    /// 「正常」情绪暗色态取真机实测精确值 `#15BEB4`（见 docs/current/implementation-truth.md §5.2.1）。
     func testNormalMoodDarkColorMatchesMeasuredValue() {
         XCTAssertEqual(MoodPalette.color(.normal, mode: .dark), Color(hex: 0x15BEB4))
     }

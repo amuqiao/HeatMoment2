@@ -1,7 +1,7 @@
 import XCTest
 
 /// 「回看/筛选/定位」UI 集成验收（见 `docs/product-mental-model.md` 公理2「定位 ≠ 筛选」、
-/// `docs/design/04-screen-specs.md` §4.1/§4.2/§4.3，`docs/plans/implementation-plan.md` 阶段5）：
+/// `docs/current/implementation-truth.md` §4.1/§4.2/§4.3，`docs/plans/implementation-plan.md` 阶段5）：
 /// 阶段5落地的筛选就近浮窗 + 上下文标记 + 热力图定位是本阶段头牌功能，此前只有单元测试
 /// （`LocateVsFilterTests`）覆盖谓词/纯函数层面，缺 XCUITest 端到端验收，此文件补齐。
 ///
@@ -65,7 +65,7 @@ final class LocateFilterUITests: XCTestCase {
         )
     }
 
-    /// 打开热力图 → 点一个有色（有记录）日期格 → 出现时间上下文标记（定位态，见 04 §4.3）。
+    /// 打开热力图 → 点一个有色（有记录）日期格 → 出现时间上下文标记（定位态，见 docs/current/implementation-truth.md §4.3）。
     func testLocateHeatmapDayCellShowsTimeContextMarker() {
         let app = XCUIApplication()
         app.launchArguments = ["-uiTestSeedMoments"]

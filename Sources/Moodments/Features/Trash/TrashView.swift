@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// 垃圾箱（见 `docs/design/04-screen-specs.md` §4.14）：已软删除的 Moment 列表，按
+/// 垃圾箱（见 `docs/current/implementation-truth.md` §4.14）：已软删除的 Moment 列表，按
 /// `deletedAt` 倒序排列；样式沿用时间轴气泡卡片范式的精简版（仅标题+日期）。设置栈内
-/// `NavigationLink` push（08-architecture.md §2.2）。
+/// `NavigationLink` push（docs/current/implementation-truth.md §2.2）。
 ///
 /// 右滑（leading）恢复、左滑（trailing）彻底删除——彻底删除不可逆，须 `.alert` 二次确认
 /// （与首页删除「无需确认」形成对比，因垃圾箱是最后一道安全网，见公理3「删除是生命周期」）。
@@ -132,7 +132,7 @@ struct TrashView: View {
     }
 
     /// 彻底删除：物理移除 + 释放额度（仓库层）+ 失效该 Moment 全部图片的缩略图缓存
-    /// （见 07-data-persistence.md §5：Moment 彻底删除时同步清理其缩略图）。失败同样从仓库
+    /// （见 docs/current/local-data-architecture.md §5：Moment 彻底删除时同步清理其缩略图）。失败同样从仓库
     /// 真相源 `reload`，不假装已删除。
     private func handlePurge(_ item: MomentSnapshot) {
         Task {

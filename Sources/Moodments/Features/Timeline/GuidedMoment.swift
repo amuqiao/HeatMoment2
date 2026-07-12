@@ -1,10 +1,10 @@
 import Foundation
 
-/// 预置引导 Moment（见 `product-mental-model.md` 空态引导、02-information-architecture.md）。
+/// 预置引导 Moment（见 `product-mental-model.md` 空态引导、docs/product-mental-model.md）。
 ///
 /// 首次使用或时间轴为空时，不做独立 Onboarding 页，而是用 3 条**不可删除/不可编辑**的本地静态
 /// 数据承担引导职责：不落库为真实 `Moment`、不计入免费额度、不参与 iCloud 同步；用户产生
-/// 第一条真实记录后不再展示（见 02 §「单页信息架构」）。
+/// 第一条真实记录后不再展示（见 docs/product-mental-model.md §「单页信息架构」）。
 struct GuidedMoment: Identifiable, Sendable {
     let id = UUID()
     /// i18n key（见 `Localizable.xcstrings`），非直接展示文案；展示时经 `title`/`bodyText`
@@ -14,7 +14,7 @@ struct GuidedMoment: Identifiable, Sendable {
     private let bodyTextKey: String
     let mood: Mood
     let occurredAt: Date
-    /// 模拟「图片」区的占位色块十六进制值（见 05-design-system.md §5.7：
+    /// 模拟「图片」区的占位色块十六进制值（见 docs/current/implementation-truth.md §5.7：
     /// 「引导卡片内以主色/中性棕色块模拟'图片'占位」），空数组表示该条无图片区。
     let placeholderImageHexColors: [UInt32]
 

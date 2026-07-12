@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-/// 首页时间轴的局部状态（见 08-architecture.md §4.1/§4.2）。
+/// 首页时间轴的局部状态（见 docs/current/implementation-truth.md §4.1/§4.2）。
 ///
 enum HeatmapAnchorGranularity: Equatable {
     case day
@@ -52,7 +52,7 @@ final class TimelineModel {
         timelineContentRevision += 1
     }
 
-    /// 派生只读：当前是否处于定位态（上下文标记横条、行高亮据此显示，见 04-screen-specs.md §4.1）。
+    /// 派生只读：当前是否处于定位态（上下文标记横条、行高亮据此显示，见 docs/current/implementation-truth.md §4.1）。
     /// 只读取 `heatmapFocusDate`，不新增独立存储、不与 `activeFilter`耦合。
     var isLocated: Bool { heatmapFocusDate != nil }
 

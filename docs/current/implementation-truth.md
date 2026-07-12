@@ -1,6 +1,6 @@
 # SwiftUI 当前实现真相
 
-本文记录 SwiftUI 版 Moodments 当前已经实现的界面结构、运行路径和相对设计契约的偏离。这里的事实源是 `Sources/Moodments/` 与 `Tests/`，原 Flutter 项目只作为产品语义理解来源，不作为 SwiftUI 当前实现事实。
+本文记录 SwiftUI 版 Moodments 当前已经实现的界面结构、运行路径和已知偏离。这里的事实源是 `Sources/Moodments/` 与 `Tests/`，原 Flutter 项目只作为产品语义理解来源，不作为 SwiftUI 当前实现事实。
 
 ## 整体模型
 
@@ -167,7 +167,7 @@ TaskSurfaceMetrics
 - `imageDisplayMode` 已有 UI、状态和持久化，并驱动时间轴气泡图片区在横向缩略图布局和轮播布局之间切换；它只改变照片展示行为，不改变主题颜色语义。
 - `AppearanceThemeView` 使用 `TaskPageScrollView` 任务内容列和自适应 `LazyVGrid` 分组骨架。模式区两张卡是当前外观状态在暗/亮模式下的总览预览，会同时体现当前背景纹理/自定义图片、导航文字层、FAB/主色和模式色板；颜色区使用响应式 swatch 网格，不允许固定宽度溢出屏幕；网格区的选项卡只表达纯背景纹理效果，不再展示 FAB 或导航元素；图片区只表达滚动/轮播展示差异。外观页组件消费 `ThemeManager` 和 `AppThemeTokens.resolve`，但不进入 `AppRouter`，也不把首页品牌画布、气泡卡片和 sheet panel 混成同一个容器。
 
-## 与设计层的已知漂移
+## 已知偏离
 
 | 漂移 | 当前事实 | 当前影响 |
 | --- | --- | --- |

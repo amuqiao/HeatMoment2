@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 字体层级（系统字体，见 05-design-system.md §5.8）：全局使用 iOS 系统字体（San Francisco /
+/// 字体层级（系统字体，见 docs/current/implementation-truth.md §5.8）：全局使用 iOS 系统字体（San Francisco /
 /// 中文自动回退 PingFang SC），不内嵌自定义字体；数字类文字（日期/价格/次数）统一使用
 /// Bold/Semibold 权重制造视觉锚点。全部基于系统 Text Style，支持 Dynamic Type 缩放。
 enum AppTypography {

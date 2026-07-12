@@ -1,10 +1,10 @@
 import Foundation
 
-/// 缩略图缓存（见 `docs/design/07-data-persistence.md` §5）：内存 + `Caches/thumbnails/`
+/// 缩略图缓存（见 `docs/current/local-data-architecture.md` §5）：内存 + `Caches/thumbnails/`
 /// 两级，命中则用、未命中则从原图现场生成并回写；缩略图**不参与 CloudKit 同步**，可随时基于
 /// 原图重新生成。`Caches/` 目录本身可被系统随时回收，故磁盘读写失败按「缓存未命中/写入放弃」
 /// 处理，不视为需要上抛的业务错误（见下方各方法内注释）。用 `actor` 封装保证并发安全
-/// （见 `docs/design/08-architecture.md` §5：共享可变状态用 `actor` 封装）。
+/// （见 `docs/current/implementation-truth.md` §5：共享可变状态用 `actor` 封装）。
 actor ThumbnailCache {
     static let shared = ThumbnailCache()
 
@@ -21,7 +21,7 @@ actor ThumbnailCache {
     }
 
     /// 取指定图片的缩略图：命中内存/磁盘缓存则直接返回；未命中则调用 `originalData` 现场
-    /// 生成并回写两级缓存（见 07 §5「命中缓存则用、未命中则从原图现场生成并回写」）。
+    /// 生成并回写两级缓存（见 docs/current/local-data-architecture.md §5「命中缓存则用、未命中则从原图现场生成并回写」）。
     /// - Parameters:
     ///   - imageID: 对应 canonical asset link 的图片 ID。
     ///   - originalData: 生成缩略图所需的原图 `Data` 来源（由调用方按需从仓库读取，避免
@@ -77,7 +77,7 @@ actor ThumbnailCache {
         return thumbnailData
     }
 
-    /// Moment 彻底删除时同步清理其缩略图缓存（内存 + 磁盘，见 07 §5）。
+    /// Moment 彻底删除时同步清理其缩略图缓存（内存 + 磁盘，见 docs/current/local-data-architecture.md §5）。
     func removeThumbnail(for imageID: UUID) {
         memoryCache.removeValue(forKey: imageID)
         let fileURL = cacheDirectory.appendingPathComponent("\(imageID.uuidString).jpg")

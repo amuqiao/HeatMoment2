@@ -1,9 +1,9 @@
 import SwiftUI
 
-/// 关于页（见 `docs/design/04-screen-specs.md` §4.16、05-design-system.md §5.3.5/§5.7）：
+/// 关于页（见 `docs/current/implementation-truth.md` §4.16/§5.3.5/§5.7）：
 /// **强制亮色外观 + 固定红**，不随用户在外观主题里选择的模式/主色变化——Pro/关于页与主界面
-/// 强调色语义解耦（05 §5.3.5：商业化/合规页面追求跨用户一致的转化与信任观感，不被个性化
-/// 主题稀释）。设置栈内 push（08-architecture.md §2.2）。
+/// 强调色语义解耦（docs/current/implementation-truth.md §5.3.5：商业化/合规页面追求跨用户一致的转化与信任观感，不被个性化
+/// 主题稀释）。设置栈内 push（docs/current/implementation-truth.md §2.2）。
 ///
 /// 「关于创作者」「隐私协议」「使用条款」三张卡片对应的外部链接地址产品未给出具体值，
 /// `[设计决策待确认]`：先落地可点击、可无障碍朗读的行结构，链接目标留待产品/文案阶段补齐，
@@ -14,7 +14,7 @@ import SwiftUI
 /// 暗色环境泄漏到系统 row/chrome；不用 `.preferredColorScheme(_:)`，避免向上影响承载它的
 /// `UIHostingController`/导航栈层级。
 ///
-/// 「备案号」为大陆合规展示项（见 04 §4.16 内容清单），产品未给出真实备案号，
+/// 「备案号」为大陆合规展示项（见 docs/current/implementation-truth.md §4.16 内容清单），产品未给出真实备案号，
 /// `[设计决策待确认]`：先落地占位行，真实号码待补齐。
 struct AboutView: View {
     @Environment(ThemeManager.self) private var theme
@@ -57,7 +57,7 @@ struct AboutView: View {
                 .font(AppTypography.caption)
                 .foregroundStyle(theme.commercialSecondaryText)
             // 备案号：大陆合规展示项，产品未给出真实号码，`[设计决策待确认]`——占位文案，
-            // 真实号码待补齐（见 04 §4.16 内容清单）。
+            // 真实号码待补齐（见 docs/current/implementation-truth.md §4.16 内容清单）。
             Text("备案号：[设计决策待确认]")
                 .font(AppTypography.caption)
                 .foregroundStyle(theme.commercialSecondaryText)

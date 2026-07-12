@@ -2,7 +2,7 @@ import Foundation
 import Network
 import Observation
 
-/// iCloud 同步状态展示三态（见 `docs/design/09-icloud-sync.md` §9.2）。
+/// iCloud 同步状态展示三态（见 `docs/plans/implementation-plan.md` §9.2）。
 enum SyncStatus: Sendable, Equatable {
     /// 已同步。
     case synced
@@ -92,7 +92,7 @@ struct SyncStatusEvaluationInput: Sendable, Equatable {
     let now: Date
 }
 
-/// iCloud 同步状态推导（见 09-icloud-sync.md §9.2）：当前生产数据权威是 canonical local store，
+/// iCloud 同步状态推导（见 docs/plans/implementation-plan.md §9.2）：当前生产数据权威是 canonical local store，
 /// 尚未接入真实 iCloud 同步事件，因此本类型仍按文档给出的**启发式退化方案**实现：以「当前设备
 /// 具备 iCloud 能力 + 最近一次本地写入 + 网络可达性」推断展示三态，而非表达真实上传/下载进度。
 ///

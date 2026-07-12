@@ -1,12 +1,12 @@
 import SwiftUI
 
-/// 标签管理子页（见 `docs/design/04-screen-specs.md` §4.13）：列表 + 右上「+」新建 +
+/// 标签管理子页（见 `docs/current/implementation-truth.md` §4.13）：列表 + 右上「+」新建 +
 /// 点击进入重命名（复用 `TagCreateSheetView` 的重命名态，预填原名）+ 滑动删除（只解除关联，
-/// 不触发垃圾箱生命周期，见公理7「标签是归类不是所有权」）。设置栈内 push（08 §2.2）。
+/// 不触发垃圾箱生命周期，见公理7「标签是归类不是所有权」）。设置栈内 push（docs/current/implementation-truth.md §2.2）。
 ///
 /// 删除成功后调用 `TimelineModel.discardFilterTag`，清理筛选态里可能引用该标签的陈旧 id
 /// （阶段6计划决策5；`TimelineModel` 由 `RootView` 上提注入，经 `.sheet` 内容默认继承环境
-/// 可在此直接读取，见 08-architecture.md §3/§4）。
+/// 可在此直接读取，见 docs/current/implementation-truth.md §3/§4）。
 struct TagManageView: View {
     @Environment(ThemeManager.self) private var theme
     @Environment(ErrorPresenter.self) private var errorPresenter

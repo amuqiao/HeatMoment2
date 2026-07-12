@@ -1,6 +1,6 @@
 # Moodments 数据生命周期实现计划
 
-本文是当前主动计划，只记录尚未完成的目标、实施顺序和验收条件。已落地事实进入 [`../current/`](../current/README.md)；产品语义以 [`../product-mental-model.md`](../product-mental-model.md) 为准。
+本文是数据生命周期专项 follow-up 计划，只记录本地数据闭环之后仍未完成的数据目标、实施顺序和验收条件。它不是全项目总计划；SwiftUI 应用骨架重构见 [`swiftui-foundation-refactor-plan.md`](swiftui-foundation-refactor-plan.md)。已落地事实进入 [`../current/`](../current/README.md)；产品语义以 [`../product-mental-model.md`](../product-mental-model.md) 为准。
 
 ## Planning Position
 

@@ -1,6 +1,6 @@
 import XCTest
 
-/// 空态验收（见 02-information-architecture.md、04-screen-specs.md §4.1）：首次启动、
+/// 空态验收（见 docs/product-mental-model.md、docs/current/implementation-truth.md §4.1）：首次启动、
 /// 时间轴无真实记录时，展示 3 条不可删/不可编辑的预置引导 Moment（见 `GuidedMoment`）。
 final class TimelineEmptyStateUITests: XCTestCase {
     func testEmptyStateShowsThreeGuidedMoments() {

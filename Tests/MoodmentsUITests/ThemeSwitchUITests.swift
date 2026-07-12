@@ -3,7 +3,7 @@ import UIKit
 import XCTest
 
 /// 组合式主题验收（见 `docs/product-mental-model.md` 公理1「心情色一致性」、
-/// `docs/design/05-design-system.md` §5.3、`docs/plans/implementation-plan.md` 阶段6）：
+/// `docs/current/implementation-truth.md` §5.3、`docs/plans/implementation-plan.md` 阶段6）：
 ///
 /// **核心不变量**：切**主色**时 FAB/强调随之变化，但心情色 / 危险色**不变**——
 /// 心情色/危险色独立于主色的结构性保证已由 `MoodPaletteTests`（单元级，palette 签名不含
@@ -116,7 +116,7 @@ final class ThemeSwitchUITests: XCTestCase {
 
     /// 切**模式**（暗→亮）→ 立即生效：`AppearanceThemeView` 选中态随之切换；当前主色槽位
     /// （选中的仍是同一个 `AccentColorOption`）不因切模式而改变——只是该主色解析出的具体
-    /// RGB 值随模式切到其亮/暗两态（05 §5.3.2），这与「心情色随模式切换」是同一层语义
+    /// RGB 值随模式切到其亮/暗两态（docs/current/implementation-truth.md §5.3.2），这与「心情色随模式切换」是同一层语义
     /// （见 `MoodPaletteTests`），但主色/模式与心情色是两套独立状态，互不影响。
     func testSwitchingModeUpdatesSelectionAndKeepsAccentSlotUnchanged() {
         let app = XCUIApplication()

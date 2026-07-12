@@ -1,10 +1,10 @@
 import SwiftUI
 import UIKit
 
-/// 单条时刻预览：弹出的阅读卡片（进任务卡片栈，非 push，见 `docs/design/04-screen-specs.md` §4.9、
-/// `14-design-decisions.md` ADR-007）。由 `AppRouter.rootSheet` 的 `.preview(Moment.ID)` 驱动
+/// 单条时刻预览：弹出的阅读卡片（进任务卡片栈，非 push，见 `docs/current/implementation-truth.md` §4.9、
+/// `docs/current/implementation-truth.md` ADR-007）。由 `AppRouter.rootSheet` 的 `.preview(Moment.ID)` 驱动
 /// （第一层）；编辑入口、图片查看器均为**本视图局部**的第二层浮层，不改 `router.rootSheet`
-/// （见 08-architecture.md §2.2 层叠协作说明）。
+/// （见 docs/current/implementation-truth.md §2.2 层叠协作说明）。
 struct MomentPreviewView: View {
     let momentID: UUID
 
@@ -43,7 +43,7 @@ struct MomentPreviewView: View {
                 confirmation: previewEditAction
             )
         }
-        // 阅读卡片对底层已下沉的时间轴做 VoiceOver 模态隔离，防焦点穿透（见 04 §4.9）。
+        // 阅读卡片对底层已下沉的时间轴做 VoiceOver 模态隔离，防焦点穿透（见 docs/current/implementation-truth.md §4.9）。
         .accessibilityAddTraits(.isModal)
         .sheet(item: $editorPresentation) { presentation in
             MomentEditorView(
@@ -70,7 +70,7 @@ struct MomentPreviewView: View {
         }
     }
 
-    // MARK: - 内容（见 04-screen-specs.md §4.9：顶部心情/日期/编辑入口；正文区标题/标签/照片/正文）
+    // MARK: - 内容（见 docs/current/implementation-truth.md §4.9：顶部心情/日期/编辑入口；正文区标题/标签/照片/正文）
 
     private func content(for previewData: CanonicalMomentPreviewData) -> some View {
         let moment = previewData.record
@@ -113,7 +113,7 @@ struct MomentPreviewView: View {
             }
         }
         // 阅读卡片弹出完成后，VoiceOver 焦点移到标题，避免停留在已下沉的时间轴卡片上
-        // （见 04 §4.9 无障碍要求）；若标题为空（无标题时刻）则不移动焦点，交由系统默认行为。
+        // （见 docs/current/implementation-truth.md §4.9 无障碍要求）；若标题为空（无标题时刻）则不移动焦点，交由系统默认行为。
         .onAppear {
             if !moment.title.isEmpty {
                 isTitleFocused = true
@@ -161,7 +161,7 @@ enum MomentPreviewDateFormatters {
 }
 
 /// 预览内「编辑」的第二层任务卡片呈现上下文（`.sheet(item:)` 驱动，不进 `AppRouter`，
-/// 见 08-architecture.md §2.2 第二层）。
+/// 见 docs/current/implementation-truth.md §2.2 第二层）。
 private struct EditorPresentation: Identifiable {
     let mode: EditorMode
     var id: String { mode.id }

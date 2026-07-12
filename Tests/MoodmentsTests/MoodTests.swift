@@ -1,7 +1,7 @@
 import XCTest
 @testable import Moodments
 
-/// `Mood` 契约测试：见 `docs/design/06-domain-model.md` §1——rawValue 顺序一旦发布即视为
+/// `Mood` 契约测试：见 `docs/product-mental-model.md` §1——rawValue 顺序一旦发布即视为
 /// 持久化契约，本测试保护顺序与数量不被误改。
 final class MoodTests: XCTestCase {
     func testAllCasesCountIsEight() {

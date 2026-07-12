@@ -1,13 +1,13 @@
 import SwiftUI
 
-/// 气泡时间轴卡片（见 05-design-system.md §5.5）：圆角矩形 + 左侧尾巴，内含标题（单行）、
-/// 正文摘要（最多 3 行截断）、图片区（若有）与标签 chip。心情色不用于渲染文字（依 05 §5.10），
+/// 气泡时间轴卡片（见 docs/current/implementation-truth.md §5.5）：圆角矩形 + 左侧尾巴，内含标题（单行）、
+/// 正文摘要（最多 3 行截断）、图片区（若有）与标签 chip。心情色不用于渲染文字（依 docs/current/implementation-truth.md §5.10），
 /// 卡片内文字统一使用语义文字色。
 struct BubbleCardView: View {
     let title: String
     let bodyText: String
     let tagNames: [String]
-    /// 占位图片色块（仅供预置引导 Moment 模拟「图片」区，见 05 §5.7）。
+    /// 占位图片色块（仅供预置引导 Moment 模拟「图片」区，见 docs/current/implementation-truth.md §5.7）。
     let placeholderImageHexColors: [UInt32]
     /// 真实 Moment 的图片 id（经 `ThumbnailStripView` 按需加载缩略图，见阶段 4 计划）；
     /// 与 `placeholderImageHexColors` 互斥——真实 Moment 用此项，预置引导 Moment 用占位色块。
@@ -174,7 +174,7 @@ struct BubbleTailGeometry: Equatable {
     }
 }
 
-/// 气泡左侧的小三角「尾巴」，指向时间线心情节点，强化聊天气泡观感（见 05 §5.5）。
+/// 气泡左侧的小三角「尾巴」，指向时间线心情节点，强化聊天气泡观感（见 docs/current/implementation-truth.md §5.5）。
 private struct BubbleTailShape: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
@@ -233,7 +233,7 @@ private struct PlaceholderImageGalleryView: View {
     }
 }
 
-/// 标签 chip（见 05 §5.6）：前缀「#」使用当前主色着色，其余文字为中性次级色。
+/// 标签 chip（见 docs/current/implementation-truth.md §5.6）：前缀「#」使用当前主色着色，其余文字为中性次级色。
 struct TagChipView: View {
     let name: String
     var style: TimelineTagChipStyle = .standard

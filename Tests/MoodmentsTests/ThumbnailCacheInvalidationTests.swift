@@ -2,7 +2,7 @@ import XCTest
 import UIKit
 @testable import Moodments
 
-/// 缩略图缓存失效验收（见 `docs/design/07-data-persistence.md` §5、阶段 4 计划 §8 延后项）：
+/// 缩略图缓存失效验收（见 `docs/current/local-data-architecture.md` §5、阶段 4 计划 §8 延后项）：
 /// `removeThumbnail` 后下一次取图必须重新触发 provider（重生成，不能继续用陈旧缓存）；
 /// `MomentEditorModel.save()` 的 `.edit` 分支保存成功后必须失效 `originalImageIDs`
 /// （旧 canonical asset link 被重建为全新 id，避免孤儿缓存永久占用）。

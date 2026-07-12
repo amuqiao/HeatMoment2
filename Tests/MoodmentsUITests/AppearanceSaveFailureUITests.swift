@@ -1,6 +1,6 @@
 import XCTest
 
-/// 外观保存失败的异常反馈验收（见 `docs/design/05-design-system.md` §5.3.7、
+/// 外观保存失败的异常反馈验收（见 `docs/current/implementation-truth.md` §5.3.7、
 /// `docs/plans/implementation-plan.md` 阶段6 决策3）：`-uiTestFailAppearanceSave` 注入必失败
 /// `AppearanceStore` → 切主色/图片显示后界面**已按乐观更新生效、不回滚**，同时页内出现对应的
 /// 独立失败提示（主色/模式/纹理 用「外观设置保存失败」；图片显示单独用「照片显示设置保存
@@ -19,7 +19,7 @@ final class AppearanceSaveFailureUITests: XCTestCase {
 
         XCTAssertTrue(
             redOption.isSelected,
-            "保存失败不应回滚已生效的视觉选择（乐观更新契约，见 05 §5.3.7）"
+            "保存失败不应回滚已生效的视觉选择（乐观更新契约，见 docs/current/implementation-truth.md §5.3.7）"
         )
         XCTAssertTrue(
             app.staticTexts["appearanceSaveFailedNotice"].waitForExistence(timeout: 5),

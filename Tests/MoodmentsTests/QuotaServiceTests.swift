@@ -5,7 +5,7 @@ private struct MockEntitlementProvider: EntitlementProviding {
     let isPro: Bool
 }
 
-/// `QuotaService` 边界测试：见 `docs/design/06-domain-model.md` §2（10 篇 / 3 图 / 3 标签）。
+/// `QuotaService` 边界测试：见 `docs/product-mental-model.md` §2（10 篇 / 3 图 / 3 标签）。
 final class QuotaServiceTests: XCTestCase {
     func testTenthMomentAllowedEleventhBlocked() {
         let service = QuotaService(entitlementProvider: MockEntitlementProvider(isPro: false))

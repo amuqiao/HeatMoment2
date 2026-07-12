@@ -1,7 +1,7 @@
 import XCTest
 
 /// 删除生命周期 + 预览呈现机制验收（见 `docs/product-mental-model.md` 公理3「删除是生命周期」、
-/// `docs/design/04-screen-specs.md` §4.1/§4.14、`14-design-decisions.md` ADR-007）。
+/// `docs/current/implementation-truth.md` §4.1/§4.14/ADR-007）。
 ///
 /// 用 `-uiTestSeedMoments` 预置 15 条真实可删记录（见 `UITestSupport`），定位其中标题固定为
 /// 「测试时刻 1」的一条——用 `《测试时刻 1》` 精确匹配无障碍朗读文案中的标题片段，避免
@@ -115,7 +115,7 @@ final class DeleteRestorePurgeUITests: XCTestCase {
         XCTAssertTrue(purgeButton.waitForExistence(timeout: 5))
         purgeButton.tap()
 
-        // 二次确认弹窗必须出现（彻底删除不可逆，见 04 §4.14）。
+        // 二次确认弹窗必须出现（彻底删除不可逆，见 docs/current/implementation-truth.md §4.14）。
         let alert = app.alerts["彻底删除？"]
         XCTAssertTrue(alert.waitForExistence(timeout: 5))
         alert.buttons["彻底删除"].tap()
