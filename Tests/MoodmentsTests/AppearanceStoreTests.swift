@@ -46,7 +46,11 @@ final class AppearanceStoreTests: XCTestCase {
     func testSaveThenLoadRoundTrips() throws {
         let store = makeStore()
         let preference = AppearancePreference(
-            mode: .light, accentColor: .red, backgroundTexture: .dot, imageDisplayMode: .carousel
+            mode: .light,
+            accentColor: .red,
+            backgroundTexture: .featured,
+            featuredBackground: .rainWindow,
+            imageDisplayMode: .carousel
         )
 
         try store.save(preference)
@@ -65,6 +69,7 @@ final class AppearanceStoreTests: XCTestCase {
                 mode: .light,
                 accentColor: .green,
                 backgroundTexture: .none,
+                featuredBackground: .warmPaper,
                 imageDisplayMode: .carousel
             )
         )
@@ -80,6 +85,7 @@ final class AppearanceStoreTests: XCTestCase {
         )
         XCTAssertEqual(preference.mode, .light, "未受影响的轴应保持原写入值")
         XCTAssertEqual(preference.backgroundTexture, .none)
+        XCTAssertEqual(preference.featuredBackground, .warmPaper)
         XCTAssertEqual(preference.imageDisplayMode, .carousel)
     }
 
@@ -92,6 +98,33 @@ final class AppearanceStoreTests: XCTestCase {
 
         XCTAssertEqual(correctedCount, 2)
         XCTAssertEqual(preference, AppearancePreference.default)
+    }
+
+    func testLoadWithBadFeaturedBackgroundCorrectsOnlyFeaturedAxis() throws {
+        let store = makeStore()
+        try store.save(
+            AppearancePreference(
+                mode: .light,
+                accentColor: .cyan,
+                backgroundTexture: .featured,
+                featuredBackground: .peachDusk,
+                imageDisplayMode: .carousel
+            )
+        )
+        defaults.set(
+            "not-a-featured-background",
+            forKey: "com.moodments.appearance.featuredBackground"
+        )
+
+        let (preference, correctedCount) = store.load()
+
+        XCTAssertEqual(correctedCount, 1)
+        XCTAssertEqual(preference.mode, .light)
+        XCTAssertEqual(preference.accentColor, .cyan)
+        XCTAssertEqual(preference.backgroundTexture, .featured)
+        XCTAssertEqual(
+            preference.featuredBackground, AppearancePreference.default.featuredBackground)
+        XCTAssertEqual(preference.imageDisplayMode, .carousel)
     }
 
     /// `simulateSaveFailure: true` 时 `save` 必抛错（供 UI 测试注入必失败场景使用）。

@@ -75,6 +75,7 @@ struct AppearanceThemeView: View {
                     mode: .dark,
                     title: "暗色模式",
                     texture: theme.backgroundTexture,
+                    featuredBackground: theme.featuredBackground,
                     customImageURL: theme.customBackgroundImageURL,
                     customImageRevision: theme.customBackgroundImageRevision,
                     isSelected: theme.mode == .dark,
@@ -86,6 +87,7 @@ struct AppearanceThemeView: View {
                     mode: .light,
                     title: "亮色模式",
                     texture: theme.backgroundTexture,
+                    featuredBackground: theme.featuredBackground,
                     customImageURL: theme.customBackgroundImageURL,
                     customImageRevision: theme.customBackgroundImageRevision,
                     isSelected: theme.mode == .light,
@@ -117,6 +119,7 @@ struct AppearanceThemeView: View {
 
     private var textureSection: some View {
         let isCustomImageSelected = theme.backgroundTexture == .customImage
+        let featuredBackground = theme.featuredBackground
         let customImageURL = theme.customBackgroundImageURL
         let customImageRevision = theme.customBackgroundImageRevision
 
@@ -124,49 +127,82 @@ struct AppearanceThemeView: View {
             title: "背景",
             accessibilityIdentifier: "appearanceTextureSection"
         ) {
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 68, maximum: 86), spacing: 12)],
-                spacing: 14
-            ) {
-                AppearanceTextureOptionCard(
-                    texture: .grid,
-                    title: "网格",
-                    isSelected: theme.backgroundTexture == .grid,
-                    identifier: "appearanceTextureOption-grid"
-                ) {
-                    theme.setBackgroundTexture(.grid)
-                }
-                AppearanceTextureOptionCard(
-                    texture: .dot,
-                    title: "点阵",
-                    isSelected: theme.backgroundTexture == .dot,
-                    identifier: "appearanceTextureOption-dot"
-                ) {
-                    theme.setBackgroundTexture(.dot)
-                }
-                AppearanceTextureOptionCard(
-                    texture: .none,
-                    title: "无",
-                    isSelected: theme.backgroundTexture == .none,
-                    identifier: "appearanceTextureOption-none"
-                ) {
-                    theme.setBackgroundTexture(.none)
-                }
-                PhotosPicker(selection: $customBackgroundPickerItem, matching: .images) {
-                    AppearanceTextureOptionLabel(
-                        texture: .customImage,
-                        title: "自定义",
-                        isSelected: isCustomImageSelected,
-                        customImageURL: customImageURL,
-                        customImageRevision: customImageRevision
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(alignment: .top, spacing: 12) {
+                    AppearanceTextureOptionCard(
+                        texture: .grid,
+                        featuredBackground: featuredBackground,
+                        title: "网格",
+                        isSelected: theme.backgroundTexture == .grid,
+                        identifier: "appearanceTextureOption-grid"
+                    ) {
+                        theme.setBackgroundTexture(.grid)
+                    }
+                    .frame(width: 86)
+
+                    AppearanceTextureOptionCard(
+                        texture: .dot,
+                        featuredBackground: featuredBackground,
+                        title: "点阵",
+                        isSelected: theme.backgroundTexture == .dot,
+                        identifier: "appearanceTextureOption-dot"
+                    ) {
+                        theme.setBackgroundTexture(.dot)
+                    }
+                    .frame(width: 86)
+
+                    AppearanceTextureOptionCard(
+                        texture: .none,
+                        featuredBackground: featuredBackground,
+                        title: "无",
+                        isSelected: theme.backgroundTexture == .none,
+                        identifier: "appearanceTextureOption-none"
+                    ) {
+                        theme.setBackgroundTexture(.none)
+                    }
+                    .frame(width: 86)
+
+                    NavigationLink {
+                        FeaturedBackgroundView()
+                    } label: {
+                        AppearanceTextureOptionLabel(
+                            texture: .featured,
+                            title: "精选",
+                            isSelected: theme.backgroundTexture == .featured,
+                            featuredBackground: featuredBackground,
+                            customImageURL: nil,
+                            customImageRevision: 0
+                        )
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .frame(width: 86)
+                    .accessibilityIdentifier("appearanceTextureOption-featured")
+                    .accessibilityLabel(Text("背景纹理：精选背景"))
+                    .accessibilityAddTraits(
+                        theme.backgroundTexture == .featured ? [.isSelected] : []
                     )
+
+                    PhotosPicker(selection: $customBackgroundPickerItem, matching: .images) {
+                        AppearanceTextureOptionLabel(
+                            texture: .customImage,
+                            title: "自定义",
+                            isSelected: isCustomImageSelected,
+                            featuredBackground: featuredBackground,
+                            customImageURL: customImageURL,
+                            customImageRevision: customImageRevision
+                        )
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .frame(width: 86)
+                    .accessibilityIdentifier("appearanceTextureOption-customImage")
+                    .accessibilityLabel(Text("背景纹理：自定义图片"))
+                    .accessibilityAddTraits(isCustomImageSelected ? [.isSelected] : [])
                 }
-                .buttonStyle(.plain)
-                .frame(maxWidth: .infinity)
-                .accessibilityIdentifier("appearanceTextureOption-customImage")
-                .accessibilityLabel(Text("背景纹理：自定义图片"))
-                .accessibilityAddTraits(isCustomImageSelected ? [.isSelected] : [])
+                .padding(.vertical, 2)
             }
+            .accessibilityIdentifier("appearanceTextureScroll")
 
             #if DEBUG
                 if UITestSupport.wantsBackgroundImageInjectionHook {

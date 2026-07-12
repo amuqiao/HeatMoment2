@@ -12,6 +12,8 @@ struct HomeSceneBackgroundView: View {
             canvasBackground: theme.canvasBackground,
             texture: theme.backgroundTexture,
             textureColor: theme.homeTextureColor,
+            featuredBackground: theme.featuredBackground,
+            featuredBackgroundOverlay: theme.featuredBackgroundOverlay,
             customImageURL: theme.customBackgroundImageURL,
             customImageRevision: theme.customBackgroundImageRevision,
             customBackgroundOverlay: theme.customBackgroundOverlay

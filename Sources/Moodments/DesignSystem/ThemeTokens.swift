@@ -36,6 +36,7 @@ struct AppThemeTokens {
     let selectedMonthFill: Color
     let homeTextureColor: Color
     let customBackgroundOverlay: Color
+    let featuredBackgroundOverlay: Color
     let topChromeOverlay: Color
     let homeContextSurfaceTint: Color
     let heatmapSeparator: Color
@@ -82,6 +83,7 @@ struct AppThemeTokens {
             selectedMonthFill: AccentPalette.selectedMonthFill(accent: accent),
             homeTextureColor: AccentPalette.homeTextureColor(accent: accent, mode: mode),
             customBackgroundOverlay: BrandCanvasPalette.customBackgroundOverlay(mode),
+            featuredBackgroundOverlay: BrandCanvasPalette.featuredBackgroundOverlay(mode),
             topChromeOverlay: BrandCanvasPalette.topChromeOverlay(mode),
             homeContextSurfaceTint: BrandCanvasPalette.contextSurfaceTint(mode),
             heatmapSeparator: BrandCanvasPalette.heatmapSeparator(mode),
@@ -123,6 +125,10 @@ enum BrandCanvasPalette {
 
     static func customBackgroundOverlay(_ mode: ThemeMode) -> Color {
         canvasBackground(mode).opacity(mode == .dark ? 0.18 : 0.10)
+    }
+
+    static func featuredBackgroundOverlay(_ mode: ThemeMode) -> Color {
+        canvasBackground(mode).opacity(mode == .dark ? 0.14 : 0.08)
     }
 
     static func topChromeOverlay(_ mode: ThemeMode) -> Color {

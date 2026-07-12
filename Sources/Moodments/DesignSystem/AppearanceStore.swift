@@ -1,18 +1,36 @@
 import Foundation
 
-/// 组合式外观偏好：模式 × 主色 × 背景纹理 × 图片展示（见 docs/current/implementation-truth.md §5.3、
-/// docs/current/local-data-architecture.md §6）。复用既有 4 个枚举（`ThemeMode` / `AccentColorOption` /
-/// `BackgroundTexture` / `ImageDisplayMode`），不新造别名类型。
+/// 组合式外观偏好：模式 × 主色 × 背景纹理（含精选子状态）× 图片展示（见 docs/current/implementation-truth.md §5.3、
+/// docs/current/local-data-architecture.md §6）。复用既有偏好枚举，不新造别名类型。
 struct AppearancePreference: Sendable, Equatable {
     var mode: ThemeMode
     var accentColor: AccentColorOption
     var backgroundTexture: BackgroundTexture
+    var featuredBackground: FeaturedBackground
     var imageDisplayMode: ImageDisplayMode
 
     /// 产品默认值：暗色 + 紫罗兰 + 网格 + 滚动（见 docs/current/implementation-truth.md §5.3.1/§5.3.2/§5.3.3/§5.3.4）。
     static let `default` = AppearancePreference(
-        mode: .dark, accentColor: .violet, backgroundTexture: .grid, imageDisplayMode: .scroll
+        mode: .dark,
+        accentColor: .violet,
+        backgroundTexture: .grid,
+        featuredBackground: .default,
+        imageDisplayMode: .scroll
     )
+
+    init(
+        mode: ThemeMode,
+        accentColor: AccentColorOption,
+        backgroundTexture: BackgroundTexture,
+        featuredBackground: FeaturedBackground = .default,
+        imageDisplayMode: ImageDisplayMode
+    ) {
+        self.mode = mode
+        self.accentColor = accentColor
+        self.backgroundTexture = backgroundTexture
+        self.featuredBackground = featuredBackground
+        self.imageDisplayMode = imageDisplayMode
+    }
 }
 
 /// 外观偏好写入失败（见 docs/current/implementation-truth.md §5.3.7：主色/模式/纹理与照片显示是两条独立的失败反馈）。
@@ -59,6 +77,7 @@ struct AppearanceStore {
         static let mode = "com.moodments.appearance.mode"
         static let accentColor = "com.moodments.appearance.accentColor"
         static let backgroundTexture = "com.moodments.appearance.backgroundTexture"
+        static let featuredBackground = "com.moodments.appearance.featuredBackground"
         static let imageDisplayMode = "com.moodments.appearance.imageDisplayMode"
     }
 
@@ -80,7 +99,7 @@ struct AppearanceStore {
         self.simulateSaveFailure = simulateSaveFailure
     }
 
-    /// 写入完整偏好（四轴一次性写入，读取仍按轴各自解析、互不影响）。
+    /// 写入完整偏好（各偏好字段一次性写入，读取仍按字段各自解析、互不影响）。
     /// - Throws: `AppearanceStoreError.saveFailed`（仅测试注入场景触发；生产 `UserDefaults`
     ///   写入本身不失败，UI 层据本方法的成功/失败结果决定是否展示保存失败提示，
     ///   不因失败回滚已经乐观更新的视觉状态，见 docs/current/implementation-truth.md §5.3.7）。
@@ -89,6 +108,7 @@ struct AppearanceStore {
         defaults.set(preference.mode.rawValue, forKey: Key.mode)
         defaults.set(preference.accentColor.rawValue, forKey: Key.accentColor)
         defaults.set(preference.backgroundTexture.rawValue, forKey: Key.backgroundTexture)
+        defaults.set(preference.featuredBackground.rawValue, forKey: Key.featuredBackground)
         defaults.set(preference.imageDisplayMode.rawValue, forKey: Key.imageDisplayMode)
     }
 
@@ -136,6 +156,10 @@ struct AppearanceStore {
             ),
             backgroundTexture: resolve(
                 Key.backgroundTexture, default: AppearancePreference.default.backgroundTexture
+            ),
+            featuredBackground: resolve(
+                Key.featuredBackground,
+                default: AppearancePreference.default.featuredBackground
             ),
             imageDisplayMode: resolve(
                 Key.imageDisplayMode, default: AppearancePreference.default.imageDisplayMode

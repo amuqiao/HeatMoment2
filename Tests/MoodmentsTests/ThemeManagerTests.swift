@@ -80,6 +80,21 @@ final class ThemeManagerTests: XCTestCase {
         XCTAssertTrue(theme.customBackgroundImageRecovered)
     }
 
+    func testSettingFeaturedBackgroundSelectsFeaturedTextureAndPersists() {
+        let store = makeStore()
+        let theme = ThemeManager(store: store)
+
+        theme.setFeaturedBackground(.softBlocks)
+
+        XCTAssertEqual(theme.backgroundTexture, .featured)
+        XCTAssertEqual(theme.featuredBackground, .softBlocks)
+        XCTAssertFalse(theme.appearanceSaveFailed)
+
+        let restoredTheme = ThemeManager(store: store)
+        XCTAssertEqual(restoredTheme.backgroundTexture, .featured)
+        XCTAssertEqual(restoredTheme.featuredBackground, .softBlocks)
+    }
+
     func testModeScopedThemeTokensResolveFromCurrentMode() {
         let theme = ThemeManager(store: makeStore())
 

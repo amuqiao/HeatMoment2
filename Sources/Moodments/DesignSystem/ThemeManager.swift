@@ -17,7 +17,33 @@ enum BackgroundTexture: String, CaseIterable, Sendable {
     case grid
     case dot
     case none
+    case featured
     case customImage
+}
+
+/// 内置精选背景：作为背景纹理的一个具体来源，不独立于 `BackgroundTexture` 建第二套状态。
+enum FeaturedBackground: String, CaseIterable, Identifiable, Sendable {
+    case mistLake
+    case rainWindow
+    case warmPaper
+    case peachDusk
+    case deepAurora
+    case softBlocks
+
+    static let `default`: FeaturedBackground = .mistLake
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .mistLake: return "晨雾湖蓝"
+        case .rainWindow: return "雨窗灰绿"
+        case .warmPaper: return "纸感暖白"
+        case .peachDusk: return "黄昏蜜桃"
+        case .deepAurora: return "深海蓝紫"
+        case .softBlocks: return "柔光色块"
+        }
+    }
 }
 
 /// 图片展示方式（见 docs/current/implementation-truth.md §5.3.4）：内容行为偏好，与模式/主色/纹理三条外观轴独立，
@@ -27,11 +53,11 @@ enum ImageDisplayMode: String, CaseIterable, Sendable {
     case carousel
 }
 
-/// 组合式主题：模式 × 主色 × 背景纹理 × 图片展示（见 docs/current/implementation-truth.md §5.3）。
+/// 组合式主题：模式 × 主色 × 背景纹理（含精选子状态）× 图片展示（见 docs/current/implementation-truth.md §5.3）。
 ///
-/// **状态**：四轴均为 `private(set)`——外部只能经下方 4 个语义 setter 修改，结构上保证
+/// **状态**：外观偏好字段均为 `private(set)`——外部只能经下方语义 setter 修改，结构上保证
 /// 「任何一次修改都会同时触发持久化」，不存在绕过 `AppearanceStore` 直接改视觉状态的路径。
-/// **持久化**：`init` 用 `AppearanceStore.load()` 回填四轴 + `correctedPreferenceCount`
+/// **持久化**：`init` 用 `AppearanceStore.load()` 回填外观偏好 + `correctedPreferenceCount`
 /// （坏配置回落默认值的计数，见 docs/current/implementation-truth.md §5.3.7）；每个 setter 落库前先乐观更新内存态（当前界面
 /// 立即生效），再 `try store.save(...)`，失败置对应失败标记但**不回滚**已生效的视觉状态
 /// （见 docs/current/implementation-truth.md §4.3/§5.3.7）。
@@ -46,6 +72,7 @@ final class ThemeManager {
     private(set) var mode: ThemeMode
     private(set) var accentColor: AccentColorOption
     private(set) var backgroundTexture: BackgroundTexture
+    private(set) var featuredBackground: FeaturedBackground
     private(set) var imageDisplayMode: ImageDisplayMode
     private(set) var customBackgroundImageURL: URL?
     private(set) var customBackgroundImageRevision = 0
@@ -71,6 +98,7 @@ final class ThemeManager {
         self.mode = preference.mode
         self.accentColor = preference.accentColor
         self.backgroundTexture = preference.backgroundTexture
+        self.featuredBackground = preference.featuredBackground
         self.imageDisplayMode = preference.imageDisplayMode
         self.correctedPreferenceCount = correctedCount
         restoreCustomBackgroundImageIfNeeded(preference.backgroundTexture)
@@ -94,6 +122,12 @@ final class ThemeManager {
             return
         }
         backgroundTexture = newValue
+        persistCore()
+    }
+
+    func setFeaturedBackground(_ newValue: FeaturedBackground) {
+        featuredBackground = newValue
+        backgroundTexture = .featured
         persistCore()
     }
 
@@ -150,6 +184,7 @@ final class ThemeManager {
             mode: mode,
             accentColor: accentColor,
             backgroundTexture: backgroundTexture,
+            featuredBackground: featuredBackground,
             imageDisplayMode: imageDisplayMode
         )
     }
@@ -311,6 +346,9 @@ final class ThemeManager {
 
     /// 自定义首页背景图上的画布遮罩。
     var customBackgroundOverlay: Color { tokens.customBackgroundOverlay }
+
+    /// 精选首页背景上的画布遮罩。
+    var featuredBackgroundOverlay: Color { tokens.featuredBackgroundOverlay }
 
     /// 首页顶部 chrome 收起态的材质叠色。
     var topChromeOverlay: Color { tokens.topChromeOverlay }

@@ -57,6 +57,7 @@ struct AppearanceModeOptionCard: View {
     let mode: ThemeMode
     let title: String
     let texture: BackgroundTexture
+    let featuredBackground: FeaturedBackground
     let customImageURL: URL?
     let customImageRevision: Int
     let isSelected: Bool
@@ -70,6 +71,7 @@ struct AppearanceModeOptionCard: View {
                     mode: mode,
                     accentColor: theme.accentColor,
                     texture: texture,
+                    featuredBackground: featuredBackground,
                     customImageURL: customImageURL,
                     customImageRevision: customImageRevision
                 )
@@ -128,6 +130,7 @@ struct AppearanceAccentSwatchButton: View {
 
 struct AppearanceTextureOptionCard: View {
     let texture: BackgroundTexture
+    let featuredBackground: FeaturedBackground
     let title: String
     let isSelected: Bool
     let identifier: String
@@ -139,6 +142,7 @@ struct AppearanceTextureOptionCard: View {
                 texture: texture,
                 title: title,
                 isSelected: isSelected,
+                featuredBackground: featuredBackground,
                 customImageURL: nil,
                 customImageRevision: 0
             )
@@ -158,6 +162,7 @@ struct AppearanceTextureOptionLabel: View {
     let texture: BackgroundTexture
     let title: String
     let isSelected: Bool
+    let featuredBackground: FeaturedBackground
     let customImageURL: URL?
     let customImageRevision: Int
 
@@ -167,6 +172,7 @@ struct AppearanceTextureOptionLabel: View {
                 mode: theme.mode,
                 accentColor: theme.accentColor,
                 texture: texture,
+                featuredBackground: featuredBackground,
                 customImageURL: customImageURL,
                 customImageRevision: customImageRevision
             )
@@ -254,6 +260,7 @@ private struct AppearanceThemeOverviewPreview: View {
     let mode: ThemeMode
     let accentColor: AccentColorOption
     let texture: BackgroundTexture
+    let featuredBackground: FeaturedBackground
     let customImageURL: URL?
     let customImageRevision: Int
 
@@ -266,6 +273,7 @@ private struct AppearanceThemeOverviewPreview: View {
             AppearancePreviewCanvas(
                 tokens: tokens,
                 texture: texture,
+                featuredBackground: featuredBackground,
                 customImageURL: customImageURL,
                 customImageRevision: customImageRevision
             )
@@ -304,6 +312,7 @@ private struct AppearanceBackgroundTexturePreview: View {
     let mode: ThemeMode
     let accentColor: AccentColorOption
     let texture: BackgroundTexture
+    let featuredBackground: FeaturedBackground
     let customImageURL: URL?
     let customImageRevision: Int
 
@@ -315,6 +324,7 @@ private struct AppearanceBackgroundTexturePreview: View {
         AppearancePreviewCanvas(
             tokens: tokens,
             texture: texture,
+            featuredBackground: featuredBackground,
             customImageURL: customImageURL,
             customImageRevision: customImageRevision
         )
@@ -324,6 +334,7 @@ private struct AppearanceBackgroundTexturePreview: View {
 private struct AppearancePreviewCanvas: View {
     let tokens: AppThemeTokens
     let texture: BackgroundTexture
+    let featuredBackground: FeaturedBackground
     let customImageURL: URL?
     let customImageRevision: Int
 
@@ -333,6 +344,8 @@ private struct AppearancePreviewCanvas: View {
                 canvasBackground: tokens.canvasBackground,
                 texture: texture,
                 textureColor: tokens.homeTextureColor,
+                featuredBackground: featuredBackground,
+                featuredBackgroundOverlay: tokens.featuredBackgroundOverlay,
                 customImageURL: customImageURL,
                 customImageRevision: customImageRevision,
                 customBackgroundOverlay: tokens.customBackgroundOverlay

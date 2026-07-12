@@ -222,6 +222,7 @@ final class ThemeSwitchUITests: XCTestCase {
         let gridOption = app.buttons["appearanceTextureOption-grid"]
         let dotOption = app.buttons["appearanceTextureOption-dot"]
         scrollUntilVisible(gridOption, app: app)
+        scrollHorizontallyUntilVisible(dotOption, in: app.scrollViews["appearanceTextureScroll"])
         XCTAssertTrue(gridOption.waitForExistence(timeout: 5))
         XCTAssertTrue(dotOption.waitForExistence(timeout: 5))
         XCTAssertTrue(gridOption.isSelected, "默认背景纹理应为网格线")
@@ -230,6 +231,52 @@ final class ThemeSwitchUITests: XCTestCase {
 
         XCTAssertTrue(dotOption.isSelected)
         XCTAssertFalse(gridOption.isSelected)
+    }
+
+    func testSelectingFeaturedBackgroundFromGalleryUpdatesSelectionImmediately() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-uiTestReset"]
+        app.launch()
+
+        XCTAssertTrue(app.buttons["新建时刻"].waitForExistence(timeout: 10))
+        let colorBeforeSelection = averageColor(of: app)
+        openAppearanceThemeView(app)
+
+        let featuredOption = app.buttons["appearanceTextureOption-featured"]
+        scrollUntilVisible(app.otherElements["appearanceTextureSection"], app: app)
+        scrollHorizontallyUntilVisible(
+            featuredOption,
+            in: app.scrollViews["appearanceTextureScroll"]
+        )
+        XCTAssertTrue(featuredOption.waitForExistence(timeout: 5))
+        XCTAssertFalse(featuredOption.isSelected, "默认背景不是精选")
+
+        featuredOption.tap()
+        assertFeaturedBackgroundGalleryIsPure(app)
+
+        let selectedBackground = app.buttons["featuredBackgroundOption-softBlocks"]
+        scrollUntilVisible(selectedBackground, app: app)
+        XCTAssertTrue(selectedBackground.waitForExistence(timeout: 5))
+        selectedBackground.tap()
+
+        XCTAssertTrue(waitUntilSelected(selectedBackground), "点选精选背景后应立即标记当前卡")
+
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        scrollHorizontallyUntilVisible(
+            featuredOption,
+            in: app.scrollViews["appearanceTextureScroll"]
+        )
+        XCTAssertTrue(featuredOption.waitForExistence(timeout: 5))
+        XCTAssertTrue(waitUntilSelected(featuredOption), "返回外观页后精选入口应立即成为选中背景")
+
+        closeSettings(app)
+
+        XCTAssertTrue(app.buttons["新建时刻"].waitForExistence(timeout: 5))
+        let colorAfterSelection = averageColor(of: app)
+        XCTAssertTrue(
+            colorDistance(colorBeforeSelection, colorAfterSelection) > 0.05,
+            "精选背景应改变首页主场景背景渲染"
+        )
     }
 
     /// 自定义背景图走设置闭环：从外观页注入图片后选中态立即切到「自定义图片」；
@@ -246,7 +293,8 @@ final class ThemeSwitchUITests: XCTestCase {
         openAppearanceThemeView(app)
 
         let customOption = app.buttons["appearanceTextureOption-customImage"]
-        scrollUntilVisible(customOption, app: app)
+        scrollUntilVisible(app.otherElements["appearanceTextureSection"], app: app)
+        scrollHorizontallyUntilVisible(customOption, in: app.scrollViews["appearanceTextureScroll"])
         XCTAssertTrue(customOption.waitForExistence(timeout: 5))
 
         let injectButton = app.buttons["appearanceCustomBackgroundInjectButton"]
@@ -296,7 +344,8 @@ final class ThemeSwitchUITests: XCTestCase {
         let gridOption = app.buttons["appearanceTextureOption-grid"]
         let customOption = app.buttons["appearanceTextureOption-customImage"]
         let customPreview = app.otherElements["appearanceTexturePreview-customImage"]
-        scrollUntilVisible(customOption, app: app)
+        scrollUntilVisible(textureSection, app: app)
+        scrollHorizontallyUntilVisible(customOption, in: app.scrollViews["appearanceTextureScroll"])
         XCTAssertTrue(textureSection.waitForExistence(timeout: 5))
         XCTAssertTrue(gridOption.waitForExistence(timeout: 5))
         XCTAssertTrue(customOption.waitForExistence(timeout: 5))
@@ -312,7 +361,8 @@ final class ThemeSwitchUITests: XCTestCase {
 
         XCTAssertTrue(waitUntilSelected(customOption), "注入自定义背景图后应立即选中自定义图片")
 
-        scrollUntilVisible(customOption, app: app)
+        scrollUntilVisible(textureSection, app: app)
+        scrollHorizontallyUntilVisible(customOption, in: app.scrollViews["appearanceTextureScroll"])
         let textureSectionFrameAfter = textureSection.frame
         let gridOptionFrameAfter = gridOption.frame
         let customPreviewFrameAfter = customPreview.frame
@@ -383,6 +433,26 @@ final class ThemeSwitchUITests: XCTestCase {
         for _ in 0..<6 where !element.exists || !element.isHittable {
             app.swipeUp()
         }
+    }
+
+    private func scrollHorizontallyUntilVisible(
+        _ element: XCUIElement,
+        in scrollView: XCUIElement
+    ) {
+        XCTAssertTrue(scrollView.waitForExistence(timeout: 5))
+        for _ in 0..<6 where !element.exists || !element.isHittable {
+            scrollView.swipeLeft()
+        }
+    }
+
+    private func assertFeaturedBackgroundGalleryIsPure(_ app: XCUIApplication) {
+        let gallery = app.scrollViews["featuredBackgroundScrollView"]
+        XCTAssertTrue(gallery.waitForExistence(timeout: 5))
+        XCTAssertTrue(
+            gallery.otherElements["featuredBackgroundCurrentPreview"].waitForExistence(timeout: 5))
+        XCTAssertFalse(gallery.staticTexts["马上创建"].exists, "精选背景页不应混入 moment 预览标题")
+        XCTAssertFalse(gallery.staticTexts["什么是时刻?"].exists, "精选背景页不应混入 moment 预览标题")
+        XCTAssertFalse(gallery.staticTexts["17:06"].exists, "精选背景页不应混入时间轴日期时间预览")
     }
 
     private func assertHorizontallyAligned(
