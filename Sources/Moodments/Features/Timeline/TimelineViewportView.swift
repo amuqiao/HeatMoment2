@@ -137,9 +137,17 @@ struct TimelineViewportView: View {
                                 .listRowInsets(scene.layout.geometry.rowInsets)
                                 .accessibilityHidden(suppressAccessibility)
                         } else {
-                            ForEach(viewportEntries) { entry in
+                            ForEach(Array(viewportEntries.enumerated()), id: \.element.id) {
+                                index, entry in
                                 TimelineRowView(
                                     entry: entry,
+                                    dateDisplayMode: TimelineRowDateDisplayMode.resolve(
+                                        entry: entry,
+                                        previousEntry: previousEntry(
+                                            before: index,
+                                            in: viewportEntries
+                                        )
+                                    ),
                                     geometry: scene.layout.geometry,
                                     style: scene.style,
                                     onTap: {
@@ -246,6 +254,11 @@ struct TimelineViewportView: View {
         } else {
             Color.clear
         }
+    }
+
+    private func previousEntry(before index: Int, in entries: [TimelineEntry]) -> TimelineEntry? {
+        guard index > 0 else { return nil }
+        return entries[index - 1]
     }
 
     private var filteredEmptyState: some View {

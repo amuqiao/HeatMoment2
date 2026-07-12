@@ -105,16 +105,16 @@ final class TimelineSceneMetricsTests: XCTestCase {
 
     func testResponsiveSceneScalesDateStampSpacing() {
         var style = TimelineSceneStyle.standard
-        style.dateStamp.monthSpacing = 5
         style.dateStamp.verticalSpacing = 5
+        style.dateStamp.timeOnlyTopPadding = 5
 
         let narrow = TimelineSceneMetrics.responsive(for: 320, baseStyle: style)
         let base = TimelineSceneMetrics.responsive(for: 390, baseStyle: style)
 
-        XCTAssertEqual(base.style.dateStamp.monthSpacing, 5)
         XCTAssertEqual(base.style.dateStamp.verticalSpacing, 5)
-        XCTAssertEqual(narrow.style.dateStamp.monthSpacing, 4.5)
+        XCTAssertEqual(base.style.dateStamp.timeOnlyTopPadding, 5)
         XCTAssertEqual(narrow.style.dateStamp.verticalSpacing, 4.5)
+        XCTAssertEqual(narrow.style.dateStamp.timeOnlyTopPadding, 4.5)
     }
 
     private func assertBubbleTailGap(width: CGFloat, gap: CGFloat) {

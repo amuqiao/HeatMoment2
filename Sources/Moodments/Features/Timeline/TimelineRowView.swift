@@ -1,5 +1,21 @@
 import SwiftUI
 
+enum TimelineRowDateDisplayMode: Equatable {
+    case fullDate
+    case timeOnly
+
+    static func resolve(entry: TimelineEntry, previousEntry: TimelineEntry?) -> Self {
+        guard !entry.isGuided,
+              let previousEntry,
+              !previousEntry.isGuided,
+              Calendar.current.isDate(entry.occurredAt, inSameDayAs: previousEntry.occurredAt)
+        else {
+            return .fullDate
+        }
+        return .timeOnly
+    }
+}
+
 /// 时间轴一行：日期列 + 心情节点（按该条情绪的心情色着色）+ 气泡卡片（见 docs/current/implementation-truth.md §5.5）。
 /// 预置引导 Moment 不可点、不可删（`isGuided`），真实 Moment 点击弹出预览阅读卡片
 /// （见 docs/current/implementation-truth.md §4.1/§4.14）、左滑露出删除动作（软删除进垃圾箱）。
@@ -10,6 +26,7 @@ import SwiftUI
 /// `TimelineGeometry` 坐标契约。
 struct TimelineRowView: View {
     let entry: TimelineEntry
+    let dateDisplayMode: TimelineRowDateDisplayMode
     let geometry: TimelineGeometry
     let style: TimelineSceneStyle
     let onTap: () -> Void
@@ -23,6 +40,7 @@ struct TimelineRowView: View {
         VStack(spacing: 0) {
             TimelineReadingUnitView(
                 entry: entry,
+                dateDisplayMode: dateDisplayMode,
                 geometry: geometry,
                 style: style,
                 onTap: onTap
@@ -47,13 +65,19 @@ struct TimelineRowView: View {
 
 private struct TimelineReadingUnitView: View {
     let entry: TimelineEntry
+    let dateDisplayMode: TimelineRowDateDisplayMode
     let geometry: TimelineGeometry
     let style: TimelineSceneStyle
     let onTap: () -> Void
 
     var body: some View {
         HStack(alignment: .top, spacing: geometry.interColumnSpacing) {
-            TimelineDateColumn(entry: entry, geometry: geometry, style: style.dateStamp)
+            TimelineDateColumn(
+                entry: entry,
+                displayMode: dateDisplayMode,
+                geometry: geometry,
+                style: style.dateStamp
+            )
             TimelineMoodAnchorColumn(mood: entry.mood, geometry: geometry, style: style.node)
             BubbleCardView(
                 title: entry.title,
@@ -80,24 +104,56 @@ private struct TimelineReadingUnitView: View {
 /// 时间轴结构层的日期说明。它不承担预览、删除或导航行为。
 private struct TimelineDateColumn: View {
     let entry: TimelineEntry
+    let displayMode: TimelineRowDateDisplayMode
     let geometry: TimelineGeometry
     let style: TimelineDateStampStyle
 
     @Environment(ThemeManager.self) private var theme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: style.verticalSpacing) {
-            HStack(alignment: .firstTextBaseline, spacing: style.monthSpacing) {
-                Text(dayText).font(style.dayFont)
-                Text(monthText).font(style.monthFont)
+        Group {
+            switch displayMode {
+            case .fullDate:
+                fullDateStamp
+            case .timeOnly:
+                timeOnlyStamp
             }
-            .foregroundStyle(theme.primaryText)
-
-            Text(timeText)
-                .font(style.timeFont)
-                .foregroundStyle(theme.bubbleBodyText)
         }
         .frame(width: geometry.dateColumnWidth, alignment: .leading)
+    }
+
+    private var fullDateStamp: some View {
+        VStack(alignment: .leading, spacing: style.verticalSpacing) {
+            Text(dayText)
+                .font(style.dayFont.monospacedDigit())
+                .foregroundStyle(theme.primaryText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .allowsTightening(true)
+
+            Text(monthText)
+                .font(style.monthFont)
+                .foregroundStyle(theme.primaryText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .allowsTightening(true)
+
+            timeTextView
+        }
+    }
+
+    private var timeOnlyStamp: some View {
+        timeTextView
+            .padding(.top, style.timeOnlyTopPadding)
+    }
+
+    private var timeTextView: some View {
+        Text(timeText)
+            .font(style.timeFont.monospacedDigit())
+            .foregroundStyle(theme.bubbleBodyText)
+            .lineLimit(1)
+            .minimumScaleFactor(0.75)
+            .allowsTightening(true)
     }
 
     private var dayText: String {
