@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">HeatMoment App Icon 08B Round Mask</title>
+  <desc id="desc">08B app icon source: deep blue gradient, warm crescent, round occluder adjusted down and right, and bottom whisper lines.</desc>
+  <defs>
+    <linearGradient id="backgroundGradient" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#121923"/>
+      <stop offset="0.58" stop-color="#263d5a"/>
+      <stop offset="1" stop-color="#627e95"/>
+    </linearGradient>
+    <filter id="moonGlow" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="72"/>
+    </filter>
+  </defs>
+
+  <rect width="1024" height="1024" fill="url(#backgroundGradient)"/>
+
+  <circle cx="512" cy="469.333" r="291.556" fill="#fff4c6" opacity="0.45" filter="url(#moonGlow)"/>
+  <circle cx="512" cy="469.333" r="291.556" fill="#fff4c6"/>
+  <circle cx="675.556" cy="462.222" r="256" fill="#263d5a"/>
+
+  <rect x="256" y="647.111" width="512" height="177.778" rx="85.333" fill="#ffffff" opacity="0.16"/>
+  <rect x="355.556" y="704" width="312.889" height="28.444" rx="14.222" fill="#ffffff" opacity="0.72"/>
+  <rect x="355.556" y="768" width="312.889" height="28.444" rx="14.222" fill="#ffffff" opacity="0.36"/>
+</svg>

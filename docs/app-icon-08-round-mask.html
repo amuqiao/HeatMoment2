@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>08 月下私语 - 圆遮挡精修</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --page-bg: #f4f2ed;
+      --ink: #202124;
+      --muted: #67625b;
+      --panel: rgba(255, 255, 255, 0.78);
+      --rule: #ded8cd;
+      --shadow: 0 20px 50px rgba(31, 29, 25, 0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at 15% 10%, rgba(255, 255, 255, 0.95), transparent 26rem),
+        linear-gradient(180deg, #f7f5f0 0%, var(--page-bg) 100%);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+      letter-spacing: 0;
+    }
+
+    .page {
+      width: min(980px, calc(100vw - 40px));
+      margin: 0 auto;
+      padding: 36px 0 56px;
+    }
+
+    .hero {
+      display: grid;
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(28px, 4vw, 42px);
+      line-height: 1.12;
+      font-weight: 760;
+    }
+
+    .intro {
+      max-width: 760px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.7;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 18px;
+    }
+
+    .concept {
+      border: 1px solid var(--rule);
+      border-radius: 8px;
+      background: var(--panel);
+      padding: 18px;
+      box-shadow: 0 1px 0 rgba(255, 255, 255, 0.72) inset;
+    }
+
+    .preview-row {
+      display: grid;
+      grid-template-columns: 144px minmax(0, 1fr);
+      gap: 16px;
+      align-items: center;
+    }
+
+    .icon {
+      position: relative;
+      width: 144px;
+      height: 144px;
+      border-radius: 31px;
+      overflow: hidden;
+      background: linear-gradient(145deg, #121923, #263d5a 58%, #627e95);
+      box-shadow: var(--shadow);
+      isolation: isolate;
+    }
+
+    .icon::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.55),
+        inset 0 -18px 36px rgba(0, 0, 0, 0.12);
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .crescent {
+      position: absolute;
+      left: 31px;
+      top: 25px;
+      width: 82px;
+      height: 82px;
+      border-radius: 50%;
+      background: #fff4c6;
+      box-shadow: 0 0 28px rgba(255, 244, 198, 0.45);
+    }
+
+    .crescent::after {
+      content: "";
+      position: absolute;
+      border-radius: 50%;
+      background: #263d5a;
+    }
+
+    .original .crescent::after {
+      left: 27px;
+      top: 2px;
+      width: 72px;
+      height: 78px;
+    }
+
+    .round-direct .crescent::after {
+      left: 27px;
+      top: 2px;
+      width: 72px;
+      height: 72px;
+    }
+
+    .round-balanced .crescent::after {
+      left: 28px;
+      top: 4px;
+      width: 72px;
+      height: 72px;
+    }
+
+    .lines {
+      position: absolute;
+      left: 36px;
+      bottom: 28px;
+      width: 72px;
+      height: 25px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.16);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
+    }
+
+    .lines::before {
+      content: "";
+      position: absolute;
+      left: 14px;
+      top: 8px;
+      width: 44px;
+      height: 4px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.72);
+      box-shadow: 0 9px 0 rgba(255, 255, 255, 0.36);
+    }
+
+    .meta {
+      min-width: 0;
+    }
+
+    .number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 34px;
+      height: 24px;
+      margin-bottom: 10px;
+      border-radius: 999px;
+      background: #24211c;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    h2 {
+      margin: 0 0 8px;
+      font-size: 18px;
+      line-height: 1.25;
+    }
+
+    .desc {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.58;
+    }
+
+    .note {
+      margin-top: 14px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(0, 0, 0, 0.08);
+      color: #777068;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    @media (max-width: 640px) {
+      .page {
+        width: min(100vw - 24px, 980px);
+        padding-top: 24px;
+      }
+
+      .concept {
+        padding: 14px;
+      }
+
+      .preview-row {
+        grid-template-columns: 116px minmax(0, 1fr);
+        gap: 13px;
+      }
+
+      .icon {
+        width: 116px;
+        height: 116px;
+        border-radius: 25px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="hero">
+      <h1>08 月下私语 - 圆遮挡精修</h1>
+      <p class="intro">这页只做一件事：保留原 08 的月亮、底部线条、深蓝背景和整体比例，只把右侧遮挡形从椭圆改得更圆。没有新增对白框、祥云或其他符号。</p>
+    </div>
+
+    <div class="grid" aria-label="08 月下私语圆遮挡对比">
+      <div class="concept">
+        <div class="preview-row">
+          <div class="icon original" aria-label="原 08">
+            <span class="crescent"></span>
+            <span class="lines"></span>
+          </div>
+          <div class="meta">
+            <span class="number">08</span>
+            <h2>原 08</h2>
+            <p class="desc">原始参考：右侧遮挡是 72 x 78 的椭圆，整体气质是对的。</p>
+          </div>
+        </div>
+        <div class="note">作为对照，不改底部，不改颜色。</div>
+      </div>
+
+      <div class="concept">
+        <div class="preview-row">
+          <div class="icon round-direct" aria-label="08 圆遮挡">
+            <span class="crescent"></span>
+            <span class="lines"></span>
+          </div>
+          <div class="meta">
+            <span class="number">08A</span>
+            <h2>圆遮挡</h2>
+            <p class="desc">只把右侧遮挡改成 72 x 72 正圆，位置不动。最严格地保留原 08。</p>
+          </div>
+        </div>
+        <div class="note">推荐优先看这版：改动最小。</div>
+      </div>
+
+      <div class="concept">
+        <div class="preview-row">
+          <div class="icon round-balanced" aria-label="08 圆遮挡微调">
+            <span class="crescent"></span>
+            <span class="lines"></span>
+          </div>
+          <div class="meta">
+            <span class="number">08B</span>
+            <h2>圆遮挡微调</h2>
+            <p class="desc">遮挡同样是 72 x 72 正圆，但向右下微调 1-2px，让月牙弧线更自然。</p>
+          </div>
+        </div>
+        <div class="note">如果 08A 感觉切口偏硬，可以看这版。</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
