@@ -319,11 +319,9 @@ final class TagManageUITests: XCTestCase {
         )
     }
 
-    /// 若就近浮窗仍在（未自动收起）则点外部收起；已收起则直接跳过，不视为失败
-    /// （见 `LocateFilterUITests` 同名 helper 的说明）。**仅用于仍为就近浮窗的编辑器标签选择**
-    /// （`tagOption-*`）；筛选面板已在交互模型 v2 改为半屏 sheet，用下方 `dismissFilterSheet`。
+    /// 若编辑器标签菜单仍在（未自动收起）则点外部收起；已收起则直接跳过，不视为失败。
     private func dismissPopoverIfPresent(_ app: XCUIApplication) {
-        let dismissRegion = app.otherElements["PopoverDismissRegion"]
+        let dismissRegion = app.otherElements["editorFloatingPickerDismissRegion"]
         guard dismissRegion.waitForExistence(timeout: 2) else { return }
         dismissRegion.tap()
     }

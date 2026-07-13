@@ -23,8 +23,7 @@ struct MomentEditorView: View {
     @AppStorage(EditorMoodMemory.storageKey) private var lastUsedMood: Mood = .normal
 
     @State private var model: MomentEditorModel
-    @State private var isMoodPickerPresented = false
-    @State private var isTagPickerPresented = false
+    @State private var activeFloatingPicker: EditorFloatingPicker?
     @State private var isDatePickerPresented = false
     @State private var isTimePickerPresented = false
     @State private var isDiscardAlertPresented = false
@@ -69,6 +68,14 @@ struct MomentEditorView: View {
             ProPaywallView(trigger: trigger)
         }
         .userFacingErrorAlert(errorPresenter)
+        .onChange(of: isDatePickerPresented) { _, newValue in
+            guard newValue else { return }
+            activeFloatingPicker = nil
+        }
+        .onChange(of: isTimePickerPresented) { _, newValue in
+            guard newValue else { return }
+            activeFloatingPicker = nil
+        }
         .task {
             guard case .edit = mode else { return }
             do {
@@ -105,6 +112,28 @@ struct MomentEditorView: View {
                     isDatePickerPresented: $isDatePickerPresented,
                     isTimePickerPresented: $isTimePickerPresented
                 )
+            }
+            .overlayPreferenceValue(EditorFloatingPickerAnchorPreferenceKey.self) { anchors in
+                GeometryReader { proxy in
+                    if let activePicker = activeFloatingPicker, let anchor = anchors[activePicker] {
+                        EditorFloatingPickerOverlay(
+                            activePicker: activePicker,
+                            anchorFrame: proxy[anchor],
+                            containerSize: proxy.size,
+                            selectedMood: model.mood,
+                            selectedTagIDs: model.selectedTagIDs,
+                            onSelectMood: { mood in
+                                model.mood = mood
+                                Task { @MainActor in
+                                    await Task.yield()
+                                    activeFloatingPicker = nil
+                                }
+                            },
+                            onToggleTag: { tag in model.toggleTagSelection(tag) },
+                            onDismiss: { activeFloatingPicker = nil }
+                        )
+                    }
+                }
             }
         }
     }
@@ -152,11 +181,12 @@ struct MomentEditorView: View {
             moodButton(layout: layout)
             tagButton(layout: layout)
         }
+        .zIndex(activeFloatingPicker == nil ? 0 : 1)
     }
 
     private func moodButton(layout: MomentEditorLayoutMetrics) -> some View {
         Button {
-            isMoodPickerPresented = true
+            presentFloatingPicker(.mood)
         } label: {
             EditorSelectorButton(layout: layout) {
                 Image(systemName: "heart.fill")
@@ -172,18 +202,14 @@ struct MomentEditorView: View {
         .frame(maxWidth: .infinity)
         .accessibilityIdentifier("editorMoodRow")
         .accessibilityLabel(Text("情绪，\(model.mood.displayName)，双击更改"))
-        .popover(isPresented: $isMoodPickerPresented, arrowEdge: .top) {
-            MoodPickerView(selectedMood: model.mood) { mood in
-                model.mood = mood
-                isMoodPickerPresented = false
-            }
-            .presentationCompactAdaptation(.popover)
+        .anchorPreference(key: EditorFloatingPickerAnchorPreferenceKey.self, value: .bounds) {
+            [.mood: $0]
         }
     }
 
     private func tagButton(layout: MomentEditorLayoutMetrics) -> some View {
         Button {
-            isTagPickerPresented = true
+            presentFloatingPicker(.tag)
         } label: {
             EditorSelectorButton(layout: layout) {
                 Text("#")
@@ -197,13 +223,15 @@ struct MomentEditorView: View {
         .frame(maxWidth: .infinity)
         .accessibilityIdentifier("editorTagRow")
         .accessibilityLabel(Text("标签，\(tagSummaryText)，双击更改"))
-        .popover(isPresented: $isTagPickerPresented, arrowEdge: .top) {
-            TagPickerView(
-                selectedTagIDs: model.selectedTagIDs,
-                onToggle: { tag in model.toggleTagSelection(tag) }
-            )
-            .presentationCompactAdaptation(.popover)
+        .anchorPreference(key: EditorFloatingPickerAnchorPreferenceKey.self, value: .bounds) {
+            [.tag: $0]
         }
+    }
+
+    private func presentFloatingPicker(_ picker: EditorFloatingPicker) {
+        isDatePickerPresented = false
+        isTimePickerPresented = false
+        activeFloatingPicker = activeFloatingPicker == picker ? nil : picker
     }
 
     private var selectedTagNames: [String] {

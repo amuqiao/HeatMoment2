@@ -22,32 +22,38 @@ final class CreateMomentFlowUITests: XCTestCase {
         let moodRow = app.buttons["editorMoodRow"]
         XCTAssertTrue(moodRow.waitForExistence(timeout: 5))
         moodRow.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["editorMoodPickerMenu"].exists)
+        XCTAssertFalse(app.otherElements["PopoverDismissRegion"].exists)
         let happyOption = app.buttons["moodOption-1"]
         XCTAssertTrue(happyOption.waitForExistence(timeout: 5))
+        XCTAssertTrue(happyOption.isHittable)
         happyOption.tap()
 
         // 标签：打开就近浮窗，选预置标签「工作」（不新建，见类型头部说明）。
         let tagRow = app.buttons["editorTagRow"]
         XCTAssertTrue(tagRow.waitForExistence(timeout: 5))
         tagRow.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["editorTagPickerMenu"].exists)
+        XCTAssertFalse(app.otherElements["PopoverDismissRegion"].exists)
         let workTagOption = app.buttons["tagOption-工作"]
         XCTAssertTrue(workTagOption.waitForExistence(timeout: 5))
+        XCTAssertTrue(workTagOption.isHittable)
         workTagOption.tap()
-        dismissAnyPopover(app)
+        dismissEditorFloatingPicker(app)
 
         // 日期：打开就近浮窗，确认日历控件出现，再点外部收起（见类型头部关于日期格自动化的说明）。
         let dateChip = app.buttons["editorDateChip"]
         XCTAssertTrue(dateChip.waitForExistence(timeout: 5))
         dateChip.tap()
         XCTAssertTrue(app.datePickers["editorDatePicker"].waitForExistence(timeout: 5))
-        dismissAnyPopover(app)
+        dismissSystemPopover(app)
 
         // 时间：只验收就近浮窗打开/收起；具体滚轮即时回写由 `OccurredAtComposerTests` 锁定。
         let timeChip = app.buttons["editorTimeChip"]
         XCTAssertTrue(timeChip.waitForExistence(timeout: 5))
         timeChip.tap()
         XCTAssertTrue(app.datePickers["editorTimePicker"].waitForExistence(timeout: 5))
-        dismissAnyPopover(app)
+        dismissSystemPopover(app)
 
         // 标题
         let titleField = app.textFields["editorTitleField"]
@@ -117,15 +123,54 @@ final class CreateMomentFlowUITests: XCTestCase {
             XCTAssertEqual(option.value as? String, "已选中", "\(tagName) 标签应进入选中态")
         }
 
-        dismissAnyPopover(app)
+        dismissEditorFloatingPicker(app)
         XCTAssertTrue(tagRow.waitForExistence(timeout: 5))
     }
 
-    /// 点击浮窗外部收起当前就近浮窗（popover 语义，见 docs/current/implementation-truth.md §4.5/§4.6/§4.8）：
-    /// 直接命中系统为 `.popover` 自动生成的 `PopoverDismissRegion` 无障碍元素（覆盖浮窗之外的
-    /// 整个可交互区域），比对一个猜测的屏幕坐标做 `tap()` 更可靠——曾实测坐标 tap 未必落在
-    /// 该区域内、导致浮窗未真正收起。
-    private func dismissAnyPopover(_ app: XCUIApplication) {
+    func testEditorFloatingPickersRemainHittableAfterTextInput() {
+        let app = XCUIApplication.heatMoment()
+        app.launchArguments = ["-uiTestReset"]
+        app.launch()
+
+        let fab = app.buttons["新建时刻"]
+        XCTAssertTrue(fab.waitForExistence(timeout: 10))
+        fab.tap()
+
+        let titleField = app.textFields["editorTitleField"]
+        XCTAssertTrue(titleField.waitForExistence(timeout: 5))
+        titleField.tap()
+        titleField.typeText("键盘场景")
+
+        let moodRow = app.buttons["editorMoodRow"]
+        XCTAssertTrue(moodRow.waitForExistence(timeout: 5))
+        moodRow.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["editorMoodPickerMenu"].exists)
+        XCTAssertFalse(app.otherElements["PopoverDismissRegion"].exists)
+        let happyOption = app.buttons["moodOption-1"]
+        XCTAssertTrue(happyOption.waitForExistence(timeout: 5))
+        XCTAssertTrue(happyOption.isHittable)
+        happyOption.tap()
+
+        titleField.tap()
+        let tagRow = app.buttons["editorTagRow"]
+        XCTAssertTrue(tagRow.waitForExistence(timeout: 5))
+        tagRow.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["editorTagPickerMenu"].exists)
+        XCTAssertFalse(app.otherElements["PopoverDismissRegion"].exists)
+        let workTagOption = app.buttons["tagOption-工作"]
+        XCTAssertTrue(workTagOption.waitForExistence(timeout: 5))
+        XCTAssertTrue(workTagOption.isHittable)
+        workTagOption.tap()
+        dismissEditorFloatingPicker(app)
+    }
+
+    private func dismissEditorFloatingPicker(_ app: XCUIApplication) {
+        let editorDismissRegion = app.otherElements["editorFloatingPickerDismissRegion"]
+        XCTAssertTrue(editorDismissRegion.waitForExistence(timeout: 5))
+        editorDismissRegion.tap()
+    }
+
+    private func dismissSystemPopover(_ app: XCUIApplication) {
         let dismissRegion = app.otherElements["PopoverDismissRegion"]
         XCTAssertTrue(dismissRegion.waitForExistence(timeout: 5))
         dismissRegion.tap()
