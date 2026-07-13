@@ -41,7 +41,7 @@ enum ExportFormat: String, CaseIterable, Sendable, Equatable {
     }
 
     var generateTitle: String {
-        "生成 \(displayName)"
+        "生成 \(displayName) 副本"
     }
 
     var exportingTitle: String {
@@ -51,9 +51,9 @@ enum ExportFormat: String, CaseIterable, Sendable, Equatable {
     var shareTitle: String {
         switch self {
         case .markdown:
-            return "分享导出目录"
+            return "分享 Markdown 副本"
         case .pdf:
-            return "分享 PDF"
+            return "分享 PDF 副本"
         }
     }
 }

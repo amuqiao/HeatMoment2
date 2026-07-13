@@ -25,6 +25,7 @@ struct HeatMomentApp: App {
     private let canonicalLibraryService: CanonicalLibraryService
     private let canonicalRecoveryCoordinator: CanonicalRecoveryCoordinator?
     private let backupRestoreService: (any BackupRestoreServicing)?
+    private let backupPackageService: (any BackupPackageServicing)?
     private let exportService: any ExportServicing
     private let launchRestoreResult: BackupBootRestoreResult
 
@@ -62,6 +63,7 @@ struct HeatMomentApp: App {
         canonicalLibraryService = runtime.canonicalLibraryService
         canonicalRecoveryCoordinator = runtime.canonicalRecoveryCoordinator
         backupRestoreService = runtime.backupRestoreService
+        backupPackageService = runtime.backupPackageService
         exportService = runtime.exportService
         self.syncStatusService = runtime.syncStatusService
         // 外观持久化：生产用真实 `UserDefaults.standard`（`AppearanceStore()` 默认）；
@@ -79,6 +81,7 @@ struct HeatMomentApp: App {
             RootView(
                 canonicalRecoveryCoordinator: canonicalRecoveryCoordinator,
                 backupRestoreService: backupRestoreService,
+                backupPackageService: backupPackageService,
                 exportService: exportService,
                 launchRestoreResult: launchRestoreResult
             )
@@ -187,6 +190,7 @@ struct HeatMomentApp: App {
                     canonicalRecoveryCoordinator: nil,
                     syncStatusService: SyncStatusService(cloudKitEnabled: false),
                     backupRestoreService: nil,
+                    backupPackageService: nil,
                     exportService: makeExportService(repository: canonicalLibraryService.repository)
                 )
             }
@@ -204,6 +208,10 @@ struct HeatMomentApp: App {
             syncStatusService: SyncStatusService(cloudKitEnabled: hasICloudCapability),
             backupRestoreService: CanonicalBackupRestoreService(
                 coordinator: canonicalRecoveryCoordinator
+            ),
+            backupPackageService: CanonicalBackupPackageService(
+                runtime: canonicalRuntime,
+                appVersion: appVersion
             ),
             exportService: makeExportService(repository: canonicalRuntime.repository)
         )
@@ -269,6 +277,7 @@ struct HeatMomentApp: App {
         let canonicalRecoveryCoordinator: CanonicalRecoveryCoordinator?
         let syncStatusService: SyncStatusService
         let backupRestoreService: (any BackupRestoreServicing)?
+        let backupPackageService: (any BackupPackageServicing)?
         let exportService: any ExportServicing
     }
 }

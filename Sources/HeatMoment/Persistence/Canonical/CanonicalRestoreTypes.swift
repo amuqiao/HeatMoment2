@@ -132,3 +132,16 @@ extension CanonicalPendingRestoreAsset {
         relativePath = record.relativePath
     }
 }
+
+struct CanonicalImportedSnapshotRestoreRequest: Sendable, Equatable {
+    let snapshotURL: URL
+    let packageID: UUID
+    let packageCreatedAt: Date
+    let schemaVersion: Int
+    let appVersion: String
+    let counts: CanonicalPendingRestoreCounts
+    let assetManifest: [CanonicalPendingRestoreAsset]
+    let restoreJobID: UUID
+    let restoredSyncEpoch: UUID
+    let now: Date
+}

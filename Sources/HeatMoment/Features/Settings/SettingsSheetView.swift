@@ -27,6 +27,7 @@ struct SettingsSheetView: View {
     }
 
     let backupRestoreService: (any BackupRestoreServicing)?
+    let backupPackageService: (any BackupPackageServicing)?
     let exportService: any ExportServicing
 
     @Environment(ThemeManager.self) private var theme
@@ -41,9 +42,11 @@ struct SettingsSheetView: View {
 
     init(
         backupRestoreService: (any BackupRestoreServicing)? = nil,
+        backupPackageService: (any BackupPackageServicing)? = nil,
         exportService: any ExportServicing
     ) {
         self.backupRestoreService = backupRestoreService
+        self.backupPackageService = backupPackageService
         self.exportService = exportService
     }
 
@@ -107,7 +110,7 @@ struct SettingsSheetView: View {
         [
             SettingsNavigationEntry(
                 route: .backupRestore, title: "备份与恢复", identifier: "settingsBackupRestoreRow"),
-            SettingsNavigationEntry(route: .export, title: "导出", identifier: "settingsExportRow"),
+            SettingsNavigationEntry(route: .export, title: "阅读副本导出", identifier: "settingsExportRow"),
         ]
     }
 
@@ -254,7 +257,7 @@ struct SettingsSheetView: View {
         case .language:
             LanguageSettingsView()
         case .backupRestore:
-            BackupRestoreView(backupRestoreService: backupRestoreService)
+            BackupRestoreView(backupPackageService: backupPackageService)
         case .export:
             ExportView(exportService: exportService)
         case .tagManage:

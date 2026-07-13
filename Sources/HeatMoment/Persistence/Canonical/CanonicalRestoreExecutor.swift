@@ -79,6 +79,17 @@ struct CanonicalRestoreExecutor: Sendable {
         }
     }
 
+    @discardableResult
+    func stageImportedSnapshot(
+        _ request: CanonicalImportedSnapshotRestoreRequest
+    ) throws -> CanonicalPendingRestoreContext {
+        try operationGate.performSync {
+            try stageImportedSnapshotWithoutGate(
+                request
+            )
+        }
+    }
+
     static func performPendingRestoreIfNeeded(
         descriptor: CanonicalStoreDescriptor,
         now: Date = .now
@@ -303,6 +314,66 @@ private extension CanonicalRestoreExecutor {
         }
     }
 
+    func stageImportedSnapshotWithoutGate(
+        _ request: CanonicalImportedSnapshotRestoreRequest
+    ) throws -> CanonicalPendingRestoreContext {
+        let metadata = try currentMetadata()
+        let snapshotData = try Data(contentsOf: request.snapshotURL)
+        let context = CanonicalPendingRestoreContext(
+            restoreJobID: request.restoreJobID,
+            selectedRecoveryPointID: request.packageID,
+            selectedCreatedAt: request.packageCreatedAt,
+            currentLibraryID: metadata.libraryID,
+            currentDeviceID: metadata.deviceID,
+            currentLibraryCreatedAt: metadata.createdAt,
+            restoredSyncEpoch: request.restoredSyncEpoch,
+            schemaVersion: request.schemaVersion,
+            appVersion: request.appVersion,
+            snapshot: CanonicalPendingRestoreSnapshot(
+                relativePath: try Self.relativePath(
+                    for: request.snapshotURL,
+                    rootDirectory: descriptor.rootDirectory
+                ),
+                byteCount: Int64(snapshotData.count),
+                sha256: FileAssetStore.sha256Hex(snapshotData)
+            ),
+            counts: request.counts,
+            assetManifest: request.assetManifest
+        )
+
+        do {
+            try Self.clearPendingRestore(
+                descriptor: descriptor,
+                assetPinStore: assetPinStore
+            )
+            try Self.createStagedPayload(
+                fromSnapshotAt: request.snapshotURL,
+                context: context,
+                descriptor: descriptor
+            )
+            try assetPinStore.pinContentHashes(
+                context.assetManifest.map(\.contentHash),
+                ownerKind: .restoreStaging,
+                ownerID: context.restoreJobID.uuidString,
+                createdAt: request.now
+            )
+            return context
+        } catch let stageError {
+            do {
+                try Self.clearPendingRestore(
+                    descriptor: descriptor,
+                    assetPinStore: assetPinStore
+                )
+            } catch let cleanupError {
+                throw CanonicalRestoreExecutorError.cleanupFailed(
+                    originalError: String(describing: stageError),
+                    cleanupError: String(describing: cleanupError)
+                )
+            }
+            throw stageError
+        }
+    }
+
     func currentMetadata() throws -> CanonicalLibraryMetadata {
         try store.read { db in
             guard let row = try Row.fetchOne(db, sql: "SELECT * FROM library_metadata WHERE id = 1")
@@ -334,6 +405,25 @@ private extension CanonicalRestoreExecutor {
         let snapshotURL = try absoluteURL(
             forRelativePath: context.snapshot.relativePath,
             rootDirectory: descriptor.rootDirectory
+        )
+        try FileManager.default.copyItem(
+            at: snapshotURL,
+            to: payloadDatabaseURL(in: pendingDirectory, descriptor: descriptor)
+        )
+        try writeContext(context, to: pendingDirectory.appendingPathComponent(contextFileName))
+        try validatePendingPayload(context: context, descriptor: descriptor)
+    }
+
+    static func createStagedPayload(
+        fromSnapshotAt snapshotURL: URL,
+        context: CanonicalPendingRestoreContext,
+        descriptor: CanonicalStoreDescriptor
+    ) throws {
+        let pendingDirectory = descriptor.pendingRestoreDirectory
+        let payloadDirectory = payloadDirectory(in: pendingDirectory)
+        try FileManager.default.createDirectory(
+            at: payloadDirectory,
+            withIntermediateDirectories: true
         )
         try FileManager.default.copyItem(
             at: snapshotURL,

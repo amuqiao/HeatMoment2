@@ -2,87 +2,46 @@ import XCTest
 
 final class BackupRestoreUITests: XCTestCase {
     @MainActor
-    func testBackupListShowsSystemMaintainedRecoveryPointAndPreview() {
-        let app = launchLocalBackupApp(resetDisk: true, seedRecoveryPoint: true)
+    func testBackupRestorePageShowsCompletePackageWorkflow() {
+        let app = launchLocalBackupApp(resetDisk: true, seedLocalData: true)
         openBackupRestore(app)
 
-        XCTAssertTrue(app.staticTexts["backupRestoreRetentionText"].exists)
-        XCTAssertTrue(app.staticTexts["backupRestoreSystemManagedText"].exists)
-
-        let recoveryPoint = firstRecoveryPointRow(in: app)
-        XCTAssertTrue(recoveryPoint.waitForExistence(timeout: 10))
-        XCTAssertTrue(app.staticTexts["recoveryPointCreatedAtText"].exists)
-        let summary = app.staticTexts["recoveryPointSummaryText"]
-        XCTAssertTrue(summary.exists)
-        XCTAssertTrue(summary.label.contains("已用标签"))
-        XCTAssertFalse(summary.label.contains("标签库"))
-        XCTAssertFalse(app.buttons["删除"].exists)
-        XCTAssertFalse(app.buttons["彻底删除"].exists)
-
-        recoveryPoint.tap()
-
-        XCTAssertTrue(app.navigationBars["恢复备份"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["recoveryPointRestoreReplaceWarning"].exists)
-        XCTAssertTrue(app.staticTexts["recoveryPointRestoreRestartInstruction"].exists)
-        XCTAssertTrue(app.buttons["recoveryPointRestoreButton"].exists)
+        XCTAssertTrue(app.otherElements["backupSummarySection"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.otherElements["backupPackageSection"].exists)
+        XCTAssertTrue(app.staticTexts["backupPackageExplanationText"].exists)
+        XCTAssertTrue(app.otherElements["backupSafetySection"].exists)
+        XCTAssertTrue(app.buttons["导出完整备份"].exists)
+        XCTAssertTrue(app.buttons["导入完整备份"].exists)
+        XCTAssertFalse(firstRecoveryPointRow(in: app).exists)
+        XCTAssertFalse(app.buttons["recoveryPointRestoreButton"].exists)
     }
 
-    func testPreparedRestoreRunsOnNextLaunchAndShowsSuccess() {
-        let runID = UUID().uuidString
-        var app = launchLocalBackupApp(
-            runID: runID,
-            resetDisk: true,
-            seedRecoveryPoint: true
-        )
+    @MainActor
+    func testExportCompleteBackupPackageShowsShareLink() {
+        let app = launchLocalBackupApp(resetDisk: true, seedLocalData: true)
         openBackupRestore(app)
 
-        let recoveryPoint = firstRecoveryPointRow(in: app)
-        XCTAssertTrue(recoveryPoint.waitForExistence(timeout: 10))
-        recoveryPoint.tap()
+        let exportButton = app.buttons["导出完整备份"]
+        XCTAssertTrue(exportButton.waitForExistence(timeout: 5))
+        exportButton.tap()
 
-        let restoreButton = app.buttons["recoveryPointRestoreButton"]
-        XCTAssertTrue(restoreButton.waitForExistence(timeout: 5))
-        restoreButton.tap()
-
-        let confirmation = app.alerts["恢复到这份备份？"]
-        XCTAssertTrue(confirmation.waitForExistence(timeout: 5))
-        confirmation.buttons["recoveryPointRestoreConfirmButton"].firstMatch.tap()
-
-        XCTAssertTrue(app.otherElements["pendingLocalRestoreBlocker"].waitForExistence(timeout: 5))
-        app.terminate()
-
-        app = launchLocalBackupApp(runID: runID)
-        let restored = app.alerts["本地备份恢复完成"]
-        XCTAssertTrue(restored.waitForExistence(timeout: 10))
-        XCTAssertTrue(
-            restored.staticTexts.matching(
-                NSPredicate(format: "label CONTAINS %@ AND label CONTAINS %@", "本机内容", "恢复前备份")
-            ).firstMatch.exists
-        )
-        restored.buttons["好的"].tap()
-
-        let restoredRow = app.buttons.matching(
-            NSPredicate(format: "label CONTAINS %@", "备份里的时刻")
-        ).firstMatch
-        XCTAssertTrue(restoredRow.waitForExistence(timeout: 10))
-        XCTAssertFalse(
-            app.buttons.matching(
-                NSPredicate(format: "label CONTAINS %@", "当前未恢复时刻")
-            ).firstMatch.exists
-        )
+        XCTAssertTrue(app.otherElements["backupExportResultSection"].waitForExistence(timeout: 15))
+        XCTAssertTrue(app.buttons["backupPackageShareLink"].exists)
+        XCTAssertTrue(app.staticTexts["已生成备份包"].exists)
     }
 
+    @MainActor
     private func launchLocalBackupApp(
         runID: String = UUID().uuidString,
         resetDisk: Bool = false,
-        seedRecoveryPoint: Bool = false
+        seedLocalData: Bool = false
     ) -> XCUIApplication {
         let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestLocalBackupRestore"]
         if resetDisk {
             app.launchArguments.append("-uiTestResetLocalBackupDisk")
         }
-        if seedRecoveryPoint {
+        if seedLocalData {
             app.launchArguments.append("-uiTestSeedLocalRecoveryPoint")
         }
         app.launchEnvironment["HEATMOMENT_UI_TEST_LOCAL_BACKUP_RUN_ID"] = runID
@@ -90,6 +49,7 @@ final class BackupRestoreUITests: XCTestCase {
         return app
     }
 
+    @MainActor
     private func openBackupRestore(_ app: XCUIApplication) {
         let settings = app.buttons["设置"]
         XCTAssertTrue(settings.waitForExistence(timeout: 10))
@@ -102,9 +62,11 @@ final class BackupRestoreUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["备份与恢复"].waitForExistence(timeout: 5))
     }
 
+    @MainActor
     private func firstRecoveryPointRow(in app: XCUIApplication) -> XCUIElement {
         app.buttons.matching(
             NSPredicate(format: "identifier BEGINSWITH %@", "recoveryPointRow-")
-        ).firstMatch
+        )
+        .firstMatch
     }
 }

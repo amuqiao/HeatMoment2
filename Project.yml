@@ -32,20 +32,43 @@ targets:
     deploymentTarget: "17.0"
     sources:
       - path: Sources/HeatMoment
+    info:
+      path: Config/HeatMoment-Info.plist
+      properties:
+        CFBundleDisplayName: 心绪日记
+        LSSupportsOpeningDocumentsInPlace: false
+        NSFaceIDUsageDescription: "用于解锁「心绪日记」以保护你的心情日记隐私"
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        "UISupportedInterfaceOrientations~ipad":
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: HeatMoment Backup Package
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Owner
+            LSItemContentTypes:
+              - app.heatmoment.backup-package
+        UTExportedTypeDeclarations:
+          - UTTypeIdentifier: app.heatmoment.backup-package
+            UTTypeDescription: HeatMoment Backup Package
+            UTTypeConformsTo:
+              - public.data
+            UTTypeTagSpecification:
+              public.filename-extension:
+                - heatmomentbackup
+              public.mime-type:
+                - application/vnd.heatmoment.backup
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.heatmoment.app
-        GENERATE_INFOPLIST_FILE: "YES"
-        INFOPLIST_KEY_UILaunchScreen_Generation: "YES"
-        INFOPLIST_KEY_CFBundleDisplayName: 心绪日记
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
-        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
         TARGETED_DEVICE_FAMILY: "1,2"   # iPhone + iPad
         # Face ID（隐私锁，见 docs/current/implementation-truth.md）。生产数据权威是 canonical local store。
         # iCloud / CloudKit entitlement 默认不接入 App target，避免 Personal Team 真机开发签名失败；
         # 未来恢复 iCloud 同步时再启用 Config/HeatMoment.entitlements 并使用支持 iCloud 的付费 Team。
-        INFOPLIST_KEY_NSFaceIDUsageDescription: "用于解锁「心绪日记」以保护你的心情日记隐私"
     dependencies:
       - package: GRDB
 

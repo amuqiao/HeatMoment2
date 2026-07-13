@@ -1,6 +1,6 @@
 # 测试架构真相
 
-本文记录当前 SwiftUI 版 HeatMoment 已落地的测试入口、数据隔离方式和维护边界。真实 CloudKit 自动化、iCloud 多设备收敛和持久导出任务不在本文伪装成现状；这些缺口进入 [`../plans/implementation-plan.md`](../plans/implementation-plan.md)。本地备份恢复 UI 演练已切到 canonical runtime 和磁盘隔离目录；本地数据闭环已有磁盘级验收测试覆盖恢复点、启动恢复、删除生命周期和 Markdown/PDF 只读导出。
+本文记录当前 SwiftUI 版 HeatMoment 已落地的测试入口、数据隔离方式和维护边界。真实 CloudKit 自动化、iCloud 多设备收敛和持久导出任务不在本文伪装成现状；这些缺口进入 [`../plans/implementation-plan.md`](../plans/implementation-plan.md)。完整备份包 UI 演练使用 canonical runtime 和磁盘隔离目录；本地数据闭环已有磁盘级验收测试覆盖完整备份包导出/导入、内部安全点、启动恢复、删除生命周期和 Markdown/PDF 只读导出。
 
 ## 入口模型
 
@@ -54,14 +54,14 @@ Debug / Dev 构建默认会启用本地开发者 Pro 解锁（见 `implementatio
 | `-uiTestSkipDefaultTags` | 使用内存 canonical runtime 并跳过默认标签，验证标签新增正常路径 |
 | `-uiTestPhotoInjection` | 展示照片调试注入入口，绕开系统 `PhotosPicker` |
 | `-uiTestBackgroundImageInjection` | 展示自定义背景图调试注入入口，绕开系统 `PhotosPicker` |
-| `-uiTestLocalBackupRestore` | 使用磁盘隔离 Application Support 目录和真实本地恢复点 coordinator |
-| `-uiTestResetLocalBackupDisk` | 清理本地备份 UI 测试的磁盘隔离目录，通常只在首轮启动使用 |
-| `-uiTestSeedLocalRecoveryPoint` | 在磁盘隔离目录中预置 1 个可恢复点，并把当前库改成另一条记录 |
+| `-uiTestLocalBackupRestore` | 使用磁盘隔离 Application Support 目录、完整备份包服务和真实本机安全点 coordinator |
+| `-uiTestResetLocalBackupDisk` | 清理完整备份包 UI 测试的磁盘隔离目录，通常只在首轮启动使用 |
+| `-uiTestSeedLocalRecoveryPoint` | 在磁盘隔离目录中预置真实 canonical 数据和 1 个内部安全点，供完整备份包/恢复边界 UI 测试使用 |
 | `-uiTestForcePrivacyLockEnabled` | 强制隐私锁开启 |
 | `-uiTestBiometricAlwaysSucceed` / `-uiTestBiometricAlwaysFail` | 伪造生物识别结果 |
 | `-uiTestFailAppearanceSave` | 注入外观保存失败 |
 
-任意 `-uiTest*` 场景会重置语言偏好，并让外观偏好使用隔离 suite；自定义背景图文件也写入临时隔离目录。多数 UI 测试会重置默认标签首启标记，但 `-uiTestLocalBackupRestore` 例外：它要跨两次冷启动验证真实恢复结果，不能在第二次启动前重置默认标签 seed flag 后改写刚恢复出来的资料库。只有 `-uiTestReset`、`-uiTestSeedMoments`、`-uiTestSeedMomentQuota`、`-uiTestSkipDefaultTags` 会切到内存 canonical runtime；`-uiTestLocalBackupRestore` 会使用 `HEATMOMENT_UI_TEST_LOCAL_BACKUP_RUN_ID` 指定的临时磁盘目录，第二次启动必须复用同一个 run id 且不能携带 `-uiTestResetLocalBackupDisk`。`RootView` 在 DEBUG seed 与默认标签初始化完成前不会展示主页，UI 测试看到首屏入口时即可认为种子数据已就绪。
+任意 `-uiTest*` 场景会重置语言偏好，并让外观偏好使用隔离 suite；自定义背景图文件也写入临时隔离目录。多数 UI 测试会重置默认标签首启标记，但 `-uiTestLocalBackupRestore` 例外：它使用真实磁盘目录和 canonical runtime，不能在同一 run id 的后续启动前重置默认标签 seed flag 后改写刚准备好的资料库。只有 `-uiTestReset`、`-uiTestSeedMoments`、`-uiTestSeedMomentQuota`、`-uiTestSkipDefaultTags` 会切到内存 canonical runtime；`-uiTestLocalBackupRestore` 会使用 `HEATMOMENT_UI_TEST_LOCAL_BACKUP_RUN_ID` 指定的临时磁盘目录。`RootView` 在 DEBUG seed 与默认标签初始化完成前不会展示主页，UI 测试看到首屏入口时即可认为种子数据已就绪。
 
 ## UI 测试当前写法
 

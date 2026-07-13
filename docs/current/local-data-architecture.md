@@ -23,8 +23,9 @@ SwiftUI / ViewModel
 | 能力 | 当前职责 | 是否写 canonical store | 是否参与 iCloud |
 | --- | --- | ---: | ---: |
 | 普通写入 | 创建、编辑、删除、恢复、标签变更 | 是 | 当前只更新启发式同步状态 |
-| 本机恢复点 | 系统自动维护最近 3 个 SQLite snapshot，供用户恢复 | 创建 catalog/pin；恢复时替换本机库 | 不直接参与 |
-| 导出 Markdown/PDF | 生成用户可读副本 | 否 | 不参与 |
+| 完整备份包 | 用户手动导出/导入 `.heatmomentbackup`，用于迁移或重装后整库恢复 | 导出只读；导入确认后 stage pending restore，冷启动替换本机库 | 不直接参与 |
+| 本机安全点 | 系统自动维护最近 3 个 SQLite snapshot，供内部安全点和导入前 restore-safety 使用 | 创建 catalog/pin；恢复时替换本机库 | 不直接参与 |
+| Markdown/PDF 阅读副本 | 生成用户可读副本，不可导回恢复 | 否 | 不参与 |
 | Asset reachability | 审计和受保护 cleanup 地基 | 维护操作可 finalize record / 清 orphan blob | 不表达同步 |
 | iCloud 状态 | 当前只展示能力、网络和最近本地写入推导 | 否 | 尚未真实同步 |
 
@@ -43,7 +44,7 @@ SwiftUI / ViewModel
 
 ### Recovery Points
 
-恢复点是本机安全网，不是外部备份包。
+恢复点是本机安全网，不是用户可携带的外部备份包；设置页主备份模型是完整备份包。
 
 - `CanonicalRecoveryPointStore.swift`：recovery point catalog、retention、asset manifest 和 recoveryPoint pin 写入。
 - `CanonicalRecoveryPointSnapshotService.swift`：创建、校验、retention、目录清理的应用服务入口；内部 helper 保持文件内私有，避免绕过 `operationGate`。
@@ -53,9 +54,20 @@ SwiftUI / ViewModel
 - `CanonicalBootRestoreGate.swift`：App 打开 runtime 前消费 armed pending restore。
 - `CanonicalMigrationSafetyGate.swift`：破坏性迁移或切换前的安全点闸门。
 
-### Export
+### Backup Package
 
-导出是只读副本生成，不是备份恢复入口。
+完整备份包是用户可见、可携带、可恢复的数据包。
+
+- `BackupPackageTypes.swift`：`BackupPackageServicing`、manifest、payload、预览和结果类型。
+- `BackupPackageArchive.swift`：自定义单文件容器，包含 magic、manifest length、manifest 和按 manifest 顺序写入的 payload；读取时校验相对路径、字节数、SHA-256 和尾部数据。
+- `CanonicalBackupPackageService.swift`：完整备份包应用服务；导出时用 GRDB online backup 创建 SQLite snapshot，校验并复制 content-addressed 原图 blob，写 `.heatmomentbackup`；导入时复制外部文件到 staging，校验 manifest / SQLite catalog / payload hash，确认后把资产写入当前 `FileAssetStore` 并复用 pending restore 冷启动替换链路。
+- `BackupRestoreView.swift`：设置页“备份与恢复”详情页，提供导出完整备份、分享/保存、导入完整备份、预览和确认替换。
+
+当前完整备份包不压缩、不做增量、不替换或删除用户已有外部备份，也不记录用户最终保存路径；App 只记录上次成功生成备份包的时间。
+
+### Reading Copy Export
+
+Markdown/PDF 导出是只读阅读副本生成，不是备份恢复入口。
 
 - `ExportTypes.swift`：`ExportRequest`、`ExportScope`、`ExportSnapshot` 和结果/错误类型。
 - `CanonicalExportSnapshotStore.swift`：从 canonical repository 读取导出快照。
@@ -69,24 +81,24 @@ SwiftUI / ViewModel
 
 普通写入成功后，`LocalLibraryMutationService` 会通知 `CanonicalLibraryService` 刷新 UI，并触发稳定变更恢复点。高风险操作前会同步创建 mutation safety 恢复点；创建失败则中止后续操作，不静默继续。
 
-用户恢复走两段式：
+内部安全点恢复和完整备份包导入都复用同一条两段式 pending restore 链路：
 
 ```text
-validate selected recovery point
-  -> stage selected snapshot
+validate selected recovery point / validated backup package
+  -> stage selected snapshot / imported snapshot
   -> create restore-safety recovery point
   -> update pending context
   -> arm pending restore
   -> next cold launch replaces local store before runtime opens
 ```
 
-这样做的目的是让“准备恢复”和“真正替换 SQLite payload”分离。替换发生在 runtime 打开前；如果 rollback critical failure，启动会中止而不是继续使用不确定状态。
+这样做的目的是让“准备恢复”和“真正替换 SQLite payload”分离。替换发生在 runtime 打开前；如果 rollback critical failure，启动会中止而不是继续使用不确定状态。完整备份包导入会在 arm 前把包内资产 blob 写入当前 `FileAssetStore` 并用 restore staging pin 保护，避免恢复后数据库引用缺失照片。
 
-## 导出原则
+## 阅读副本导出原则
 
-导出使用同一份 `ExportRequest` 和 `ExportSnapshot` 支撑 Markdown/PDF 两种格式。日期范围按整日边界查询；空范围失败，不生成空文档；照片开关关闭时不会读取或写出图片。
+阅读副本导出使用同一份 `ExportRequest` 和 `ExportSnapshot` 支撑 Markdown/PDF 两种格式。日期范围按整日边界查询；空范围失败，不生成空文档；照片开关关闭时不会读取或写出图片。
 
-导出文件写在系统临时目录，进入导出页和每次新导出都会清理旧的 `HeatMoment-*` 包。导出失败会清理本次半成品包；取消导出不会留下可见 package。导出不写 canonical store、不创建恢复点、不触发 iCloud 状态。
+阅读副本文件写在系统临时目录，进入导出页和每次新导出都会清理旧的 `HeatMoment-*` 包。导出失败会清理本次半成品包；取消导出不会留下可见 package。阅读副本导出不写 canonical store、不创建恢复点、不触发 iCloud 状态，也不能导回恢复。
 
 ## 验证入口
 
@@ -95,6 +107,7 @@ validate selected recovery point
 ```bash
 ./scripts/test.sh --only HeatMomentTests/CanonicalRecoveryPointSnapshotServiceTests \
   --only HeatMomentTests/CanonicalRestoreExecutorTests \
+  --only HeatMomentTests/BackupPackageServiceTests \
   --only HeatMomentTests/MarkdownExportServiceTests \
   --only HeatMomentTests/PDFExportServiceTests
 ```

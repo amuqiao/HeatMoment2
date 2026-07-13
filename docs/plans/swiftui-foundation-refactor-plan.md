@@ -215,7 +215,7 @@ App Composition
 
 - Features 不直接创建 `ExportService` 或 `CanonicalBackupRestoreService`。
 - 备份恢复和导出 capability contract 有稳定值类型输入输出；实现细节可以替换而不改设置页面。
-- 本地备份恢复和 Markdown/PDF 导出路径测试不回归。
+- 完整备份包、本机安全点和 Markdown/PDF 阅读副本导出路径测试不回归。
 - 备份恢复和导出仍不绕过 canonical 事务边界。
 
 ### M-foundation-5: 测试骨架与边界守卫（已关闭）

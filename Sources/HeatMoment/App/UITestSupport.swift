@@ -21,8 +21,8 @@
     ///   写入草稿（见阶段 3 计划决策1：系统 `PhotosPicker` 不在 App 无障碍树内、无法可靠自动化）。
     /// - `-uiTestBackgroundImageInjection`：外观页额外展示自定义背景图调试注入按钮，绕过系统相册 UI。
     /// - `-uiTestLocalBackupRestore`：使用磁盘隔离目录而非内存容器，启用真实本地恢复点 coordinator。
-    /// - `-uiTestResetLocalBackupDisk`：清理上方磁盘隔离目录，供本地备份 UI 测试首轮启动使用。
-    /// - `-uiTestSeedLocalRecoveryPoint`：预置 1 个可恢复点，并把当前库改成另一条记录。
+    /// - `-uiTestResetLocalBackupDisk`：清理上方磁盘隔离目录，供完整备份包 UI 测试首轮启动使用。
+    /// - `-uiTestSeedLocalRecoveryPoint`：预置真实 canonical 数据和 1 个内部安全点。
     enum UITestSupport {
         /// 是否应改用内存 canonical runtime（测试隔离，不落盘、不需 iCloud 能力）。
         static var wantsInMemoryCanonicalRuntime: Bool {
@@ -320,7 +320,7 @@
                     try FileManager.default.removeItem(at: directory)
                 }
             } catch {
-                assertionFailure("UITest 本地备份目录清理失败：\(error)")
+                assertionFailure("UITest 完整备份包目录清理失败：\(error)")
             }
         }
 
@@ -342,7 +342,7 @@
 
                 let backupMomentID = try await service.repository.createMoment(
                     title: "备份里的时刻",
-                    bodyText: "用于验证本地备份恢复后的资料库内容。",
+                    bodyText: "用于验证资料库恢复后的内容。",
                     occurredAt: Date(timeIntervalSince1970: 1_800),
                     mood: .normal,
                     now: Date(timeIntervalSince1970: 1_800)

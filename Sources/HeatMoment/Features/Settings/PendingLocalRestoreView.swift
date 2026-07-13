@@ -40,11 +40,11 @@ struct PendingLocalRestoreView: View {
 
     private var message: String {
         guard let context else {
-            return "本机内容将在下次启动时被所选备份替换。"
+            return "本机内容将在下次启动时被所选恢复目标替换。"
         }
         var text = "本机内容将在下次启动时恢复到 \(Self.dateFormatter.string(from: context.selectedCreatedAt))。"
         if let safetyCreatedAt = context.restoreSafetyCreatedAt {
-            text += " 已保存 \(Self.dateFormatter.string(from: safetyCreatedAt)) 的恢复前备份。"
+            text += " 已保存 \(Self.dateFormatter.string(from: safetyCreatedAt)) 的恢复前安全点。"
         }
         return text
     }

@@ -11,6 +11,7 @@ import SwiftUI
 struct RootView: View {
     let canonicalRecoveryCoordinator: CanonicalRecoveryCoordinator?
     let backupRestoreService: (any BackupRestoreServicing)?
+    let backupPackageService: (any BackupPackageServicing)?
     let exportService: any ExportServicing
     let launchRestoreResult: BackupBootRestoreResult
 
@@ -28,11 +29,13 @@ struct RootView: View {
     init(
         canonicalRecoveryCoordinator: CanonicalRecoveryCoordinator? = nil,
         backupRestoreService: (any BackupRestoreServicing)? = nil,
+        backupPackageService: (any BackupPackageServicing)? = nil,
         exportService: any ExportServicing,
         launchRestoreResult: BackupBootRestoreResult = .none
     ) {
         self.canonicalRecoveryCoordinator = canonicalRecoveryCoordinator
         self.backupRestoreService = backupRestoreService
+        self.backupPackageService = backupPackageService
         self.exportService = exportService
         self.launchRestoreResult = launchRestoreResult
     }
@@ -44,7 +47,7 @@ struct RootView: View {
             rootTaskSheet(sheet)
         }
         .environment(timelineModel)
-        .alert("本地备份恢复完成", isPresented: $showsLaunchRestoreSuccess) {
+        .alert("资料库恢复完成", isPresented: $showsLaunchRestoreSuccess) {
             Button("好的", role: .cancel) {}
         } message: {
             Text(launchRestoreSuccessMessage)
@@ -95,6 +98,7 @@ struct RootView: View {
         case .settings:
             SettingsSheetView(
                 backupRestoreService: backupRestoreService,
+                backupPackageService: backupPackageService,
                 exportService: exportService
             )
         case let .paywall(trigger):
@@ -148,7 +152,7 @@ struct RootView: View {
             showsLaunchRestoreSuccess = true
         case let .failed(failure):
             errorPresenter.report(
-                message: "本地备份恢复失败，当前数据未被替换。",
+                message: "资料库恢复失败，当前数据未被替换。",
                 underlying: failure
             )
         }
@@ -174,7 +178,7 @@ struct RootView: View {
     ) -> String {
         var message = "已恢复到 \(dateFormatter.string(from: context.selectedCreatedAt)) 的本机内容。"
         if let safetyCreatedAt = context.restoreSafetyCreatedAt {
-            message += " 已保存 \(dateFormatter.string(from: safetyCreatedAt)) 的恢复前备份。"
+            message += " 已保存 \(dateFormatter.string(from: safetyCreatedAt)) 的恢复前安全点。"
         }
         return message
     }

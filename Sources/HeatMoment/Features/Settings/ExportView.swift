@@ -45,7 +45,7 @@ struct ExportView: View {
                 )
             }
         }
-        .appSheetDetailNavigationChrome("导出")
+        .appSheetDetailNavigationChrome("阅读副本导出")
         .themedTaskContainer(theme)
         .onChange(of: selectedFormat) { _, _ in
             clearExportState()
@@ -71,11 +71,11 @@ struct ExportView: View {
     private var summarySection: some View {
         TaskSurfaceSection(accessibilityIdentifier: "exportSummarySection") {
             VStack(alignment: .leading, spacing: 8) {
-                Text("导出会生成副本，不会改变当前内容。")
+                Text("阅读副本只用于查看、编辑或分享，不会改变当前内容，也不能导回恢复资料库。")
                     .font(AppTypography.body)
                     .foregroundStyle(theme.primaryText)
                     .accessibilityIdentifier("exportReadonlyText")
-                Text("Markdown 适合长期保存和再次编辑；PDF 适合查看和分享。")
+                Text("需要重装或换设备恢复数据时，请使用“备份与恢复”里的完整备份包。")
                     .font(AppTypography.caption)
                     .foregroundStyle(theme.secondaryText)
                     .accessibilityIdentifier("exportScopeText")
@@ -86,7 +86,7 @@ struct ExportView: View {
     }
 
     private var scopeSection: some View {
-        TaskSurfaceSection(title: "导出范围", accessibilityIdentifier: "exportScopeSection") {
+        TaskSurfaceSection(title: "副本范围", accessibilityIdentifier: "exportScopeSection") {
             VStack(spacing: 0) {
                 exportDatePickerRow(
                     title: "开始日期",
@@ -150,7 +150,7 @@ struct ExportView: View {
 
     private var formatSection: some View {
         TaskSurfaceSection(title: "格式", accessibilityIdentifier: "exportFormatSection") {
-            Picker("导出格式", selection: $selectedFormat) {
+            Picker("副本格式", selection: $selectedFormat) {
                 ForEach(ExportFormat.allCases, id: \.self) { format in
                     Text(format.displayName).tag(format)
                 }
