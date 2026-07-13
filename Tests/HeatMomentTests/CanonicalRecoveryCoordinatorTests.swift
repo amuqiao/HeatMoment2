@@ -15,6 +15,10 @@ extension CanonicalRecoveryCoordinatorTests {
             name: "工作",
             now: Date(timeIntervalSince1970: 50)
         )
+        _ = try await fixture.runtime.repository.createOrReuseTag(
+            name: "未使用",
+            now: Date(timeIntervalSince1970: 60)
+        )
         _ = try await fixture.runtime.repository.createMoment(
             title: "需要备份",
             bodyText: "",
@@ -38,7 +42,7 @@ extension CanonicalRecoveryCoordinatorTests {
 
         XCTAssertEqual(
             currentCounts,
-            CanonicalRecoveryPointCounts(recordCount: 1, tagCount: 1, assetCount: 1)
+            CanonicalRecoveryPointCounts(recordCount: 1, usedTagCount: 1, assetCount: 1)
         )
         XCTAssertEqual(recoveryPoint.counts, currentCounts)
         XCTAssertEqual(recoveryPoint.reason, .stableChanges)

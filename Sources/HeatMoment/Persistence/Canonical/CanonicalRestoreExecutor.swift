@@ -265,7 +265,7 @@ private extension CanonicalRestoreExecutor {
             ),
             counts: CanonicalPendingRestoreCounts(
                 recordCount: recoveryPoint.counts.recordCount,
-                tagCount: recoveryPoint.counts.tagCount,
+                usedTagCount: recoveryPoint.counts.usedTagCount,
                 assetCount: recoveryPoint.counts.assetCount
             ),
             assetManifest: manifest.map(CanonicalPendingRestoreAsset.init(record:))
@@ -471,7 +471,7 @@ private extension CanonicalRestoreExecutor {
                     id, created_at, reason, status, schema_version, app_version,
                     source_library_id, sqlite_snapshot_relative_path,
                     sqlite_snapshot_byte_count, sqlite_snapshot_sha256,
-                    record_count, tag_count, asset_count
+                    record_count, used_tag_count, asset_count
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
             arguments: [
@@ -486,7 +486,7 @@ private extension CanonicalRestoreExecutor {
                 record.sqliteSnapshot.byteCount,
                 record.sqliteSnapshot.sha256,
                 record.counts.recordCount,
-                record.counts.tagCount,
+                record.counts.usedTagCount,
                 record.counts.assetCount,
             ]
         )
@@ -619,7 +619,7 @@ private extension CanonicalRestoreExecutor {
         }
         let expectedCounts = CanonicalRecoveryPointCounts(
             recordCount: context.counts.recordCount,
-            tagCount: context.counts.tagCount,
+            usedTagCount: context.counts.usedTagCount,
             assetCount: context.counts.assetCount
         )
         guard snapshotCatalog.counts == expectedCounts else {
@@ -656,7 +656,9 @@ private extension CanonicalRestoreExecutor {
             }
             let schemaVersion: Int = metadata["schema_version"]
             let recordCount = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM moment_record") ?? 0
-            let tagCount = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM tag_record") ?? 0
+            let usedTagCount =
+                try Int.fetchOne(db, sql: "SELECT COUNT(DISTINCT tag_id) FROM moment_tag_link")
+                ?? 0
             let assetRows = try Row.fetchAll(
                 db,
                 sql: """
@@ -690,7 +692,7 @@ private extension CanonicalRestoreExecutor {
                 schemaVersion: schemaVersion,
                 counts: CanonicalRecoveryPointCounts(
                     recordCount: recordCount,
-                    tagCount: tagCount,
+                    usedTagCount: usedTagCount,
                     assetCount: manifest.count
                 ),
                 assetManifest: manifest

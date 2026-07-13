@@ -133,7 +133,7 @@ enum CanonicalRecoveryPointStatus: String, Sendable, Codable, Equatable, CaseIte
 
 struct CanonicalRecoveryPointCounts: Sendable, Codable, Equatable {
     let recordCount: Int
-    let tagCount: Int
+    let usedTagCount: Int
     let assetCount: Int
 }
 

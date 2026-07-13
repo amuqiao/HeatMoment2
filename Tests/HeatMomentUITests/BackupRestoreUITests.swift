@@ -14,7 +14,8 @@ final class BackupRestoreUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["recoveryPointCreatedAtText"].exists)
         let summary = app.staticTexts["recoveryPointSummaryText"]
         XCTAssertTrue(summary.exists)
-        XCTAssertTrue(summary.label.contains("标签库"))
+        XCTAssertTrue(summary.label.contains("已用标签"))
+        XCTAssertFalse(summary.label.contains("标签库"))
         XCTAssertFalse(app.buttons["删除"].exists)
         XCTAssertFalse(app.buttons["彻底删除"].exists)
 

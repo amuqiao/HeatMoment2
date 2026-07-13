@@ -175,7 +175,7 @@ private extension CanonicalRecoveryPointStore {
             throw CanonicalRecoveryPointStoreError.invalidSnapshotHash(record.sqliteSnapshot.sha256)
         }
         try validateCount(record.counts.recordCount, name: "recordCount")
-        try validateCount(record.counts.tagCount, name: "tagCount")
+        try validateCount(record.counts.usedTagCount, name: "usedTagCount")
         try validateCount(record.counts.assetCount, name: "assetCount")
         guard record.counts.assetCount == assetManifest.count else {
             throw CanonicalRecoveryPointStoreError.assetManifestCountMismatch(
@@ -229,7 +229,7 @@ private extension CanonicalRecoveryPointStore {
                     id, created_at, reason, status, schema_version, app_version,
                     source_library_id, sqlite_snapshot_relative_path,
                     sqlite_snapshot_byte_count, sqlite_snapshot_sha256,
-                    record_count, tag_count, asset_count
+                    record_count, used_tag_count, asset_count
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
             arguments: [
@@ -244,7 +244,7 @@ private extension CanonicalRecoveryPointStore {
                 record.sqliteSnapshot.byteCount,
                 record.sqliteSnapshot.sha256,
                 record.counts.recordCount,
-                record.counts.tagCount,
+                record.counts.usedTagCount,
                 record.counts.assetCount
             ]
         )
@@ -353,7 +353,7 @@ private extension CanonicalRecoveryPointStore {
             ),
             counts: CanonicalRecoveryPointCounts(
                 recordCount: row["record_count"],
-                tagCount: row["tag_count"],
+                usedTagCount: row["used_tag_count"],
                 assetCount: row["asset_count"]
             )
         )

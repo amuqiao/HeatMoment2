@@ -2,7 +2,7 @@ import Foundation
 import GRDB
 
 final class CanonicalStore: @unchecked Sendable {
-    static let currentSchemaVersion = 4
+    static let currentSchemaVersion = 5
 
     private let dbQueue: DatabaseQueue
 
@@ -223,6 +223,56 @@ final class CanonicalStore: @unchecked Sendable {
                 table.column("sqlite_snapshot_sha256", .text).notNull()
                 table.column("record_count", .integer).notNull()
                 table.column("tag_count", .integer).notNull()
+                table.column("asset_count", .integer).notNull()
+            }
+            try db.create(
+                index: "idx_recovery_point_record_created_at",
+                on: "recovery_point_record",
+                columns: ["created_at"]
+            )
+
+            try db.create(table: "recovery_point_asset_record") { table in
+                table.column("recovery_point_id", .text).notNull()
+                    .references("recovery_point_record", column: "id", onDelete: .cascade)
+                table.column("asset_id", .text).notNull()
+                table.column("content_hash", .text).notNull()
+                table.column("byte_count", .integer).notNull()
+                table.column("relative_path", .text).notNull()
+                table.primaryKey(["recovery_point_id", "asset_id"])
+            }
+            try db.create(
+                index: "idx_recovery_point_asset_record_content_hash",
+                on: "recovery_point_asset_record",
+                columns: ["content_hash"]
+            )
+            try db.execute(
+                sql: "UPDATE library_metadata SET schema_version = ? WHERE id = 1",
+                arguments: [4]
+            )
+        }
+        migrator.registerMigration("v5_recovery_point_used_tag_count") { db in
+            try db.execute(
+                sql: """
+                    DELETE FROM asset_pin_record
+                    WHERE owner_kind = 'recoveryPoint'
+                    """
+            )
+            try db.execute(sql: "DROP TABLE IF EXISTS recovery_point_asset_record")
+            try db.execute(sql: "DROP TABLE IF EXISTS recovery_point_record")
+
+            try db.create(table: "recovery_point_record") { table in
+                table.column("id", .text).primaryKey()
+                table.column("created_at", .double).notNull()
+                table.column("reason", .text).notNull()
+                table.column("status", .text).notNull()
+                table.column("schema_version", .integer).notNull()
+                table.column("app_version", .text).notNull()
+                table.column("source_library_id", .text).notNull()
+                table.column("sqlite_snapshot_relative_path", .text).notNull()
+                table.column("sqlite_snapshot_byte_count", .integer).notNull()
+                table.column("sqlite_snapshot_sha256", .text).notNull()
+                table.column("record_count", .integer).notNull()
+                table.column("used_tag_count", .integer).notNull()
                 table.column("asset_count", .integer).notNull()
             }
             try db.create(

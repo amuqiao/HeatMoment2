@@ -176,7 +176,7 @@ private extension CanonicalMigrationSafetyGateTests {
                 byteCount: 1,
                 sha256: String(repeating: "a", count: 64)
             ),
-            counts: CanonicalRecoveryPointCounts(recordCount: 0, tagCount: 0, assetCount: 0)
+            counts: CanonicalRecoveryPointCounts(recordCount: 0, usedTagCount: 0, assetCount: 0)
         )
     }
 

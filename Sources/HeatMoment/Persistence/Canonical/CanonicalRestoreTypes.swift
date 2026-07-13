@@ -113,7 +113,7 @@ struct CanonicalPendingRestoreSnapshot: Codable, Sendable, Equatable {
 
 struct CanonicalPendingRestoreCounts: Codable, Sendable, Equatable {
     let recordCount: Int
-    let tagCount: Int
+    let usedTagCount: Int
     let assetCount: Int
 }
 

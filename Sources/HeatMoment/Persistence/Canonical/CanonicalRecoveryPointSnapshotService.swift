@@ -234,7 +234,9 @@ private extension CanonicalRecoveryPointSnapshotService {
             let sourceLibraryID = try metadata.canonicalUUID("library_id")
             let schemaVersion: Int = metadata["schema_version"]
             let recordCount = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM moment_record") ?? 0
-            let tagCount = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM tag_record") ?? 0
+            let usedTagCount =
+                try Int.fetchOne(db, sql: "SELECT COUNT(DISTINCT tag_id) FROM moment_tag_link")
+                ?? 0
             let assetRows = try Row.fetchAll(
                 db,
                 sql: """
@@ -266,7 +268,7 @@ private extension CanonicalRecoveryPointSnapshotService {
                 schemaVersion: schemaVersion,
                 counts: CanonicalRecoveryPointCounts(
                     recordCount: recordCount,
-                    tagCount: tagCount,
+                    usedTagCount: usedTagCount,
                     assetCount: manifest.count
                 ),
                 assetManifest: manifest

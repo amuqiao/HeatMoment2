@@ -36,7 +36,7 @@ final class CanonicalRecoveryPointStoreTests: XCTestCase {
             appVersion: "1.0.8",
             sourceLibraryID: sourceLibraryID,
             sqliteSnapshot: makeSnapshot(),
-            counts: CanonicalRecoveryPointCounts(recordCount: 2, tagCount: 1, assetCount: 2),
+            counts: CanonicalRecoveryPointCounts(recordCount: 2, usedTagCount: 1, assetCount: 2),
             assetManifest: manifest
         )
         let result = try recoveryStore.createRecoveryPoint(request)
@@ -76,7 +76,7 @@ final class CanonicalRecoveryPointStoreTests: XCTestCase {
             }
             let counts = CanonicalRecoveryPointCounts(
                 recordCount: index,
-                tagCount: 0,
+                usedTagCount: 0,
                 assetCount: 1
             )
             let request = CanonicalRecoveryPointCreationRequest(
@@ -216,7 +216,7 @@ final class CanonicalRecoveryPointValidationTests: XCTestCase {
             appVersion: "1.0.8",
             sourceLibraryID: sourceLibraryID,
             sqliteSnapshot: makeSnapshot(),
-            counts: CanonicalRecoveryPointCounts(recordCount: -1, tagCount: 0, assetCount: 1),
+            counts: CanonicalRecoveryPointCounts(recordCount: -1, usedTagCount: 0, assetCount: 1),
             assetManifest: [validAsset]
         )
 
@@ -254,7 +254,7 @@ final class CanonicalRecoveryPointValidationTests: XCTestCase {
             appVersion: "1.0.8",
             sourceLibraryID: sourceLibraryID,
             sqliteSnapshot: makeSnapshot(),
-            counts: CanonicalRecoveryPointCounts(recordCount: 1, tagCount: 0, assetCount: 2),
+            counts: CanonicalRecoveryPointCounts(recordCount: 1, usedTagCount: 0, assetCount: 2),
             assetManifest: [validAsset]
         )
 
@@ -325,7 +325,7 @@ final class CanonicalRecoveryPointValidationTests: XCTestCase {
             appVersion: "1.0.8",
             sourceLibraryID: uuid("00000000-0000-0000-0000-000000000803"),
             sqliteSnapshot: makeSnapshot(),
-            counts: CanonicalRecoveryPointCounts(recordCount: 1, tagCount: 0, assetCount: 2),
+            counts: CanonicalRecoveryPointCounts(recordCount: 1, usedTagCount: 0, assetCount: 2),
             assetManifest: [
                 makeAssetRecord(
                     recoveryPointID: recoveryPointID,
@@ -357,7 +357,7 @@ final class CanonicalRecoveryPointValidationTests: XCTestCase {
 
 fileprivate extension XCTestCase {
     var oneAssetCounts: CanonicalRecoveryPointCounts {
-        CanonicalRecoveryPointCounts(recordCount: 1, tagCount: 0, assetCount: 1)
+        CanonicalRecoveryPointCounts(recordCount: 1, usedTagCount: 0, assetCount: 1)
     }
 
     func makeSnapshot(byte: UInt8 = 0x09) -> CanonicalRecoveryPointSnapshot {

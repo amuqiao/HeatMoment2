@@ -8,7 +8,7 @@ final class BackupRestoreServiceTests: XCTestCase {
             id: id,
             reason: .restoreSafety,
             status: .available,
-            counts: CanonicalRecoveryPointCounts(recordCount: 5, tagCount: 6, assetCount: 7)
+            counts: CanonicalRecoveryPointCounts(recordCount: 5, usedTagCount: 6, assetCount: 7)
         )
 
         let point = BackupRecoveryPoint(record: record)
@@ -18,7 +18,7 @@ final class BackupRestoreServiceTests: XCTestCase {
         XCTAssertEqual(point.status, .available)
         XCTAssertEqual(
             point.counts,
-            BackupRecoveryCounts(recordCount: 5, tagCount: 6, assetCount: 7)
+            BackupRecoveryCounts(recordCount: 5, usedTagCount: 6, assetCount: 7)
         )
     }
 
@@ -76,7 +76,7 @@ final class BackupRestoreServiceTests: XCTestCase {
         status: CanonicalRecoveryPointStatus = .available,
         counts: CanonicalRecoveryPointCounts = CanonicalRecoveryPointCounts(
             recordCount: 1,
-            tagCount: 0,
+            usedTagCount: 0,
             assetCount: 0
         )
     ) -> CanonicalRecoveryPointRecord {
@@ -117,7 +117,7 @@ final class BackupRestoreServiceTests: XCTestCase {
             ),
             counts: CanonicalPendingRestoreCounts(
                 recordCount: selected.counts.recordCount,
-                tagCount: selected.counts.tagCount,
+                usedTagCount: selected.counts.usedTagCount,
                 assetCount: selected.counts.assetCount
             ),
             assetManifest: []

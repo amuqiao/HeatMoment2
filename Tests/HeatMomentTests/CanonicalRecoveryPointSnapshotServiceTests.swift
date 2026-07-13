@@ -11,6 +11,10 @@ extension RecoveryPointSnapshotServiceTests {
             name: "旅行",
             now: Date(timeIntervalSince1970: 50)
         )
+        _ = try await fixture.runtime.repository.createOrReuseTag(
+            name: "未使用",
+            now: Date(timeIntervalSince1970: 60)
+        )
         _ = try await fixture.runtime.repository.createMoment(
             title: "第一条",
             bodyText: "正文",
@@ -47,7 +51,7 @@ extension RecoveryPointSnapshotServiceTests {
             record.counts,
             CanonicalRecoveryPointCounts(
                 recordCount: 1,
-                tagCount: 1,
+                usedTagCount: 1,
                 assetCount: 1
             )
         )
@@ -221,12 +225,12 @@ extension RecoveryPointSnapshotServiceTests {
                 .catalogCountsMismatch(
                     expected: CanonicalRecoveryPointCounts(
                         recordCount: 0,
-                        tagCount: 0,
+                        usedTagCount: 0,
                         assetCount: 0
                     ),
                     actual: CanonicalRecoveryPointCounts(
                         recordCount: 1,
-                        tagCount: 0,
+                        usedTagCount: 0,
                         assetCount: 0
                     )
                 )

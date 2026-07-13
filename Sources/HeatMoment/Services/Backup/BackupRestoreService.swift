@@ -22,7 +22,7 @@ struct BackupRecoveryPoint: Identifiable, Sendable, Equatable {
 
 struct BackupRecoveryCounts: Sendable, Equatable {
     let recordCount: Int
-    let tagCount: Int
+    let usedTagCount: Int
     let assetCount: Int
 }
 
@@ -102,7 +102,7 @@ extension BackupRecoveryCounts {
     init(counts: CanonicalRecoveryPointCounts) {
         self.init(
             recordCount: counts.recordCount,
-            tagCount: counts.tagCount,
+            usedTagCount: counts.usedTagCount,
             assetCount: counts.assetCount
         )
     }

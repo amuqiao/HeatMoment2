@@ -88,6 +88,7 @@ struct CanonicalLibraryRuntime: Sendable {
             assetStore: assetStore,
             operationGate: assetOperationGate
         )
+        _ = try recoveryPointSnapshotService.reconcileRecoveryPointDirectories()
     }
 
     private init(store: CanonicalStore, assetStore: FileAssetStore) {

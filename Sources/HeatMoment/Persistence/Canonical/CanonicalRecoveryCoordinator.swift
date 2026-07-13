@@ -142,11 +142,13 @@ actor CanonicalRecoveryCoordinator {
     func currentCounts() throws -> CanonicalRecoveryPointCounts {
         try runtime.store.read { db in
             let recordCount = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM moment_record") ?? 0
-            let tagCount = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM tag_record") ?? 0
+            let usedTagCount =
+                try Int.fetchOne(db, sql: "SELECT COUNT(DISTINCT tag_id) FROM moment_tag_link")
+                ?? 0
             let assetCount = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM asset_record") ?? 0
             return CanonicalRecoveryPointCounts(
                 recordCount: recordCount,
-                tagCount: tagCount,
+                usedTagCount: usedTagCount,
                 assetCount: assetCount
             )
         }

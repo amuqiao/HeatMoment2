@@ -1,4 +1,5 @@
 import CoreGraphics
+import GRDB
 import PDFKit
 import UIKit
 import XCTest
@@ -261,10 +262,16 @@ final class LocalDataClosureAcceptanceTests: XCTestCase {
     ) async throws -> ExportBoundarySnapshot {
         ExportBoundarySnapshot(
             momentCount: try await runtime.repository.totalMomentCount(),
-            tagCount: try await runtime.repository.totalTagCount(),
+            usedTagCount: try usedTagCount(in: runtime.store),
             recoveryPointIDs: try await coordinator.listRecoveryPoints().map(\.id),
             syncStatus: syncStatusService.status
         )
+    }
+
+    private static func usedTagCount(in store: CanonicalStore) throws -> Int {
+        try store.read { db in
+            try Int.fetchOne(db, sql: "SELECT COUNT(DISTINCT tag_id) FROM moment_tag_link") ?? 0
+        }
     }
 
     private static func makeJPEGData() throws -> Data {
@@ -285,7 +292,7 @@ final class LocalDataClosureAcceptanceTests: XCTestCase {
 
 private struct ExportBoundarySnapshot: Equatable {
     let momentCount: Int
-    let tagCount: Int
+    let usedTagCount: Int
     let recoveryPointIDs: [UUID]
     let syncStatus: SyncStatus
 }
