@@ -1,6 +1,7 @@
 import XCTest
 
 final class BackupRestoreUITests: XCTestCase {
+    @MainActor
     func testBackupListShowsSystemMaintainedRecoveryPointAndPreview() {
         let app = launchLocalBackupApp(resetDisk: true, seedRecoveryPoint: true)
         openBackupRestore(app)
@@ -11,7 +12,9 @@ final class BackupRestoreUITests: XCTestCase {
         let recoveryPoint = firstRecoveryPointRow(in: app)
         XCTAssertTrue(recoveryPoint.waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["recoveryPointCreatedAtText"].exists)
-        XCTAssertTrue(app.staticTexts["recoveryPointSummaryText"].exists)
+        let summary = app.staticTexts["recoveryPointSummaryText"]
+        XCTAssertTrue(summary.exists)
+        XCTAssertTrue(summary.label.contains("标签库"))
         XCTAssertFalse(app.buttons["删除"].exists)
         XCTAssertFalse(app.buttons["彻底删除"].exists)
 

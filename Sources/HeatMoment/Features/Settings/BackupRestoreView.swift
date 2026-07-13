@@ -280,6 +280,6 @@ private extension BackupRecoveryPoint {
 
 private extension BackupRecoveryCounts {
     var displayText: String {
-        "\(recordCount) 条记录，\(tagCount) 个标签，\(assetCount) 张照片"
+        "\(recordCount) 条记录，标签库 \(tagCount) 项，\(assetCount) 张照片"
     }
 }
