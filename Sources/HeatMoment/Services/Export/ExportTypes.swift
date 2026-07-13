@@ -41,21 +41,13 @@ enum ExportFormat: String, CaseIterable, Sendable, Equatable {
     }
 
     var generateTitle: String {
-        "生成 \(displayName) 副本"
+        "导出 \(displayName)"
     }
 
     var exportingTitle: String {
-        "正在生成..."
+        "正在导出..."
     }
 
-    var shareTitle: String {
-        switch self {
-        case .markdown:
-            return "分享 Markdown 副本"
-        case .pdf:
-            return "分享 PDF 副本"
-        }
-    }
 }
 
 struct ExportRequest: Sendable, Equatable {
@@ -78,7 +70,6 @@ struct ExportRequest: Sendable, Equatable {
 }
 
 enum ExportScope: Sendable, Equatable {
-    case all
     case dateRange(start: Date, end: Date)
 }
 
@@ -123,13 +114,10 @@ struct PDFExportDocument: Sendable, Equatable {
     let data: Data
 }
 
-struct ExportResult: Sendable, Equatable {
+struct ExportShareTransaction: Sendable, Equatable {
     let format: ExportFormat
     let packageDirectoryURL: URL
     let fileURL: URL
-    let fileName: String
-    let momentCount: Int
-    let assetCount: Int
 }
 
 enum ExportError: Error, Equatable {

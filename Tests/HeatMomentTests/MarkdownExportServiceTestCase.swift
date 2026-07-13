@@ -40,6 +40,13 @@ class MarkdownExportServiceTestCase: XCTestCase {
         calendar.timeZone = TimeZone(secondsFromGMT: 0)!
         return calendar
     }
+
+    static var fixtureDateRangeScope: ExportScope {
+        .dateRange(
+            start: Date(timeIntervalSince1970: -172_800),
+            end: Date(timeIntervalSince1970: 345_600)
+        )
+    }
 }
 
 struct MarkdownExportFixture {

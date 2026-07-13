@@ -5,19 +5,23 @@ struct ExportView: View {
 
     @Environment(ThemeManager.self) private var theme
 
-    @State private var selectedFormat: ExportFormat = .markdown
-    @State private var includePhotos = true
-    @State private var startDate = Date()
-    @State private var endDate = Date()
-    @State private var exportDateBounds: ExportDateBounds?
-    @State private var didLoadDateBounds = false
-    @State private var exportResult: ExportResult?
-    @State private var exportFailure: FailureState?
-    @State private var isExporting = false
-    @State private var exportAttemptID = 0
-    @State private var exportTask: Task<Void, Never>?
+    @State var selectedFormat: ExportFormat = .markdown
+    @State var includePhotos = true
+    @State var startDate = Date()
+    @State var endDate = Date()
+    @State var exportDateBounds: ExportDateBounds?
+    @State var didLoadDateBounds = false
+    @State var pendingShareTransaction: ExportShareTransaction?
+    @State var exportFailure: FailureState?
+    @State var isExporting = false
+    @State var isShareSheetPresented = false
+    @State var isResolvingShare = false
+    @State var didHandleShareCompletion = false
+    @State var exportAttemptID = 0
+    @State var exportTask: Task<Void, Never>?
     #if DEBUG
-        @State private var didForceDateBoundsFailure = false
+        @State var didForceDateBoundsFailure = false
+        @State var didForceShareFailure = false
     #endif
 
     init(exportService: any ExportServicing) {
@@ -29,24 +33,33 @@ struct ExportView: View {
 
     var body: some View {
         TaskPageScrollView(accessibilityIdentifier: "exportScrollView") {
-            summarySection
             scopeSection
             contentSection
             formatSection
             generateButton
-            if let exportResult {
-                ResultSection(result: exportResult)
-            }
             if let exportFailure {
                 FailureSection(
                     failure: exportFailure,
-                    isExporting: isExporting,
+                    isExporting: isExportBusy,
                     retry: retry
                 )
             }
         }
-        .appSheetDetailNavigationChrome("阅读副本导出")
+        .appSheetDetailNavigationChrome("导出")
         .themedTaskContainer(theme)
+        .sheet(
+            isPresented: $isShareSheetPresented,
+            onDismiss: {
+                finishSharedExport(completed: false, error: nil)
+            },
+            content: {
+                if let pendingShareTransaction {
+                    ExportShareSheet(transaction: pendingShareTransaction) { completed, error in
+                        finishSharedExport(completed: completed, error: error)
+                    }
+                }
+            }
+        )
         .onChange(of: selectedFormat) { _, _ in
             clearExportState()
         }
@@ -60,33 +73,17 @@ struct ExportView: View {
             clearExportState()
         }
         .task {
-            try? exportService.cleanupTemporaryExports()
-            await loadDateBoundsIfNeeded()
+            if cleanupTemporaryExports() {
+                await loadDateBoundsIfNeeded()
+            }
         }
         .onDisappear {
             cancelExport()
         }
     }
 
-    private var summarySection: some View {
-        TaskSurfaceSection(accessibilityIdentifier: "exportSummarySection") {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("阅读副本只用于查看、编辑或分享，不会改变当前内容，也不能导回恢复资料库。")
-                    .font(AppTypography.body)
-                    .foregroundStyle(theme.primaryText)
-                    .accessibilityIdentifier("exportReadonlyText")
-                Text("需要重装或换设备恢复数据时，请使用“备份与恢复”里的完整备份包。")
-                    .font(AppTypography.caption)
-                    .foregroundStyle(theme.secondaryText)
-                    .accessibilityIdentifier("exportScopeText")
-            }
-            .padding(.horizontal, TaskSurfaceMetrics.rowHorizontalPadding)
-            .padding(.vertical, 12)
-        }
-    }
-
     private var scopeSection: some View {
-        TaskSurfaceSection(title: "副本范围", accessibilityIdentifier: "exportScopeSection") {
+        TaskSurfaceSection(title: "日期", accessibilityIdentifier: "exportScopeSection") {
             VStack(spacing: 0) {
                 exportDatePickerRow(
                     title: "开始日期",
@@ -131,7 +128,7 @@ struct ExportView: View {
                 .tint(theme.accent)
                 .accessibilityIdentifier(identifier)
         }
-        .disabled(isExporting || exportDateBounds == nil)
+        .disabled(isExportBusy || exportDateBounds == nil)
     }
 
     private var contentSection: some View {
@@ -143,7 +140,7 @@ struct ExportView: View {
             .tint(theme.accent)
             .padding(.horizontal, TaskSurfaceMetrics.rowHorizontalPadding)
             .frame(minHeight: TaskSurfaceMetrics.rowMinHeight)
-            .disabled(isExporting || exportDateBounds == nil)
+            .disabled(isExportBusy || exportDateBounds == nil)
             .accessibilityIdentifier("exportIncludePhotosToggle")
         }
     }
@@ -158,7 +155,7 @@ struct ExportView: View {
             .pickerStyle(.segmented)
             .padding(.horizontal, TaskSurfaceMetrics.rowHorizontalPadding)
             .padding(.vertical, 12)
-            .disabled(isExporting)
+            .disabled(isExportBusy)
             .accessibilityIdentifier("exportFormatPicker")
         }
     }
@@ -168,7 +165,7 @@ struct ExportView: View {
             exportSelectedFormat()
         } label: {
             Label {
-                Text(isExporting ? selectedFormat.exportingTitle : selectedFormat.generateTitle)
+                Text(exportButtonTitle)
             } icon: {
                 Image(systemName: selectedFormat.systemImage)
             }
@@ -181,133 +178,14 @@ struct ExportView: View {
                     cornerRadius: TaskSurfaceMetrics.panelCornerRadius,
                     style: .continuous
                 )
-                .fill(isExporting ? theme.accentDisabledFill : theme.accent)
+                .fill(isExportBusy ? theme.accentDisabledFill : theme.accent)
             )
         }
         .buttonStyle(.plain)
-        .disabled(isExporting || makeRequest() == nil)
+        .disabled(isExportBusy || makeRequest() == nil)
         .accessibilityIdentifier("exportGenerateButton")
     }
 
-    private func exportSelectedFormat() {
-        guard !isExporting, let request = makeRequest() else { return }
-        exportTask?.cancel()
-        isExporting = true
-        exportResult = nil
-        exportFailure = nil
-        exportAttemptID += 1
-        let attemptID = exportAttemptID
-        exportTask = Task {
-            defer {
-                isExporting = false
-                exportTask = nil
-            }
-            do {
-                exportResult = try await exportService.export(request: request)
-            } catch is CancellationError {
-                exportResult = nil
-            } catch {
-                exportFailure = FailureState(
-                    attemptID: attemptID,
-                    message: failureMessage(for: error, format: request.format),
-                    retryAction: .export
-                )
-            }
-        }
-    }
-
-    private func makeRequest() -> ExportRequest? {
-        guard exportDateBounds != nil else { return nil }
-        guard dateRangeIsValid else { return nil }
-        return ExportRequest(
-            scope: .dateRange(start: startDate, end: endDate),
-            format: selectedFormat,
-            includePhotos: includePhotos
-        )
-    }
-
-    private func loadDateBoundsIfNeeded() async {
-        guard !didLoadDateBounds else { return }
-        didLoadDateBounds = true
-        do {
-            #if DEBUG
-                if UITestSupport.wantsExportDateBoundsFailOnce {
-                    if !didForceDateBoundsFailure {
-                        didForceDateBoundsFailure = true
-                        throw DateBoundsLoadError()
-                    }
-                }
-            #endif
-            let bounds = try await exportService.exportDateBounds()
-            exportDateBounds = bounds
-            exportFailure = nil
-            if bounds != nil {
-                let defaultRange = ExportDateRangeDefaults.recentThreeDays()
-                startDate = defaultRange.start
-                endDate = defaultRange.end
-            }
-        } catch {
-            exportFailure = FailureState(
-                attemptID: exportAttemptID,
-                message: "导出数据读取失败，请重试。",
-                retryAction: .loadDateBounds
-            )
-        }
-    }
-
-    private func reloadDateBounds() async {
-        didLoadDateBounds = false
-        exportDateBounds = nil
-        exportFailure = nil
-        await loadDateBoundsIfNeeded()
-    }
-}
-
-private extension ExportView {
-    func cancelExport() {
-        exportTask?.cancel()
-        exportTask = nil
-        isExporting = false
-    }
-
-    func retry(_ failure: ExportView.FailureState) {
-        switch failure.retryAction {
-        case .export:
-            exportSelectedFormat()
-        case .loadDateBounds:
-            Task { await reloadDateBounds() }
-        }
-    }
-
-    func clearExportState() {
-        exportResult = nil
-        exportFailure = nil
-    }
-
-    var validationMessage: String? {
-        if exportFailure?.retryAction == .loadDateBounds { return nil }
-        guard exportDateBounds != nil else {
-            return "暂无可导出的时刻。"
-        }
-        if !dateRangeIsValid {
-            return "开始日期不能晚于结束日期。"
-        }
-        return nil
-    }
-
-    var dateRangeIsValid: Bool {
-        Calendar.current.startOfDay(for: startDate) <= Calendar.current.startOfDay(for: endDate)
-    }
-
-    func failureMessage(for error: Error, format: ExportFormat) -> String {
-        if case ExportError.emptyExport = error {
-            return "所选日期内没有可导出的时刻，请调整后重试。"
-        }
-        if case ExportError.invalidDateRange = error {
-            return "开始日期不能晚于结束日期。"
-        }
-        return "\(format.displayName) 导出失败，请重试。"
-    }
 }
 
 #Preview {

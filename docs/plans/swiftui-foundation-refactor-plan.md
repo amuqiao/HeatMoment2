@@ -191,7 +191,7 @@ App Composition
 - `ExportServicing` / `CanonicalExportService` 已归入 `Services/Export/ExportService.swift`；`ExportView` 不再读取 `CanonicalLibraryService` 或组装 `CanonicalExportSnapshotStore`，导出日期范围、临时目录清理和导出动作都通过同一个 capability 合同进入。
 - `RootView` 和 `HeatMomentApp` 明确注入 `backupRestoreService` / `exportService`，Settings feature 不再直接创建备份或导出 concrete service。
 - 导出和备份恢复仍只读/只写 canonical source，不绕过 canonical 事务边界。
-- 验证通过：`./scripts/build.sh`；`./scripts/test.sh --only HeatMomentTests/BackupRestoreServiceTests --only HeatMomentTests/MarkdownExportServiceTests --only HeatMomentTests/PDFExportServiceTests`；`./scripts/test.sh --only HeatMomentUITests/MarkdownExportUITests/testSettingsExportPageGeneratesMarkdownAndShowsShareLink --only HeatMomentUITests/BackupRestoreUITests/testBackupListShowsSystemMaintainedRecoveryPointAndPreview`。
+- 验证通过：`./scripts/build.sh`；`./scripts/test.sh --only HeatMomentTests/BackupRestoreServiceTests --only HeatMomentTests/MarkdownExportServiceTests --only HeatMomentTests/PDFExportServiceTests`；`./scripts/test.sh --only HeatMomentUITests/MarkdownExportUITests/testSettingsExportPageExportsMarkdownAsSingleShareTransaction --only HeatMomentUITests/BackupRestoreUITests/testBackupListShowsSystemMaintainedRecoveryPointAndPreview`。
 
 工作项：
 

@@ -12,6 +12,10 @@
     /// - `-uiTestExportForcePDFFailure`：导出页使用 DEBUG-only 坏图片 snapshot，
     ///   供 PDF 导出失败态验收，不绕过入库图片校验。
     /// - `-uiTestExportDateBoundsFailOnce`：导出页首次读取导出日期边界失败，供读取失败重试验收。
+    /// - `-uiTestExportShareAutoComplete`：阅读副本导出成功后自动执行分享完成回调，
+    ///   避免 UI 测试依赖系统分享面板的无障碍结构。
+    /// - `-uiTestExportShareFailOnce`：阅读副本导出成功后首次分享返回系统错误，
+    ///   供分享失败保留临时副本并重试的事务路径验收。
     /// - `-uiTestImageDisplayCarousel`：UI 测试隔离外观偏好中把图片展示方式预置为轮播。
     /// - `-uiTestSeedMomentQuota`：使用内存 canonical runtime 并预置 10 条 Moment（占满免费额度），
     ///   供 `QuotaBlockUITests.testEleventhMomentBlocked` 验证第 11 篇创建被前置闸门拦截。
@@ -115,6 +119,14 @@
 
         static var wantsExportDateBoundsFailOnce: Bool {
             ProcessInfo.processInfo.arguments.contains("-uiTestExportDateBoundsFailOnce")
+        }
+
+        static var wantsExportShareAutoComplete: Bool {
+            ProcessInfo.processInfo.arguments.contains("-uiTestExportShareAutoComplete")
+        }
+
+        static var wantsExportShareFailOnce: Bool {
+            ProcessInfo.processInfo.arguments.contains("-uiTestExportShareFailOnce")
         }
 
         /// UI 测试隔离：清掉上一次测试运行可能残留在 `UserDefaults.standard` 里的语言偏好

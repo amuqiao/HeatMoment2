@@ -2,32 +2,22 @@ import XCTest
 
 final class BackupRestoreUITests: XCTestCase {
     @MainActor
-    func testBackupRestorePageShowsCompletePackageWorkflow() {
+    func testBackupRestorePageShowsMinimalCompleteBackupWorkflow() {
         let app = launchLocalBackupApp(resetDisk: true, seedLocalData: true)
         openBackupRestore(app)
 
         XCTAssertTrue(app.otherElements["backupSummarySection"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.otherElements["backupPackageSection"].exists)
-        XCTAssertTrue(app.staticTexts["backupPackageExplanationText"].exists)
-        XCTAssertTrue(app.otherElements["backupSafetySection"].exists)
-        XCTAssertTrue(app.buttons["导出完整备份"].exists)
-        XCTAssertTrue(app.buttons["导入完整备份"].exists)
+        XCTAssertTrue(app.staticTexts["当前内容"].exists)
+        XCTAssertTrue(app.staticTexts["完整备份"].exists)
+        XCTAssertTrue(app.buttons["导出备份"].exists)
+        XCTAssertTrue(app.buttons["导入备份"].exists)
+        XCTAssertFalse(app.staticTexts["backupPackageExplanationText"].exists)
+        XCTAssertFalse(app.otherElements["backupSafetySection"].exists)
+        XCTAssertFalse(app.staticTexts["恢复机制"].exists)
+        XCTAssertFalse(app.staticTexts["已生成备份包"].exists)
         XCTAssertFalse(firstRecoveryPointRow(in: app).exists)
         XCTAssertFalse(app.buttons["recoveryPointRestoreButton"].exists)
-    }
-
-    @MainActor
-    func testExportCompleteBackupPackageShowsShareLink() {
-        let app = launchLocalBackupApp(resetDisk: true, seedLocalData: true)
-        openBackupRestore(app)
-
-        let exportButton = app.buttons["导出完整备份"]
-        XCTAssertTrue(exportButton.waitForExistence(timeout: 5))
-        exportButton.tap()
-
-        XCTAssertTrue(app.otherElements["backupExportResultSection"].waitForExistence(timeout: 15))
-        XCTAssertTrue(app.buttons["backupPackageShareLink"].exists)
-        XCTAssertTrue(app.staticTexts["已生成备份包"].exists)
     }
 
     @MainActor

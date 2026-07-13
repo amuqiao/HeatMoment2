@@ -18,16 +18,35 @@ extension CanonicalBackupPackageService {
             .appendingPathComponent(packageID.uuidString, isDirectory: true)
     }
 
-    func exportPackageURL(
+    func preparedExportRootDirectory(descriptor: CanonicalStoreDescriptor) -> URL {
+        exportRootDirectory(descriptor: descriptor)
+            .appendingPathComponent("Prepared", isDirectory: true)
+    }
+
+    func preparedExportDirectory(
         descriptor: CanonicalStoreDescriptor,
+        packageID: UUID
+    ) -> URL {
+        preparedExportRootDirectory(descriptor: descriptor)
+            .appendingPathComponent(packageID.uuidString, isDirectory: true)
+    }
+
+    func exportPackageURL(
+        preparedDirectory: URL,
         packageID: UUID,
         createdAt: Date
     ) -> URL {
         let timestamp = Int(createdAt.timeIntervalSince1970)
-        return exportRootDirectory(descriptor: descriptor)
+        return preparedDirectory
             .appendingPathComponent(
                 "HeatMoment-\(timestamp)-\(packageID.uuidString.prefix(8)).heatmomentbackup"
             )
+    }
+
+    func discardAbandonedPreparedExports(descriptor: CanonicalStoreDescriptor) throws {
+        try removePreparedExportDirectoryIfExists(
+            preparedExportRootDirectory(descriptor: descriptor)
+        )
     }
 
     func relativePath(for url: URL, rootDirectory: URL) throws -> String {
@@ -54,6 +73,12 @@ extension CanonicalBackupPackageService {
     func removeDirectoryIfExists(_ directory: URL) throws {
         if FileManager.default.fileExists(atPath: directory.path) {
             try FileManager.default.removeItem(at: directory)
+        }
+    }
+
+    func removePreparedExportDirectoryIfExists(_ directory: URL) throws {
+        if FileManager.default.fileExists(atPath: directory.path) {
+            try removePreparedExportDirectory(directory)
         }
     }
 }

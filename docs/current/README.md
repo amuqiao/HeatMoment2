@@ -28,9 +28,9 @@
 | 筛选 | 已落地。首页局部半屏/大屏 `FilterPanelView` sheet，不进 `AppRouter.rootSheet`；标签/心情选择即时生效，提供“全部心情”和“清除全部”。 | `TimelineHomeView.swift`、`FilterPanelView.swift` |
 | 标签创建归属 | 已落地。编辑器和筛选只消费已有标签；标签新增、重命名、删除统一归属设置页 `TagManageView`。 | `MomentEditorView.swift`、`TagPickerView.swift`、`FilterPanelView.swift`、`TagManageView.swift` |
 | 数据持久化 | 已落地。生产主 UI、用户写入、完整备份包、本机安全点、Markdown/PDF 阅读副本导出和 UI 测试种子均使用 GRDB canonical store；Moment 原图由 `FileAssetStore` 管理。同步状态仍是启发式展示，不代表 canonical iCloud 同步已经完成。 | `HeatMomentApp.swift`、`RootView.swift`、`CanonicalLibraryService.swift`、`LocalLibraryMutationService.swift`、`CanonicalStore.swift`、`CanonicalLibraryRuntime.swift`、`FileAssetStore.swift`、`CanonicalLibraryRepository.swift` |
-| 完整备份包与恢复 | 已落地。设置页“备份与恢复”默认展示用户可携带的 `.heatmomentbackup` 完整备份包能力；导出生成单文件完整包并交给系统分享/保存，导入先复制到 staging、校验 manifest / SQLite catalog / payload hash，再预览并确认整库替换。 | `BackupRestoreView.swift`、`Services/BackupPackage/BackupPackageTypes.swift`、`BackupPackageArchive.swift`、`CanonicalBackupPackageService.swift`、`CanonicalRestoreExecutor.swift`、`CanonicalBootRestoreGate.swift` |
+| 完整备份包与恢复 | 已落地。设置页“备份与恢复”默认展示用户可携带的 `.heatmomentbackup` 完整备份包能力；导出先生成临时完整包并直接打开系统分享/保存，只有系统完成回调后才记录上次备份，取消或重新进入页面会清理临时包；导入先复制到 staging、校验 manifest / SQLite catalog / payload hash，再预览并确认整库替换。 | `BackupRestoreView.swift`、`Services/BackupPackage/BackupPackageTypes.swift`、`BackupPackageArchive.swift`、`CanonicalBackupPackageService.swift`、`CanonicalRestoreExecutor.swift`、`CanonicalBootRestoreGate.swift` |
 | 本机安全点 | 已落地。内部 recovery point 机制继续维护最近 3 个 SQLite snapshot，用于高风险写入前安全点、稳定变更安全点、迁移安全点和完整备份导入前 restore-safety；不再作为设置页主备份模型展示，也不能删除、分享或导出为备份包。 | `Services/Backup/BackupRestoreService.swift`、`PendingLocalRestoreView.swift`、`CanonicalRecoveryCoordinator.swift`、`CanonicalRecoveryPointSnapshotService.swift`、`CanonicalRestoreExecutor.swift` |
-| Markdown / PDF 阅读副本导出 | 已落地。设置页“阅读副本导出”详情页只消费 `ExportServicing`，生产由 App composition 注入 `CanonicalExportService`；可导出全部活跃 Moment 为 Markdown 或 PDF，导出只读，不可导回恢复，不改变 canonical store，不创建恢复点，不参与 iCloud 同步。 | `ExportService.swift`、`CanonicalExportSnapshotStore.swift`、`MarkdownExportRenderer.swift`、`PDFExportRenderer.swift`、`ExportView.swift` |
+| Markdown / PDF 阅读副本导出 | 已落地。设置页“阅读副本导出”详情页只消费 `ExportServicing`，生产由 App composition 注入 `CanonicalExportService`；按日期范围导出 active Moment 为 Markdown 或 PDF，导出成功后生成 share transaction 并立即打开系统分享，分享完成或取消后结束事务并清理临时副本，不改变 canonical store，不创建恢复点，不参与 iCloud 同步。 | `ExportService.swift`、`CanonicalExportSnapshotStore.swift`、`MarkdownExportRenderer.swift`、`PDFExportRenderer.swift`、`ExportView.swift` |
 | 编辑页日期/时间选择 | 已落地。日期和时间由局部 `.popover` 打开系统 `DatePicker`，即时回写 `occurredAt`。 | `MomentEditorView.swift`、`DateTimePopovers.swift` |
 | 任务页骨架 | 已落地。设置、外观、编辑、预览、Paywall、筛选和标签创建等 sheet 共享 `AppSheetScaffold` / `AppSheetActionButton` / `TaskSurfaceMetrics` / `TaskPageScrollView` 等骨架；半屏筛选仍保留自身 detent 和即时筛选语义。维护入口见 [`sheet-system.md`](sheet-system.md)。 | `AppSheetScaffold.swift`、`AppSheetNavigationChrome.swift`、`TaskContainerStyle.swift`、`SettingsSheetView.swift`、`MomentEditorView.swift`、`FilterPanelView.swift`、`TagCreateSheetView.swift` |
 | Foundation UI 边界 | 已落地。`DesignSystem` 只保留基础 sheet/container/theme/typography/appearance/swipe 能力；心情节点、时间轴气泡、热力图、统计条、首页背景、顶部按钮、FAB、缩略图条和心情色业务 palette 已归入对应 `Features/*`。 | `DesignSystem/`、`Features/Timeline/`、`Features/Heatmap/`、`Features/Stats/`、`Features/MomentMedia/`、`Features/Mood/MoodPalette.swift` |
@@ -90,10 +90,9 @@
 2026-07-13 完整备份包与恢复定向验证：
 
 ```bash
-./scripts/gen.sh
 ./scripts/build.sh
 ./scripts/test.sh --only HeatMomentTests/BackupPackageServiceTests
 ./scripts/test.sh --only HeatMomentUITests/BackupRestoreUITests
 ```
 
-结果：通过。`BackupPackageServiceTests` 执行 6 个测试、0 失败，覆盖完整包导出/预览、尾部篡改拒绝、payload hash 篡改拒绝与 staging 清理、跨 runtime 导入 staging、pending restore arm、保留策略失败后的 armed restore 结果、冷启动整库替换和照片恢复。`BackupRestoreUITests` 执行 2 个测试、0 失败，覆盖设置页完整备份包入口、旧恢复点 UI 不再展示、导出完整备份包和系统分享入口。
+结果：通过。`BackupPackageServiceTests` 执行 12 个测试、0 失败，覆盖临时完整包准备/预览、准备后不记录上次备份、系统完成提交后记录并清理、清理失败时仍保留已完成记录并返回 cleanup 状态、取消后不记录并清理、摘要读取不销毁 active 准备态、显式清理遗留临时包、尾部篡改拒绝、payload hash 篡改拒绝与 staging 清理、跨 runtime 导入 staging、pending restore arm、保留策略失败后的 armed restore 结果、冷启动整库替换和照片恢复。`BackupRestoreUITests` 执行 1 个测试、0 失败，覆盖设置页极简完整备份入口、旧恢复点 UI 和旧二步导出结果区不再展示。

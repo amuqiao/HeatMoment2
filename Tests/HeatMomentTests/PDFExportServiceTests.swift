@@ -24,7 +24,7 @@ final class PDFExportServiceTests: XCTestCase {
         outputRootURL = nil
     }
 
-    func testExportAllWritesReadablePDF() async throws {
+    func testDateRangeExportWritesReadablePDF() async throws {
         let fixture = try makeCanonicalFixture()
         defer { fixture.cleanup() }
         let imageData = try Self.makeJPEGData()
@@ -41,15 +41,17 @@ final class PDFExportServiceTests: XCTestCase {
             pdfRenderer: PDFExportRenderer(timeZone: TimeZone(secondsFromGMT: 0)!)
         )
 
-        let result = try await service.exportAll(
-            format: .pdf,
-            now: Date(timeIntervalSince1970: 7_200)
+        let result = try await service.prepareShareTransaction(
+            request: ExportRequest(
+                scope: Self.fixtureDateRangeScope,
+                format: .pdf,
+                includePhotos: true,
+                requestedAt: Date(timeIntervalSince1970: 7_200)
+            )
         )
 
         XCTAssertEqual(result.format, .pdf)
-        XCTAssertEqual(result.fileName, "HeatMoment-19700101-020000.pdf")
-        XCTAssertEqual(result.momentCount, 1)
-        XCTAssertEqual(result.assetCount, 1)
+        XCTAssertEqual(result.fileURL.lastPathComponent, "HeatMoment-19700101-020000.pdf")
         let data = try Data(contentsOf: result.fileURL)
         XCTAssertTrue(data.starts(with: Data("%PDF".utf8)))
         let provider = try XCTUnwrap(CGDataProvider(data: data as CFData))
@@ -57,7 +59,7 @@ final class PDFExportServiceTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(pdf.numberOfPages, 1)
     }
 
-    func testExportAllRejectsEmptyPDFExport() async throws {
+    func testDateRangeExportRejectsEmptyPDFExport() async throws {
         let fixture = try makeCanonicalFixture()
         defer { fixture.cleanup() }
         let service = ExportService(
@@ -67,9 +69,13 @@ final class PDFExportServiceTests: XCTestCase {
         )
 
         do {
-            _ = try await service.exportAll(
-                format: .pdf,
-                now: Date(timeIntervalSince1970: 7_200)
+            _ = try await service.prepareShareTransaction(
+                request: ExportRequest(
+                    scope: Self.fixtureDateRangeScope,
+                    format: .pdf,
+                    includePhotos: true,
+                    requestedAt: Date(timeIntervalSince1970: 7_200)
+                )
             )
             XCTFail("Expected empty export to fail")
         } catch {
@@ -83,7 +89,7 @@ final class PDFExportServiceTests: XCTestCase {
         XCTAssertTrue(packages.isEmpty)
     }
 
-    func testExportAllCleansPartialPackageAfterPDFRenderFailure() async throws {
+    func testDateRangeExportCleansPartialPackageAfterPDFRenderFailure() async throws {
         let fixture = try makeCanonicalFixture()
         defer { fixture.cleanup() }
         try await fixture.runtime.repository.createMoment(
@@ -99,7 +105,15 @@ final class PDFExportServiceTests: XCTestCase {
             pdfRenderer: PDFExportRenderer(timeZone: TimeZone(secondsFromGMT: 0)!)
         )
 
-        await XCTAssertThrowsErrorAsync(try await service.exportAll(format: .pdf))
+        await XCTAssertThrowsErrorAsync(
+            try await service.prepareShareTransaction(
+                request: ExportRequest(
+                    scope: Self.fixtureDateRangeScope,
+                    format: .pdf,
+                    includePhotos: true
+                )
+            )
+        )
 
         let packages = try FileManager.default.contentsOfDirectory(
             at: outputRootURL,
@@ -117,6 +131,13 @@ final class PDFExportServiceTests: XCTestCase {
             context.fill(CGRect(x: 4, y: 4, width: 16, height: 8))
         }
         return try XCTUnwrap(image.jpegData(compressionQuality: 0.9))
+    }
+
+    private static var fixtureDateRangeScope: ExportScope {
+        .dateRange(
+            start: Date(timeIntervalSince1970: -172_800),
+            end: Date(timeIntervalSince1970: 345_600)
+        )
     }
 
     private func makeCanonicalFixture() throws -> CanonicalExportFixture {

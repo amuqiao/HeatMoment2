@@ -1,67 +1,7 @@
 import SwiftUI
+import UIKit
 
 extension ExportView {
-    struct ResultSection: View {
-        @Environment(ThemeManager.self) private var theme
-
-        let result: ExportResult
-
-        var body: some View {
-            TaskSurfaceSection(title: "导出结果", accessibilityIdentifier: "exportSuccessState") {
-                VStack(spacing: 0) {
-                    TaskSurfaceRow {
-                        Text("格式").foregroundStyle(theme.secondaryText)
-                    } trailing: {
-                        Text(result.format.displayName)
-                            .font(AppTypography.caption)
-                            .foregroundStyle(theme.primaryText)
-                            .accessibilityIdentifier("exportResultFormatText")
-                    }
-                    TaskSurfaceSeparator()
-                    TaskSurfaceRow {
-                        Text("文件").foregroundStyle(theme.secondaryText)
-                    } trailing: {
-                        Text(result.fileName)
-                            .font(AppTypography.caption)
-                            .foregroundStyle(theme.primaryText)
-                            .multilineTextAlignment(.trailing)
-                            .accessibilityIdentifier("exportFileNameText")
-                    }
-                    TaskSurfaceSeparator()
-                    TaskSurfaceRow {
-                        Text("内容").foregroundStyle(theme.secondaryText)
-                    } trailing: {
-                        Text("\(result.momentCount) 条时刻，\(result.assetCount) 张照片")
-                            .font(AppTypography.caption)
-                            .foregroundStyle(theme.primaryText)
-                            .multilineTextAlignment(.trailing)
-                            .accessibilityIdentifier("exportAssetsSummaryText")
-                    }
-                    TaskSurfaceSeparator()
-                    ShareLink(item: shareURL(for: result)) {
-                        TaskSurfaceRow {
-                            Label(result.format.shareTitle, systemImage: "square.and.arrow.up")
-                                .foregroundStyle(theme.primaryText)
-                        } trailing: {
-                            EmptyView()
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("exportShareLink")
-                }
-            }
-        }
-
-        private func shareURL(for result: ExportResult) -> URL {
-            switch result.format {
-            case .markdown:
-                return result.packageDirectoryURL
-            case .pdf:
-                return result.fileURL
-            }
-        }
-    }
-
     struct FailureSection: View {
         @Environment(ThemeManager.self) private var theme
 
@@ -91,6 +31,40 @@ extension ExportView {
                 .padding(.vertical, 12)
             }
             .accessibilityValue("\(failure.attemptID)")
+        }
+    }
+
+    struct ExportShareSheet: UIViewControllerRepresentable {
+        let transaction: ExportShareTransaction
+        let onComplete: (Bool, Error?) -> Void
+
+        func makeUIViewController(context: Context) -> UIActivityViewController {
+            let controller = UIActivityViewController(
+                activityItems: [shareURL(for: transaction)],
+                applicationActivities: nil
+            )
+            controller.popoverPresentationController?.sourceView = controller.view
+            controller.completionWithItemsHandler = { _, completed, _, error in
+                Task { @MainActor in
+                    onComplete(completed, error)
+                }
+            }
+            return controller
+        }
+
+        func updateUIViewController(
+            _ uiViewController: UIActivityViewController,
+            context: Context
+        ) {
+        }
+
+        private func shareURL(for transaction: ExportShareTransaction) -> URL {
+            switch transaction.format {
+            case .markdown:
+                return transaction.packageDirectoryURL
+            case .pdf:
+                return transaction.fileURL
+            }
         }
     }
 }

@@ -62,7 +62,7 @@ final class LocalDataClosureAcceptanceTests: XCTestCase {
         )
         .makeSnapshot(
             request: ExportRequest(
-                scope: .all,
+                scope: Self.fixtureDateRangeScope,
                 format: .markdown,
                 includePhotos: true,
                 requestedAt: Date(timeIntervalSince1970: 510)
@@ -109,24 +109,20 @@ final class LocalDataClosureAcceptanceTests: XCTestCase {
             syncStatusService: syncStatusService
         )
 
-        let markdownResult = try await Self.export(
+        let markdownResult = try await Self.prepareShareTransaction(
             format: .markdown,
             repository: restoredRuntime.repository,
             outputRootURL: outputRootURL,
             now: Date(timeIntervalSince1970: 800)
         )
-        XCTAssertEqual(markdownResult.momentCount, 1)
-        XCTAssertEqual(markdownResult.assetCount, 1)
         try Self.assertMarkdownContainsOnlyRestoredMoment(markdownResult)
 
-        let pdfResult = try await Self.export(
+        let pdfResult = try await Self.prepareShareTransaction(
             format: .pdf,
             repository: restoredRuntime.repository,
             outputRootURL: outputRootURL,
             now: Date(timeIntervalSince1970: 900)
         )
-        XCTAssertEqual(pdfResult.momentCount, 1)
-        XCTAssertEqual(pdfResult.assetCount, 1)
         try Self.assertPDFContainsOnlyRestoredMoment(pdfResult)
 
         let boundaryAfterExport = try await Self.exportBoundarySnapshot(
@@ -210,19 +206,33 @@ final class LocalDataClosureAcceptanceTests: XCTestCase {
         }
     }
 
-    private static func export(
+    private static func prepareShareTransaction(
         format: ExportFormat,
         repository: CanonicalLibraryRepository,
         outputRootURL: URL,
         now: Date
-    ) async throws -> ExportResult {
+    ) async throws -> ExportShareTransaction {
         let service = ExportService(
             snapshotProvider: CanonicalExportSnapshotStore(repository: repository),
             outputRootURL: outputRootURL,
             markdownRenderer: MarkdownExportRenderer(timeZone: TimeZone(secondsFromGMT: 0)!),
             pdfRenderer: PDFExportRenderer(timeZone: TimeZone(secondsFromGMT: 0)!)
         )
-        return try await service.exportAll(format: format, now: now)
+        return try await service.prepareShareTransaction(
+            request: ExportRequest(
+                scope: Self.fixtureDateRangeScope,
+                format: format,
+                includePhotos: true,
+                requestedAt: now
+            )
+        )
+    }
+
+    private static var fixtureDateRangeScope: ExportScope {
+        .dateRange(
+            start: Date(timeIntervalSince1970: -172_800),
+            end: Date(timeIntervalSince1970: 345_600)
+        )
     }
 
     private static func activeTitles(
@@ -232,7 +242,7 @@ final class LocalDataClosureAcceptanceTests: XCTestCase {
     }
 
     private static func assertMarkdownContainsOnlyRestoredMoment(
-        _ result: ExportResult
+        _ result: ExportShareTransaction
     ) throws {
         let markdown = try String(contentsOf: result.fileURL, encoding: .utf8)
         XCTAssertTrue(markdown.contains("## 恢复点活跃"))
@@ -242,7 +252,9 @@ final class LocalDataClosureAcceptanceTests: XCTestCase {
         XCTAssertFalse(markdown.contains("彻底删除候选"))
     }
 
-    private static func assertPDFContainsOnlyRestoredMoment(_ result: ExportResult) throws {
+    private static func assertPDFContainsOnlyRestoredMoment(
+        _ result: ExportShareTransaction
+    ) throws {
         let pdfData = try Data(contentsOf: result.fileURL)
         XCTAssertTrue(pdfData.starts(with: Data("%PDF".utf8)))
         let provider = try XCTUnwrap(CGDataProvider(data: pdfData as CFData))

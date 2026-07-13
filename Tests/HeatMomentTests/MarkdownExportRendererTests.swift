@@ -6,7 +6,10 @@ final class MarkdownExportRendererTests: XCTestCase {
         let pngData = Data([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A])
         let snapshot = ExportSnapshot(
             exportedAt: Date(timeIntervalSince1970: 0),
-            scope: .all,
+            scope: .dateRange(
+                start: Date(timeIntervalSince1970: 0),
+                end: Date(timeIntervalSince1970: 86_400)
+            ),
             includePhotos: true,
             moments: [
                 ExportMoment(

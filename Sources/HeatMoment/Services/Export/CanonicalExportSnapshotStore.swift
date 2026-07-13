@@ -12,8 +12,8 @@ actor CanonicalExportSnapshotStore: ExportSnapshotProviding {
     func makeSnapshot(request: ExportRequest) async throws -> ExportSnapshot {
         let range = try normalizedRange(for: request.scope)
         let payloads = try await repository.exportPayload(
-            startAtInclusive: range?.start,
-            endAtExclusive: range?.end,
+            startAtInclusive: range.start,
+            endAtExclusive: range.end,
             includePhotos: request.includePhotos
         )
         var moments: [ExportMoment] = []
@@ -39,10 +39,8 @@ actor CanonicalExportSnapshotStore: ExportSnapshotProviding {
         )
     }
 
-    private func normalizedRange(for scope: ExportScope) throws -> (start: Date, end: Date)? {
+    private func normalizedRange(for scope: ExportScope) throws -> (start: Date, end: Date) {
         switch scope {
-        case .all:
-            return nil
         case let .dateRange(start, end):
             let startOfDay = calendar.startOfDay(for: start)
             let endOfDay = calendar.startOfDay(for: end)

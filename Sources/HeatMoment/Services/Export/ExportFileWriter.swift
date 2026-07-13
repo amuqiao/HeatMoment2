@@ -6,23 +6,22 @@ struct ExportFileWriter: Sendable {
     func writeMarkdown(
         document: MarkdownExportDocument,
         snapshot: ExportSnapshot
-    ) throws -> ExportResult {
+    ) throws -> ExportShareTransaction {
         try write(
             format: .markdown,
-            exportedAt: snapshot.exportedAt,
-            momentCount: snapshot.moments.count,
-            assetCount: document.assets.count
+            exportedAt: snapshot.exportedAt
         ) { locations in
             try writeMarkdownDocument(document, to: locations)
         }
     }
 
-    func writePDF(document: PDFExportDocument, snapshot: ExportSnapshot) throws -> ExportResult {
+    func writePDF(
+        document: PDFExportDocument,
+        snapshot: ExportSnapshot
+    ) throws -> ExportShareTransaction {
         try write(
             format: .pdf,
-            exportedAt: snapshot.exportedAt,
-            momentCount: snapshot.moments.count,
-            assetCount: snapshot.moments.reduce(0) { $0 + $1.assets.count }
+            exportedAt: snapshot.exportedAt
         ) { locations in
             try writePDFDocument(document, to: locations)
         }
@@ -31,10 +30,8 @@ struct ExportFileWriter: Sendable {
     private func write(
         format: ExportFormat,
         exportedAt: Date,
-        momentCount: Int,
-        assetCount: Int,
         writeDocument: (ExportOutputLocations) throws -> Void
-    ) throws -> ExportResult {
+    ) throws -> ExportShareTransaction {
         try prepareOutputRoot()
         let fileName = "HeatMoment-\(Self.fileTimestamp(exportedAt)).\(format.fileExtension)"
         let locations = makeOutputLocations(
@@ -51,13 +48,10 @@ struct ExportFileWriter: Sendable {
             throw originalError
         }
 
-        return ExportResult(
+        return ExportShareTransaction(
             format: format,
             packageDirectoryURL: locations.packageDirectory,
-            fileURL: locations.file,
-            fileName: fileName,
-            momentCount: momentCount,
-            assetCount: assetCount
+            fileURL: locations.file
         )
     }
 

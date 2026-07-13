@@ -4,12 +4,19 @@ actor CanonicalBackupPackageService: BackupPackageServicing {
     let runtime: CanonicalLibraryRuntime
     let appVersion: String
     let exportHistoryStore: BackupPackageExportHistoryStore
+    let removePreparedExportDirectory: @Sendable (URL) throws -> Void
     let enforceRecoveryPointRetention: @Sendable (CanonicalLibraryRuntime) throws -> [UUID]
 
     init(
         runtime: CanonicalLibraryRuntime,
         appVersion: String,
         exportHistoryStore: BackupPackageExportHistoryStore = BackupPackageExportHistoryStore(),
+        removePreparedExportDirectory:
+            @escaping @Sendable (URL) throws -> Void = { directory in
+                if FileManager.default.fileExists(atPath: directory.path) {
+                    try FileManager.default.removeItem(at: directory)
+                }
+            },
         enforceRecoveryPointRetention:
             @escaping @Sendable (
                 CanonicalLibraryRuntime
@@ -20,6 +27,7 @@ actor CanonicalBackupPackageService: BackupPackageServicing {
         self.runtime = runtime
         self.appVersion = appVersion
         self.exportHistoryStore = exportHistoryStore
+        self.removePreparedExportDirectory = removePreparedExportDirectory
         self.enforceRecoveryPointRetention = enforceRecoveryPointRetention
     }
 
@@ -36,13 +44,31 @@ actor CanonicalBackupPackageService: BackupPackageServicing {
         )
     }
 
-    func exportPackage(createdAt: Date) async throws -> BackupPackageExportResult {
+    func discardAbandonedPreparedExports() async throws {
+        guard let descriptor = runtime.descriptor else {
+            throw BackupPackageError.runtimeRequiresDescriptor
+        }
+        try discardAbandonedPreparedExports(descriptor: descriptor)
+    }
+
+    func prepareExportPackage(createdAt: Date) async throws -> BackupPackagePreparedExport {
         guard let descriptor = runtime.descriptor else {
             throw BackupPackageError.runtimeRequiresDescriptor
         }
         return try runtime.assetOperationGate.performSync {
-            try exportPackageWithoutGate(descriptor: descriptor, createdAt: createdAt)
+            try prepareExportPackageWithoutGate(descriptor: descriptor, createdAt: createdAt)
         }
+    }
+
+    func completePreparedExport(
+        _ preparedExport: BackupPackagePreparedExport,
+        completedAt: Date
+    ) async throws -> BackupPackageExportCompletion {
+        try completePreparedExportWithoutGate(preparedExport, completedAt: completedAt)
+    }
+
+    func discardPreparedExport(_ preparedExport: BackupPackagePreparedExport) async throws {
+        try removePreparedExportDirectoryIfExists(preparedExport.preparedDirectory)
     }
 
     func inspectPackage(at url: URL) async throws -> BackupPackagePreview {

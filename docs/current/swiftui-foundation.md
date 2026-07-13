@@ -89,7 +89,7 @@ Capability Contract
 
 - 完整备份包：`BackupPackageServicing` 由“备份与恢复”详情页消费，`CanonicalBackupPackageService` 由 App composition 注入。
 - 本机安全点：`BackupRestoreServicing` / `CanonicalBackupRestoreService` 仍保留为内部 recovery point capability，不作为设置页主备份模型。
-- 阅读副本导出：`ExportServicing` 由“阅读副本导出”详情页消费，`CanonicalExportService` 负责接入 canonical snapshot adapter。
+- 阅读副本导出：`ExportServicing` 由“阅读副本导出”详情页消费，`CanonicalExportService` 负责接入 canonical snapshot adapter，并以 share transaction 表达生成、分享和清理边界。
 - 同步状态：`SyncStatusService` 当前只表达系统 iCloud 能力和本地写入后的启发式状态。
 
 基础能力不应反向依赖业务 feature。若能力需要业务数据，使用业务 adapter 把业务模型转成 capability snapshot。

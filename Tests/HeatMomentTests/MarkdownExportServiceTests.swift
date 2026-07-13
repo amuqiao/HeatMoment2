@@ -2,7 +2,7 @@ import XCTest
 @testable import HeatMoment
 
 final class MarkdownExportServiceTests: MarkdownExportServiceTestCase {
-    func testExportAllWritesMarkdownAndRelativeAssets() async throws {
+    func testDateRangeExportWritesMarkdownAndRelativeAssets() async throws {
         let fixture = try makeCanonicalFixture()
         defer { fixture.cleanup() }
         let tag = try await fixture.runtime.repository.createOrReuseTag(name: "旅行")
@@ -23,15 +23,17 @@ final class MarkdownExportServiceTests: MarkdownExportServiceTestCase {
             outputRootURL: outputRootURL,
             markdownRenderer: MarkdownExportRenderer(timeZone: TimeZone(secondsFromGMT: 0)!)
         )
-        let result = try await service.exportAll(
-            format: .markdown,
-            now: Date(timeIntervalSince1970: 7_200)
+        let result = try await service.prepareShareTransaction(
+            request: ExportRequest(
+                scope: Self.fixtureDateRangeScope,
+                format: .markdown,
+                includePhotos: true,
+                requestedAt: Date(timeIntervalSince1970: 7_200)
+            )
         )
 
-        XCTAssertEqual(result.fileName, "HeatMoment-19700101-020000.md")
         XCTAssertEqual(result.format, .markdown)
-        XCTAssertEqual(result.momentCount, 1)
-        XCTAssertEqual(result.assetCount, 1)
+        XCTAssertEqual(result.fileURL.lastPathComponent, "HeatMoment-19700101-020000.md")
 
         let markdown = try String(contentsOf: result.fileURL, encoding: .utf8)
         XCTAssertTrue(markdown.contains("# 时刻导出"))
@@ -48,7 +50,7 @@ final class MarkdownExportServiceTests: MarkdownExportServiceTestCase {
         XCTAssertEqual(try Data(contentsOf: assetURL), jpegData)
     }
 
-    func testExportAllExcludesSoftDeletedMoments() async throws {
+    func testDateRangeExportExcludesSoftDeletedMoments() async throws {
         let fixture = try makeCanonicalFixture()
         defer { fixture.cleanup() }
         let activeID = try await fixture.runtime.repository.createMoment(
@@ -70,12 +72,15 @@ final class MarkdownExportServiceTests: MarkdownExportServiceTestCase {
             outputRootURL: outputRootURL,
             markdownRenderer: MarkdownExportRenderer(timeZone: TimeZone(secondsFromGMT: 0)!)
         )
-        let result = try await service.exportAll(
-            format: .markdown,
-            now: Date(timeIntervalSince1970: 400)
+        let result = try await service.prepareShareTransaction(
+            request: ExportRequest(
+                scope: Self.fixtureDateRangeScope,
+                format: .markdown,
+                includePhotos: true,
+                requestedAt: Date(timeIntervalSince1970: 400)
+            )
         )
 
-        XCTAssertEqual(result.momentCount, 1)
         let markdown = try String(contentsOf: result.fileURL, encoding: .utf8)
         XCTAssertTrue(markdown.contains("## 保留"))
         XCTAssertFalse(markdown.contains("不导出"))
@@ -84,7 +89,7 @@ final class MarkdownExportServiceTests: MarkdownExportServiceTestCase {
         XCTAssertEqual(page.map(\.id), [activeID])
     }
 
-    func testExportAllRejectsEmptyMarkdownExport() async throws {
+    func testDateRangeExportRejectsEmptyMarkdownExport() async throws {
         let fixture = try makeCanonicalFixture()
         defer { fixture.cleanup() }
         let service = ExportService(
@@ -94,9 +99,13 @@ final class MarkdownExportServiceTests: MarkdownExportServiceTestCase {
         )
 
         do {
-            _ = try await service.exportAll(
-                format: .markdown,
-                now: Date(timeIntervalSince1970: 7_200)
+            _ = try await service.prepareShareTransaction(
+                request: ExportRequest(
+                    scope: Self.fixtureDateRangeScope,
+                    format: .markdown,
+                    includePhotos: true,
+                    requestedAt: Date(timeIntervalSince1970: 7_200)
+                )
             )
             XCTFail("Expected empty export to fail")
         } catch {
@@ -140,7 +149,7 @@ final class MarkdownExportServiceTests: MarkdownExportServiceTestCase {
             markdownRenderer: MarkdownExportRenderer(timeZone: TimeZone(secondsFromGMT: 0)!)
         )
 
-        let result = try await service.export(
+        let result = try await service.prepareShareTransaction(
             request: ExportRequest(
                 scope: .dateRange(
                     start: Date(timeIntervalSince1970: 100_000),
@@ -152,7 +161,6 @@ final class MarkdownExportServiceTests: MarkdownExportServiceTestCase {
             )
         )
 
-        XCTAssertEqual(result.momentCount, 1)
         let markdown = try String(contentsOf: result.fileURL, encoding: .utf8)
         XCTAssertTrue(markdown.contains("## 范围内"))
         XCTAssertFalse(markdown.contains("范围外较早"))
@@ -183,7 +191,7 @@ final class MarkdownExportServiceTests: MarkdownExportServiceTestCase {
             markdownRenderer: MarkdownExportRenderer(timeZone: TimeZone(secondsFromGMT: 0)!)
         )
 
-        let result = try await service.export(
+        let result = try await service.prepareShareTransaction(
             request: ExportRequest(
                 scope: .dateRange(
                     start: Date(timeIntervalSince1970: 86_400),
@@ -195,7 +203,6 @@ final class MarkdownExportServiceTests: MarkdownExportServiceTestCase {
             )
         )
 
-        XCTAssertEqual(result.momentCount, 1)
         let markdown = try String(contentsOf: result.fileURL, encoding: .utf8)
         XCTAssertTrue(markdown.contains("## 结束当天"))
         XCTAssertFalse(markdown.contains("次日零点"))
@@ -241,7 +248,7 @@ final class MarkdownExportServiceTests: MarkdownExportServiceTestCase {
 
         let snapshot = try await provider.makeSnapshot(
             request: ExportRequest(
-                scope: .all,
+                scope: Self.fixtureDateRangeScope,
                 format: .pdf,
                 includePhotos: false,
                 requestedAt: Date(timeIntervalSince1970: 200)
@@ -269,17 +276,15 @@ final class MarkdownExportServiceTests: MarkdownExportServiceTestCase {
             markdownRenderer: MarkdownExportRenderer(timeZone: TimeZone(secondsFromGMT: 0)!)
         )
 
-        let result = try await service.export(
+        let result = try await service.prepareShareTransaction(
             request: ExportRequest(
-                scope: .all,
+                scope: Self.fixtureDateRangeScope,
                 format: .markdown,
                 includePhotos: false,
                 requestedAt: Date(timeIntervalSince1970: 200)
             )
         )
 
-        XCTAssertEqual(result.momentCount, 1)
-        XCTAssertEqual(result.assetCount, 0)
         let markdown = try String(contentsOf: result.fileURL, encoding: .utf8)
         XCTAssertTrue(markdown.contains("## 只导文字"))
         XCTAssertFalse(markdown.contains("![照片"))
@@ -298,9 +303,9 @@ final class MarkdownExportServiceTests: MarkdownExportServiceTestCase {
         )
 
         do {
-            _ = try await service.export(
+            _ = try await service.prepareShareTransaction(
                 request: ExportRequest(
-                    scope: .all,
+                    scope: Self.fixtureDateRangeScope,
                     format: .markdown,
                     includePhotos: true,
                     requestedAt: Date(timeIntervalSince1970: 200)
@@ -340,7 +345,7 @@ final class MarkdownExportServiceTests: MarkdownExportServiceTestCase {
 
         let snapshot = try await provider.makeSnapshot(
             request: ExportRequest(
-                scope: .all,
+                scope: Self.fixtureDateRangeScope,
                 format: .markdown,
                 includePhotos: true,
                 requestedAt: Date(timeIntervalSince1970: 300)

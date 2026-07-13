@@ -25,7 +25,7 @@ final class MarkdownExportFileWriterTests: MarkdownExportServiceTestCase {
         let writer = ExportFileWriter(outputRootURL: outputRootURL)
         let snapshot = ExportSnapshot(
             exportedAt: Date(timeIntervalSince1970: 500),
-            scope: .all,
+            scope: Self.fixtureDateRangeScope,
             includePhotos: true,
             moments: []
         )

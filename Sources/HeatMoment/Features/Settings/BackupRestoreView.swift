@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import UniformTypeIdentifiers
 
 struct BackupRestoreView: View {
@@ -9,10 +10,12 @@ struct BackupRestoreView: View {
     @Environment(LocalBackupRestoreState.self) private var restoreState
 
     @State private var summary: BackupPackageLibrarySummary?
-    @State private var exportResult: BackupPackageExportResult?
+    @State private var preparedExport: BackupPackagePreparedExport?
     @State private var importPreview: BackupPackagePreview?
     @State private var isLoadingSummary = false
     @State private var isExporting = false
+    @State private var isShareSheetPresented = false
+    @State private var isResolvingExportShare = false
     @State private var isInspectingImport = false
     @State private var isPreparingImport = false
     @State private var isFileImporterPresented = false
@@ -22,13 +25,9 @@ struct BackupRestoreView: View {
         TaskPageScrollView(accessibilityIdentifier: "backupRestoreScrollView") {
             summarySection
             fullBackupSection
-            if let exportResult {
-                exportResultSection(exportResult)
-            }
             if let importPreview {
                 importPreviewSection(importPreview)
             }
-            safetySection
         }
         .appSheetDetailNavigationChrome("备份与恢复")
         .themedTaskContainer(theme)
@@ -38,6 +37,19 @@ struct BackupRestoreView: View {
         ) { result in
             handleImportedFile(result)
         }
+        .sheet(
+            isPresented: $isShareSheetPresented,
+            onDismiss: {
+                resolvePreparedExport(completed: false)
+            },
+            content: {
+                if let preparedExport {
+                    BackupPackageShareSheet(fileURL: preparedExport.fileURL) { completed in
+                        resolvePreparedExport(completed: completed)
+                    }
+                }
+            }
+        )
         .alert("导入这份完整备份？", isPresented: $showsImportConfirmation) {
             Button("导入并替换", role: .destructive) {
                 prepareImport()
@@ -45,7 +57,7 @@ struct BackupRestoreView: View {
             .accessibilityIdentifier("backupPackageImportConfirmButton")
             Button("取消", role: .cancel) {}
         } message: {
-            Text("当前资料库会在下次启动时被这份备份完整替换。App 会先保存一份恢复前安全点。")
+            Text("导入后会替换当前内容。开始前会自动保护现有资料。")
         }
         .fullScreenCover(
             isPresented: Binding(
@@ -57,13 +69,14 @@ struct BackupRestoreView: View {
                 .interactiveDismissDisabled()
         }
         .task {
+            await cleanupAbandonedPreparedExports()
             await loadSummary()
         }
         .userFacingErrorAlert(errorPresenter)
     }
 
     private var summarySection: some View {
-        TaskSurfaceSection(title: "当前资料库", accessibilityIdentifier: "backupSummarySection") {
+        TaskSurfaceSection(title: "当前内容", accessibilityIdentifier: "backupSummarySection") {
             VStack(spacing: 0) {
                 summaryRow(
                     title: "内容",
@@ -71,34 +84,28 @@ struct BackupRestoreView: View {
                 )
                 TaskSurfaceSeparator()
                 summaryRow(
-                    title: "上次导出完整备份",
-                    value: summary?.lastExportedAt.map(Self.dateFormatter.string(from:)) ?? "暂无记录"
+                    title: "上次备份",
+                    value: summary?.lastExportedAt.map(Self.dateFormatter.string(from:)) ?? "从未备份"
                 )
             }
         }
     }
 
     private var fullBackupSection: some View {
-        TaskSurfaceSection(title: "完整备份包", accessibilityIdentifier: "backupPackageSection") {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("完整备份包包含资料库和照片，可用于重装 App 或换设备后的恢复。Markdown 和 PDF 只是阅读副本，不能导回恢复。")
-                    .font(AppTypography.body)
-                    .foregroundStyle(theme.primaryText)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .accessibilityIdentifier("backupPackageExplanationText")
-
+        TaskSurfaceSection(title: "完整备份", accessibilityIdentifier: "backupPackageSection") {
+            VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 12) {
                     actionButton(
-                        title: isExporting ? "正在导出..." : "导出完整备份",
+                        title: isExporting ? "正在准备备份..." : "导出备份",
                         systemImage: "square.and.arrow.up",
-                        isDisabled: backupPackageService == nil || isExporting || isInspectingImport
+                        isDisabled: isActionDisabled
                     ) {
                         exportPackage()
                     }
                     actionButton(
-                        title: isInspectingImport ? "正在读取..." : "导入完整备份",
+                        title: isInspectingImport ? "正在读取备份..." : "导入备份",
                         systemImage: "square.and.arrow.down",
-                        isDisabled: backupPackageService == nil || isExporting || isInspectingImport
+                        isDisabled: isActionDisabled
                     ) {
                         isFileImporterPresented = true
                     }
@@ -109,46 +116,19 @@ struct BackupRestoreView: View {
         }
     }
 
-    private func exportResultSection(_ result: BackupPackageExportResult) -> some View {
-        TaskSurfaceSection(title: "已生成备份包", accessibilityIdentifier: "backupExportResultSection") {
-            VStack(spacing: 0) {
-                summaryRow(title: "时间", value: Self.dateFormatter.string(from: result.createdAt))
-                TaskSurfaceSeparator()
-                summaryRow(title: "内容", value: result.counts.displayText)
-                TaskSurfaceSeparator()
-                summaryRow(title: "大小", value: ByteCountFormatter.string(fromByteCount: result.byteCount))
-                TaskSurfaceSeparator()
-                ShareLink(item: result.fileURL) {
-                    TaskSurfaceRow {
-                        Label("保存或分享备份包", systemImage: "square.and.arrow.up")
-                            .foregroundStyle(theme.accent)
-                    } trailing: {
-                        TaskDisclosureIndicator()
-                    }
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("backupPackageShareLink")
-            }
-        }
-    }
-
     private func importPreviewSection(_ preview: BackupPackagePreview) -> some View {
-        TaskSurfaceSection(title: "待导入备份", accessibilityIdentifier: "backupImportPreviewSection") {
+        TaskSurfaceSection(title: "将要导入", accessibilityIdentifier: "backupImportPreviewSection") {
             VStack(spacing: 0) {
                 summaryRow(title: "备份时间", value: Self.dateFormatter.string(from: preview.createdAt))
                 TaskSurfaceSeparator()
                 summaryRow(title: "内容", value: preview.counts.displayText)
-                TaskSurfaceSeparator()
-                summaryRow(title: "来源版本", value: preview.sourceAppVersion)
-                TaskSurfaceSeparator()
-                summaryRow(title: "数据版本", value: "\(preview.sourceSchemaVersion)")
                 TaskSurfaceSeparator()
                 Button {
                     showsImportConfirmation = true
                 } label: {
                     TaskSurfaceRow {
                         Label(
-                            isPreparingImport ? "正在准备导入..." : "导入并替换当前资料库",
+                            isPreparingImport ? "正在准备导入..." : "导入并替换",
                             systemImage: "arrow.triangle.2.circlepath"
                         )
                         .foregroundStyle(theme.commercialRed)
@@ -160,17 +140,6 @@ struct BackupRestoreView: View {
                 .disabled(isPreparingImport)
                 .accessibilityIdentifier("backupPackagePrepareImportButton")
             }
-        }
-    }
-
-    private var safetySection: some View {
-        TaskSurfaceSection(title: "恢复机制", accessibilityIdentifier: "backupSafetySection") {
-            Text("导入完整备份前，App 会先创建一份恢复前安全点；真正替换会在下次启动时完成，避免运行中直接改写资料库。")
-                .font(AppTypography.caption)
-                .foregroundStyle(theme.secondaryText)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.horizontal, TaskSurfaceMetrics.rowHorizontalPadding)
-                .padding(.vertical, 12)
         }
     }
 
@@ -211,6 +180,23 @@ struct BackupRestoreView: View {
         .disabled(isDisabled)
     }
 
+    private var isActionDisabled: Bool {
+        backupPackageService == nil
+            || isExporting
+            || isShareSheetPresented
+            || isResolvingExportShare
+            || isInspectingImport
+    }
+
+    private func cleanupAbandonedPreparedExports() async {
+        guard let backupPackageService else { return }
+        do {
+            try await backupPackageService.discardAbandonedPreparedExports()
+        } catch {
+            errorPresenter.report(message: "备份临时文件清理失败，请稍后重试。", underlying: error)
+        }
+    }
+
     private func loadSummary() async {
         guard let backupPackageService, !isLoadingSummary else { return }
         isLoadingSummary = true
@@ -228,16 +214,50 @@ struct BackupRestoreView: View {
         Task { @MainActor in
             defer { isExporting = false }
             do {
-                let result = try await backupPackageService.exportPackage()
-                exportResult = result
-                summary = BackupPackageLibrarySummary(
-                    counts: result.counts,
-                    lastExportedAt: result.createdAt
-                )
+                preparedExport = try await backupPackageService.prepareExportPackage()
+                isShareSheetPresented = true
             } catch {
-                errorPresenter.report(message: "完整备份导出失败，请重试。", underlying: error)
+                errorPresenter.report(message: "备份导出失败，请重试。", underlying: error)
             }
         }
+    }
+
+    private func resolvePreparedExport(completed: Bool) {
+        guard !isResolvingExportShare, let preparedExport, let backupPackageService else { return }
+        isResolvingExportShare = true
+        isShareSheetPresented = false
+
+        Task { @MainActor in
+            defer {
+                self.preparedExport = nil
+                isResolvingExportShare = false
+            }
+            do {
+                if completed {
+                    let completion =
+                        try await backupPackageService.completePreparedExport(preparedExport)
+                    summary = BackupPackageLibrarySummary(
+                        counts: preparedExport.counts,
+                        lastExportedAt: completion.exportedAt
+                    )
+                    reportPreparedExportCleanupIfNeeded(completion.cleanupStatus)
+                } else {
+                    try await backupPackageService.discardPreparedExport(preparedExport)
+                }
+            } catch {
+                errorPresenter.report(message: "备份导出失败，请重试。", underlying: error)
+            }
+        }
+    }
+
+    private func reportPreparedExportCleanupIfNeeded(
+        _ cleanupStatus: BackupPackagePreparedExportCleanupStatus
+    ) {
+        guard case let .failedAfterExportRecorded(details) = cleanupStatus else { return }
+        errorPresenter.report(
+            message: "备份已导出，但临时文件清理失败。下次进入页面会重试清理。",
+            underlying: BackupPackagePreparedExportCleanupError.failed(details)
+        )
     }
 
     private func handleImportedFile(_ result: Result<URL, Error>) {
@@ -280,18 +300,38 @@ struct BackupRestoreView: View {
     }()
 }
 
+private enum BackupPackagePreparedExportCleanupError: Error {
+    case failed(String)
+}
+
 private extension BackupRecoveryCounts {
     var displayText: String {
         "\(recordCount) 条记录，已用标签 \(usedTagCount) 个，\(assetCount) 张照片"
     }
 }
 
-private extension ByteCountFormatter {
-    static func string(fromByteCount byteCount: Int64) -> String {
-        let formatter = ByteCountFormatter()
-        formatter.allowedUnits = [.useKB, .useMB, .useGB]
-        formatter.countStyle = .file
-        return formatter.string(fromByteCount: byteCount)
+private struct BackupPackageShareSheet: UIViewControllerRepresentable {
+    let fileURL: URL
+    let onComplete: (Bool) -> Void
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        let controller = UIActivityViewController(
+            activityItems: [fileURL],
+            applicationActivities: nil
+        )
+        controller.popoverPresentationController?.sourceView = controller.view
+        controller.completionWithItemsHandler = { _, completed, _, _ in
+            Task { @MainActor in
+                onComplete(completed)
+            }
+        }
+        return controller
+    }
+
+    func updateUIViewController(
+        _ uiViewController: UIActivityViewController,
+        context: Context
+    ) {
     }
 }
 

@@ -2,18 +2,32 @@ import Foundation
 
 protocol BackupPackageServicing: Sendable {
     func currentSummary() async throws -> BackupPackageLibrarySummary
-    func exportPackage(createdAt: Date) async throws -> BackupPackageExportResult
+    func discardAbandonedPreparedExports() async throws
+    func prepareExportPackage(createdAt: Date) async throws -> BackupPackagePreparedExport
+    func completePreparedExport(
+        _ preparedExport: BackupPackagePreparedExport,
+        completedAt: Date
+    ) async throws -> BackupPackageExportCompletion
+    func discardPreparedExport(_ preparedExport: BackupPackagePreparedExport) async throws
     func inspectPackage(at url: URL) async throws -> BackupPackagePreview
     func prepareImport(_ preview: BackupPackagePreview, now: Date) async throws
         -> BackupPackagePreparedImport
 }
 
 extension BackupPackageServicing {
-    func exportPackage() async throws -> BackupPackageExportResult {
-        try await exportPackage(createdAt: .now)
+    func prepareExportPackage() async throws -> BackupPackagePreparedExport {
+        try await prepareExportPackage(createdAt: .now)
     }
 
-    func prepareImport(_ preview: BackupPackagePreview) async throws -> BackupPackagePreparedImport {
+    func completePreparedExport(
+        _ preparedExport: BackupPackagePreparedExport
+    ) async throws -> BackupPackageExportCompletion {
+        try await completePreparedExport(preparedExport, completedAt: .now)
+    }
+
+    func prepareImport(
+        _ preview: BackupPackagePreview
+    ) async throws -> BackupPackagePreparedImport {
         try await prepareImport(preview, now: .now)
     }
 }
@@ -23,13 +37,25 @@ struct BackupPackageLibrarySummary: Sendable, Equatable {
     let lastExportedAt: Date?
 }
 
-struct BackupPackageExportResult: Sendable, Equatable {
+struct BackupPackagePreparedExport: Sendable, Equatable {
     let packageID: UUID
     let createdAt: Date
     let fileURL: URL
+    let preparedDirectory: URL
     let byteCount: Int64
     let sha256: String
     let counts: BackupRecoveryCounts
+}
+
+struct BackupPackageExportCompletion: Sendable, Equatable {
+    let packageID: UUID
+    let exportedAt: Date
+    let cleanupStatus: BackupPackagePreparedExportCleanupStatus
+}
+
+enum BackupPackagePreparedExportCleanupStatus: Sendable, Equatable {
+    case completed
+    case failedAfterExportRecorded(String)
 }
 
 struct BackupPackagePreview: Identifiable, Sendable, Equatable {
@@ -73,6 +99,7 @@ enum BackupPackageError: Error, Equatable {
     case missingSQLitePayload
     case assetManifestMismatch
     case currentSummaryUnavailable
+    case missingPreparedExportPackage(String)
     case cleanupFailed(originalError: String, cleanupError: String)
 }
 

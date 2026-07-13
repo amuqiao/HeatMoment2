@@ -54,7 +54,7 @@ SwiftUI / ViewModel
 - 本地读写权威、UI 主流程、完整备份包、本机安全点、Markdown/PDF 阅读副本导出和 UI 测试种子使用 canonical 架构，详见 [`../current/implementation-truth.md`](../current/implementation-truth.md)。
 - 后续本地数据生命周期计划只基于 canonical store 演进。
 - 设置页当前已区分“备份与恢复”和“阅读副本导出”；“备份与恢复”指完整 `.heatmomentbackup` 备份包，本机 recovery point 只作为内部安全点。
-- 当前导出闭环支持全部或日期范围、Markdown/PDF、照片开关、失败重试和临时文件清理；它不写 canonical store、不创建恢复点、不参与 iCloud 同步，详见 [`../current/implementation-truth.md`](../current/implementation-truth.md)。
+- 当前导出闭环支持日期范围、Markdown/PDF、照片开关、失败重试和临时文件清理；它不写 canonical store、不创建恢复点、不参与 iCloud 同步，详见 [`../current/implementation-truth.md`](../current/implementation-truth.md)。
 - M-architecture-final 已把本地数据闭环的可复用心智模型整理到 [`../current/local-data-architecture.md`](../current/local-data-architecture.md)，并将导出、恢复点 snapshot 和 restore 类型合同按职责拆分为更小文件。
 - 当前 iCloud 仍只有能力/网络/最近本地写入时间的启发式状态展示；尚未实现真实 CloudKit 同步状态机、多设备收敛、冲突记录或重试队列。
 - 当前 asset reachability、pin-aware dry-run、DB orphan record finalizer 和 orphan blob cleanup 已有维护地基；完整后台 GC 调度、export/sync pin 生命周期尚未实现。

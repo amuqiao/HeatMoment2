@@ -7,7 +7,8 @@ protocol ExportSnapshotProviding: Sendable {
 protocol ExportServicing: Sendable {
     func cleanupTemporaryExports() throws
     func exportDateBounds() async throws -> ExportDateBounds?
-    func export(request: ExportRequest) async throws -> ExportResult
+    func prepareShareTransaction(request: ExportRequest) async throws -> ExportShareTransaction
+    func finishShareTransaction(_ transaction: ExportShareTransaction) throws
 }
 
 struct CanonicalExportService: ExportServicing {
@@ -21,11 +22,15 @@ struct CanonicalExportService: ExportServicing {
         try await repository.exportDateBounds()
     }
 
-    func export(request: ExportRequest) async throws -> ExportResult {
+    func prepareShareTransaction(request: ExportRequest) async throws -> ExportShareTransaction {
         let service = ExportService(
             snapshotProvider: CanonicalExportSnapshotStore(repository: repository)
         )
-        return try await service.export(request: request)
+        return try await service.prepareShareTransaction(request: request)
+    }
+
+    func finishShareTransaction(_ transaction: ExportShareTransaction) throws {
+        try ExportService.finishShareTransaction(transaction)
     }
 }
 
@@ -38,9 +43,15 @@ struct CanonicalExportService: ExportServicing {
             return ExportDateBounds(earliest: date, latest: date)
         }
 
-        func export(request: ExportRequest) async throws -> ExportResult {
+        func prepareShareTransaction(
+            request: ExportRequest
+        ) async throws -> ExportShareTransaction {
             let service = ExportService(snapshotProvider: PreviewExportSnapshotProvider())
-            return try await service.export(request: request)
+            return try await service.prepareShareTransaction(request: request)
+        }
+
+        func finishShareTransaction(_ transaction: ExportShareTransaction) throws {
+            try ExportService.finishShareTransaction(transaction)
         }
     }
 
@@ -83,9 +94,15 @@ struct CanonicalExportService: ExportServicing {
             return ExportDateBounds(earliest: date, latest: date)
         }
 
-        func export(request: ExportRequest) async throws -> ExportResult {
+        func prepareShareTransaction(
+            request: ExportRequest
+        ) async throws -> ExportShareTransaction {
             let service = ExportService(snapshotProvider: DebugFailingPDFExportSnapshotProvider())
-            return try await service.export(request: request)
+            return try await service.prepareShareTransaction(request: request)
+        }
+
+        func finishShareTransaction(_ transaction: ExportShareTransaction) throws {
+            try ExportService.finishShareTransaction(transaction)
         }
     }
 
@@ -152,17 +169,7 @@ struct ExportService {
         self.pdfRenderer = pdfRenderer
     }
 
-    func exportAll(format: ExportFormat, now: Date = .now) async throws -> ExportResult {
-        let request = ExportRequest(
-            scope: .all,
-            format: format,
-            includePhotos: true,
-            requestedAt: now
-        )
-        return try await export(request: request)
-    }
-
-    func export(request: ExportRequest) async throws -> ExportResult {
+    func prepareShareTransaction(request: ExportRequest) async throws -> ExportShareTransaction {
         let snapshot = try await snapshotProvider.makeSnapshot(request: request)
         guard !snapshot.moments.isEmpty else {
             throw ExportError.emptyExport
@@ -190,6 +197,17 @@ struct ExportService {
         } onCancel: {
             task.cancel()
         }
+    }
+
+    func finishShareTransaction(_ transaction: ExportShareTransaction) throws {
+        let writer = ExportFileWriter(
+            outputRootURL: outputRootURL ?? Self.defaultOutputRootURL(format: transaction.format)
+        )
+        try writer.cleanOutputRoot()
+    }
+
+    static func finishShareTransaction(_: ExportShareTransaction) throws {
+        try cleanupTemporaryExports()
     }
 
     static func cleanupTemporaryExports() throws {

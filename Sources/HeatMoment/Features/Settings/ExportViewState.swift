@@ -22,10 +22,13 @@ extension ExportView {
 
     enum FailureRetryAction: Equatable {
         case export
+        case cleanupTemporaryExports
         case loadDateBounds
+        case share
     }
 
     #if DEBUG
         struct DateBoundsLoadError: Error {}
+        struct ShareFailureError: Error {}
     #endif
 }

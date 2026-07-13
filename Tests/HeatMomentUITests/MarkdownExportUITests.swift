@@ -1,32 +1,32 @@
 import XCTest
 
 final class MarkdownExportUITests: XCTestCase {
-    func testSettingsExportPageGeneratesMarkdownAndShowsShareLink() {
+    func testSettingsExportPageExportsMarkdownAsSingleShareTransaction() {
         let app = XCUIApplication.heatMoment()
-        app.launchArguments = ["-uiTestSeedImageMoment"]
+        app.launchArguments = ["-uiTestSeedImageMoment", "-uiTestExportShareAutoComplete"]
         app.launch()
 
         openExportPage(app)
 
-        XCTAssertTrue(app.staticTexts["exportReadonlyText"].exists)
+        XCTAssertFalse(app.staticTexts["exportReadonlyText"].exists)
+        XCTAssertFalse(app.staticTexts["exportScopeText"].exists)
 
         let generateButton = app.buttons["exportGenerateButton"]
         XCTAssertTrue(waitForEnabled(generateButton, timeout: 10))
+        XCTAssertTrue(generateButton.label.contains("导出 Markdown"))
         generateButton.tap()
 
-        XCTAssertTrue(app.otherElements["exportSuccessState"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.staticTexts["exportResultFormatText"].label.contains("Markdown"))
-        XCTAssertTrue(app.staticTexts["exportFileNameText"].label.hasSuffix(".md"))
-        XCTAssertTrue(app.staticTexts["exportAssetsSummaryText"].exists)
-        XCTAssertTrue(app.buttons["exportShareLink"].exists)
+        XCTAssertTrue(waitForEnabled(generateButton, timeout: 10))
+        XCTAssertFalse(app.otherElements["exportSuccessState"].exists)
+        XCTAssertFalse(app.buttons["exportShareLink"].exists)
 
         app.segmentedControls["exportFormatPicker"].buttons["PDF"].tap()
         XCTAssertFalse(app.otherElements["exportSuccessState"].exists)
     }
 
-    func testSettingsExportPageGeneratesPDFAndShowsShareLink() {
+    func testSettingsExportPageExportsPDFAsSingleShareTransaction() {
         let app = XCUIApplication.heatMoment()
-        app.launchArguments = ["-uiTestSeedImageMoment"]
+        app.launchArguments = ["-uiTestSeedImageMoment", "-uiTestExportShareAutoComplete"]
         app.launch()
 
         openExportPage(app)
@@ -37,13 +37,42 @@ final class MarkdownExportUITests: XCTestCase {
 
         let generateButton = app.buttons["exportGenerateButton"]
         XCTAssertTrue(waitForEnabled(generateButton, timeout: 10))
+        XCTAssertTrue(generateButton.label.contains("导出 PDF"))
         generateButton.tap()
 
-        XCTAssertTrue(app.otherElements["exportSuccessState"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.staticTexts["exportResultFormatText"].label.contains("PDF"))
-        XCTAssertTrue(app.staticTexts["exportFileNameText"].label.hasSuffix(".pdf"))
-        XCTAssertTrue(app.staticTexts["exportAssetsSummaryText"].exists)
-        XCTAssertTrue(app.buttons["exportShareLink"].exists)
+        XCTAssertTrue(waitForEnabled(generateButton, timeout: 10))
+        XCTAssertFalse(app.otherElements["exportSuccessState"].exists)
+        XCTAssertFalse(app.buttons["exportShareLink"].exists)
+    }
+
+    func testSettingsExportPageShowsShareFailureAndRetriesShare() {
+        let app = XCUIApplication.heatMoment()
+        app.launchArguments = [
+            "-uiTestSeedImageMoment",
+            "-uiTestExportShareFailOnce",
+            "-uiTestExportShareAutoComplete",
+        ]
+        app.launch()
+
+        openExportPage(app)
+
+        let generateButton = app.buttons["exportGenerateButton"]
+        XCTAssertTrue(waitForEnabled(generateButton, timeout: 10))
+        generateButton.tap()
+
+        let failureState = app.otherElements["exportFailureState"]
+        XCTAssertTrue(failureState.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["exportFailureMessage"].label.contains("系统分享失败"))
+        XCTAssertTrue(app.buttons["exportRetryButton"].exists)
+        XCTAssertFalse(app.otherElements["exportSuccessState"].exists)
+        XCTAssertFalse(app.buttons["exportShareLink"].exists)
+
+        app.buttons["exportRetryButton"].tap()
+
+        XCTAssertTrue(waitForEnabled(generateButton, timeout: 10))
+        XCTAssertFalse(app.otherElements["exportFailureState"].exists)
+        XCTAssertFalse(app.otherElements["exportSuccessState"].exists)
+        XCTAssertFalse(app.buttons["exportShareLink"].exists)
     }
 
     func testSettingsExportPageShowsRangeAndPhotoControls() {

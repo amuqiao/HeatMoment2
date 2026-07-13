@@ -2,7 +2,7 @@ import XCTest
 @testable import HeatMoment
 
 final class BackupPackageServiceTests: XCTestCase {
-    func testExportPackageWritesInspectableCompletePackage() async throws {
+    func testPrepareExportPackageWritesInspectableCompletePackage() async throws {
         let fixture = try makeFixture()
         try await seedMoment(in: fixture.runtime, imageData: Data([0xFF, 0xD8, 0x01]))
         let service = CanonicalBackupPackageService(
@@ -14,10 +14,11 @@ final class BackupPackageServiceTests: XCTestCase {
         )
         let createdAt = Date(timeIntervalSince1970: 1_700_000_000)
 
-        let result = try await service.exportPackage(createdAt: createdAt)
+        let result = try await service.prepareExportPackage(createdAt: createdAt)
         let preview = try await service.inspectPackage(at: result.fileURL)
 
         XCTAssertTrue(FileManager.default.fileExists(atPath: result.fileURL.path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: result.preparedDirectory.path))
         XCTAssertEqual(result.createdAt, createdAt)
         XCTAssertEqual(result.counts.recordCount, 1)
         XCTAssertEqual(result.counts.assetCount, 1)
@@ -27,6 +28,153 @@ final class BackupPackageServiceTests: XCTestCase {
         XCTAssertEqual(preview.manifest.restoreSemantics.mode, "fullReplacement")
         XCTAssertEqual(preview.manifest.payloads.filter { $0.role == .sqlite }.count, 1)
         XCTAssertEqual(preview.manifest.payloads.filter { $0.role == .assetBlob }.count, 1)
+    }
+
+    func testPrepareExportPackageDoesNotRecordLastExportedAt() async throws {
+        let fixture = try makeFixture()
+        try await seedMoment(in: fixture.runtime, imageData: Data([0x01, 0x02]))
+        let historyStore = BackupPackageExportHistoryStore(
+            key: "BackupPackageServiceTests-\(UUID().uuidString)"
+        )
+        let service = CanonicalBackupPackageService(
+            runtime: fixture.runtime,
+            appVersion: "1.0-test",
+            exportHistoryStore: historyStore
+        )
+
+        _ = try await service.prepareExportPackage(
+            createdAt: Date(timeIntervalSince1970: 1_700_000_100)
+        )
+        let summary = try await service.currentSummary()
+
+        XCTAssertNil(summary.lastExportedAt)
+    }
+
+    func testCompletePreparedExportRecordsHistoryAndCleansTemporaryPackage() async throws {
+        let fixture = try makeFixture()
+        try await seedMoment(in: fixture.runtime, imageData: Data([0x03, 0x04]))
+        let historyStore = BackupPackageExportHistoryStore(
+            key: "BackupPackageServiceTests-\(UUID().uuidString)"
+        )
+        let service = CanonicalBackupPackageService(
+            runtime: fixture.runtime,
+            appVersion: "1.0-test",
+            exportHistoryStore: historyStore
+        )
+        let prepared = try await service.prepareExportPackage(
+            createdAt: Date(timeIntervalSince1970: 1_700_000_200)
+        )
+        let completedAt = Date(timeIntervalSince1970: 1_700_000_300)
+
+        let completion = try await service.completePreparedExport(
+            prepared,
+            completedAt: completedAt
+        )
+        let summary = try await service.currentSummary()
+
+        XCTAssertEqual(completion.packageID, prepared.packageID)
+        XCTAssertEqual(completion.exportedAt, completedAt)
+        XCTAssertEqual(completion.cleanupStatus, .completed)
+        XCTAssertEqual(summary.lastExportedAt, completedAt)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: prepared.preparedDirectory.path))
+    }
+
+    func testCompletePreparedExportReportsCleanupFailureAfterRecordingHistory() async throws {
+        let fixture = try makeFixture()
+        try await seedMoment(in: fixture.runtime, imageData: Data([0x09, 0x0A]))
+        let historyStore = BackupPackageExportHistoryStore(
+            key: "BackupPackageServiceTests-\(UUID().uuidString)"
+        )
+        let service = CanonicalBackupPackageService(
+            runtime: fixture.runtime,
+            appVersion: "1.0-test",
+            exportHistoryStore: historyStore,
+            removePreparedExportDirectory: { _ in
+                throw InjectedCleanupError.failed
+            }
+        )
+        let prepared = try await service.prepareExportPackage(
+            createdAt: Date(timeIntervalSince1970: 1_700_000_350)
+        )
+        let completedAt = Date(timeIntervalSince1970: 1_700_000_360)
+
+        let completion = try await service.completePreparedExport(
+            prepared,
+            completedAt: completedAt
+        )
+        let summary = try await service.currentSummary()
+
+        XCTAssertEqual(summary.lastExportedAt, completedAt)
+        XCTAssertEqual(
+            completion.cleanupStatus,
+            .failedAfterExportRecorded(String(describing: InjectedCleanupError.failed))
+        )
+        XCTAssertTrue(FileManager.default.fileExists(atPath: prepared.preparedDirectory.path))
+    }
+
+    func testDiscardPreparedExportDoesNotRecordHistoryAndCleansTemporaryPackage() async throws {
+        let fixture = try makeFixture()
+        try await seedMoment(in: fixture.runtime, imageData: Data([0x05, 0x06]))
+        let historyStore = BackupPackageExportHistoryStore(
+            key: "BackupPackageServiceTests-\(UUID().uuidString)"
+        )
+        let service = CanonicalBackupPackageService(
+            runtime: fixture.runtime,
+            appVersion: "1.0-test",
+            exportHistoryStore: historyStore
+        )
+        let prepared = try await service.prepareExportPackage(
+            createdAt: Date(timeIntervalSince1970: 1_700_000_400)
+        )
+
+        try await service.discardPreparedExport(prepared)
+        let summary = try await service.currentSummary()
+
+        XCTAssertNil(summary.lastExportedAt)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: prepared.preparedDirectory.path))
+    }
+
+    func testCurrentSummaryDoesNotDiscardActivePreparedExport() async throws {
+        let fixture = try makeFixture()
+        try await seedMoment(in: fixture.runtime, imageData: Data([0x07, 0x08]))
+        let historyStore = BackupPackageExportHistoryStore(
+            key: "BackupPackageServiceTests-\(UUID().uuidString)"
+        )
+        let service = CanonicalBackupPackageService(
+            runtime: fixture.runtime,
+            appVersion: "1.0-test",
+            exportHistoryStore: historyStore
+        )
+        let prepared = try await service.prepareExportPackage(
+            createdAt: Date(timeIntervalSince1970: 1_700_000_500)
+        )
+
+        let summary = try await service.currentSummary()
+
+        XCTAssertNil(summary.lastExportedAt)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: prepared.preparedDirectory.path))
+    }
+
+    func testDiscardAbandonedPreparedExportsCleansTemporaryPackage() async throws {
+        let fixture = try makeFixture()
+        try await seedMoment(in: fixture.runtime, imageData: Data([0x0B, 0x0C]))
+        let historyStore = BackupPackageExportHistoryStore(
+            key: "BackupPackageServiceTests-\(UUID().uuidString)"
+        )
+        let service = CanonicalBackupPackageService(
+            runtime: fixture.runtime,
+            appVersion: "1.0-test",
+            exportHistoryStore: historyStore
+        )
+        let prepared = try await service.prepareExportPackage(
+            createdAt: Date(timeIntervalSince1970: 1_700_000_600)
+        )
+
+        try await service.discardAbandonedPreparedExports()
+        let summary = try await service.currentSummary()
+
+        XCTAssertNil(summary.lastExportedAt)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: prepared.preparedDirectory.path))
     }
 
     func testInspectRejectsPackageWithTrailingData() async throws {
@@ -39,7 +187,9 @@ final class BackupPackageServiceTests: XCTestCase {
                 key: "BackupPackageServiceTests-\(UUID().uuidString)"
             )
         )
-        let result = try await service.exportPackage(createdAt: Date(timeIntervalSince1970: 2_000))
+        let result = try await service.prepareExportPackage(
+            createdAt: Date(timeIntervalSince1970: 2_000)
+        )
         let handle = try FileHandle(forWritingTo: result.fileURL)
         defer { try? handle.close() }
         try handle.seekToEnd()
@@ -67,7 +217,9 @@ final class BackupPackageServiceTests: XCTestCase {
                 key: "BackupPackageServiceTests-\(UUID().uuidString)"
             )
         )
-        let result = try await service.exportPackage(createdAt: Date(timeIntervalSince1970: 2_500))
+        let result = try await service.prepareExportPackage(
+            createdAt: Date(timeIntervalSince1970: 2_500)
+        )
         try corruptLastByte(in: result.fileURL)
 
         do {
@@ -97,7 +249,7 @@ final class BackupPackageServiceTests: XCTestCase {
                 key: "BackupPackageServiceTests-\(UUID().uuidString)"
             )
         )
-        let exported = try await sourceService.exportPackage(
+        let exported = try await sourceService.prepareExportPackage(
             createdAt: Date(timeIntervalSince1970: 3_000)
         )
         let preview = try await targetService.inspectPackage(at: exported.fileURL)
@@ -147,7 +299,7 @@ final class BackupPackageServiceTests: XCTestCase {
                 throw InjectedRetentionError.failed
             }
         )
-        let exported = try await sourceService.exportPackage(
+        let exported = try await sourceService.prepareExportPackage(
             createdAt: Date(timeIntervalSince1970: 4_500)
         )
         let preview = try await targetService.inspectPackage(at: exported.fileURL)
@@ -186,7 +338,7 @@ final class BackupPackageServiceTests: XCTestCase {
                 key: "BackupPackageServiceTests-\(UUID().uuidString)"
             )
         )
-        .exportPackage(createdAt: Date(timeIntervalSince1970: 5_000))
+        .prepareExportPackage(createdAt: Date(timeIntervalSince1970: 5_000))
         var prepared: BackupPackagePreparedImport?
 
         do {
@@ -237,6 +389,10 @@ final class BackupPackageServiceTests: XCTestCase {
 }
 
 private extension BackupPackageServiceTests {
+    enum InjectedCleanupError: Error, Equatable {
+        case failed
+    }
+
     enum InjectedRetentionError: Error, Equatable {
         case failed
     }

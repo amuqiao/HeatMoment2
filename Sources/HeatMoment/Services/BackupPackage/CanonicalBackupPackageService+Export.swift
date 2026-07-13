@@ -2,13 +2,18 @@ import Foundation
 import GRDB
 
 extension CanonicalBackupPackageService {
-    func exportPackageWithoutGate(
+    func prepareExportPackageWithoutGate(
         descriptor: CanonicalStoreDescriptor,
         createdAt: Date
-    ) throws -> BackupPackageExportResult {
+    ) throws -> BackupPackagePreparedExport {
+        try discardAbandonedPreparedExports(descriptor: descriptor)
         let workspace = try createExportWorkspace(
             descriptor: descriptor,
             packageID: UUID()
+        )
+        let preparedDirectory = preparedExportDirectory(
+            descriptor: descriptor,
+            packageID: workspace.packageID
         )
         defer {
             if FileManager.default.fileExists(atPath: workspace.stagingDirectory.path) {
@@ -25,17 +30,58 @@ extension CanonicalBackupPackageService {
             payloadRootDirectory: workspace.payloadRootDirectory
         )
         let destinationURL = exportPackageURL(
-            descriptor: descriptor,
+            preparedDirectory: preparedDirectory,
             packageID: workspace.packageID,
             createdAt: createdAt
         )
-        return try writePinnedExportPackage(
+        return try writePinnedPreparedExportPackage(
             manifest: manifest,
             catalog: catalog,
             workspace: workspace,
-            destinationURL: destinationURL,
-            createdAt: createdAt
+            preparedDirectory: preparedDirectory,
+            destinationURL: destinationURL
         )
+    }
+
+    func completePreparedExportWithoutGate(
+        _ preparedExport: BackupPackagePreparedExport,
+        completedAt: Date
+    ) throws -> BackupPackageExportCompletion {
+        guard FileManager.default.fileExists(atPath: preparedExport.fileURL.path) else {
+            throw BackupPackageError.missingPreparedExportPackage(preparedExport.fileURL.path)
+        }
+        let packageData = try Data(contentsOf: preparedExport.fileURL)
+        guard Int64(packageData.count) == preparedExport.byteCount else {
+            throw BackupPackageError.payloadByteCountMismatch(
+                path: preparedExport.fileURL.lastPathComponent,
+                expected: preparedExport.byteCount,
+                actual: Int64(packageData.count)
+            )
+        }
+        let actualSHA256 = FileAssetStore.sha256Hex(packageData)
+        guard actualSHA256 == preparedExport.sha256 else {
+            throw BackupPackageError.payloadHashMismatch(
+                path: preparedExport.fileURL.lastPathComponent,
+                expected: preparedExport.sha256,
+                actual: actualSHA256
+            )
+        }
+
+        exportHistoryStore.recordExported(at: completedAt)
+        do {
+            try removePreparedExportDirectoryIfExists(preparedExport.preparedDirectory)
+            return BackupPackageExportCompletion(
+                packageID: preparedExport.packageID,
+                exportedAt: completedAt,
+                cleanupStatus: .completed
+            )
+        } catch {
+            return BackupPackageExportCompletion(
+                packageID: preparedExport.packageID,
+                exportedAt: completedAt,
+                cleanupStatus: .failedAfterExportRecorded(String(describing: error))
+            )
+        }
     }
 
     func createExportWorkspace(
@@ -102,18 +148,18 @@ extension CanonicalBackupPackageService {
         )
     }
 
-    func writePinnedExportPackage(
+    func writePinnedPreparedExportPackage(
         manifest: BackupPackageManifest,
         catalog: Catalog,
         workspace: ExportWorkspace,
-        destinationURL: URL,
-        createdAt: Date
-    ) throws -> BackupPackageExportResult {
+        preparedDirectory: URL,
+        destinationURL: URL
+    ) throws -> BackupPackagePreparedExport {
         try runtime.assetPinStore.pinContentHashes(
             catalog.assets.map(\.contentHash),
             ownerKind: .exportJob,
             ownerID: workspace.packageID.uuidString,
-            createdAt: createdAt
+            createdAt: manifest.createdAt
         )
         do {
             try BackupPackageArchive.write(
@@ -126,11 +172,11 @@ extension CanonicalBackupPackageService {
                 ownerID: workspace.packageID.uuidString
             )
             let packageData = try Data(contentsOf: destinationURL)
-            exportHistoryStore.recordExported(at: createdAt)
-            return BackupPackageExportResult(
+            return BackupPackagePreparedExport(
                 packageID: workspace.packageID,
-                createdAt: createdAt,
+                createdAt: manifest.createdAt,
                 fileURL: destinationURL,
+                preparedDirectory: preparedDirectory,
                 byteCount: Int64(packageData.count),
                 sha256: FileAssetStore.sha256Hex(packageData),
                 counts: BackupRecoveryCounts(counts: catalog.counts)
