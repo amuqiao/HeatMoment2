@@ -10,8 +10,18 @@ final class BackupRestoreUITests: XCTestCase {
         XCTAssertTrue(app.otherElements["backupPackageSection"].exists)
         XCTAssertTrue(app.staticTexts["当前内容"].exists)
         XCTAssertTrue(app.staticTexts["完整备份"].exists)
-        XCTAssertTrue(app.buttons["导出备份"].exists)
-        XCTAssertTrue(app.buttons["导入备份"].exists)
+        let operationPicker = app.segmentedControls["backupPackageOperationPicker"]
+        XCTAssertTrue(operationPicker.waitForExistence(timeout: 5))
+        XCTAssertTrue(operationPicker.buttons["导出备份"].exists)
+        XCTAssertTrue(operationPicker.buttons["导入恢复"].exists)
+
+        let primaryButton = app.buttons["backupPackagePrimaryButton"]
+        XCTAssertTrue(primaryButton.exists)
+        XCTAssertEqual(primaryButton.label, "导出备份")
+        XCTAssertFalse(app.buttons["导入备份"].exists)
+
+        operationPicker.buttons["导入恢复"].tap()
+        XCTAssertTrue(waitForLabel(primaryButton, "导入备份", timeout: 5))
         XCTAssertFalse(app.staticTexts["backupPackageExplanationText"].exists)
         XCTAssertFalse(app.otherElements["backupSafetySection"].exists)
         XCTAssertFalse(app.staticTexts["恢复机制"].exists)
@@ -58,5 +68,16 @@ final class BackupRestoreUITests: XCTestCase {
             NSPredicate(format: "identifier BEGINSWITH %@", "recoveryPointRow-")
         )
         .firstMatch
+    }
+
+    @MainActor
+    private func waitForLabel(
+        _ element: XCUIElement,
+        _ label: String,
+        timeout: TimeInterval
+    ) -> Bool {
+        let predicate = NSPredicate(format: "exists == true AND label == %@", label)
+        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
+        return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
     }
 }

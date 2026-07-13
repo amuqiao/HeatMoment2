@@ -20,14 +20,16 @@ struct BackupRestoreView: View {
     @State private var isPreparingImport = false
     @State private var isFileImporterPresented = false
     @State private var showsImportConfirmation = false
+    @State private var selectedOperation: BackupPackageOperation = .export
 
     var body: some View {
         TaskPageScrollView(accessibilityIdentifier: "backupRestoreScrollView") {
             summarySection
             fullBackupSection
-            if let importPreview {
+            if selectedOperation == .import, let importPreview {
                 importPreviewSection(importPreview)
             }
+            primaryActionButton
         }
         .appSheetDetailNavigationChrome("备份与恢复")
         .themedTaskContainer(theme)
@@ -93,26 +95,16 @@ struct BackupRestoreView: View {
 
     private var fullBackupSection: some View {
         TaskSurfaceSection(title: "完整备份", accessibilityIdentifier: "backupPackageSection") {
-            VStack(alignment: .leading, spacing: 0) {
-                HStack(spacing: 12) {
-                    actionButton(
-                        title: isExporting ? "正在准备备份..." : "导出备份",
-                        systemImage: "square.and.arrow.up",
-                        isDisabled: isActionDisabled
-                    ) {
-                        exportPackage()
-                    }
-                    actionButton(
-                        title: isInspectingImport ? "正在读取备份..." : "导入备份",
-                        systemImage: "square.and.arrow.down",
-                        isDisabled: isActionDisabled
-                    ) {
-                        isFileImporterPresented = true
-                    }
+            Picker("操作方式", selection: $selectedOperation) {
+                ForEach(BackupPackageOperation.allCases, id: \.self) { operation in
+                    Text(operation.displayName).tag(operation)
                 }
             }
+            .pickerStyle(.segmented)
             .padding(.horizontal, TaskSurfaceMetrics.rowHorizontalPadding)
             .padding(.vertical, 12)
+            .disabled(isPrimaryActionDisabled)
+            .accessibilityIdentifier("backupPackageOperationPicker")
         }
     }
 
@@ -153,39 +145,6 @@ struct BackupRestoreView: View {
                 .foregroundStyle(theme.primaryText)
                 .multilineTextAlignment(.trailing)
         }
-    }
-
-    private func actionButton(
-        title: String,
-        systemImage: String,
-        isDisabled: Bool,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            Label(title, systemImage: systemImage)
-                .font(AppTypography.body.weight(.semibold))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
-                .padding(.horizontal, 10)
-                .foregroundStyle(theme.onAccentText)
-                .background(
-                    RoundedRectangle(
-                        cornerRadius: TaskSurfaceMetrics.panelCornerRadius,
-                        style: .continuous
-                    )
-                    .fill(isDisabled ? theme.accentDisabledFill : theme.accent)
-                )
-        }
-        .buttonStyle(.plain)
-        .disabled(isDisabled)
-    }
-
-    private var isActionDisabled: Bool {
-        backupPackageService == nil
-            || isExporting
-            || isShareSheetPresented
-            || isResolvingExportShare
-            || isInspectingImport
     }
 
     private func cleanupAbandonedPreparedExports() async {
@@ -300,8 +259,84 @@ struct BackupRestoreView: View {
     }()
 }
 
+private extension BackupRestoreView {
+    var primaryActionButton: some View {
+        Button {
+            performSelectedOperation()
+        } label: {
+            Label(primaryActionTitle, systemImage: primaryActionSystemImage)
+                .font(AppTypography.body.weight(.semibold))
+                .frame(maxWidth: .infinity)
+                .padding(TaskSurfaceMetrics.panelPadding)
+                .foregroundStyle(theme.onAccentText)
+                .background(
+                    RoundedRectangle(
+                        cornerRadius: TaskSurfaceMetrics.panelCornerRadius,
+                        style: .continuous
+                    )
+                    .fill(isPrimaryActionDisabled ? theme.accentDisabledFill : theme.accent)
+                )
+        }
+        .buttonStyle(.plain)
+        .disabled(isPrimaryActionDisabled)
+        .accessibilityIdentifier("backupPackagePrimaryButton")
+    }
+
+    var isPrimaryActionDisabled: Bool {
+        backupPackageService == nil
+            || isExporting
+            || isShareSheetPresented
+            || isResolvingExportShare
+            || isInspectingImport
+            || isPreparingImport
+    }
+
+    var primaryActionTitle: String {
+        switch selectedOperation {
+        case .export:
+            if isExporting { return "正在准备备份..." }
+            if isShareSheetPresented || isResolvingExportShare { return "正在分享..." }
+            return "导出备份"
+        case .import:
+            return isInspectingImport ? "正在读取备份..." : "导入备份"
+        }
+    }
+
+    var primaryActionSystemImage: String {
+        switch selectedOperation {
+        case .export:
+            return "square.and.arrow.up"
+        case .import:
+            return "square.and.arrow.down"
+        }
+    }
+
+    func performSelectedOperation() {
+        switch selectedOperation {
+        case .export:
+            exportPackage()
+        case .import:
+            isFileImporterPresented = true
+        }
+    }
+}
+
 private enum BackupPackagePreparedExportCleanupError: Error {
     case failed(String)
+}
+
+private enum BackupPackageOperation: CaseIterable, Hashable {
+    case export
+    case `import`
+
+    var displayName: String {
+        switch self {
+        case .export:
+            return "导出备份"
+        case .import:
+            return "导入恢复"
+        }
+    }
 }
 
 private extension BackupRecoveryCounts {
