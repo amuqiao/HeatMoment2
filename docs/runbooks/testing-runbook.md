@@ -7,8 +7,8 @@
 `./scripts/test.sh` 是统一测试入口，下面分两类主要测试：
 
 ```text
-./scripts/test.sh --unit   -> MoodmentsTests
-./scripts/test.sh --ui     -> MoodmentsUITests
+./scripts/test.sh --unit   -> HeatMomentTests
+./scripts/test.sh --ui     -> HeatMomentUITests
 ./scripts/test.sh --all    -> unit + ui
 ```
 
@@ -33,7 +33,7 @@
 
 ```bash
 ./scripts/test.sh --ui
-./scripts/test.sh --only MoodmentsUITests/AppLaunchUITests
+./scripts/test.sh --only HeatMomentUITests/AppLaunchUITests
 ./scripts/verify.sh
 ```
 
@@ -41,7 +41,7 @@
 
 ```bash
 ./scripts/test.sh --unit
-./scripts/test.sh --only MoodmentsTests/MultiTagFilterTests
+./scripts/test.sh --only HeatMomentTests/MultiTagFilterTests
 ```
 
 `verify.sh` 会启动 App，因为它最终会执行 `test.sh --all`，而 `--all` 包含 UI 测试。
@@ -51,8 +51,8 @@
 开发中定位问题时优先用 `--only` 缩小反馈范围：
 
 ```bash
-./scripts/test.sh --only MoodmentsTests/MultiTagFilterTests
-./scripts/test.sh --only MoodmentsUITests/TitleCollapseFilterUITests/testCollapsedTitleTapOpensFilterSheet
+./scripts/test.sh --only HeatMomentTests/MultiTagFilterTests
+./scripts/test.sh --only HeatMomentUITests/TitleCollapseFilterUITests/testCollapsedTitleTapOpensFilterSheet
 ```
 
 `--only` 的标识已经包含 target，因此不要和 `--unit`、`--ui`、`--all` 混用。
@@ -100,10 +100,10 @@
 
 | 你改了什么 | 先跑什么 |
 | --- | --- |
-| 筛选 AND / 心情单选规则 | `./scripts/test.sh --only MoodmentsTests/MultiTagFilterTests` |
-| 时间轴几何计算 | `./scripts/test.sh --only MoodmentsTests/TimelineGeometryTests` |
-| 筛选 sheet 展示或点选行为 | `./scripts/test.sh --only MoodmentsUITests/TitleCollapseFilterUITests` |
-| 热力图日/月定位 | `./scripts/test.sh --only MoodmentsUITests/LocateFilterUITests` |
-| 标签管理页面 | `./scripts/test.sh --only MoodmentsUITests/TagManageUITests` |
-| 删除、恢复、彻底删除 | `./scripts/test.sh --only MoodmentsUITests/DeleteRestorePurgeUITests` |
+| 筛选 AND / 心情单选规则 | `./scripts/test.sh --only HeatMomentTests/MultiTagFilterTests` |
+| 时间轴几何计算 | `./scripts/test.sh --only HeatMomentTests/TimelineGeometryTests` |
+| 筛选 sheet 展示或点选行为 | `./scripts/test.sh --only HeatMomentUITests/TitleCollapseFilterUITests` |
+| 热力图日/月定位 | `./scripts/test.sh --only HeatMomentUITests/LocateFilterUITests` |
+| 标签管理页面 | `./scripts/test.sh --only HeatMomentUITests/TagManageUITests` |
+| 删除、恢复、彻底删除 | `./scripts/test.sh --only HeatMomentUITests/DeleteRestorePurgeUITests` |
 | 不确定影响面 | `./scripts/verify.sh` |

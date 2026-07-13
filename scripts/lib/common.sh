@@ -5,12 +5,12 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 export REPO_ROOT
 
-PROJECT_NAME="Moodments"
+PROJECT_NAME="HeatMoment"
 export PROJECT_NAME
 
-log()  { printf '\033[0;36m[moodments]\033[0m %s\n' "$*"; }
-warn() { printf '\033[0;33m[moodments:warn]\033[0m %s\n' "$*" >&2; }
-err()  { printf '\033[0;31m[moodments:error]\033[0m %s\n' "$*" >&2; exit 1; }
+log()  { printf '\033[0;36m[HeatMoment]\033[0m %s\n' "$*"; }
+warn() { printf '\033[0;33m[HeatMoment:warn]\033[0m %s\n' "$*" >&2; }
+err()  { printf '\033[0;31m[HeatMoment:error]\033[0m %s\n' "$*" >&2; exit 1; }
 
 # 校验命令存在，否则快速失败并提示如何补齐（不 silent fallback）
 require_cmd() {

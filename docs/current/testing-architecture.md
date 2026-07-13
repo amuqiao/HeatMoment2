@@ -1,21 +1,21 @@
 # 测试架构真相
 
-本文记录当前 SwiftUI 版 Moodments 已落地的测试入口、数据隔离方式和维护边界。真实 CloudKit 自动化、iCloud 多设备收敛和持久导出任务不在本文伪装成现状；这些缺口进入 [`../plans/implementation-plan.md`](../plans/implementation-plan.md)。本地备份恢复 UI 演练已切到 canonical runtime 和磁盘隔离目录；本地数据闭环已有磁盘级验收测试覆盖恢复点、启动恢复、删除生命周期和 Markdown/PDF 只读导出。
+本文记录当前 SwiftUI 版 HeatMoment 已落地的测试入口、数据隔离方式和维护边界。真实 CloudKit 自动化、iCloud 多设备收敛和持久导出任务不在本文伪装成现状；这些缺口进入 [`../plans/implementation-plan.md`](../plans/implementation-plan.md)。本地备份恢复 UI 演练已切到 canonical runtime 和磁盘隔离目录；本地数据闭环已有磁盘级验收测试覆盖恢复点、启动恢复、删除生命周期和 Markdown/PDF 只读导出。
 
 ## 入口模型
 
 当前测试只有两个 target：
 
 ```text
-MoodmentsTests      单元 / 服务 / repository / 状态规则
-MoodmentsUITests    XCUITest 用户流程和交互契约
+HeatMomentTests      单元 / 服务 / repository / 状态规则
+HeatMomentUITests    XCUITest 用户流程和交互契约
 ```
 
 命令入口收口到：
 
 ```text
-./scripts/test.sh --unit       只跑 MoodmentsTests
-./scripts/test.sh --ui         只跑 MoodmentsUITests
+./scripts/test.sh --unit       只跑 HeatMomentTests
+./scripts/test.sh --ui         只跑 HeatMomentUITests
 ./scripts/test.sh --all        跑两个测试 target
 ./scripts/test.sh --only ...   跑 Xcode 原生 XCTest 标识
 ./scripts/check-foundation-boundaries.sh
@@ -34,9 +34,9 @@ MoodmentsUITests    XCUITest 用户流程和交互契约
 - Canonical repository / recovery / export 相关测试使用内存 runtime 或测试专用临时目录。
 - `SyncStatusServiceTests` 只验证同步状态的纯逻辑推导，不证明真实 iCloud 同步、CloudKit 事件处理或多设备收敛。
 - `UserDefaults` 相关测试使用独立 suite，并在 teardown 清理。
-- StoreKit 测试使用 `Config/Moodments.storekit`，已知 `storekitagent` 环境握手失败时转为显式 `XCTSkip`。
+- StoreKit 测试使用 `Config/HeatMoment.storekit`，已知 `storekitagent` 环境握手失败时转为显式 `XCTSkip`。
 
-当前没有统一 `Tests/MoodmentsTests/Support/` 工厂目录；内存容器、独立 `UserDefaults` suite 和临时目录 setup 分散在对应测试文件内。
+当前没有统一 `Tests/HeatMomentTests/Support/` 工厂目录；内存容器、独立 `UserDefaults` suite 和临时目录 setup 分散在对应测试文件内。
 
 ## UI 测试数据
 
@@ -57,7 +57,7 @@ UI 测试通过 DEBUG-only `UITestSupport` 使用隔离内存 canonical runtime�
 | `-uiTestBiometricAlwaysSucceed` / `-uiTestBiometricAlwaysFail` | 伪造生物识别结果 |
 | `-uiTestFailAppearanceSave` | 注入外观保存失败 |
 
-任意 `-uiTest*` 场景会重置语言偏好，并让外观偏好使用隔离 suite；自定义背景图文件也写入临时隔离目录。多数 UI 测试会重置默认标签首启标记，但 `-uiTestLocalBackupRestore` 例外：它要跨两次冷启动验证真实恢复结果，不能在第二次启动前重置默认标签 seed flag 后改写刚恢复出来的资料库。只有 `-uiTestReset`、`-uiTestSeedMoments`、`-uiTestSeedMomentQuota`、`-uiTestSkipDefaultTags` 会切到内存 canonical runtime；`-uiTestLocalBackupRestore` 会使用 `MOODMENTS_UI_TEST_LOCAL_BACKUP_RUN_ID` 指定的临时磁盘目录，第二次启动必须复用同一个 run id 且不能携带 `-uiTestResetLocalBackupDisk`。`RootView` 在 DEBUG seed 与默认标签初始化完成前不会展示主页，UI 测试看到首屏入口时即可认为种子数据已就绪。
+任意 `-uiTest*` 场景会重置语言偏好，并让外观偏好使用隔离 suite；自定义背景图文件也写入临时隔离目录。多数 UI 测试会重置默认标签首启标记，但 `-uiTestLocalBackupRestore` 例外：它要跨两次冷启动验证真实恢复结果，不能在第二次启动前重置默认标签 seed flag 后改写刚恢复出来的资料库。只有 `-uiTestReset`、`-uiTestSeedMoments`、`-uiTestSeedMomentQuota`、`-uiTestSkipDefaultTags` 会切到内存 canonical runtime；`-uiTestLocalBackupRestore` 会使用 `HEATMOMENT_UI_TEST_LOCAL_BACKUP_RUN_ID` 指定的临时磁盘目录，第二次启动必须复用同一个 run id 且不能携带 `-uiTestResetLocalBackupDisk`。`RootView` 在 DEBUG seed 与默认标签初始化完成前不会展示主页，UI 测试看到首屏入口时即可认为种子数据已就绪。
 
 ## UI 测试当前写法
 
@@ -73,8 +73,8 @@ UI 测试通过 DEBUG-only `UITestSupport` 使用隔离内存 canonical runtime�
 
 `scripts/check-foundation-boundaries.sh` 是 M-foundation 后新增的只读守卫，当前检查三类明显回漂：
 
-- `Sources/Moodments/DesignSystem` 不应引用 Mood/Moment/Tag/Timeline/Heatmap 等 Moodments 业务语义，也不应读取 canonical 数据实现。
-- `Sources/Moodments/Features` 不应直接创建备份/导出 concrete service；这些能力由 App composition 注入 capability contract。
-- `Sources/Moodments/Features/Settings` 不应重新定义跨 feature service protocol 或 canonical service 实现。
+- `Sources/HeatMoment/DesignSystem` 不应引用 Mood/Moment/Tag/Timeline/Heatmap 等 HeatMoment 业务语义，也不应读取 canonical 数据实现。
+- `Sources/HeatMoment/Features` 不应直接创建备份/导出 concrete service；这些能力由 App composition 注入 capability contract。
+- `Sources/HeatMoment/Features/Settings` 不应重新定义跨 feature service protocol 或 canonical service 实现。
 
 边界扫描只覆盖可用 `rg` 稳定表达的硬边界，不替代 code review。新增基础能力或迁移目录时，应同步更新该脚本、`scripts/README.md` 和相关 current 文档。

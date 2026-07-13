@@ -5,7 +5,7 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$DIR/lib/common.sh"
 source "$DIR/lib/sim.sh"
 
-BUNDLE_ID="com.moodments.app"
+BUNDLE_ID="com.heatmoment.app"
 
 usage() {
   cat <<'EOF'
@@ -36,7 +36,7 @@ dev.sh — 本地开发统一入口：路由构建、运行、测试、清理与
 副作用:
   run/start/restart/build/test/verify 会写 DerivedData，run/start/restart 会安装并启动 App；
   launch 会启动 Simulator.app 并启动已安装 App；stop 会 terminate 模拟器中的 App；
-  clean 会删除 DerivedData 与 Moodments.xcodeproj；status/doctor 不改工作区源码。
+  clean 会删除 DerivedData 与 HeatMoment.xcodeproj；status/doctor 不改工作区源码。
 
 不负责:
   真机部署 / 签名分发；安装 Xcode 或 Homebrew（见 bootstrap.sh）。
@@ -45,7 +45,7 @@ dev.sh — 本地开发统一入口：路由构建、运行、测试、清理与
   ./scripts/dev.sh status
   ./scripts/dev.sh run
   ./scripts/dev.sh test --unit
-  ./scripts/dev.sh test --only MoodmentsTests/MultiTagFilterTests
+  ./scripts/dev.sh test --only HeatMomentTests/MultiTagFilterTests
   SIM_NAME='iPhone 16 Pro' ./scripts/dev.sh restart
 
 exit code:

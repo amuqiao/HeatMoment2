@@ -1,6 +1,6 @@
-# AGENTS.md / CLAUDE.md — 时刻 / Moodments
+# AGENTS.md / CLAUDE.md — 心绪日记 / HeatMoment
 
-iOS SwiftUI 复刻 App「时刻」(App Store 商店名「心绪日记」/ 关于页 Moodments):本地优先、无自建后端的个人情绪日记。iPhone + iPad,iOS/iPadOS 17+,Swift 6（严格并发）。
+iOS SwiftUI App「心绪日记」/ HeatMoment：本地优先、无自建后端的个人情绪日记。iPhone + iPad,iOS/iPadOS 17+,Swift 6（严格并发）。
 
 ## 文档职责（改动前先读；冲突时以公理层为准）
 

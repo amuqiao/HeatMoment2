@@ -1,6 +1,6 @@
 # SwiftUI 小应用骨架
 
-本文说明 Moodments 当前可作为后续 SwiftUI 小应用参考的骨架。它记录已经落地的组合方式和边界，不把 Moodments 业务对象包装成通用框架。
+本文说明 HeatMoment 当前可作为后续 SwiftUI 小应用参考的骨架。它记录已经落地的组合方式和边界，不把 HeatMoment 业务对象包装成通用框架。
 
 ## 心智模型
 
@@ -20,17 +20,17 @@ App Composition
 - `Capability Contracts` 提供业务页面可消费的稳定能力边界，例如备份恢复、导出、订阅、同步状态、隐私锁偏好。
 - `Capability Internals` 负责 GRDB、SQLite、FileAssetStore、StoreKit、LocalAuthentication、FileManager 等具体实现。
 
-依赖方向只向下。业务页面可以使用 foundation UI 和 capability contract；foundation UI 不读取 Moodments 业务模型；Settings 不定义跨 feature service protocol；concrete service 由 App composition 注入。
+依赖方向只向下。业务页面可以使用 foundation UI 和 capability contract；foundation UI 不读取 HeatMoment 业务模型；Settings 不定义跨 feature service protocol；concrete service 由 App composition 注入。
 
 ## 当前目录角色
 
 | 目录 / 文件 | 当前角色 | 复用方式 |
 | --- | --- | --- |
-| `Sources/Moodments/App/` | App composition、根级路由、runtime service 装配 | 新 App 保留模式，替换根业务场景和 root sheet case |
-| `Sources/Moodments/DesignSystem/` | Foundation UI、主题、sheet/container、基础交互样式 | 可作为基础 UI 骨架复用 |
-| `Sources/Moodments/Services/` | App capability contract 与实现入口 | 按能力复用或替换 concrete implementation |
-| `Sources/Moodments/Persistence/Canonical/` | 当前本地资料库核心 | 适合同类本地优先 App 参考；新业务需按自身对象建模 |
-| `Sources/Moodments/Features/` | Moodments 业务页面和业务组件 | 作为业务实现参考，不作为 foundation 直接复用 |
+| `Sources/HeatMoment/App/` | App composition、根级路由、runtime service 装配 | 新 App 保留模式，替换根业务场景和 root sheet case |
+| `Sources/HeatMoment/DesignSystem/` | Foundation UI、主题、sheet/container、基础交互样式 | 可作为基础 UI 骨架复用 |
+| `Sources/HeatMoment/Services/` | App capability contract 与实现入口 | 按能力复用或替换 concrete implementation |
+| `Sources/HeatMoment/Persistence/Canonical/` | 当前本地资料库核心 | 适合同类本地优先 App 参考；新业务需按自身对象建模 |
+| `Sources/HeatMoment/Features/` | HeatMoment 业务页面和业务组件 | 作为业务实现参考，不作为 foundation 直接复用 |
 | `docs/current/` | 已落地事实、能力边界和验证基线 | 作为维护事实源 |
 | `docs/plans/` | 未完成 gap、planned work、acceptance | 作为主动计划源 |
 | `scripts/` | 工程生成、构建、测试、验证、边界扫描入口 | 可复用脚本分层和帮助文案模式 |
@@ -47,10 +47,10 @@ App Composition
 
 通常替换：
 
-- `Features/Timeline`、`Features/Editor`、`Features/Preview`、`Features/Heatmap`、`Features/Mood` 等 Moodments 业务 feature。
+- `Features/Timeline`、`Features/Editor`、`Features/Preview`、`Features/Heatmap`、`Features/Mood` 等 HeatMoment 业务 feature。
 - `Mood`、`Moment`、`Tag`、`TimelineFilter`、`MoodPalette` 等业务模型和业务 palette。
 - canonical repository 的业务 schema、record、query 和 mutation use case。
-- UI 测试里的 Moodments seed fixture。
+- UI 测试里的 HeatMoment seed fixture。
 
 ## 新增业务 Feature
 
@@ -137,8 +137,8 @@ Capability Contract
 
 ```bash
 ./scripts/check-foundation-boundaries.sh
-./scripts/test.sh --only MoodmentsTests/MarkdownExportServiceTests
-./scripts/test.sh --only MoodmentsUITests/EditorSheetPresentationUITests/testSettingsRootHasNoExplicitCloseAndChildPageKeepsBackButton
+./scripts/test.sh --only HeatMomentTests/MarkdownExportServiceTests
+./scripts/test.sh --only HeatMomentUITests/EditorSheetPresentationUITests/testSettingsRootHasNoExplicitCloseAndChildPageKeepsBackButton
 ```
 
 阶段收口或共享基础设施变动后，再按风险补：

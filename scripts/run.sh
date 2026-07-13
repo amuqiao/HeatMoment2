@@ -13,7 +13,7 @@ run.sh — 在模拟器构建并启动 App（boot → build → install → laun
   ./scripts/run.sh [-h|--help]
 
 参数:
-  无        构建 Debug 到模拟器并启动 com.moodments.app
+  无        构建 Debug 到模拟器并启动 com.heatmoment.app
 
 环境变量:
   SIM_NAME  覆盖目标模拟器（默认 iPhone 17，见 lib/sim.sh）
@@ -41,7 +41,7 @@ require_cmd xcodebuild
 cd "$REPO_ROOT"
 [ -d "${PROJECT_NAME}.xcodeproj" ] || "$DIR/gen.sh"
 
-BUNDLE_ID="com.moodments.app"
+BUNDLE_ID="com.heatmoment.app"
 UDID="$(sim_boot)"
 open -a Simulator || true
 log "构建并安装到模拟器 ${SIM_NAME}（${UDID}）"

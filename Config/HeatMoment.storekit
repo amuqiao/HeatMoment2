@@ -1,0 +1,55 @@
+{
+  "identifier" : "HEATMOMENT_STOREKIT_CONFIG",
+  "nonRenewingSubscriptions" : [],
+  "products" : [
+    {
+      "displayPrice" : "6.00",
+      "familyShareable" : false,
+      "internalID" : "HEATMOMENT_LIFETIME",
+      "localizations" : [
+        {
+          "description" : "一次性解锁全部 Pro 权益（超出原 App 的新增方案，价格待定）",
+          "displayName" : "终身 Pro",
+          "locale" : "zh_CN"
+        }
+      ],
+      "productID" : "com.heatmoment.pro.lifetime",
+      "referenceName" : "Lifetime Pro",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {},
+  "subscriptionGroups" : [
+    {
+      "id" : "HEATMOMENT_PRO_GROUP",
+      "localizations" : [],
+      "name" : "HeatMoment Pro",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [],
+          "displayPrice" : "6.00",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "HEATMOMENT_MONTHLY",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "无限日记 / 照片 / 标签，个人 iCloud 同步",
+              "displayName" : "月订阅 Pro",
+              "locale" : "zh_CN"
+            }
+          ],
+          "productID" : "com.heatmoment.pro.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Monthly Pro",
+          "subscriptionGroupID" : "HEATMOMENT_PRO_GROUP",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

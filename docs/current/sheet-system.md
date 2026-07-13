@@ -4,7 +4,7 @@
 
 ## 心智模型
 
-Moodments 的 sheet 分两层治理：
+HeatMoment 的 sheet 分两层治理：
 
 ```text
 sheet 宿主
@@ -44,13 +44,13 @@ sheet 宿主
 当前 sheet system 的最小回归面优先跑定向测试，避免每次 UI 调整都全量跑慢流程：
 
 ```bash
-./scripts/test.sh --only MoodmentsUITests/EditorSheetPresentationUITests/testTapFABPresentsEditorWithMoodRowAndSaveButton
-./scripts/test.sh --only MoodmentsUITests/DeleteRestorePurgeUITests/testPreviewEditButtonPresentsNestedEditor
-./scripts/test.sh --only MoodmentsUITests/EditorSheetPresentationUITests/testSettingsRootHasNoExplicitCloseAndChildPageKeepsBackButton
-./scripts/test.sh --only MoodmentsUITests/QuotaBlockUITests/testEleventhMomentBlocked
-./scripts/test.sh --only MoodmentsUITests/TagManageUITests/testCreateTagFromTagManageAddsRow
-./scripts/test.sh --only MoodmentsUITests/TitleCollapseFilterUITests/testFilterSheetHidesTagCreateEntryAndExistingTagStillFilters
-./scripts/test.sh --only MoodmentsUITests/TitleCollapseFilterUITests/testFilterClearAllRemovesSelectedConditions
+./scripts/test.sh --only HeatMomentUITests/EditorSheetPresentationUITests/testTapFABPresentsEditorWithMoodRowAndSaveButton
+./scripts/test.sh --only HeatMomentUITests/DeleteRestorePurgeUITests/testPreviewEditButtonPresentsNestedEditor
+./scripts/test.sh --only HeatMomentUITests/EditorSheetPresentationUITests/testSettingsRootHasNoExplicitCloseAndChildPageKeepsBackButton
+./scripts/test.sh --only HeatMomentUITests/QuotaBlockUITests/testEleventhMomentBlocked
+./scripts/test.sh --only HeatMomentUITests/TagManageUITests/testCreateTagFromTagManageAddsRow
+./scripts/test.sh --only HeatMomentUITests/TitleCollapseFilterUITests/testFilterSheetHidesTagCreateEntryAndExistingTagStillFilters
+./scripts/test.sh --only HeatMomentUITests/TitleCollapseFilterUITests/testFilterClearAllRemovesSelectedConditions
 ```
 
 提交前仍需按改动风险补 `./scripts/build.sh`、`./scripts/lint.sh` 或更窄的相关测试；不能只看 diff 判断完成。

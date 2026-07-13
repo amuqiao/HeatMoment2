@@ -6,19 +6,19 @@ source "$DIR/lib/common.sh"
 
 usage() {
   cat <<'EOF'
-clean.sh — 清理构建产物：删除 DerivedData 与生成的 Moodments.xcodeproj
+clean.sh — 清理构建产物：删除 DerivedData 与生成的 HeatMoment.xcodeproj
 
 用法:
   ./scripts/clean.sh [-h|--help]
 
 参数:
-  无        删除 DerivedData/ 与 Moodments.xcodeproj/
+  无        删除 DerivedData/ 与 HeatMoment.xcodeproj/
 
 环境变量:
   无
 
 副作用:
-  删除 DerivedData 与 Moodments.xcodeproj（二者均可重建：工程用 gen.sh、产物用
+  删除 DerivedData 与 HeatMoment.xcodeproj（二者均可重建：工程用 gen.sh、产物用
   build/run 重新生成）。不动 Sources/Tests/Project.yml 等入库文件。
 
 不负责:

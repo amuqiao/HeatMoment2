@@ -26,7 +26,7 @@
 | --- | --- | --- |
 | `dev.sh` | 本地开发统一门面；转发构建、测试、运行、清理；提供模拟器 App 状态和启动/停止 | 新增底层构建逻辑、替代各稳定入口的 `-h` |
 | `bootstrap.sh` | 首次工具链准备：`xcodegen`、`swiftlint`、`swift-format` | 安装 Xcode / Homebrew、生成工程 |
-| `gen.sh` | 从 `Project.yml` 生成 `Moodments.xcodeproj` | 构建、测试、运行 |
+| `gen.sh` | 从 `Project.yml` 生成 `HeatMoment.xcodeproj` | 构建、测试、运行 |
 | `build.sh` | Debug 模拟器构建，不签名 | 运行测试、安装 App |
 | `test.sh` | XCTest / XCUITest 统一入口，支持套件级和定向测试 | lint、打包、真机验证 |
 | `lint.sh` | `swiftlint` + `swift-format` 检查；`--fix` 才改文件 | 构建、测试 |
@@ -52,9 +52,9 @@
 `test.sh --only` 使用 Xcode 原生 XCTest 标识，可重复传入；因为标识里已经包含 target，不能与 `--unit` / `--ui` / `--all` 混用：
 
 ```bash
-./scripts/test.sh --only MoodmentsTests/MultiTagFilterTests
-./scripts/test.sh --only MoodmentsUITests/TitleCollapseFilterUITests/testFilterSheetDoesNotAutoDismissAfterChoosing
-./scripts/test.sh --only MoodmentsTests/MultiTagFilterTests --only MoodmentsTests/TimelineGeometryTests
+./scripts/test.sh --only HeatMomentTests/MultiTagFilterTests
+./scripts/test.sh --only HeatMomentUITests/TitleCollapseFilterUITests/testFilterSheetDoesNotAutoDismissAfterChoosing
+./scripts/test.sh --only HeatMomentTests/MultiTagFilterTests --only HeatMomentTests/TimelineGeometryTests
 ```
 
 规则：
@@ -86,7 +86,7 @@ UI 测试不依赖模拟器里手工留下的数据。需要数据或系统能�
 exit code
 ```
 
-`-h` 与 `--help` 等价。脚本文案中项目名写 `Moodments`。有副作用的入口必须在 `-h` 写清楚会写、删、装、启动什么。
+`-h` 与 `--help` 等价。脚本文案中项目名写 `HeatMoment`。有副作用的入口必须在 `-h` 写清楚会写、删、装、启动什么。
 
 ## 修改脚本后的验证
 

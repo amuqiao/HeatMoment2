@@ -1,10 +1,10 @@
-# Moodments 数据生命周期实现计划
+# HeatMoment 数据生命周期实现计划
 
 本文是数据生命周期专项 follow-up 计划，只记录本地数据闭环之后仍未完成的数据目标、实施顺序和验收条件。它不是全项目总计划；SwiftUI 应用骨架重构见 [`swiftui-foundation-refactor-plan.md`](swiftui-foundation-refactor-plan.md)。已落地事实进入 [`../current/`](../current/README.md)；产品语义以 [`../product-mental-model.md`](../product-mental-model.md) 为准。
 
 ## Planning Position
 
-Moodments 是单机优先、小而美的个人日记 App。数据架构必须可靠、可恢复、可验证，但不能膨胀成账号系统、云备份平台或多人协同系统。
+HeatMoment 是单机优先、小而美的个人日记 App。数据架构必须可靠、可恢复、可验证，但不能膨胀成账号系统、云备份平台或多人协同系统。
 
 ### 用户心智模型
 
@@ -16,7 +16,7 @@ Moodments 是单机优先、小而美的个人日记 App。数据架构必须可
   -> 后续可使用系统 iCloud 在自己的设备间同步
 ```
 
-- App 使用无需登录，不引入 Moodments 账号。
+- App 使用无需登录，不引入 HeatMoment 账号。
 - 本机保存是默认事实，不是用户要选择的模式。
 - iCloud 同步依赖系统 Apple ID，只是后续跨设备收敛通道，不是 App 登录，也不叫云端备份。
 - 自动恢复点是 App 内本机恢复点，最多保留 3 个，系统自动维护，用户只查看和恢复。
@@ -45,7 +45,7 @@ SwiftUI / ViewModel
 - 不做 App 账号、登录态、服务端用户模型或自建后端。
 - 不做多人协作、实时协同编辑或共享资料库。
 - v1 不做用户手动删除恢复点，也不做复杂 merge restore。
-- v1 不把外部 `.moodmentsbackup` 文件作为主恢复模型；如需可分享备份文件，后续在自动恢复点稳定后单独设计。
+- v1 不把外部 `.heatmomentbackup` 文件作为主恢复模型；如需可分享备份文件，后续在自动恢复点稳定后单独设计。
 
 ## Current Baseline
 

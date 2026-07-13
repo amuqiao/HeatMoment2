@@ -1,6 +1,6 @@
 # 当前实现真相
 
-本文是 SwiftUI 版 Moodments 的 current 入口，只记录当前代码已经落地的事实、已知偏离、已实现能力边界和验证基线。产品公理以 [`../product-mental-model.md`](../product-mental-model.md) 为准；未来计划进入 [`../plans/`](../plans/README.md)。
+本文是 SwiftUI 版 HeatMoment 的 current 入口，只记录当前代码已经落地的事实、已知偏离、已实现能力边界和验证基线。产品公理以 [`../product-mental-model.md`](../product-mental-model.md) 为准；未来计划进入 [`../plans/`](../plans/README.md)。
 
 ## 文档边界
 
@@ -27,7 +27,7 @@
 | 热力图定位 | 已落地。热力图作为首页局部状态原位展开；点日/点有记录的月份只写时间 anchor，不改筛选条件。 | `TimelineHomeView.swift`、`YearHeatmapView.swift`、`HeatmapGridView.swift` |
 | 筛选 | 已落地。首页局部半屏/大屏 `FilterPanelView` sheet，不进 `AppRouter.rootSheet`；标签/心情选择即时生效，提供“全部心情”和“清除全部”。 | `TimelineHomeView.swift`、`FilterPanelView.swift` |
 | 标签创建归属 | 已落地。编辑器和筛选只消费已有标签；标签新增、重命名、删除统一归属设置页 `TagManageView`。 | `MomentEditorView.swift`、`TagPickerView.swift`、`FilterPanelView.swift`、`TagManageView.swift` |
-| 数据持久化 | 已落地。生产主 UI、用户写入、本机恢复点、Markdown/PDF 导出和 UI 测试种子均使用 GRDB canonical store；Moment 原图由 `FileAssetStore` 管理。同步状态仍是启发式展示，不代表 canonical iCloud 同步已经完成。 | `MoodmentsApp.swift`、`RootView.swift`、`CanonicalLibraryService.swift`、`LocalLibraryMutationService.swift`、`CanonicalStore.swift`、`CanonicalLibraryRuntime.swift`、`FileAssetStore.swift`、`CanonicalLibraryRepository.swift` |
+| 数据持久化 | 已落地。生产主 UI、用户写入、本机恢复点、Markdown/PDF 导出和 UI 测试种子均使用 GRDB canonical store；Moment 原图由 `FileAssetStore` 管理。同步状态仍是启发式展示，不代表 canonical iCloud 同步已经完成。 | `HeatMomentApp.swift`、`RootView.swift`、`CanonicalLibraryService.swift`、`LocalLibraryMutationService.swift`、`CanonicalStore.swift`、`CanonicalLibraryRuntime.swift`、`FileAssetStore.swift`、`CanonicalLibraryRepository.swift` |
 | 本地自动恢复点 | 已落地。设置页“备份与恢复”只消费 `BackupRestoreServicing`，生产由 App composition 注入 `CanonicalBackupRestoreService`；最多展示 3 个系统自动维护的本机恢复点，用户可预览并准备恢复，不能删除、分享或导出恢复点。 | `Services/Backup/BackupRestoreService.swift`、`BackupRestoreView.swift`、`PendingLocalRestoreView.swift`、`CanonicalRecoveryCoordinator.swift`、`CanonicalRestoreExecutor.swift`、`CanonicalBootRestoreGate.swift` |
 | Markdown / PDF 导出 | 已落地。设置页“导出”详情页只消费 `ExportServicing`，生产由 App composition 注入 `CanonicalExportService`；可导出全部活跃 Moment 为 Markdown 或 PDF，导出只读，不改变 canonical store，不创建恢复点，不参与 iCloud 同步。 | `ExportService.swift`、`CanonicalExportSnapshotStore.swift`、`MarkdownExportRenderer.swift`、`PDFExportRenderer.swift`、`ExportView.swift` |
 | Canonical 恢复点地基 | 已落地并接入生产设置页和启动路径。catalog、asset manifest、content-hash pin、真实 SQLite snapshot、stage/arm/boot replace/rollback 和 migration safety gate 均已有定向测试。 | `CanonicalRecoveryPointStore.swift`、`CanonicalRecoveryPointSnapshotService.swift`、`CanonicalRecoveryCoordinator.swift`、`CanonicalRestoreExecutor.swift`、`CanonicalBootRestoreGate.swift`、`CanonicalMigrationSafetyGate.swift` |
@@ -35,9 +35,9 @@
 | 任务页骨架 | 已落地。设置、外观、编辑、预览、Paywall、筛选和标签创建等 sheet 共享 `AppSheetScaffold` / `AppSheetActionButton` / `TaskSurfaceMetrics` / `TaskPageScrollView` 等骨架；半屏筛选仍保留自身 detent 和即时筛选语义。维护入口见 [`sheet-system.md`](sheet-system.md)。 | `AppSheetScaffold.swift`、`AppSheetNavigationChrome.swift`、`TaskContainerStyle.swift`、`SettingsSheetView.swift`、`MomentEditorView.swift`、`FilterPanelView.swift`、`TagCreateSheetView.swift` |
 | Foundation UI 边界 | 已落地。`DesignSystem` 只保留基础 sheet/container/theme/typography/appearance/swipe 能力；心情节点、时间轴气泡、热力图、统计条、首页背景、顶部按钮、FAB、缩略图条和心情色业务 palette 已归入对应 `Features/*`。 | `DesignSystem/`、`Features/Timeline/`、`Features/Heatmap/`、`Features/Stats/`、`Features/MomentMedia/`、`Features/Mood/MoodPalette.swift` |
 | 设置流 | 已落地。设置页是第一层 sheet，根页按个人化、数据与安全、管理、权益与关于分组；详情页在设置内 `NavigationStack` push 并保留系统返回；“数据与 iCloud”只展示系统 iCloud/同步状态，不表达 App 登录。 | `SettingsSheetView.swift`、`AppSheetNavigationChrome.swift` |
-| SwiftUI 小应用骨架 | 已落地。当前 App composition、Foundation UI、capability contract、Moodments business feature 和 infrastructure 的依赖方向已沉淀为可复用维护说明。 | [`swiftui-foundation.md`](swiftui-foundation.md)、`RootView.swift`、`DesignSystem/`、`Services/`、`Features/` |
+| SwiftUI 小应用骨架 | 已落地。当前 App composition、Foundation UI、capability contract、HeatMoment business feature 和 infrastructure 的依赖方向已沉淀为可复用维护说明。 | [`swiftui-foundation.md`](swiftui-foundation.md)、`RootView.swift`、`DesignSystem/`、`Services/`、`Features/` |
 | 外观设置 | 部分落地。模式、主色、网格、图片展示已有 UI、持久化和消费路径；自定义背景图是本地外观文件，不进入 canonical 资料库或 CloudKit。 | `AppearanceThemeView.swift`、`AppearanceOptionCards.swift`、`ThemeManager.swift`、`AppearanceStore.swift` |
-| 主题语义 | 已落地。基础主题 token 和 Moodments 心情色业务 palette 已拆开；主色、危险色、商业固定色和图片查看器媒体色由基础主题入口暴露，心情色由 `MoodPalette` 暴露且不跟随主色。 | `ThemeManager.swift`、`ThemeTokens.swift`、`Colors.swift`、`MoodPalette.swift` |
+| 主题语义 | 已落地。基础主题 token 和 HeatMoment 心情色业务 palette 已拆开；主色、危险色、商业固定色和图片查看器媒体色由基础主题入口暴露，心情色由 `MoodPalette` 暴露且不跟随主色。 | `ThemeManager.swift`、`ThemeTokens.swift`、`Colors.swift`、`MoodPalette.swift` |
 
 ## 当前验证基线
 
@@ -45,37 +45,37 @@
 
 与本 current 相关的已有测试面包括：
 
-- `Tests/MoodmentsTests/CanonicalStoreTests.swift`
-- `Tests/MoodmentsTests/CanonicalRepositoryParityTests.swift`
-- `Tests/MoodmentsTests/CanonicalLibraryServiceTests.swift`
-- `Tests/MoodmentsTests/LocalLibraryMutationServiceTests.swift`
-- `Tests/MoodmentsTests/LocalDataClosureAcceptanceTests.swift`
-- `Tests/MoodmentsTests/CanonicalRecoveryPointSchemaTests.swift`
-- `Tests/MoodmentsTests/CanonicalRecoveryPointStoreTests.swift`
-- `Tests/MoodmentsTests/CanonicalRecoveryPointSnapshotServiceTests.swift`
-- `Tests/MoodmentsTests/CanonicalRecoveryCoordinatorTests.swift`
-- `Tests/MoodmentsTests/CanonicalRestoreExecutorTests.swift`
-- `Tests/MoodmentsTests/CanonicalBootRestoreGateTests.swift`
-- `Tests/MoodmentsTests/CanonicalMigrationSafetyGateTests.swift`
-- `Tests/MoodmentsTests/BackupRestoreServiceTests.swift`
-- `Tests/MoodmentsTests/FileAssetStoreTests.swift`
-- `Tests/MoodmentsTests/CanonicalAssetReachabilityServiceTests.swift`
-- `Tests/MoodmentsTests/CanonicalAssetPinSchemaTests.swift`
-- `Tests/MoodmentsTests/CanonicalAssetPinStoreTests.swift`
-- `Tests/MoodmentsTests/MarkdownExportServiceTests.swift`
-- `Tests/MoodmentsTests/PDFExportServiceTests.swift`
-- `Tests/MoodmentsTests/MarkdownExportRendererTests.swift`
-- `Tests/MoodmentsTests/PDFExportRendererTests.swift`
-- `Tests/MoodmentsTests/DefaultTagSeederTests.swift`
-- `Tests/MoodmentsTests/LocateVsFilterTests.swift`
-- `Tests/MoodmentsTests/HeatmapMoodColorTests.swift`
-- `Tests/MoodmentsTests/MomentOccurredAtOrderingTests.swift`
-- `Tests/MoodmentsTests/MomentQuotaReleaseTests.swift`
-- `Tests/MoodmentsTests/MomentRestoreOrderingTests.swift`
-- `Tests/MoodmentsTests/ThumbnailCacheInvalidationTests.swift`
-- `Tests/MoodmentsUITests/BackupRestoreUITests.swift`
-- `Tests/MoodmentsUITests/MarkdownExportUITests.swift`
-- `Tests/MoodmentsUITests/DeleteRestorePurgeUITests.swift`
+- `Tests/HeatMomentTests/CanonicalStoreTests.swift`
+- `Tests/HeatMomentTests/CanonicalRepositoryParityTests.swift`
+- `Tests/HeatMomentTests/CanonicalLibraryServiceTests.swift`
+- `Tests/HeatMomentTests/LocalLibraryMutationServiceTests.swift`
+- `Tests/HeatMomentTests/LocalDataClosureAcceptanceTests.swift`
+- `Tests/HeatMomentTests/CanonicalRecoveryPointSchemaTests.swift`
+- `Tests/HeatMomentTests/CanonicalRecoveryPointStoreTests.swift`
+- `Tests/HeatMomentTests/CanonicalRecoveryPointSnapshotServiceTests.swift`
+- `Tests/HeatMomentTests/CanonicalRecoveryCoordinatorTests.swift`
+- `Tests/HeatMomentTests/CanonicalRestoreExecutorTests.swift`
+- `Tests/HeatMomentTests/CanonicalBootRestoreGateTests.swift`
+- `Tests/HeatMomentTests/CanonicalMigrationSafetyGateTests.swift`
+- `Tests/HeatMomentTests/BackupRestoreServiceTests.swift`
+- `Tests/HeatMomentTests/FileAssetStoreTests.swift`
+- `Tests/HeatMomentTests/CanonicalAssetReachabilityServiceTests.swift`
+- `Tests/HeatMomentTests/CanonicalAssetPinSchemaTests.swift`
+- `Tests/HeatMomentTests/CanonicalAssetPinStoreTests.swift`
+- `Tests/HeatMomentTests/MarkdownExportServiceTests.swift`
+- `Tests/HeatMomentTests/PDFExportServiceTests.swift`
+- `Tests/HeatMomentTests/MarkdownExportRendererTests.swift`
+- `Tests/HeatMomentTests/PDFExportRendererTests.swift`
+- `Tests/HeatMomentTests/DefaultTagSeederTests.swift`
+- `Tests/HeatMomentTests/LocateVsFilterTests.swift`
+- `Tests/HeatMomentTests/HeatmapMoodColorTests.swift`
+- `Tests/HeatMomentTests/MomentOccurredAtOrderingTests.swift`
+- `Tests/HeatMomentTests/MomentQuotaReleaseTests.swift`
+- `Tests/HeatMomentTests/MomentRestoreOrderingTests.swift`
+- `Tests/HeatMomentTests/ThumbnailCacheInvalidationTests.swift`
+- `Tests/HeatMomentUITests/BackupRestoreUITests.swift`
+- `Tests/HeatMomentUITests/MarkdownExportUITests.swift`
+- `Tests/HeatMomentUITests/DeleteRestorePurgeUITests.swift`
 
 2026-07-11 本轮架构清理验证：
 

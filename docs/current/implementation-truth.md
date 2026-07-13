@@ -1,13 +1,13 @@
 # SwiftUI 当前实现真相
 
-本文记录 SwiftUI 版 Moodments 当前已经实现的界面结构、运行路径和已知偏离。这里的事实源是 `Sources/Moodments/` 与 `Tests/`，原 Flutter 项目只作为产品语义理解来源，不作为 SwiftUI 当前实现事实。
+本文记录 SwiftUI 版 HeatMoment 当前已经实现的界面结构、运行路径和已知偏离。这里的事实源是 `Sources/HeatMoment/` 与 `Tests/`，原 Flutter 项目只作为产品语义理解来源，不作为 SwiftUI 当前实现事实。
 
 ## 整体模型
 
 当前 App 是单根首页结构：
 
 ```text
-MoodmentsApp
+HeatMomentApp
   -> app fullScreenCover: privacy lock / pending local restore
   -> RootView
       -> TimelineHomeView
@@ -21,7 +21,7 @@ MoodmentsApp
       -> app readiness: launch restore result / canonical prepare / default tag seed
 ```
 
-`RootView` 当前是 App shell：只治理 root scene、根级任务 sheet 呈现策略和进入交互前的 app readiness；Moodments 首页由 `TimelineHomeView` 提供。隐私锁和 pending local restore 属于 `MoodmentsApp` 的 App composition full-screen policy；图片查看器不走全局 Router，而由 `MomentPreviewView` 局部 `.fullScreenCover(item:)` 就近呈现，避免保留无写入方的第二条全局路径。
+`RootView` 当前是 App shell：只治理 root scene、根级任务 sheet 呈现策略和进入交互前的 app readiness；HeatMoment 首页由 `TimelineHomeView` 提供。隐私锁和 pending local restore 属于 `HeatMomentApp` 的 App composition full-screen policy；图片查看器不走全局 Router，而由 `MomentPreviewView` 局部 `.fullScreenCover(item:)` 就近呈现，避免保留无写入方的第二条全局路径。
 
 `TimelineModel` 在 `RootView` 创建并注入首页与热力图，承载 `activeFilter`、`heatmapFocusDate` 和 `heatmapAnchorGranularity`。这让“看哪些记录”和“定位到哪里”在代码层保持双状态源，并能表达日/月两种时间 anchor 粒度。
 
@@ -87,7 +87,7 @@ TimelineHomeView.timelineFilterSheet
 
 当前生产主 UI、用户写入、本机恢复点和 Markdown/PDF 导出路径的唯一读写权威是 GRDB canonical store。启动、时间轴、编辑、预览、标签、垃圾箱、统计/热力图、图片读取、导出和 UI 测试种子都走 canonical 数据源。
 
-`Sources/Moodments/Persistence/Canonical/` 是 GRDB canonical local core。它当前包含 SQLite migration、library metadata、moment/tag records、稳定排序的 moment-tag link、asset/link metadata、content-addressed `FileAssetStore`、content-hash `asset_pin_record` lease、canonical recovery point catalog、canonical recovery coordinator、canonical boot restore gate、canonical migration safety gate、asset reachability audit、GC dry-run plan、DB orphan asset record finalizer、orphan blob cleanup、tombstone、mutation log、`CanonicalLibraryRepository` 的事务边界，以及 `CanonicalLibraryRuntime` 装配类型。`MoodmentsApp` 普通启动先调用 `CanonicalBootRestoreGate.performProductionPendingRestoreIfNeeded()`，在打开 `CanonicalLibraryRuntime` 前消费已 armed 的 pending restore；随后只创建 `CanonicalLibraryRuntime`、`CanonicalLibraryService` 和 `CanonicalRecoveryCoordinator` 并注入 environment。`RootView` 在展示主界面前调用 `CanonicalLibraryService.prepareIfNeeded()`，该准备步骤只标记 canonical facade 可用并刷新 `changeToken`。
+`Sources/HeatMoment/Persistence/Canonical/` 是 GRDB canonical local core。它当前包含 SQLite migration、library metadata、moment/tag records、稳定排序的 moment-tag link、asset/link metadata、content-addressed `FileAssetStore`、content-hash `asset_pin_record` lease、canonical recovery point catalog、canonical recovery coordinator、canonical boot restore gate、canonical migration safety gate、asset reachability audit、GC dry-run plan、DB orphan asset record finalizer、orphan blob cleanup、tombstone、mutation log、`CanonicalLibraryRepository` 的事务边界，以及 `CanonicalLibraryRuntime` 装配类型。`HeatMomentApp` 普通启动先调用 `CanonicalBootRestoreGate.performProductionPendingRestoreIfNeeded()`，在打开 `CanonicalLibraryRuntime` 前消费已 armed 的 pending restore；随后只创建 `CanonicalLibraryRuntime`、`CanonicalLibraryService` 和 `CanonicalRecoveryCoordinator` 并注入 environment。`RootView` 在展示主界面前调用 `CanonicalLibraryService.prepareIfNeeded()`，该准备步骤只标记 canonical facade 可用并刷新 `changeToken`。
 
 `CanonicalLibraryRepository` 已补齐 M1 repository parity 并通过 `CanonicalLibraryService` 接到主 UI。`CanonicalMomentRecord` 会按 `moment_asset_link.sort_index` 返回稳定 `imageIDs`；`createMoment` 可在同一业务写入中接收原图 bytes，先通过共享 `CanonicalAssetOperationGate` 写入 content-addressed blob，再在 SQLite 事务里写 `moment_record`、`moment_tag_link`、`asset_record`、`moment_asset_link` 和 `mutation_log`，DB 事务失败时会清理本次新写入的 blob。`updateMoment(imageDatas: nil)` 保留原有图片关系；传入非 nil 图片数组时会替换图片链接和 asset metadata，并 finalize 无 link 且 `pin_count == 0` 的旧 `asset_record`。图片 bytes 读取通过 `imageData(imageID:)` 和 `orderedImageData(momentID:)` 从 `FileAssetStore` 取回；缺失 Moment、终态删除 Moment 或不可读图片 ID 会抛出 repository error，不做空结果兜底。当前 repository 还提供预览/编辑所需的 `fetchMoment`、`editingPayload`、标签名回填、`findTag(named:)`、带心情和标签 AND 条件的 `fetchPage(filter:)`、`availableYears`、`moodByDay`、`moodCounts`、`totalMomentCount` 和 `totalTagCount`。定向测试 `CanonicalRepositoryParityTests` 覆盖图片顺序、编辑 payload、nil 图片更新保留、非 nil 图片更新替换、缺失 ID 快速失败、终态删除直读拦截、带图片写入 DB 回滚后的 blob 清理、筛选分页、每日心情、年度统计、年份列表和标签查找。
 
@@ -97,13 +97,13 @@ canonical recovery catalog/snapshot/coordinator/restore service/migration safety
 
 当前 UI 用户写入入口通过 `LocalLibraryMutationService` 进入应用服务边界：创建/编辑/软删除/恢复/彻底删除时刻以及创建或复用/重命名/删除标签都调用 `CanonicalLibraryRepository`，成功后通过 `CanonicalLibraryService.noteCanonicalChange()` 驱动 SwiftUI 重新加载，并处理同步状态标记和缩略图失效。普通写入成功后通过 `CanonicalRecoveryWriteRecorder` 异步请求 `CanonicalRecoveryCoordinator.createStableChangesRecoveryPointIfNeeded()`，高风险写入前同步创建 mutation safety 恢复点，安全点创建失败会抛出 `LocalLibraryMutationError.mutationSafetyPointFailed` 并中止后续恢复、彻底删除或标签删除。跨 actor 传递使用 `MomentSnapshot`、`MomentEditingPayload`、`CanonicalMomentImageData`、`TagSnapshot` 等值类型，不把 GRDB row 引用传出边界。
 
-`Config/Moodments.entitlements` 已声明 CloudKit 私有库，`Project.yml` 已接入 entitlements。当前同步状态由 `SyncStatusService` 根据 `FileManager.default.ubiquityIdentityToken` 推导出的 iCloud 能力、网络可达性和最近本地写入时间推导 `offline / syncing / synced`，不读取真实 CloudKit import/export 事件，不表达冲突、重试队列、服务器变更 token 或错误详情；该状态也不表示 canonical 写入已经通过 iCloud 同步。
+`Config/HeatMoment.entitlements` 保留 CloudKit 私有库声明，但默认不接入 `Project.yml` 的 App target，避免 Personal Team 真机开发签名被 iCloud entitlement 阻断；未来恢复 iCloud 同步时再启用该 entitlements 文件并使用支持 iCloud 的付费 Team。当前同步状态由 `SyncStatusService` 根据 `FileManager.default.ubiquityIdentityToken` 推导出的 iCloud 能力、网络可达性和最近本地写入时间推导 `offline / syncing / synced`，不读取真实 CloudKit import/export 事件，不表达冲突、重试队列、服务器变更 token 或错误详情；该状态也不表示 canonical 写入已经通过 iCloud 同步。
 
 设置页根页当前提供“备份与恢复”入口，push 到复用的 `BackupRestoreView`；备份恢复能力合同定义在 `Services/Backup/BackupRestoreService.swift`，生产由 App composition 注入 `CanonicalBackupRestoreService`，Settings feature 只消费 `BackupRestoreServicing`。用户可查看最多 3 个系统自动维护的本机恢复点，列表显示时间、记录/标签/照片计数、创建原因和 App version；点选后进入恢复预览；准备恢复采用 staging + armed marker + pending context + 下次冷启动 replace 的路径；用户不能手动删除恢复点，也不能把恢复点导出为备份包。
 
 当前 Markdown / PDF 导出已切到 canonical source：设置页“导出”详情页沿用 settings detail navigation chrome、`TaskPageScrollView` 和 `TaskSurfaceSection`；详情页明确导出只是副本，不改变当前数据，也不影响 iCloud 同步。`ExportView` 只消费 `ExportServicing`，生产由 App composition 注入 `CanonicalExportService`；`CanonicalExportService` 才负责从 canonical repository 组装 `CanonicalExportSnapshotStore` 和 `ExportService`。同一份 `ExportRequest` 表达范围、格式和是否包含照片，同一份 `ExportSnapshot` 供 Markdown/PDF 渲染。范围支持“全部”和“日期范围”；日期范围按用户选择日期的整日边界查询，开始日期晚于结束日期会被拦截，所选范围没有 active Moment 时导出失败而不是生成空文档；照片开关关闭时两种格式都不读取或写出图片。snapshot 只读取 canonical active Moment，按 `occurredAt` 倒序生成导出输入，标签按 Moment 的 canonical link 顺序输出，图片按 `moment_asset_link.sort_index` 从 `FileAssetStore` 读取原图 bytes。导出路径按职责拆成 `ExportServicing` 能力合同、`ExportService` 编排、`CanonicalExportSnapshotStore` 快照读取、`ExportFileWriter` 临时目录/文件写入、`MarkdownExportRenderer` 文本和相对附件路径渲染、`PDFExportRenderer` 本地分页和图片嵌入；`ExportViewState` 只承载设置页导出轻量状态。渲染和文件写入在 detached task 内执行，不占用设置页 UI actor；生成中禁用重复点击；坏图片在 PDF 导出中显式失败，不静默跳过，并在导出详情页展示失败状态和重试入口。Markdown 成功后分享整个导出目录，避免只分享 `.md` 时丢失相对附件；PDF 成功后分享单个 `.pdf` 文件。当前不支持当前主页筛选、后台导出进度、持久 `export_job` 或 export asset pin；导出不写 canonical store，不创建恢复点，不触发同步状态变更。
 
-当前本地文件分层如下：Moment 原图归 content-addressed `FileAssetStore`，SQLite 只保存 asset metadata 和 link 顺序；UI 测试种子直接写 canonical repository。缩略图在 `Caches/thumbnails`，可从 canonical 原图重建，不参与同步；外观自定义背景图在 Application Support 的外观目录，不进入 canonical 资料库或 CloudKit；语言、隐私锁、订阅缓存、默认标签首启标记和外观偏好使用 `UserDefaults`。当前没有用户可触发的外部备份包；Markdown / PDF 导出文件分别写在系统临时目录的 `MoodmentsExports/Markdown/` 和 `MoodmentsExports/PDF/` 下，进入导出页和每次新导出都会清理临时目录内旧的 `Moodments-*` 导出包，属于用户显式生成的只读分享副本，不参与恢复点或 iCloud 同步。
+当前本地文件分层如下：Moment 原图归 content-addressed `FileAssetStore`，SQLite 只保存 asset metadata 和 link 顺序；UI 测试种子直接写 canonical repository。缩略图在 `Caches/thumbnails`，可从 canonical 原图重建，不参与同步；外观自定义背景图在 Application Support 的外观目录，不进入 canonical 资料库或 CloudKit；语言、隐私锁、订阅缓存、默认标签首启标记和外观偏好使用 `UserDefaults`。当前没有用户可触发的外部备份包；Markdown / PDF 导出文件分别写在系统临时目录的 `HeatMomentExports/Markdown/` 和 `HeatMomentExports/PDF/` 下，进入导出页和每次新导出都会清理临时目录内旧的 `HeatMoment-*` 导出包，属于用户显式生成的只读分享副本，不参与恢复点或 iCloud 同步。
 
 ## 编辑页局部选择
 
@@ -177,8 +177,8 @@ TaskSurfaceMetrics
 
 当前外观设置的落地边界：
 
-- `DesignSystem` 只保留基础 UI 和基础主题能力：`AppSheetScaffold`、`AppSheetNavigationChrome`、`TaskContainerStyle`、sheet/header action、任务内容列、通用删除 swipe modifier、`ThemeManager`、`AppThemeTokens`、基础色板、排版和外观偏好存储。它不承载 `Moment`、`Mood`、`Tag`、`Timeline`、`Heatmap` 等 Moodments 业务组件，也不读取 repository、service 或 canonical 数据。
-- `MoodNodeView`、`BubbleCardView`、`HomeSceneBackgroundView`、`FABButtonView`、`TopBarIconButtons` 和 `TimelineSceneStyle` 已归入 `Features/Timeline`；`HeatmapGridView` 归入 `Features/Heatmap`；`MoodStatBarView` 归入 `Features/Stats`；`ThumbnailStripView` 归入 `Features/MomentMedia`；`MoodPalette` 归入 `Features/Mood`。这些是 Moodments 业务 UI / 业务色板，不是通用 foundation 合同。
+- `DesignSystem` 只保留基础 UI 和基础主题能力：`AppSheetScaffold`、`AppSheetNavigationChrome`、`TaskContainerStyle`、sheet/header action、任务内容列、通用删除 swipe modifier、`ThemeManager`、`AppThemeTokens`、基础色板、排版和外观偏好存储。它不承载 `Moment`、`Mood`、`Tag`、`Timeline`、`Heatmap` 等 HeatMoment 业务组件，也不读取 repository、service 或 canonical 数据。
+- `MoodNodeView`、`BubbleCardView`、`HomeSceneBackgroundView`、`FABButtonView`、`TopBarIconButtons` 和 `TimelineSceneStyle` 已归入 `Features/Timeline`；`HeatmapGridView` 归入 `Features/Heatmap`；`MoodStatBarView` 归入 `Features/Stats`；`ThumbnailStripView` 归入 `Features/MomentMedia`；`MoodPalette` 归入 `Features/Mood`。这些是 HeatMoment 业务 UI / 业务色板，不是通用 foundation 合同。
 - `ThemeManager` 是运行时基础主题 token 消费入口，并暴露 `tokens: AppThemeTokens` 作为当前模式 + 主色解析后的稳定 token。基础定义层包括 `BrandCanvasPalette`（首页品牌画布）、`MemoryObjectPalette`（记忆对象表面）、`TaskContainerPalette`（sheet/设置/编辑等任务容器）、`AccentPalette`（行动强调主色及其派生前景）和 `FixedIntentColor`（危险、商业固定、图片查看器媒体色）。业务心情色不进入 `AppThemeTokens`。
 - 业务 view 不直接新增十六进制色值，P2b 触达范围内的二级文字、弱提示、强调色前景、选中弱填充、禁用强调填充、热力图月份高亮、首页纹理色、自定义背景遮罩、顶部 chrome 叠色、热力图分隔线、预览外框、商业固定色和图片查看器固定媒体色均经基础主题 token 或业务 palette 消费。
 - 模式、主色会影响已接入 `ThemeManager` 的背景、文字、气泡、chip、热力图空格、顶栏图标描边、首页背景纹理、行动强调前景和外观页分组缩略卡等。亮色不是暗色反相：首页仍使用轻灰紫画布，任务 sheet 使用 iOS 分组浅色体系，首页气泡和 sheet panel 不互相复用。
@@ -205,9 +205,9 @@ TaskSurfaceMetrics
 2026-07-08 已运行：
 
 ```sh
-./scripts/test.sh --only MoodmentsTests/ThemeManagerTests
-./scripts/test.sh --only MoodmentsUITests/ThemeSwitchUITests/testSwitchingModeUpdatesModeOptionCardRendering
-./scripts/test.sh --only MoodmentsUITests/ThemeSwitchUITests
+./scripts/test.sh --only HeatMomentTests/ThemeManagerTests
+./scripts/test.sh --only HeatMomentUITests/ThemeSwitchUITests/testSwitchingModeUpdatesModeOptionCardRendering
+./scripts/test.sh --only HeatMomentUITests/ThemeSwitchUITests
 ./scripts/verify.sh
 ```
 
@@ -228,15 +228,15 @@ TaskSurfaceMetrics
 
 ```sh
 ./scripts/gen.sh
-./scripts/test.sh --only MoodmentsTests/MomentCardLayoutTests
-./scripts/test.sh --only MoodmentsTests/TimelineGeometryTests
-./scripts/test.sh --only MoodmentsTests/TimelineRailVisibilityTests
-./scripts/test.sh --only MoodmentsUITests/DeleteRestorePurgeUITests/testSwipeDeleteMovesToTrash
-./scripts/test.sh --only MoodmentsUITests/DeleteRestorePurgeUITests/testSwipingOnTimelineImageDoesNotTriggerDelete
-./scripts/test.sh --only MoodmentsUITests/DeleteRestorePurgeUITests/testSwipingOnTimelineCarouselImageDoesNotTriggerDelete
-./scripts/test.sh --only MoodmentsUITests/DeleteRestorePurgeUITests/testPreviewIsCardNotPush
-./scripts/test.sh --only MoodmentsUITests/LocateFilterUITests/testFilterAbsentMoodShowsEmptyStateThenMarkerRemovalRestoresRecords
-./scripts/test.sh --only MoodmentsUITests/TimelineEmptyStateUITests/testEmptyStateShowsThreeGuidedMoments
+./scripts/test.sh --only HeatMomentTests/MomentCardLayoutTests
+./scripts/test.sh --only HeatMomentTests/TimelineGeometryTests
+./scripts/test.sh --only HeatMomentTests/TimelineRailVisibilityTests
+./scripts/test.sh --only HeatMomentUITests/DeleteRestorePurgeUITests/testSwipeDeleteMovesToTrash
+./scripts/test.sh --only HeatMomentUITests/DeleteRestorePurgeUITests/testSwipingOnTimelineImageDoesNotTriggerDelete
+./scripts/test.sh --only HeatMomentUITests/DeleteRestorePurgeUITests/testSwipingOnTimelineCarouselImageDoesNotTriggerDelete
+./scripts/test.sh --only HeatMomentUITests/DeleteRestorePurgeUITests/testPreviewIsCardNotPush
+./scripts/test.sh --only HeatMomentUITests/LocateFilterUITests/testFilterAbsentMoodShowsEmptyStateThenMarkerRemovalRestoresRecords
+./scripts/test.sh --only HeatMomentUITests/TimelineEmptyStateUITests/testEmptyStateShowsThreeGuidedMoments
 ./scripts/build.sh
 ./scripts/lint.sh
 ```
@@ -248,7 +248,7 @@ TaskSurfaceMetrics
 ```sh
 ./scripts/run.sh
 ./scripts/gen.sh
-./scripts/test.sh --only MoodmentsUITests/P0VisualAuditCaptureUITests/testCaptureP0VisualAuditStates
+./scripts/test.sh --only HeatMomentUITests/P0VisualAuditCaptureUITests/testCaptureP0VisualAuditStates
 ./scripts/verify.sh
 ```
 
@@ -260,4 +260,4 @@ TaskSurfaceMetrics
 
 ## Flutter 版只作为语义输入
 
-原 Flutter 项目只作为产品语义输入；SwiftUI current 事实以本仓库 `Sources/Moodments/` 与 `Tests/` 为准。Flutter 中的 `showCupertinoSheet`、`GlobalKey + ScrollController`、自定义气泡 shape、Flutter picker 组合、开发者皮肤轴等都不是 SwiftUI 必须照搬的实现细节。
+原 Flutter 项目只作为产品语义输入；SwiftUI current 事实以本仓库 `Sources/HeatMoment/` 与 `Tests/` 为准。Flutter 中的 `showCupertinoSheet`、`GlobalKey + ScrollController`、自定义气泡 shape、Flutter picker 组合、开发者皮肤轴等都不是 SwiftUI 必须照搬的实现细节。

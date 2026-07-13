@@ -1,10 +1,10 @@
 # 本地数据架构导览
 
-本文面向后续开发者，说明 Moodments 当前本地数据闭环的核心边界。它只记录已经落地的 current 事实；未来 iCloud 同步和完整后台 GC 仍以 [`../plans/implementation-plan.md`](../plans/implementation-plan.md) 为准。
+本文面向后续开发者，说明 HeatMoment 当前本地数据闭环的核心边界。它只记录已经落地的 current 事实；未来 iCloud 同步和完整后台 GC 仍以 [`../plans/implementation-plan.md`](../plans/implementation-plan.md) 为准。
 
 ## 整体模型
 
-Moodments 当前是单机优先的本地资料库应用。生产读写权威只有一套：
+HeatMoment 当前是单机优先的本地资料库应用。生产读写权威只有一套：
 
 ```text
 SwiftUI / ViewModel
@@ -32,7 +32,7 @@ SwiftUI / ViewModel
 
 ### Canonical Core
 
-`Sources/Moodments/Persistence/Canonical/` 是本地资料库核心：
+`Sources/HeatMoment/Persistence/Canonical/` 是本地资料库核心：
 
 - `CanonicalStore.swift`：SQLite schema migration 和 GRDB read/write 入口。
 - `CanonicalRecords.swift`：canonical value records，包括 lifecycle、mutation、asset pin、recovery point 和 library metadata。
@@ -86,17 +86,17 @@ validate selected recovery point
 
 导出使用同一份 `ExportRequest` 和 `ExportSnapshot` 支撑 Markdown/PDF 两种格式。日期范围按整日边界查询；空范围失败，不生成空文档；照片开关关闭时不会读取或写出图片。
 
-导出文件写在系统临时目录，进入导出页和每次新导出都会清理旧的 `Moodments-*` 包。导出失败会清理本次半成品包；取消导出不会留下可见 package。导出不写 canonical store、不创建恢复点、不触发 iCloud 状态。
+导出文件写在系统临时目录，进入导出页和每次新导出都会清理旧的 `HeatMoment-*` 包。导出失败会清理本次半成品包；取消导出不会留下可见 package。导出不写 canonical store、不创建恢复点、不触发 iCloud 状态。
 
 ## 验证入口
 
 本地数据闭环的核心定向验证包括：
 
 ```bash
-./scripts/test.sh --only MoodmentsTests/CanonicalRecoveryPointSnapshotServiceTests \
-  --only MoodmentsTests/CanonicalRestoreExecutorTests \
-  --only MoodmentsTests/MarkdownExportServiceTests \
-  --only MoodmentsTests/PDFExportServiceTests
+./scripts/test.sh --only HeatMomentTests/CanonicalRecoveryPointSnapshotServiceTests \
+  --only HeatMomentTests/CanonicalRestoreExecutorTests \
+  --only HeatMomentTests/MarkdownExportServiceTests \
+  --only HeatMomentTests/PDFExportServiceTests
 ```
 
 阶段收口或共享基础设施变动后，再根据风险补跑 `./scripts/lint.sh`、`./scripts/test.sh --unit` 或 `./scripts/verify.sh`。

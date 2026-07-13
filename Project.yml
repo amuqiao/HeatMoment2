@@ -1,8 +1,8 @@
-# XcodeGen 工程声明 —— 经 scripts/gen.sh 生成 Moodments.xcodeproj
+# XcodeGen 工程声明 —— 经 scripts/gen.sh 生成 HeatMoment.xcodeproj
 # 工程可脚本化重建，pbxproj 不入库、不手改。
-name: Moodments
+name: HeatMoment
 options:
-  bundleIdPrefix: com.moodments
+  bundleIdPrefix: com.heatmoment
   deploymentTarget:
     iOS: "17.0"
   createIntermediateGroups: true
@@ -26,75 +26,74 @@ packages:
     from: 7.11.1
 
 targets:
-  Moodments:
+  HeatMoment:
     type: application
     platform: iOS
     deploymentTarget: "17.0"
     sources:
-      - path: Sources/Moodments
+      - path: Sources/HeatMoment
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.moodments.app
+        PRODUCT_BUNDLE_IDENTIFIER: com.heatmoment.app
         GENERATE_INFOPLIST_FILE: "YES"
         INFOPLIST_KEY_UILaunchScreen_Generation: "YES"
-        INFOPLIST_KEY_CFBundleDisplayName: 时刻
+        INFOPLIST_KEY_CFBundleDisplayName: 心绪日记
         INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
         TARGETED_DEVICE_FAMILY: "1,2"   # iPhone + iPad
-        # iCloud（CloudKit 私有库同步，见 docs/plans/implementation-plan.md）+ Face ID（隐私锁，见
-        # docs/current/implementation-truth.md）。生产数据权威是 canonical local store；当前 iCloud 行只做
-        # 能力/网络启发式展示，真实同步状态机后续单独接入。
-        CODE_SIGN_ENTITLEMENTS: Config/Moodments.entitlements
-        INFOPLIST_KEY_NSFaceIDUsageDescription: "用于解锁「时刻」以保护你的心情日记隐私"
+        # Face ID（隐私锁，见 docs/current/implementation-truth.md）。生产数据权威是 canonical local store。
+        # iCloud / CloudKit entitlement 默认不接入 App target，避免 Personal Team 真机开发签名失败；
+        # 未来恢复 iCloud 同步时再启用 Config/HeatMoment.entitlements 并使用支持 iCloud 的付费 Team。
+        INFOPLIST_KEY_NSFaceIDUsageDescription: "用于解锁「心绪日记」以保护你的心情日记隐私"
     dependencies:
       - package: GRDB
 
-  MoodmentsTests:
+  HeatMomentTests:
     type: bundle.unit-test
     platform: iOS
     deploymentTarget: "17.0"
     sources:
-      - path: Tests/MoodmentsTests
+      - path: Tests/HeatMomentTests
       # `SKTestSession(configurationFileNamed:)` 按名从**测试目标自身**的 bundle 资源加载
       # `.storekit` 配置（见 `PurchaseTests`、docs/current/implementation-truth.md §12.3 StoreKit 测试）。
-      - path: Config/Moodments.storekit
+      - path: Config/HeatMoment.storekit
         buildPhase: resources
     dependencies:
-      - target: Moodments
+      - target: HeatMoment
       - package: GRDB
     settings:
       base:
         GENERATE_INFOPLIST_FILE: "YES"
-        PRODUCT_BUNDLE_IDENTIFIER: com.moodments.tests
+        PRODUCT_BUNDLE_IDENTIFIER: com.heatmoment.tests
 
-  MoodmentsUITests:
+  HeatMomentUITests:
     type: bundle.ui-testing
     platform: iOS
     deploymentTarget: "17.0"
     sources:
-      - path: Tests/MoodmentsUITests
+      - path: Tests/HeatMomentUITests
     dependencies:
-      - target: Moodments
+      - target: HeatMoment
     settings:
       base:
         GENERATE_INFOPLIST_FILE: "YES"
-        PRODUCT_BUNDLE_IDENTIFIER: com.moodments.uitests
+        PRODUCT_BUNDLE_IDENTIFIER: com.heatmoment.uitests
 
 schemes:
-  Moodments:
+  HeatMoment:
     build:
       targets:
-        Moodments: all
-        MoodmentsTests: [test]
-        MoodmentsUITests: [test]
+        HeatMoment: all
+        HeatMomentTests: [test]
+        HeatMomentUITests: [test]
     run:
       config: Debug
       # `scripts/run.sh` 实机/模拟器直接运行时使用本地 StoreKit 测试配置（docs/current/implementation-truth.md），
       # 不依赖 App Store Connect 真实商品；`xcodebuild test` 走的 `PurchaseTests`（`SKTestSession`）
       # 与本 scheme 设置相互独立，见该文件顶部注释。
-      storeKitConfiguration: Config/Moodments.storekit
+      storeKitConfiguration: Config/HeatMoment.storekit
     test:
       gatherCoverageData: true
       targets:
-        - MoodmentsTests
-        - MoodmentsUITests
+        - HeatMomentTests
+        - HeatMomentUITests

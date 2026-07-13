@@ -49,20 +49,20 @@ fail_if_found() {
 
 log "== 1/3 Foundation UI 业务依赖 =="
 fail_if_found \
-  "DesignSystem 不应引用 Moodments 业务模型或 canonical 数据实现" \
+  "DesignSystem 不应引用 HeatMoment 业务模型或 canonical 数据实现" \
   "\\b(Mood|Moment|Tag|Timeline|Heatmap|Canonical|Repository|MoodPalette)\\b" \
-  Sources/Moodments/DesignSystem
+  Sources/HeatMoment/DesignSystem
 
 log "== 2/3 Feature concrete capability =="
 fail_if_found \
   "Feature 不应直接创建备份/导出 concrete service；应由 App composition 注入 capability contract" \
   "\\bExportService\\(|CanonicalExportSnapshotStore|CanonicalBackupRestoreService|DebugFailingPDFExportService" \
-  Sources/Moodments/Features
+  Sources/HeatMoment/Features
 
 log "== 3/3 Settings 跨能力协议 =="
 fail_if_found \
   "Settings feature 不应定义跨 feature service protocol 或 canonical service 实现" \
   "protocol .*Servicing|struct Canonical.*Service|struct .*Service" \
-  Sources/Moodments/Features/Settings
+  Sources/HeatMoment/Features/Settings
 
 log "foundation 边界扫描通过"

@@ -13,12 +13,12 @@ test.sh — 运行 XCTest（单元）/ XCUITest（界面）
   ./scripts/test.sh [--unit|--ui|--all] [--only XCTestIdentifier]... [-h|--help]
 
 参数:
-  --unit   仅单元测试（MoodmentsTests）
-  --ui     仅界面测试（MoodmentsUITests）
+  --unit   仅单元测试（HeatMomentTests）
+  --ui     仅界面测试（HeatMomentUITests）
   --all    单元 + 界面（默认）
   --only   定向运行 XCTest 标识，可重复；不能与 --unit/--ui/--all 混用；
            格式用 Xcode 原生
-           Target[/Class[/testMethod]]，例如 MoodmentsTests/MultiTagFilterTests
+           Target[/Class[/testMethod]]，例如 HeatMomentTests/MultiTagFilterTests
 
 环境变量:
   SIM_NAME  覆盖目标模拟器（默认 iPhone 17，见 lib/sim.sh）
@@ -32,8 +32,8 @@ test.sh — 运行 XCTest（单元）/ XCUITest（界面）
 示例:
   ./scripts/test.sh --unit
   SIM_NAME='iPhone 16 Pro' ./scripts/test.sh --ui
-  ./scripts/test.sh --only MoodmentsTests/MultiTagFilterTests
-  ./scripts/test.sh --only MoodmentsUITests/TitleCollapseFilterUITests/testFilterSheetDoesNotAutoDismissAfterChoosing
+  ./scripts/test.sh --only HeatMomentTests/MultiTagFilterTests
+  ./scripts/test.sh --only HeatMomentUITests/TitleCollapseFilterUITests/testFilterSheetDoesNotAutoDismissAfterChoosing
 
 exit code:
   0     测试通过（含 XCTSkip 的跳过用例，如 StoreKit 环境缺失）
@@ -87,8 +87,8 @@ if [ "${#ONLY_TESTS[@]}" -gt 0 ]; then
   done
 else
   case "$MODE" in
-    --unit) ARGS+=(-only-testing:MoodmentsTests) ;;
-    --ui)   ARGS+=(-only-testing:MoodmentsUITests) ;;
+    --unit) ARGS+=(-only-testing:HeatMomentTests) ;;
+    --ui)   ARGS+=(-only-testing:HeatMomentUITests) ;;
     --all)  ;;
   esac
 fi

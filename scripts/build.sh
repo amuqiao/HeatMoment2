@@ -7,7 +7,7 @@ source "$DIR/lib/sim.sh"
 
 usage() {
   cat <<'EOF'
-build.sh — 构建 Moodments（Debug + iPhone 模拟器）
+build.sh — 构建 HeatMoment（Debug + iPhone 模拟器）
 
 用法:
   ./scripts/build.sh [-h|--help]

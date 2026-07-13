@@ -4,7 +4,7 @@ included:
 excluded:
   - DerivedData
   - .build
-  - Moodments.xcodeproj
+  - HeatMoment.xcodeproj
 
 line_length:
   warning: 120
