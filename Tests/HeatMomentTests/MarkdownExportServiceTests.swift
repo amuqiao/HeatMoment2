@@ -1,27 +1,7 @@
 import XCTest
 @testable import HeatMoment
 
-final class MarkdownExportServiceTests: XCTestCase {
-    private var outputRootURL: URL!
-
-    override func setUpWithError() throws {
-        outputRootURL = FileManager.default.temporaryDirectory.appendingPathComponent(
-            "MarkdownExportServiceTests-\(UUID().uuidString)",
-            isDirectory: true
-        )
-        try FileManager.default.createDirectory(
-            at: outputRootURL,
-            withIntermediateDirectories: true
-        )
-    }
-
-    override func tearDownWithError() throws {
-        if let outputRootURL, FileManager.default.fileExists(atPath: outputRootURL.path) {
-            try FileManager.default.removeItem(at: outputRootURL)
-        }
-        outputRootURL = nil
-    }
-
+final class MarkdownExportServiceTests: MarkdownExportServiceTestCase {
     func testExportAllWritesMarkdownAndRelativeAssets() async throws {
         let fixture = try makeCanonicalFixture()
         defer { fixture.cleanup() }
@@ -337,25 +317,6 @@ final class MarkdownExportServiceTests: XCTestCase {
         XCTAssertTrue(packages.isEmpty)
     }
 
-    func testFileWriterCleanOutputRootRemovesPreviousHeatMomentPackagesOnly() throws {
-        let writer = ExportFileWriter(outputRootURL: outputRootURL)
-        let stalePackage = outputRootURL.appendingPathComponent(
-            "HeatMoment-19700101-000000-stale",
-            isDirectory: true
-        )
-        let userFile = outputRootURL.appendingPathComponent("keep.txt")
-        try FileManager.default.createDirectory(
-            at: stalePackage,
-            withIntermediateDirectories: true
-        )
-        try Data("keep".utf8).write(to: userFile)
-
-        try writer.cleanOutputRoot()
-
-        XCTAssertFalse(FileManager.default.fileExists(atPath: stalePackage.path))
-        XCTAssertTrue(FileManager.default.fileExists(atPath: userFile.path))
-    }
-
     func testCanonicalSnapshotUsesTimelineTagAndImageOrder() async throws {
         let fixture = try makeCanonicalFixture()
         defer { fixture.cleanup() }
@@ -391,60 +352,6 @@ final class MarkdownExportServiceTests: XCTestCase {
         XCTAssertEqual(snapshot.moments.first?.assets.map(\.data), [Data([0x11]), Data([0x22])])
     }
 
-    func testFileWriterCleansPartialPackageAfterWriteFailure() throws {
-        let writer = ExportFileWriter(outputRootURL: outputRootURL)
-        let snapshot = ExportSnapshot(
-            exportedAt: Date(timeIntervalSince1970: 500),
-            scope: .all,
-            includePhotos: true,
-            moments: []
-        )
-        let document = MarkdownExportDocument(
-            markdown: "# partial",
-            // swiftlint:disable trailing_comma
-            assets: [
-                MarkdownExportRenderedAsset(relativePath: "assets/ok.jpg", data: Data([0x01])),
-                MarkdownExportRenderedAsset(relativePath: "assets", data: Data([0x02])),
-            ]
-            // swiftlint:enable trailing_comma
-        )
-
-        XCTAssertThrowsError(try writer.writeMarkdown(document: document, snapshot: snapshot))
-
-        let packages = try FileManager.default.contentsOfDirectory(
-            at: outputRootURL,
-            includingPropertiesForKeys: nil
-        )
-        XCTAssertTrue(packages.isEmpty)
-    }
-
-    private func makeCanonicalFixture() throws -> CanonicalExportFixture {
-        let assetDirectory = FileManager.default.temporaryDirectory.appendingPathComponent(
-            "MarkdownExportCanonicalAssets-\(UUID().uuidString)",
-            isDirectory: true
-        )
-        return CanonicalExportFixture(
-            runtime: try CanonicalLibraryRuntime.makeInMemoryForTests(
-                assetDirectoryURL: assetDirectory
-            ),
-            assetDirectory: assetDirectory
-        )
-    }
-
-    private static var utcCalendar: Calendar {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
-        return calendar
-    }
-}
-
-private struct CanonicalExportFixture {
-    let runtime: CanonicalLibraryRuntime
-    let assetDirectory: URL
-
-    func cleanup() {
-        try? FileManager.default.removeItem(at: assetDirectory)
-    }
 }
 
 private struct CancellationExportSnapshotProvider: ExportSnapshotProviding {
