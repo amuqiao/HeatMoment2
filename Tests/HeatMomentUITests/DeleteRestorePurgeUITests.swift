@@ -11,7 +11,7 @@ final class DeleteRestorePurgeUITests: XCTestCase {
 
     /// 首页左滑该行删除动作并点击 → 行从时间轴消失 → 打开设置「垃圾箱」入口 → 该记录出现在垃圾箱。
     func testSwipeDeleteMovesToTrash() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestSeedMoments"]
         app.launch()
 
@@ -27,7 +27,7 @@ final class DeleteRestorePurgeUITests: XCTestCase {
     /// 首页 Moment 图片区是媒体交互区：从缩略图上左滑应被横向图片区消费，不能直接触发行级删除；
     /// 从同一 Moment 的非图片区左滑仍应使用系统 `.swipeActions` 露出删除按钮。
     func testSwipingOnTimelineImageDoesNotTriggerDelete() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestSeedImageMoment"]
         app.launch()
 
@@ -36,7 +36,7 @@ final class DeleteRestorePurgeUITests: XCTestCase {
 
     /// 轮播模式同样属于图片区媒体手势：`TabView(.page)` 横向切换不能被误解释成行级删除。
     func testSwipingOnTimelineCarouselImageDoesNotTriggerDelete() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestSeedImageMoment", "-uiTestImageDisplayCarousel"]
         app.launch()
 
@@ -66,7 +66,7 @@ final class DeleteRestorePurgeUITests: XCTestCase {
 
     /// 垃圾箱内右滑（leading）恢复 → 记录重新出现在时间轴。
     func testRestoreReturnsToTimeline() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestSeedMoments"]
         app.launch()
 
@@ -100,7 +100,7 @@ final class DeleteRestorePurgeUITests: XCTestCase {
 
     /// 垃圾箱内左滑（trailing）彻底删除 → 弹出二次确认 `.alert` → 确认后从垃圾箱消失（不可逆）。
     func testPurgeRequiresConfirmationAndRemoves() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestSeedMoments"]
         app.launch()
 
@@ -134,7 +134,7 @@ final class DeleteRestorePurgeUITests: XCTestCase {
     /// 点行出现 `momentPreviewCard`，只有「关闭」取消态而无 push 返回箭头；关闭后回到时间轴，
     /// 根层级的 FAB 仍在（证明时间轴主场景未被替换，只是叠了一张临时卡片）。
     func testPreviewIsCardNotPush() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestSeedMoments"]
         app.launch()
 
@@ -157,7 +157,7 @@ final class DeleteRestorePurgeUITests: XCTestCase {
     }
 
     func testPreviewEditButtonPresentsNestedEditor() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestSeedMoments"]
         app.launch()
 

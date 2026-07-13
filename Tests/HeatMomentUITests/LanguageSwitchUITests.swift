@@ -20,7 +20,7 @@ final class LanguageSwitchUITests: XCTestCase {
     /// 切到 English：无需重启，「设置」根页「语言」行与时间轴 FAB「新建时刻」均随之
     /// 改为英文，且切换过程中未离开过设置任务卡片栈（不是靠重新呈现刷新的）。
     func testSwitchingToEnglishUpdatesCoreTextImmediately() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestReset"]
         app.launch()
 
@@ -54,7 +54,7 @@ final class LanguageSwitchUITests: XCTestCase {
 
     /// 切到 English 后再切回简体中文：核心文案应恢复为中文（双向验证，非单向不可逆开关）。
     func testSwitchingBackToChineseRestoresOriginalText() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestReset"]
         app.launch()
 

@@ -6,7 +6,7 @@ final class QuotaBlockUITests: XCTestCase {
     /// 篇数额度：预置 10 篇（占满免费额度）后点新建，应直接弹出 Paywall、编辑器不打开
     /// （见 `TimelineHomeView` 的前置闸门：canonical count + `QuotaService`）。
     func testEleventhMomentBlocked() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestSeedMomentQuota"]
         app.launch()
 
@@ -27,7 +27,7 @@ final class QuotaBlockUITests: XCTestCase {
     /// 与阶段 3 计划决策4）。标签新增只归设置页标签管理；点右上「+」应直接触发 Paywall，
     /// 而非打开新建标签卡片。
     func testFourthTagBlocked() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestReset"]
         app.launch()
 
@@ -54,7 +54,7 @@ final class QuotaBlockUITests: XCTestCase {
     /// 再点**真实「追加照片」按钮**走前置闸门（不经系统 PhotosPicker），应触发 Paywall——
     /// 覆盖 `EditorPhotoSection.requestAddPhotos → QuotaService` 这条真实用户路径的照片额度判定。
     func testFourthPhotoBlocked() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestReset", "-uiTestPhotoInjection"]
         app.launch()
 

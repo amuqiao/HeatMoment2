@@ -3,7 +3,7 @@ import XCTest
 /// 首页时间轴底部可达性验收：底部 FAB 是 overlay，不应把时间轴 viewport 截短到看不到尾部内容。
 final class TimelineBottomReachUITests: XCTestCase {
     func testSeededTimelineBottomRowCanScrollAboveFAB() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestSeedMoments"]
         app.launch()
 

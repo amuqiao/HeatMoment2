@@ -5,7 +5,7 @@ import XCTest
 /// 已随真实内容落地失效）。
 final class EditorSheetPresentationUITests: XCTestCase {
     func testTapFABPresentsEditorWithMoodRowAndSaveButton() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         // 隔离内存 canonical runtime，呈现机制验收不受磁盘数据影响。
         app.launchArguments = ["-uiTestReset"]
         app.launch()
@@ -33,7 +33,7 @@ final class EditorSheetPresentationUITests: XCTestCase {
     }
 
     func testEditorCancelShowsDiscardConfirmationAfterDirtyEdit() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestReset"]
         app.launch()
 
@@ -56,7 +56,7 @@ final class EditorSheetPresentationUITests: XCTestCase {
     }
 
     func testSettingsRootHasNoExplicitCloseAndChildPageKeepsBackButton() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestReset"]
         app.launch()
 
@@ -83,7 +83,7 @@ final class EditorSheetPresentationUITests: XCTestCase {
     }
 
     func testSettingsTaskSurfacesShareHorizontalBounds() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestReset"]
         app.launch()
 
@@ -109,7 +109,7 @@ final class EditorSheetPresentationUITests: XCTestCase {
     }
 
     func testSettingsPrimaryDetailPagesUseUnifiedNavigationTitles() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         openSettings(app)
 
         assertSettingsDetailTitle(app, rowID: "settingsMoodStatsRow", title: "心情统计")
@@ -118,7 +118,7 @@ final class EditorSheetPresentationUITests: XCTestCase {
     }
 
     func testSettingsSupportDetailPagesUseUnifiedNavigationTitles() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         openSettings(app)
 
         assertSettingsDetailTitle(app, rowID: "settingsBackupRestoreRow", title: "备份与恢复")
@@ -129,7 +129,7 @@ final class EditorSheetPresentationUITests: XCTestCase {
     }
 
     func testEditorTaskSurfacesShareHorizontalBounds() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestReset"]
         app.launch()
 

@@ -16,7 +16,7 @@ final class PrivacyLockUITests: XCTestCase {
     /// 冷启动 + 验证恒失败：隐私锁应持续遮盖，时间轴内容（FAB）不可交互，且展示可重试的失败态
     /// （见 docs/current/implementation-truth.md §10.1.3「验证通过前不渲染任何 Moment 内容」）。
     func testColdStartKeepsContentHiddenUntilVerified() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestReset", "-uiTestForcePrivacyLockEnabled", "-uiTestBiometricAlwaysFail"]
         app.launch()
 
@@ -34,7 +34,7 @@ final class PrivacyLockUITests: XCTestCase {
 
     /// 冷启动 + 验证恒成功：隐私锁应自动验证通过并放行，时间轴内容正常出现、锁消失。
     func testColdStartUnlocksAndRevealsContentOnSuccess() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestReset", "-uiTestForcePrivacyLockEnabled", "-uiTestBiometricAlwaysSucceed"]
         app.launch()
 
@@ -45,7 +45,7 @@ final class PrivacyLockUITests: XCTestCase {
 
     /// 未开启隐私锁（默认关闭态，见 docs/current/implementation-truth.md §10.1.2 截图为关闭态）：冷启动不应出现隐私锁遮罩。
     func testLockNotShownWhenPreferenceDisabled() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestReset"]
         app.launch()
 
@@ -56,7 +56,7 @@ final class PrivacyLockUITests: XCTestCase {
     /// 回前台重新锁定（「立即锁定」策略，见 docs/current/implementation-truth.md §10.1.3）：验证恒失败场景下，把 App 切到后台
     /// 再切回前台，隐私锁应重新出现并持续遮盖（不因曾经在冷启动侧已展示过锁屏就跳过后续锁定）。
     func testReturningFromBackgroundLocksAgain() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestReset", "-uiTestForcePrivacyLockEnabled", "-uiTestBiometricAlwaysFail"]
         app.launch()
 

@@ -42,6 +42,10 @@ HeatMomentUITests    XCUITest 用户流程和交互契约
 
 UI 测试通过 DEBUG-only `UITestSupport` 使用隔离内存 canonical runtime、固定种子或系统能力注入，不依赖模拟器内手工残留数据。
 
+Debug / Dev 构建默认会启用本地开发者 Pro 解锁（见 `implementation-truth.md` §11）。UI 测试统一通过
+`XCUIApplication.heatMoment()` 创建被测 App，该 helper 会设置 `HEATMOMENT_DISABLE_DEBUG_PRO_UNLOCK=1`，
+保证免费额度、Paywall 和购买链路 UI 回归默认按免费态运行；`-uiTest...` 启动参数只负责选择数据场景和测试注入能力。
+
 | 启动参数 | 当前语义 |
 | --- | --- |
 | `-uiTestReset` | 使用内存 canonical runtime，空数据起步 |
@@ -63,7 +67,7 @@ UI 测试通过 DEBUG-only `UITestSupport` 使用隔离内存 canonical runtime�
 
 当前 UI 测试已经大量使用 `accessibilityIdentifier`，并以 `waitForExistence`、谓词等待和系统可访问元素驱动交互。跨文件 helper 尚未统一：
 
-- 各 UI 测试仍直接创建 `XCUIApplication()` 并传 `launchArguments`。
+- 各 UI 测试通过 `XCUIApplication.heatMoment()` 创建被测 App，并按场景继续传 `launchArguments`。
 - `dismissFilterSheet`、`waitForNonexistence`、popover 收起、设置页导航等 helper 仍主要留在各测试文件内。
 - 当前没有统一 `UITestApp` launcher，也没有跨文件 Robot / Screen Object 层。
 

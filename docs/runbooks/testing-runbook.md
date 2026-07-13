@@ -73,7 +73,10 @@
 
 - 单元测试自己构造 canonical in-memory runtime、独立 `UserDefaults` suite 或临时目录。
 - UI 测试通过 DEBUG-only launch arguments 进入固定场景，例如空数据、可滚动时间轴、额度已满、照片注入、隐私锁注入。
+- UI 测试通过 `XCUIApplication.heatMoment()` 创建被测 App，默认关闭 Debug/Dev 本地 Pro 解锁，避免免费态回归被短路。
 - 具体 launch argument 契约维护在 [`../current/testing-architecture.md`](../current/testing-architecture.md)，不要把场景参数散落到 shell 脚本里。
+- 普通 Xcode Debug 冷启动默认带本地开发者 Pro 解锁；手工验证免费额度、Paywall 或 StoreKit 购买链路时，
+  在 scheme 里加 `-disableDebugProUnlock`，或设置环境变量 `HEATMOMENT_DISABLE_DEBUG_PRO_UNLOCK=1`。
 
 ## 推荐工作流
 

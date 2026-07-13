@@ -73,7 +73,7 @@ final class BackupRestoreUITests: XCTestCase {
         resetDisk: Bool = false,
         seedRecoveryPoint: Bool = false
     ) -> XCUIApplication {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestLocalBackupRestore"]
         if resetDisk {
             app.launchArguments.append("-uiTestResetLocalBackupDisk")

@@ -7,7 +7,7 @@ import XCTest
 /// 失败」）——两类提示均为**页内非模态**元素，不是全局 `.alert`。
 final class AppearanceSaveFailureUITests: XCTestCase {
     func testAccentColorSaveFailureShowsInlineNoticeWithoutRollingBackSelection() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestFailAppearanceSave"]
         app.launch()
 
@@ -32,7 +32,7 @@ final class AppearanceSaveFailureUITests: XCTestCase {
     }
 
     func testImageDisplayModeSaveFailureShowsIndependentInlineNotice() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestFailAppearanceSave"]
         app.launch()
 

@@ -10,7 +10,7 @@ import XCTest
 /// 已在完成报告中说明该取舍）。
 final class CreateMomentFlowUITests: XCTestCase {
     func testFullCreateFlowAppendsBubbleToTimeline() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestReset"]
         app.launch()
 
@@ -67,7 +67,7 @@ final class CreateMomentFlowUITests: XCTestCase {
 
     /// 标签创建归属设置页标签管理；编辑器标签浮窗只消费已有标签，不提供临时创建入口。
     func testEditorTagPickerOnlyConsumesExistingTags() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestReset"]
         app.launch()
 
@@ -97,7 +97,7 @@ final class CreateMomentFlowUITests: XCTestCase {
     }
 
     func testEditorTagPickerSupportsMultipleSelectionWithoutClosing() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestReset"]
         app.launch()
 

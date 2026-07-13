@@ -2,7 +2,7 @@ import XCTest
 
 final class MarkdownExportUITests: XCTestCase {
     func testSettingsExportPageGeneratesMarkdownAndShowsShareLink() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestSeedImageMoment"]
         app.launch()
 
@@ -25,7 +25,7 @@ final class MarkdownExportUITests: XCTestCase {
     }
 
     func testSettingsExportPageGeneratesPDFAndShowsShareLink() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestSeedImageMoment"]
         app.launch()
 
@@ -47,7 +47,7 @@ final class MarkdownExportUITests: XCTestCase {
     }
 
     func testSettingsExportPageShowsRangeAndPhotoControls() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestSeedImageMoment"]
         app.launch()
 
@@ -61,7 +61,7 @@ final class MarkdownExportUITests: XCTestCase {
     }
 
     func testSettingsExportPageRetriesDateBoundsLoadFailure() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestSeedImageMoment", "-uiTestExportDateBoundsFailOnce"]
         app.launch()
 
@@ -81,7 +81,7 @@ final class MarkdownExportUITests: XCTestCase {
     }
 
     func testSettingsExportPageShowsFailureAndRetryForInvalidPDFImage() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestReset", "-uiTestExportForcePDFFailure"]
         app.launch()
 

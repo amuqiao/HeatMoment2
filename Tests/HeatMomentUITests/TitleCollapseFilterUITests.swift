@@ -9,7 +9,7 @@ import XCTest
 /// 心情候选 chip（`filterMoodOption-<rawValue>`）与标签 chip（`filterTagOption-*`）。
 final class TitleCollapseFilterUITests: XCTestCase {
     func testExpandedTitleTapDoesNotOpenFilter() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestReset"]  // 隔离内存 canonical runtime，空态展开态可复现
         app.launch()
 
@@ -22,7 +22,7 @@ final class TitleCollapseFilterUITests: XCTestCase {
     }
 
     func testCollapsedTitleTapOpensFilterSheet() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestSeedMoments"]  // 预置足量记录，使列表可滚动、标题可折叠
         app.launch()
 
@@ -34,7 +34,7 @@ final class TitleCollapseFilterUITests: XCTestCase {
 
     /// 筛选 sheet 只负责选择已有条件，不提供标签新增入口；已有标签点选仍即时写入筛选条件。
     func testFilterSheetHidesTagCreateEntryAndExistingTagStillFilters() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestSeedMoments"]
         app.launch()
 
@@ -72,7 +72,7 @@ final class TitleCollapseFilterUITests: XCTestCase {
 
     /// “清除全部”属于统一 sheet chrome 动作，必须一次性清空已选条件并保留 sheet 手动完成语义。
     func testFilterClearAllRemovesSelectedConditions() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestSeedMoments"]
         app.launch()
 

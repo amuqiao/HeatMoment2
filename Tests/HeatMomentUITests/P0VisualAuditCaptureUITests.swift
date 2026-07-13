@@ -104,7 +104,7 @@ final class P0VisualAuditCaptureUITests: XCTestCase {
 
     @MainActor
     private func launchSeededTimeline() -> XCUIApplication {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestSeedMoments"]
         app.launch()
         return app

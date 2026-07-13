@@ -13,7 +13,7 @@ final class LocateFilterUITests: XCTestCase {
     /// 移除该标记 → 退出空态、记录回归（回归验证「移除筛选标记」这一真实交互路径，
     /// 而非只是重新打开面板取消勾选）。
     func testFilterAbsentMoodShowsEmptyStateThenMarkerRemovalRestoresRecords() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestSeedMoments"]
         app.launch()
 
@@ -67,7 +67,7 @@ final class LocateFilterUITests: XCTestCase {
 
     /// 打开热力图 → 点一个有色（有记录）日期格 → 出现时间上下文标记（定位态，见 docs/current/implementation-truth.md §4.3）。
     func testLocateHeatmapDayCellShowsTimeContextMarker() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestSeedMoments"]
         app.launch()
 
@@ -97,7 +97,7 @@ final class LocateFilterUITests: XCTestCase {
 
     /// 打开热力图 → 点一个月份标签 → 出现月份粒度的时间上下文标记。
     func testLocateHeatmapMonthLabelShowsMonthContextMarker() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestSeedMoments"]
         app.launch()
 

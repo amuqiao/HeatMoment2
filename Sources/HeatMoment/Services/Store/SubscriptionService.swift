@@ -17,6 +17,28 @@ enum SubscriptionServiceError: Error, Equatable {
     case unverifiedTransaction
 }
 
+#if DEBUG
+    /// Debug/Dev 构建的本地权益开关：用于 Xcode 直接安装到开发者设备时完整试用。
+    ///
+    /// 它不写入订阅缓存、不伪造 StoreKit 交易；UI / 额度闸门仍统一经 `SubscriptionService`
+    /// 读取权益。测试运行默认关闭，避免破坏免费额度和购买链路回归。
+    enum SubscriptionDebugOverride {
+        private static let disableArgument = "-disableDebugProUnlock"
+        private static let disableEnvironmentKey = "HEATMOMENT_DISABLE_DEBUG_PRO_UNLOCK"
+
+        static func isActive(
+            arguments: [String] = ProcessInfo.processInfo.arguments,
+            environment: [String: String] = ProcessInfo.processInfo.environment
+        ) -> Bool {
+            guard !arguments.contains(disableArgument) else { return false }
+            guard environment[disableEnvironmentKey] != "1" else { return false }
+            guard environment["XCTestConfigurationFilePath"] == nil else { return false }
+            guard !arguments.contains(where: { $0.hasPrefix("-uiTest") }) else { return false }
+            return true
+        }
+    }
+#endif
+
 /// StoreKit 2 订阅/买断集成（见 `docs/current/implementation-truth.md`）：商品加载、购买、恢复购买、
 /// 核销码入口、entitlement 核对与本地缓存刷新。
 ///
@@ -36,19 +58,42 @@ final class SubscriptionService {
     private(set) var lifetimeProduct: Product?
 
     private let cacheStore: SubscriptionStateCacheStore
+    #if DEBUG
+        private let debugOverrideIsActive: () -> Bool
+    #endif
     /// `nonisolated(unsafe)`：仅供 `deinit`（非隔离上下文，不能 `await` 跳回 `@MainActor`）
     /// 取消长任务；`Task.cancel()` 本身是线程安全操作，其余读写均发生在 `@MainActor` 方法内
     /// （`startObservingTransactionUpdates()`），不存在真正的并发写入竞争。
     private nonisolated(unsafe) var updatesTask: Task<Void, Never>?
 
-    private static let logger = Logger(subsystem: "com.heatmoment.app", category: "SubscriptionService")
+    private static let logger = Logger(
+        subsystem: "com.heatmoment.app",
+        category: "SubscriptionService"
+    )
 
-    init(cacheStore: SubscriptionStateCacheStore = SubscriptionStateCacheStore()) {
-        self.cacheStore = cacheStore
-        // 冷启动前先用本地缓存值展示（避免首帧无值/都判非 Pro 造成横幅短暂闪烁），
-        // 权威判定仍会在 `refreshEntitlements()` 中现场重查并覆盖（见 docs/current/implementation-truth.md §11.4）。
-        self.isPro = cacheStore.load()?.isPro ?? false
-    }
+    #if DEBUG
+        init(
+            cacheStore: SubscriptionStateCacheStore = SubscriptionStateCacheStore(),
+            debugOverrideIsActive: @escaping () -> Bool = { SubscriptionDebugOverride.isActive() }
+        ) {
+            self.cacheStore = cacheStore
+            self.debugOverrideIsActive = debugOverrideIsActive
+            // 冷启动前先用本地缓存值展示（避免首帧无值/都判非 Pro 造成横幅短暂闪烁），
+            // 权威判定仍会在 `refreshEntitlements()` 中现场重查并覆盖（见 docs/current/implementation-truth.md §11.4）。
+            if debugOverrideIsActive() {
+                self.isPro = true
+            } else {
+                self.isPro = cacheStore.load()?.isPro ?? false
+            }
+        }
+    #else
+        init(cacheStore: SubscriptionStateCacheStore = SubscriptionStateCacheStore()) {
+            self.cacheStore = cacheStore
+            // 冷启动前先用本地缓存值展示（避免首帧无值/都判非 Pro 造成横幅短暂闪烁），
+            // 权威判定仍会在 `refreshEntitlements()` 中现场重查并覆盖（见 docs/current/implementation-truth.md §11.4）。
+            self.isPro = cacheStore.load()?.isPro ?? false
+        }
+    #endif
 
     deinit {
         updatesTask?.cancel()
@@ -81,6 +126,13 @@ final class SubscriptionService {
     /// 写入后的 `isPro` 时序（同一次判定应只有一个真相来源）。
     @discardableResult
     func currentEntitlementIsPro() async -> Bool {
+        #if DEBUG
+            if debugOverrideIsActive() {
+                isPro = true
+                return true
+            }
+        #endif
+
         var subscriptionActive = false
         var lifetimeUnlocked = false
         var expirationDate: Date?
@@ -106,15 +158,17 @@ final class SubscriptionService {
         }
 
         let resolvedIsPro = subscriptionActive || lifetimeUnlocked
-        cacheStore.save(SubscriptionStateCache(
-            isPro: resolvedIsPro,
-            subscriptionActive: subscriptionActive,
-            lifetimeUnlocked: lifetimeUnlocked,
-            productID: productID,
-            expirationDate: expirationDate,
-            originalTransactionID: originalTransactionID,
-            lastVerifiedAt: .now
-        ))
+        cacheStore.save(
+            SubscriptionStateCache(
+                isPro: resolvedIsPro,
+                subscriptionActive: subscriptionActive,
+                lifetimeUnlocked: lifetimeUnlocked,
+                productID: productID,
+                expirationDate: expirationDate,
+                originalTransactionID: originalTransactionID,
+                lastVerifiedAt: .now
+            )
+        )
         isPro = resolvedIsPro
         return resolvedIsPro
     }

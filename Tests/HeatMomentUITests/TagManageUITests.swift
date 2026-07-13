@@ -11,7 +11,7 @@ import XCTest
 final class TagManageUITests: XCTestCase {
     /// 标签新增归属设置页标签管理：免费额度未满时，右上「+」打开新建标签卡片，保存后回到列表。
     func testCreateTagFromTagManageAddsRow() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestSkipDefaultTags"]
         app.launch()
 
@@ -64,7 +64,7 @@ final class TagManageUITests: XCTestCase {
     /// 均未挂任何标签，筛选「工作」必命中 0 条（不依赖脆弱的具体计数假设，与
     /// `LocateFilterUITests` 同一手法）。
     func testDeleteTagClearsActiveFilterAndRestoresResults() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestSeedMoments"]
         app.launch()
 
@@ -126,7 +126,7 @@ final class TagManageUITests: XCTestCase {
 
     /// 点击标签行进入重命名（预填原名）→ 保存后列表展示新名称，旧名称不再出现。
     func testRenameTagUpdatesDisplayedName() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestReset"]
         app.launch()
 
@@ -165,7 +165,7 @@ final class TagManageUITests: XCTestCase {
     /// 删标签只解除关联，不删时刻内容（公理7）：先建一条挂了「工作」标签的时刻，删除该标签后
     /// 时刻标题仍完整出现在时间轴。
     func testDeletingTagPreservesMomentContent() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestReset"]
         app.launch()
 
@@ -221,7 +221,7 @@ final class TagManageUITests: XCTestCase {
     /// review 修复项1：`TagCreateSheetView` 作为最前 sheet 自行挂 `.userFacingErrorAlert`，
     /// 否则父级 `SettingsSheetView` 的 alert 弹不到它上面、用户界面会毫无反应）。
     func testRenameTagToExistingNameShowsVisibleError() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestReset"]
         app.launch()
 

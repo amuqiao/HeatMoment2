@@ -12,7 +12,7 @@ final class ThemeSwitchUITests: XCTestCase {
     /// 切主色 → `AppearanceThemeView` 选中态立即从旧选项移到新选项（即时生效，无需保存按钮）；
     /// 关闭设置回到时间轴后，FAB 的渲染颜色应随之改变（真实视觉验证「主色驱动强调色」）。
     func testSwitchingAccentColorUpdatesSelectionAndFABColor() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestReset"]
         app.launch()
 
@@ -44,7 +44,7 @@ final class ThemeSwitchUITests: XCTestCase {
 
     /// 主色区域必须是响应式网格，不能因为固定间距或固定总宽度把最后一个 swatch 顶出屏幕。
     func testAccentSwatchesStayInsideVisibleBounds() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestReset"]
         app.launch()
 
@@ -63,7 +63,7 @@ final class ThemeSwitchUITests: XCTestCase {
     }
 
     func testAppearanceTaskSectionsShareHorizontalBounds() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestReset"]
         app.launch()
 
@@ -89,7 +89,7 @@ final class ThemeSwitchUITests: XCTestCase {
 
     /// 模式区是当前主题总览：切主色时，同一张模式卡内的 FAB/强调色预览应同步重绘。
     func testSwitchingAccentColorUpdatesModeOverviewPreviewRendering() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestReset"]
         app.launch()
 
@@ -117,7 +117,7 @@ final class ThemeSwitchUITests: XCTestCase {
     /// RGB 值随模式切到其亮/暗两态（docs/current/implementation-truth.md §5.3.2），这与「心情色随模式切换」是同一层语义
     /// （见 `MoodPaletteTests`），但主色/模式与心情色是两套独立状态，互不影响。
     func testSwitchingModeUpdatesSelectionAndKeepsAccentSlotUnchanged() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestReset"]
         app.launch()
 
@@ -144,7 +144,7 @@ final class ThemeSwitchUITests: XCTestCase {
     /// 任务容器的系统 row 必须跟随 `ThemeManager.mode`，不能出现 token 已是暗色但 `List`
     /// row 仍由系统浅色 scheme 渲染的混搭。
     func testTaskContainerRowsFollowModeWhileSheetIsMounted() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestReset"]
         app.launch()
 
@@ -185,7 +185,7 @@ final class ThemeSwitchUITests: XCTestCase {
 
     /// 外观页模式总览卡消费同一套主题 token：暗/亮两张卡应稳定呈现可见差异。
     func testSwitchingModeUpdatesModeOptionCardRendering() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestReset"]
         app.launch()
 
@@ -210,7 +210,7 @@ final class ThemeSwitchUITests: XCTestCase {
 
     /// 切背景纹理（网格→点阵）即时生效：选中态立即切换，无需保存按钮。
     func testSwitchingBackgroundTextureUpdatesSelectionImmediately() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestReset"]
         app.launch()
 
@@ -232,7 +232,7 @@ final class ThemeSwitchUITests: XCTestCase {
     }
 
     func testSelectingFeaturedBackgroundFromGalleryUpdatesSelectionImmediately() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestReset"]
         app.launch()
 
@@ -281,7 +281,7 @@ final class ThemeSwitchUITests: XCTestCase {
     /// 关闭设置回到首页后，主场景背景渲染应有可见变化。热力图上下文也属于首页主场景，
     /// 展开后仍应继承同一背景语义。
     func testInjectingCustomBackgroundImageSelectsCustomTextureAndChangesHomeBackground() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestReset", "-uiTestBackgroundImageInjection"]
         app.launch()
 
@@ -322,7 +322,7 @@ final class ThemeSwitchUITests: XCTestCase {
 
     /// 自定义背景图只能改变预览内容，不能改变外观页既有分组/选项骨架。
     func testCustomBackgroundImageKeepsAppearancePreviewSkeletonStable() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestReset", "-uiTestBackgroundImageInjection"]
         app.launch()
 
@@ -384,7 +384,7 @@ final class ThemeSwitchUITests: XCTestCase {
 
     /// 切图片展示方式（滚动→轮播）即时生效：选中态立即切换，无需保存按钮。
     func testSwitchingImageDisplayModeUpdatesSelectionImmediately() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestReset"]
         app.launch()
 

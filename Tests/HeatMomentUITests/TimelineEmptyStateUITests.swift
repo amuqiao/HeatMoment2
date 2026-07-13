@@ -4,7 +4,7 @@ import XCTest
 /// 时间轴无真实记录时，展示 3 条不可删/不可编辑的预置引导 Moment（见 `GuidedMoment`）。
 final class TimelineEmptyStateUITests: XCTestCase {
     func testEmptyStateShowsThreeGuidedMoments() {
-        let app = XCUIApplication()
+        let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestReset"]   // 隔离内存空容器，确保命中空态引导、不依赖磁盘残留
         app.launch()
 
