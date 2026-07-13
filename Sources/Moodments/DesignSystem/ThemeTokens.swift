@@ -116,31 +116,31 @@ struct AppThemeTokens {
 
 enum BrandCanvasPalette {
     static func canvasBackground(_ mode: ThemeMode) -> Color {
-        mode == .dark ? Color(hex: 0x121221) : Color(hex: 0xF2F2F6)
+        mode == .dark ? Color(hex: 0x14151A) : Color(hex: 0xF5F5F7)
     }
 
     static func timelineRail(_ mode: ThemeMode) -> Color {
-        mode == .dark ? Color(hex: 0x2A2A38) : Color(hex: 0xE3E2EA)
+        mode == .dark ? Color(hex: 0x2C2E35) : Color(hex: 0xD8DAE0)
     }
 
     static func customBackgroundOverlay(_ mode: ThemeMode) -> Color {
-        canvasBackground(mode).opacity(mode == .dark ? 0.18 : 0.10)
+        canvasBackground(mode).opacity(mode == .dark ? 0.22 : 0.14)
     }
 
     static func featuredBackgroundOverlay(_ mode: ThemeMode) -> Color {
-        canvasBackground(mode).opacity(mode == .dark ? 0.14 : 0.08)
+        canvasBackground(mode).opacity(mode == .dark ? 0.16 : 0.10)
     }
 
     static func topChromeOverlay(_ mode: ThemeMode) -> Color {
-        canvasBackground(mode).opacity(0.36)
+        canvasBackground(mode).opacity(mode == .dark ? 0.42 : 0.30)
     }
 
     static func contextSurfaceTint(_ mode: ThemeMode) -> Color {
-        canvasBackground(mode).opacity(mode == .dark ? 0.22 : 0.12)
+        canvasBackground(mode).opacity(mode == .dark ? 0.20 : 0.14)
     }
 
     static func heatmapSeparator(_ mode: ThemeMode) -> Color {
-        timelineRail(mode).opacity(0.55)
+        timelineRail(mode).opacity(0.64)
     }
 }
 
@@ -148,19 +148,19 @@ enum BrandCanvasPalette {
 
 enum MemoryObjectPalette {
     static func bubbleBackground(_ mode: ThemeMode) -> Color {
-        mode == .dark ? Color(hex: 0x3A3A40) : Color(hex: 0xFFFFFF)
+        mode == .dark ? Color(hex: 0x272A31) : Color(hex: 0xFFFFFF)
     }
 
     static func bubbleTitleText(_ mode: ThemeMode) -> Color {
-        mode == .dark ? Color(hex: 0xEBEBED) : Color(hex: 0x0D0C2B)
+        mode == .dark ? Color(hex: 0xF5F7FA) : Color(hex: 0x111318)
     }
 
     static func bubbleBodyText(_ mode: ThemeMode) -> Color {
-        mode == .dark ? Color(hex: 0xC7C7CC) : Color(hex: 0x6C6C70)
+        mode == .dark ? Color(hex: 0xB7BCC7) : Color(hex: 0x60646E)
     }
 
     static func heatmapEmptyCell(_ mode: ThemeMode) -> Color {
-        mode == .dark ? Color(hex: 0x454547) : Color(hex: 0xD1D1D6)
+        mode == .dark ? Color(hex: 0x3B3D45) : Color(hex: 0xD7D9E0)
     }
 }
 
@@ -168,35 +168,35 @@ enum MemoryObjectPalette {
 
 enum TaskContainerPalette {
     static func sheetBackground(_ mode: ThemeMode) -> Color {
-        mode == .dark ? Color(hex: 0x1C1C1E) : Color(hex: 0xF2F2F7)
+        mode == .dark ? Color(hex: 0x17181C) : Color(hex: 0xF4F5F7)
     }
 
     static func sheetPanelBackground(_ mode: ThemeMode) -> Color {
-        mode == .dark ? Color(hex: 0x2C2C2E) : Color(hex: 0xFFFFFF)
+        mode == .dark ? Color(hex: 0x23252B) : Color(hex: 0xFFFFFF)
     }
 
     static func separator(_ mode: ThemeMode) -> Color {
-        mode == .dark ? Color(hex: 0x3A3A3C) : Color(hex: 0xE5E5EA)
+        mode == .dark ? Color(hex: 0x353840) : Color(hex: 0xE3E5EA)
     }
 
     static func chipFill(_ mode: ThemeMode) -> Color {
-        mode == .dark ? Color(hex: 0x48484B) : Color(hex: 0xE9E9EC)
+        mode == .dark ? Color(hex: 0x30333A) : Color(hex: 0xECEEF3)
     }
 
     static func primaryText(_ mode: ThemeMode) -> Color {
-        mode == .dark ? Color(hex: 0xF2F2F7) : Color(hex: 0x0D0C2B)
+        mode == .dark ? Color(hex: 0xF5F7FA) : Color(hex: 0x111318)
     }
 
     static func secondaryText(_ mode: ThemeMode) -> Color {
-        mode == .dark ? Color(hex: 0x8E8E93) : Color(hex: 0x6C6C70)
+        mode == .dark ? Color(hex: 0xA0A6B2) : Color(hex: 0x666B76)
     }
 
-    static func mutedText(_: ThemeMode) -> Color {
-        Color(hex: 0x8E8E93)
+    static func mutedText(_ mode: ThemeMode) -> Color {
+        mode == .dark ? Color(hex: 0x878E9B) : Color(hex: 0x8B909B)
     }
 
     static func neutralIconStroke(_ mode: ThemeMode) -> Color {
-        mode == .dark ? Color(hex: 0xEBEBF5) : Color(hex: 0x3C3C43)
+        mode == .dark ? Color(hex: 0xECEFF4) : Color(hex: 0x3A3D45)
     }
 
     static func previewBackground(_ mode: ThemeMode) -> Color {
