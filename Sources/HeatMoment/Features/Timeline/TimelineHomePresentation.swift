@@ -2,17 +2,66 @@ import SwiftUI
 
 /// 首页上下文面板槽位。
 ///
-/// 目前用于热力图在导航栏下方原位展开；未来如果产品裁决为右侧抽屉或其它转场，应优先改这个
-/// presenter，而不是让热力图内容、时间轴列表或顶部 chrome 知道具体动效。
+/// 目前用于热力图从顶部栏日历入口附近展开；转场由本 presenter 统一持有，不让热力图内容、
+/// 时间轴列表或顶部 chrome 知道具体动效。
 struct HomeContextPanel<Content: View>: View {
     let isPresented: Bool
+    let anchorXRatio: CGFloat
     @ViewBuilder var content: () -> Content
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         if isPresented {
             content()
-                .transition(.move(edge: .top).combined(with: .opacity))
+                .transition(
+                    .homeContextPanelAnchor(
+                        anchorXRatio: anchorXRatio,
+                        reduceMotion: reduceMotion
+                    )
+                )
+                .zIndex(1)
         }
+    }
+}
+
+private struct HomeContextPanelAnchorModifier: ViewModifier {
+    let opacity: Double
+    let scale: CGFloat
+    let anchorXRatio: CGFloat
+    let yOffset: CGFloat
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(opacity)
+            .scaleEffect(scale, anchor: UnitPoint(x: anchorXRatio, y: 0))
+            .offset(y: yOffset)
+    }
+}
+
+private extension AnyTransition {
+    static func homeContextPanelAnchor(
+        anchorXRatio: CGFloat,
+        reduceMotion: Bool
+    ) -> AnyTransition {
+        if reduceMotion {
+            return .opacity
+        }
+
+        return .modifier(
+            active: HomeContextPanelAnchorModifier(
+                opacity: 0,
+                scale: 0.96,
+                anchorXRatio: anchorXRatio,
+                yOffset: -8
+            ),
+            identity: HomeContextPanelAnchorModifier(
+                opacity: 1,
+                scale: 1,
+                anchorXRatio: anchorXRatio,
+                yOffset: 0
+            )
+        )
     }
 }
 

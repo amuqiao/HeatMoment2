@@ -15,6 +15,7 @@ struct TimelineHomeView: View {
     @Environment(CanonicalLibraryService.self) private var canonicalService
     @Environment(ErrorPresenter.self) private var errorPresenter
     @Environment(SubscriptionService.self) private var subscriptionService
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isTitleCollapsed = false
     @State private var isFilterPresented = false
     @State private var isHeatmapPresented = false
@@ -42,7 +43,11 @@ struct TimelineHomeView: View {
                     isTitleCollapsed: $isTitleCollapsed
                 )
                 .safeAreaInset(edge: .top, spacing: 0) {
-                    topBarStack(layout: scene.layout.home, style: scene.style.chromeIcon)
+                    topBarStack(
+                        layout: scene.layout.home,
+                        style: scene.style.chromeIcon,
+                        viewportWidth: proxy.size.width
+                    )
                 }
             }
             .accessibilityHidden(isModalContextPresented)
@@ -71,7 +76,11 @@ struct TimelineHomeView: View {
 
     /// 顶部三入口 + 上下文标记横条：一起放进同一个 `.safeAreaInset(edge: .top)`，
     /// 使二者都固定在列表之外、不随内容滚走（见 docs/current/implementation-truth.md §4.1「上下文标记」）。
-    private func topBarStack(layout: TimelineHomeLayout, style: HomeChromeIconStyle) -> some View {
+    private func topBarStack(
+        layout: TimelineHomeLayout,
+        style: HomeChromeIconStyle,
+        viewportWidth: CGFloat
+    ) -> some View {
         VStack(spacing: 0) {
             TimelineHomeChromeView(
                 layout: layout,
@@ -88,7 +97,14 @@ struct TimelineHomeView: View {
                     router.rootSheet = .settings
                 }
             )
-            HomeContextPanel(isPresented: isHeatmapPresented) {
+            HomeContextPanel(
+                isPresented: isHeatmapPresented,
+                anchorXRatio: heatmapPanelAnchorXRatio(
+                    layout: layout,
+                    style: style,
+                    viewportWidth: viewportWidth
+                )
+            ) {
                 YearHeatmapView(canonicalService: canonicalService) {
                     isHeatmapPresented = false
                 }
@@ -97,7 +113,21 @@ struct TimelineHomeView: View {
                 TimelineContextMarkerBar(layout: layout)
             }
         }
-        .animation(.easeInOut(duration: 0.2), value: isHeatmapPresented)
+        .animation(heatmapPresentationAnimation, value: isHeatmapPresented)
+    }
+
+    private var heatmapPresentationAnimation: Animation? {
+        reduceMotion ? nil : .spring(response: 0.24, dampingFraction: 0.92)
+    }
+
+    private func heatmapPanelAnchorXRatio(
+        layout: TimelineHomeLayout,
+        style: HomeChromeIconStyle,
+        viewportWidth: CGFloat
+    ) -> CGFloat {
+        guard viewportWidth > 0 else { return 0 }
+        let calendarCenterX = layout.topChromeHorizontalPadding + style.calendarSize.width / 2
+        return min(max(calendarCenterX / viewportWidth, 0), 1)
     }
 
     /// 新建入口的篇数额度前置闸门（见 docs/product-mental-model.md §3.1）：点击悬浮按钮时先
