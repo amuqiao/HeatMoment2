@@ -5,6 +5,7 @@ actor CanonicalBackupPackageService: BackupPackageServicing {
     let appVersion: String
     let exportHistoryStore: BackupPackageExportHistoryStore
     let removePreparedExportDirectory: @Sendable (URL) throws -> Void
+    let removeImportStagingDirectory: @Sendable (URL) throws -> Void
     let enforceRecoveryPointRetention: @Sendable (CanonicalLibraryRuntime) throws -> [UUID]
 
     init(
@@ -12,6 +13,12 @@ actor CanonicalBackupPackageService: BackupPackageServicing {
         appVersion: String,
         exportHistoryStore: BackupPackageExportHistoryStore = BackupPackageExportHistoryStore(),
         removePreparedExportDirectory:
+            @escaping @Sendable (URL) throws -> Void = { directory in
+                if FileManager.default.fileExists(atPath: directory.path) {
+                    try FileManager.default.removeItem(at: directory)
+                }
+            },
+        removeImportStagingDirectory:
             @escaping @Sendable (URL) throws -> Void = { directory in
                 if FileManager.default.fileExists(atPath: directory.path) {
                     try FileManager.default.removeItem(at: directory)
@@ -28,6 +35,7 @@ actor CanonicalBackupPackageService: BackupPackageServicing {
         self.appVersion = appVersion
         self.exportHistoryStore = exportHistoryStore
         self.removePreparedExportDirectory = removePreparedExportDirectory
+        self.removeImportStagingDirectory = removeImportStagingDirectory
         self.enforceRecoveryPointRetention = enforceRecoveryPointRetention
     }
 
@@ -49,6 +57,13 @@ actor CanonicalBackupPackageService: BackupPackageServicing {
             throw BackupPackageError.runtimeRequiresDescriptor
         }
         try discardAbandonedPreparedExports(descriptor: descriptor)
+    }
+
+    func discardAllImportStaging() async throws {
+        guard let descriptor = runtime.descriptor else {
+            throw BackupPackageError.runtimeRequiresDescriptor
+        }
+        try discardAllImportStaging(descriptor: descriptor)
     }
 
     func prepareExportPackage(createdAt: Date) async throws -> BackupPackagePreparedExport {
@@ -77,8 +92,11 @@ actor CanonicalBackupPackageService: BackupPackageServicing {
         }
         let fileManager = FileManager.default
         let sessionID = UUID()
-        let sessionDirectory = importRootDirectory(descriptor: descriptor)
-            .appendingPathComponent(sessionID.uuidString, isDirectory: true)
+        try discardAllImportStaging(descriptor: descriptor)
+        let sessionDirectory = importStagingDirectory(
+            descriptor: descriptor,
+            sessionID: sessionID
+        )
         let packageURL = sessionDirectory.appendingPathComponent(url.lastPathComponent)
         let extractedDirectory = sessionDirectory.appendingPathComponent("Extracted", isDirectory: true)
         if fileManager.fileExists(atPath: sessionDirectory.path) {
@@ -112,6 +130,10 @@ actor CanonicalBackupPackageService: BackupPackageServicing {
         } catch {
             try removeDirectory(sessionDirectory, originalError: error)
         }
+    }
+
+    func discardImportPreview(_ preview: BackupPackagePreview) async throws {
+        try removeDirectoryIfExists(preview.stagingDirectory)
     }
 
     func prepareImport(_ preview: BackupPackagePreview, now: Date) async throws

@@ -19,16 +19,12 @@ struct BackupRestoreView: View {
     @State private var isInspectingImport = false
     @State private var isPreparingImport = false
     @State private var isFileImporterPresented = false
-    @State private var showsImportConfirmation = false
     @State private var selectedOperation: BackupPackageOperation = .export
 
     var body: some View {
         TaskPageScrollView(accessibilityIdentifier: "backupRestoreScrollView") {
             summarySection
             fullBackupSection
-            if selectedOperation == .import, let importPreview {
-                importPreviewSection(importPreview)
-            }
             primaryActionButton
         }
         .appSheetDetailNavigationChrome("备份/还原")
@@ -52,14 +48,16 @@ struct BackupRestoreView: View {
                 }
             }
         )
-        .alert("导入这份完整备份？", isPresented: $showsImportConfirmation) {
-            Button("导入并替换", role: .destructive) {
-                prepareImport()
+        .sheet(isPresented: importConfirmationBinding) {
+            if let importPreview {
+                BackupImportConfirmationSheet(
+                    preview: importPreview,
+                    isPreparingImport: isPreparingImport,
+                    onCancel: { cancelImportConfirmation() },
+                    onConfirm: { prepareImport(importPreview) }
+                )
+                .interactiveDismissDisabled(isPreparingImport)
             }
-            .accessibilityIdentifier("backupPackageImportConfirmButton")
-            Button("取消", role: .cancel) {}
-        } message: {
-            Text("导入后会替换当前内容。开始前会自动保护现有资料。")
         }
         .fullScreenCover(
             isPresented: Binding(
@@ -71,7 +69,7 @@ struct BackupRestoreView: View {
                 .interactiveDismissDisabled()
         }
         .task {
-            await cleanupAbandonedPreparedExports()
+            await cleanupAbandonedBackupWorkspaces()
             await loadSummary()
         }
         .userFacingErrorAlert(errorPresenter)
@@ -108,33 +106,6 @@ struct BackupRestoreView: View {
         }
     }
 
-    private func importPreviewSection(_ preview: BackupPackagePreview) -> some View {
-        TaskSurfaceSection(title: "将要导入", accessibilityIdentifier: "backupImportPreviewSection") {
-            VStack(spacing: 0) {
-                summaryRow(title: "备份时间", value: Self.dateFormatter.string(from: preview.createdAt))
-                TaskSurfaceSeparator()
-                summaryRow(title: "内容", value: preview.counts.displayText)
-                TaskSurfaceSeparator()
-                Button {
-                    showsImportConfirmation = true
-                } label: {
-                    TaskSurfaceRow {
-                        Label(
-                            isPreparingImport ? "正在准备导入..." : "导入并替换",
-                            systemImage: "arrow.triangle.2.circlepath"
-                        )
-                        .foregroundStyle(theme.commercialRed)
-                    } trailing: {
-                        TaskDisclosureIndicator()
-                    }
-                }
-                .buttonStyle(.plain)
-                .disabled(isPreparingImport)
-                .accessibilityIdentifier("backupPackagePrepareImportButton")
-            }
-        }
-    }
-
     private func summaryRow(title: String, value: String) -> some View {
         TaskSurfaceRow {
             Text(title)
@@ -147,10 +118,11 @@ struct BackupRestoreView: View {
         }
     }
 
-    private func cleanupAbandonedPreparedExports() async {
+    private func cleanupAbandonedBackupWorkspaces() async {
         guard let backupPackageService else { return }
         do {
             try await backupPackageService.discardAbandonedPreparedExports()
+            try await backupPackageService.discardAllImportStaging()
         } catch {
             errorPresenter.report(message: "备份临时文件清理失败，请稍后重试。", underlying: error)
         }
@@ -238,16 +210,47 @@ struct BackupRestoreView: View {
         }
     }
 
-    private func prepareImport() {
-        guard let backupPackageService, let importPreview, !isPreparingImport else { return }
+    private func prepareImport(_ preview: BackupPackagePreview) {
+        guard let backupPackageService, !isPreparingImport else { return }
         isPreparingImport = true
         Task { @MainActor in
             defer { isPreparingImport = false }
             do {
-                let prepared = try await backupPackageService.prepareImport(importPreview)
+                let prepared = try await backupPackageService.prepareImport(preview)
+                importPreview = nil
                 restoreState.markPendingRestoreArmed(context: prepared.pendingContext)
             } catch {
                 errorPresenter.report(message: "准备导入失败，请重试。", underlying: error)
+                importPreview = nil
+                discardImportPreview(preview)
+            }
+        }
+    }
+
+    private var importConfirmationBinding: Binding<Bool> {
+        Binding(
+            get: { importPreview != nil },
+            set: { isPresented in
+                guard !isPresented else { return }
+                cancelImportConfirmation()
+            }
+        )
+    }
+
+    private func cancelImportConfirmation() {
+        guard !isPreparingImport else { return }
+        guard let preview = importPreview else { return }
+        importPreview = nil
+        discardImportPreview(preview)
+    }
+
+    private func discardImportPreview(_ preview: BackupPackagePreview) {
+        guard let backupPackageService else { return }
+        Task { @MainActor in
+            do {
+                try await backupPackageService.discardImportPreview(preview)
+            } catch {
+                errorPresenter.report(message: "备份临时文件清理失败，请稍后重试。", underlying: error)
             }
         }
     }
@@ -289,6 +292,7 @@ private extension BackupRestoreView {
             || isResolvingExportShare
             || isInspectingImport
             || isPreparingImport
+            || importPreview != nil
     }
 
     var primaryActionTitle: String {
@@ -343,6 +347,75 @@ private extension BackupRecoveryCounts {
     var displayText: String {
         "\(recordCount) 条记录，已用标签 \(usedTagCount) 个，\(assetCount) 张照片"
     }
+}
+
+private struct BackupImportConfirmationSheet: View {
+    let preview: BackupPackagePreview
+    let isPreparingImport: Bool
+    let onCancel: () -> Void
+    let onConfirm: () -> Void
+
+    @Environment(ThemeManager.self) private var theme
+
+    var body: some View {
+        AppSheetScaffold {
+            TaskPageScrollView(
+                spacing: 16,
+                contentInsets: EdgeInsets(top: 24, leading: 16, bottom: 40, trailing: 16),
+                accessibilityIdentifier: "backupImportConfirmationSheet"
+            ) {
+                TaskSurfaceSection(accessibilityIdentifier: "backupImportConfirmationSection") {
+                    VStack(spacing: 0) {
+                        row(title: "备份时间", value: Self.dateFormatter.string(from: preview.createdAt))
+                        TaskSurfaceSeparator()
+                        row(title: "内容", value: preview.counts.displayText)
+                    }
+                }
+
+                Text("还原后将替换当前所有数据。")
+                    .font(AppTypography.caption)
+                    .foregroundStyle(theme.danger)
+                    .padding(.horizontal, 2)
+                    .accessibilityIdentifier("backupImportConfirmationWarningText")
+            }
+            .appSheetChrome(
+                title: "还原备份",
+                cancellation: AppSheetAction(
+                    "取消",
+                    accessibilityIdentifier: "backupPackageImportCancelButton",
+                    isDisabled: isPreparingImport,
+                    handler: onCancel
+                ),
+                confirmation: AppSheetAction(
+                    isPreparingImport ? "正在准备..." : "还原",
+                    accessibilityIdentifier: "backupPackageImportConfirmButton",
+                    role: .destructive,
+                    isDisabled: isPreparingImport,
+                    isProminent: true,
+                    handler: onConfirm
+                )
+            )
+        }
+        .presentationDetents([.medium])
+    }
+
+    private func row(title: String, value: String) -> some View {
+        TaskSurfaceRow {
+            Text(title)
+                .foregroundStyle(theme.secondaryText)
+        } trailing: {
+            Text(value)
+                .font(AppTypography.caption)
+                .foregroundStyle(theme.primaryText)
+                .multilineTextAlignment(.trailing)
+        }
+    }
+
+    private static let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy年M月d日 HH:mm"
+        return formatter
+    }()
 }
 
 private struct BackupPackageShareSheet: UIViewControllerRepresentable {

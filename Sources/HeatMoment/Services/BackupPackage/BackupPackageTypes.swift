@@ -3,6 +3,7 @@ import Foundation
 protocol BackupPackageServicing: Sendable {
     func currentSummary() async throws -> BackupPackageLibrarySummary
     func discardAbandonedPreparedExports() async throws
+    func discardAllImportStaging() async throws
     func prepareExportPackage(createdAt: Date) async throws -> BackupPackagePreparedExport
     func completePreparedExport(
         _ preparedExport: BackupPackagePreparedExport,
@@ -10,6 +11,7 @@ protocol BackupPackageServicing: Sendable {
     ) async throws -> BackupPackageExportCompletion
     func discardPreparedExport(_ preparedExport: BackupPackagePreparedExport) async throws
     func inspectPackage(at url: URL) async throws -> BackupPackagePreview
+    func discardImportPreview(_ preview: BackupPackagePreview) async throws
     func prepareImport(_ preview: BackupPackagePreview, now: Date) async throws
         -> BackupPackagePreparedImport
 }

@@ -12,6 +12,14 @@ extension CanonicalBackupPackageService {
         descriptor.rootDirectory.appendingPathComponent("BackupPackageImports", isDirectory: true)
     }
 
+    func importStagingDirectory(
+        descriptor: CanonicalStoreDescriptor,
+        sessionID: UUID
+    ) -> URL {
+        importRootDirectory(descriptor: descriptor)
+            .appendingPathComponent(sessionID.uuidString, isDirectory: true)
+    }
+
     func exportStagingDirectory(
         descriptor: CanonicalStoreDescriptor,
         packageID: UUID
@@ -91,6 +99,10 @@ extension CanonicalBackupPackageService {
         }
         let completedAt = Date(timeIntervalSince1970: completedTimestamp)
         return now.timeIntervalSince(completedAt) < Self.completedPreparedExportRetentionInterval
+    }
+
+    func discardAllImportStaging(descriptor: CanonicalStoreDescriptor) throws {
+        try removeDirectoryIfExists(importRootDirectory(descriptor: descriptor))
     }
 
     func relativePath(for url: URL, rootDirectory: URL) throws -> String {

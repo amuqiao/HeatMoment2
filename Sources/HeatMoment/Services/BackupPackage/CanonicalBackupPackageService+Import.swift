@@ -37,15 +37,16 @@ extension CanonicalBackupPackageService {
                 importedAssets: imported,
                 now: now
             )
+            let restoreSafety = try createRestoreSafetyPoint(now: now)
+            restoreSafetyIDToCleanUp = restoreSafety.id
             let armedRestore = try armImportedRestore(
                 executor: executor,
                 preview: preview,
                 pendingContext: pendingContext,
-                now: now
+                restoreSafety: restoreSafety
             )
-            restoreSafetyIDToCleanUp = armedRestore.restoreSafetyID
             didArmPendingRestore = true
-            return armedRestore.preparedImport
+            return armedRestore
         } catch {
             try cleanUpPrepareImportIfNeeded(
                 ImportCleanupContext(
@@ -115,24 +116,20 @@ extension CanonicalBackupPackageService {
         executor: CanonicalRestoreExecutor,
         preview: BackupPackagePreview,
         pendingContext: CanonicalPendingRestoreContext,
-        now: Date
-    ) throws -> (preparedImport: BackupPackagePreparedImport, restoreSafetyID: UUID) {
+        restoreSafety: CanonicalRecoveryPointRecord
+    ) throws -> BackupPackagePreparedImport {
         var pendingContext = pendingContext
-        let restoreSafety = try createRestoreSafetyPoint(now: now)
         pendingContext.restoreSafetyRecoveryPoint = restoreSafety
         pendingContext.restoreSafetyAssetManifest =
             try runtime.recoveryPointStore.assetManifest(for: restoreSafety.id)
         try executor.updateStagedRestoreContext(context: pendingContext)
-        try removeDirectoryIfExists(preview.stagingDirectory)
+        try removeImportStagingDirectory(preview.stagingDirectory)
         try executor.armStagedRestore(context: pendingContext)
-        return (
-            BackupPackagePreparedImport(
-                pendingContext: BackupPendingRestoreContext(context: pendingContext),
-                packageID: preview.id,
-                packageCreatedAt: preview.createdAt,
-                retentionStatus: enforceRetentionAfterRestoreIsArmed()
-            ),
-            restoreSafety.id
+        return BackupPackagePreparedImport(
+            pendingContext: BackupPendingRestoreContext(context: pendingContext),
+            packageID: preview.id,
+            packageCreatedAt: preview.createdAt,
+            retentionStatus: enforceRetentionAfterRestoreIsArmed()
         )
     }
 

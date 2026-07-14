@@ -295,6 +295,70 @@ final class BackupPackageServiceTests: XCTestCase {
         XCTAssertTrue(try importRootIsEmpty(descriptor: fixture.descriptor))
     }
 
+    func testInspectPackageDiscardsAbandonedImportStagingBeforeCreatingPreview() async throws {
+        let source = try makeFixture()
+        let target = try makeFixture()
+        try await seedMoment(in: source.runtime, imageData: Data([0x18, 0x19]))
+        let sourceService = CanonicalBackupPackageService(
+            runtime: source.runtime,
+            appVersion: "1.0-test",
+            exportHistoryStore: BackupPackageExportHistoryStore(
+                key: "BackupPackageServiceTests-\(UUID().uuidString)"
+            )
+        )
+        let targetService = CanonicalBackupPackageService(
+            runtime: target.runtime,
+            appVersion: "1.0-test",
+            exportHistoryStore: BackupPackageExportHistoryStore(
+                key: "BackupPackageServiceTests-\(UUID().uuidString)"
+            )
+        )
+        let abandonedDirectory = target.descriptor.rootDirectory
+            .appendingPathComponent("BackupPackageImports", isDirectory: true)
+            .appendingPathComponent("abandoned", isDirectory: true)
+        try FileManager.default.createDirectory(
+            at: abandonedDirectory,
+            withIntermediateDirectories: true
+        )
+        let exported = try await sourceService.prepareExportPackage(
+            createdAt: Date(timeIntervalSince1970: 2_700)
+        )
+
+        let preview = try await targetService.inspectPackage(at: exported.fileURL)
+
+        XCTAssertFalse(FileManager.default.fileExists(atPath: abandonedDirectory.path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: preview.stagingDirectory.path))
+    }
+
+    func testDiscardImportPreviewCleansStaging() async throws {
+        let source = try makeFixture()
+        let target = try makeFixture()
+        try await seedMoment(in: source.runtime, imageData: Data([0x1A, 0x1B]))
+        let sourceService = CanonicalBackupPackageService(
+            runtime: source.runtime,
+            appVersion: "1.0-test",
+            exportHistoryStore: BackupPackageExportHistoryStore(
+                key: "BackupPackageServiceTests-\(UUID().uuidString)"
+            )
+        )
+        let targetService = CanonicalBackupPackageService(
+            runtime: target.runtime,
+            appVersion: "1.0-test",
+            exportHistoryStore: BackupPackageExportHistoryStore(
+                key: "BackupPackageServiceTests-\(UUID().uuidString)"
+            )
+        )
+        let exported = try await sourceService.prepareExportPackage(
+            createdAt: Date(timeIntervalSince1970: 2_800)
+        )
+        let preview = try await targetService.inspectPackage(at: exported.fileURL)
+
+        try await targetService.discardImportPreview(preview)
+
+        XCTAssertFalse(FileManager.default.fileExists(atPath: preview.stagingDirectory.path))
+        XCTAssertTrue(try importRootIsEmpty(descriptor: target.descriptor))
+    }
+
     func testPrepareImportStagesPendingRestoreAndImportsAssets() async throws {
         let source = try makeFixture()
         let target = try makeFixture()
@@ -341,6 +405,93 @@ final class BackupPackageServiceTests: XCTestCase {
         )
         XCTAssertEqual(storedAsset.byteCount, imageData.count)
         XCTAssertTrue(try importRootIsEmpty(descriptor: target.descriptor))
+    }
+
+    func testDiscardAllImportStagingDoesNotClearArmedPendingRestore() async throws {
+        let source = try makeFixture()
+        let target = try makeFixture()
+        try await seedMoment(in: source.runtime, imageData: Data([0x23, 0x24]))
+        let sourceService = CanonicalBackupPackageService(
+            runtime: source.runtime,
+            appVersion: "1.0-test",
+            exportHistoryStore: BackupPackageExportHistoryStore(
+                key: "BackupPackageServiceTests-\(UUID().uuidString)"
+            )
+        )
+        let targetService = CanonicalBackupPackageService(
+            runtime: target.runtime,
+            appVersion: "1.0-test",
+            exportHistoryStore: BackupPackageExportHistoryStore(
+                key: "BackupPackageServiceTests-\(UUID().uuidString)"
+            )
+        )
+        let exported = try await sourceService.prepareExportPackage(
+            createdAt: Date(timeIntervalSince1970: 3_500)
+        )
+        let preview = try await targetService.inspectPackage(at: exported.fileURL)
+        _ = try await targetService.prepareImport(
+            preview,
+            now: Date(timeIntervalSince1970: 3_600)
+        )
+
+        try await targetService.discardAllImportStaging()
+
+        XCTAssertTrue(
+            FileManager.default.fileExists(
+                atPath: target.descriptor.pendingRestoreDirectory
+                    .appendingPathComponent("armed")
+                    .path
+            )
+        )
+    }
+
+    func testPrepareImportFailureBeforeArmingCleansSafetyAssetsAndStaging() async throws {
+        let source = try makeFixture()
+        let target = try makeFixture()
+        let imageData = Data([0x25, 0x26, 0x27])
+        try await seedMoment(in: source.runtime, imageData: imageData)
+        let sourceService = CanonicalBackupPackageService(
+            runtime: source.runtime,
+            appVersion: "1.0-test",
+            exportHistoryStore: BackupPackageExportHistoryStore(
+                key: "BackupPackageServiceTests-\(UUID().uuidString)"
+            )
+        )
+        let targetService = CanonicalBackupPackageService(
+            runtime: target.runtime,
+            appVersion: "1.0-test",
+            exportHistoryStore: BackupPackageExportHistoryStore(
+                key: "BackupPackageServiceTests-\(UUID().uuidString)"
+            ),
+            removeImportStagingDirectory: { _ in
+                throw InjectedImportStagingRemovalError.failed
+            }
+        )
+        let exported = try await sourceService.prepareExportPackage(
+            createdAt: Date(timeIntervalSince1970: 3_700)
+        )
+        let preview = try await targetService.inspectPackage(at: exported.fileURL)
+
+        do {
+            _ = try await targetService.prepareImport(
+                preview,
+                now: Date(timeIntervalSince1970: 3_800)
+            )
+            XCTFail("armed 前删除 import staging 失败时不应完成导入准备")
+        } catch InjectedImportStagingRemovalError.failed {
+        }
+
+        XCTAssertTrue(try importRootIsEmpty(descriptor: target.descriptor))
+        XCTAssertFalse(
+            FileManager.default.fileExists(
+                atPath: target.descriptor.pendingRestoreDirectory.path
+            )
+        )
+        XCTAssertThrowsError(
+            try target.runtime.assetStore.validateStoredAsset(
+                forContentHash: FileAssetStore.sha256Hex(imageData)
+            )
+        )
     }
 
     func testPrepareImportReturnsRetentionFailureAfterRestoreIsArmed() async throws {
@@ -459,6 +610,10 @@ private extension BackupPackageServiceTests {
     }
 
     enum InjectedRetentionError: Error, Equatable {
+        case failed
+    }
+
+    enum InjectedImportStagingRemovalError: Error, Equatable {
         case failed
     }
 

@@ -26,6 +26,8 @@ final class BackupRestoreUITests: XCTestCase {
         XCTAssertFalse(app.otherElements["backupSafetySection"].exists)
         XCTAssertFalse(app.staticTexts["恢复机制"].exists)
         XCTAssertFalse(app.staticTexts["已生成备份包"].exists)
+        XCTAssertFalse(app.otherElements["backupImportPreviewSection"].exists)
+        XCTAssertFalse(app.buttons["backupPackagePrepareImportButton"].exists)
         XCTAssertFalse(firstRecoveryPointRow(in: app).exists)
         XCTAssertFalse(app.buttons["recoveryPointRestoreButton"].exists)
     }
