@@ -46,6 +46,7 @@ struct HeatMomentApp: App {
             // 冷启动都从确定性的默认 `.zhHans` 起步，不受同一模拟器上先前测试运行历史影响。
             UITestSupport.resetLanguagePreferenceIfUITestRun()
             UITestSupport.resetDefaultTagSeedFlagIfUITestRun()
+            UITestSupport.resetBackupPackageExportHistoryIfUITestRun()
             UITestSupport.resetLocalBackupDirectoryIfRequested()
         #endif
         // 冷启动锁定用「初始值即锁」而非 `.task` 里异步 mutate：后者会遇 SwiftUI 首帧竞态

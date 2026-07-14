@@ -407,6 +407,42 @@ final class BackupPackageServiceTests: XCTestCase {
         XCTAssertTrue(try importRootIsEmpty(descriptor: target.descriptor))
     }
 
+    func testPrepareImportKeepsLastExportedAtHistory() async throws {
+        let source = try makeFixture()
+        let target = try makeFixture()
+        try await seedMoment(in: source.runtime, imageData: Data([0x1C, 0x1D]))
+        try await seedMoment(in: target.runtime, imageData: Data([0x1E, 0x1F]))
+        let sourceService = CanonicalBackupPackageService(
+            runtime: source.runtime,
+            appVersion: "1.0-test",
+            exportHistoryStore: BackupPackageExportHistoryStore(
+                key: "BackupPackageServiceTests-\(UUID().uuidString)"
+            )
+        )
+        let targetHistoryStore = BackupPackageExportHistoryStore(
+            key: "BackupPackageServiceTests-\(UUID().uuidString)"
+        )
+        let previousExportedAt = Date(timeIntervalSince1970: 2_900)
+        targetHistoryStore.recordExported(at: previousExportedAt)
+        let targetService = CanonicalBackupPackageService(
+            runtime: target.runtime,
+            appVersion: "1.0-test",
+            exportHistoryStore: targetHistoryStore
+        )
+        let exported = try await sourceService.prepareExportPackage(
+            createdAt: Date(timeIntervalSince1970: 2_950)
+        )
+        let preview = try await targetService.inspectPackage(at: exported.fileURL)
+
+        _ = try await targetService.prepareImport(
+            preview,
+            now: Date(timeIntervalSince1970: 2_980)
+        )
+        let summary = try await targetService.currentSummary()
+
+        XCTAssertEqual(summary.lastExportedAt, previousExportedAt)
+    }
+
     func testDiscardAllImportStagingDoesNotClearArmedPendingRestore() async throws {
         let source = try makeFixture()
         let target = try makeFixture()

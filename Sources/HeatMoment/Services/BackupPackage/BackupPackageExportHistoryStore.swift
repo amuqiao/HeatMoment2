@@ -1,9 +1,11 @@
 import Foundation
 
 struct BackupPackageExportHistoryStore: Sendable {
+    static let defaultKey = "HeatMoment.BackupPackage.LastExportedAt"
+
     private let key: String
 
-    init(key: String = "HeatMoment.BackupPackage.LastExportedAt") {
+    init(key: String = Self.defaultKey) {
         self.key = key
     }
 
@@ -16,5 +18,9 @@ struct BackupPackageExportHistoryStore: Sendable {
 
     func recordExported(at date: Date) {
         UserDefaults.standard.set(date.timeIntervalSince1970, forKey: key)
+    }
+
+    func removeExportedAt() {
+        UserDefaults.standard.removeObject(forKey: key)
     }
 }

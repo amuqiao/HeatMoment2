@@ -33,10 +33,36 @@ final class BackupRestoreUITests: XCTestCase {
     }
 
     @MainActor
+    func testCompletedBackupExportUpdatesLastExportedSummary() {
+        let app = launchLocalBackupApp(
+            resetDisk: true,
+            seedLocalData: true,
+            autoCompleteBackupShare: true
+        )
+        openBackupRestore(app)
+
+        XCTAssertTrue(app.staticTexts["上次导出"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["从未备份"].exists)
+
+        app.buttons["backupPackagePrimaryButton"].tap()
+
+        XCTAssertTrue(waitForNonExistence(app.staticTexts["从未备份"], timeout: 8))
+        let exportedAtLabel = app.staticTexts.matching(
+            NSPredicate(
+                format: "label MATCHES %@",
+                #"\d{4}年\d{1,2}月\d{1,2}日 \d{2}:\d{2}"#
+            )
+        )
+        .firstMatch
+        XCTAssertTrue(exportedAtLabel.waitForExistence(timeout: 5))
+    }
+
+    @MainActor
     private func launchLocalBackupApp(
         runID: String = UUID().uuidString,
         resetDisk: Bool = false,
-        seedLocalData: Bool = false
+        seedLocalData: Bool = false,
+        autoCompleteBackupShare: Bool = false
     ) -> XCUIApplication {
         let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestLocalBackupRestore"]
@@ -45,6 +71,9 @@ final class BackupRestoreUITests: XCTestCase {
         }
         if seedLocalData {
             app.launchArguments.append("-uiTestSeedLocalRecoveryPoint")
+        }
+        if autoCompleteBackupShare {
+            app.launchArguments.append("-uiTestBackupPackageShareAutoComplete")
         }
         app.launchEnvironment["HEATMOMENT_UI_TEST_LOCAL_BACKUP_RUN_ID"] = runID
         app.launch()
@@ -79,6 +108,16 @@ final class BackupRestoreUITests: XCTestCase {
         timeout: TimeInterval
     ) -> Bool {
         let predicate = NSPredicate(format: "exists == true AND label == %@", label)
+        let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
+        return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
+    }
+
+    @MainActor
+    private func waitForNonExistence(
+        _ element: XCUIElement,
+        timeout: TimeInterval
+    ) -> Bool {
+        let predicate = NSPredicate(format: "exists == false")
         let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
         return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
     }

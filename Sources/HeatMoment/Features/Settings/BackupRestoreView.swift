@@ -37,9 +37,6 @@ struct BackupRestoreView: View {
         }
         .sheet(
             isPresented: $isShareSheetPresented,
-            onDismiss: {
-                resolvePreparedExport(completed: false)
-            },
             content: {
                 if let preparedExport {
                     BackupPackageShareSheet(fileURL: preparedExport.fileURL) { completed in
@@ -84,7 +81,7 @@ struct BackupRestoreView: View {
                 )
                 TaskSurfaceSeparator()
                 summaryRow(
-                    title: "上次备份",
+                    title: "上次导出",
                     value: summary?.lastExportedAt.map(Self.dateFormatter.string(from:)) ?? "从未备份"
                 )
             }
@@ -146,6 +143,12 @@ struct BackupRestoreView: View {
             defer { isExporting = false }
             do {
                 preparedExport = try await backupPackageService.prepareExportPackage()
+                #if DEBUG
+                    if UITestSupport.wantsBackupPackageShareAutoComplete {
+                        resolvePreparedExport(completed: true)
+                        return
+                    }
+                #endif
                 isShareSheetPresented = true
             } catch {
                 errorPresenter.report(message: "备份导出失败，请重试。", underlying: error)

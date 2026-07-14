@@ -16,6 +16,8 @@
     ///   避免 UI 测试依赖系统分享面板的无障碍结构。
     /// - `-uiTestExportShareFailOnce`：导出成功后首次分享返回系统错误，
     ///   供分享失败保留临时副本并重试的事务路径验收。
+    /// - `-uiTestBackupPackageShareAutoComplete`：完整备份包准备完成后自动执行分享完成回调，
+    ///   避免 UI 测试依赖系统分享面板的无障碍结构。
     /// - `-uiTestImageDisplayCarousel`：UI 测试隔离外观偏好中把图片展示方式预置为轮播。
     /// - `-uiTestSeedMomentQuota`：使用内存 canonical runtime 并预置 10 条 Moment（占满免费额度），
     ///   供 `QuotaBlockUITests.testEleventhMomentBlocked` 验证第 11 篇创建被前置闸门拦截。
@@ -129,6 +131,10 @@
             ProcessInfo.processInfo.arguments.contains("-uiTestExportShareFailOnce")
         }
 
+        static var wantsBackupPackageShareAutoComplete: Bool {
+            ProcessInfo.processInfo.arguments.contains("-uiTestBackupPackageShareAutoComplete")
+        }
+
         /// UI 测试隔离：清掉上一次测试运行可能残留在 `UserDefaults.standard` 里的语言偏好
         /// （见 `LanguagePreference`）——该 key 与生产用户共用 `.standard`（未像外观偏好那样切独立
         /// 套件，因为语言偏好不涉及「必失败场景注入」，只需保证起点确定性），任意 `-uiTest*`
@@ -149,6 +155,11 @@
             guard isAnyUITestRun else { return }
             guard localBackupApplicationSupportDirectory == nil else { return }
             UserDefaults.standard.removeObject(forKey: DefaultTagSeeder.hasCompletedFirstSeedKey)
+        }
+
+        static func resetBackupPackageExportHistoryIfUITestRun() {
+            guard isAnyUITestRun else { return }
+            BackupPackageExportHistoryStore().removeExportedAt()
         }
 
         /// 供 `HeatMomentApp` 构造 `ThemeManager` 时选择的外观存储：任意 UI 测试场景下用隔离套件

@@ -60,10 +60,10 @@ SwiftUI / ViewModel
 
 - `BackupPackageTypes.swift`：`BackupPackageServicing`、manifest、payload、临时导出、导出完成、预览和导入准备类型。
 - `BackupPackageArchive.swift`：自定义单文件容器，包含 magic、manifest length、manifest 和按 manifest 顺序写入的 payload；读取时校验相对路径、字节数、SHA-256 和尾部数据。
-- `CanonicalBackupPackageService.swift`：完整备份包应用服务；导出准备时用 GRDB online backup 创建 SQLite snapshot，校验并复制 content-addressed 原图 blob，写入临时 `.heatmomentbackup`，系统分享/保存 completed 后才记录上次备份，并将分享源包标记为短期保留；导入时复制外部文件到 staging，校验 manifest / SQLite catalog / payload hash，取消确认或下次进入/导入前清理未确认 staging，确认后把资产写入当前 `FileAssetStore` 并复用 pending restore 冷启动替换链路。
+- `CanonicalBackupPackageService.swift`：完整备份包应用服务；导出准备时用 GRDB online backup 创建 SQLite snapshot，校验并复制 content-addressed 原图 blob，写入临时 `.heatmomentbackup`，系统分享/保存 completed 后才记录上次导出，并将分享源包标记为短期保留；导入时复制外部文件到 staging，校验 manifest / SQLite catalog / payload hash，取消确认或下次进入/导入前清理未确认 staging，确认后把资产写入当前 `FileAssetStore` 并复用 pending restore 冷启动替换链路。
 - `BackupRestoreView.swift`：设置页“备份/还原”详情页，通过操作选择在导出备份和导入还原之间切换，并用单个主按钮执行当前操作；导入文件校验通过后直接弹出确认 sheet，展示最小预览和替换提示，不在页面主体展示内部恢复点或准备态。
 
-当前完整备份包不压缩、不做增量、不替换或删除用户已有外部备份，也不记录用户最终保存路径；App 只记录上次系统分享/保存完成交接的时间。导出取消、分享中断或 App 被杀后重新进入页面，不会记录上次备份，并会清理遗留的未完成准备态临时包；已完成分享的源包用 marker 短期保留，超过保留窗口后再清理，避免系统 Files / iCloud Drive 保存收尾期间源文件已消失。
+当前完整备份包不压缩、不做增量、不替换或删除用户已有外部备份，也不记录用户最终保存路径；App 只记录上次系统分享/保存完成交接的导出时间。导出取消、分享中断或 App 被杀后重新进入页面，不会记录上次导出，并会清理遗留的未完成准备态临时包；导入不会把上次导出改成导入时间或备份包创建时间。已完成分享的源包用 marker 短期保留，超过保留窗口后再清理，避免系统 Files / iCloud Drive 保存收尾期间源文件已消失。
 
 ### Markdown/PDF Export
 
