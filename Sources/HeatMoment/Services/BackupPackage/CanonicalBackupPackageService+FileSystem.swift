@@ -1,6 +1,9 @@
 import Foundation
 
 extension CanonicalBackupPackageService {
+    static let completedPreparedExportMarkerFileName = ".share-completed"
+    static let completedPreparedExportRetentionInterval: TimeInterval = 60 * 60
+
     func exportRootDirectory(descriptor: CanonicalStoreDescriptor) -> URL {
         descriptor.rootDirectory.appendingPathComponent("BackupPackageExports", isDirectory: true)
     }
@@ -43,10 +46,51 @@ extension CanonicalBackupPackageService {
             )
     }
 
-    func discardAbandonedPreparedExports(descriptor: CanonicalStoreDescriptor) throws {
-        try removePreparedExportDirectoryIfExists(
-            preparedExportRootDirectory(descriptor: descriptor)
+    func discardAbandonedPreparedExports(
+        descriptor: CanonicalStoreDescriptor,
+        now: Date = .now
+    ) throws {
+        let rootDirectory = preparedExportRootDirectory(descriptor: descriptor)
+        guard FileManager.default.fileExists(atPath: rootDirectory.path) else { return }
+        let preparedDirectories = try FileManager.default.contentsOfDirectory(
+            at: rootDirectory,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles]
         )
+        for directory in preparedDirectories {
+            let values = try directory.resourceValues(forKeys: [.isDirectoryKey])
+            guard values.isDirectory == true else { continue }
+            if try shouldRetainPreparedExportDirectory(directory, now: now) {
+                continue
+            }
+            try removePreparedExportDirectory(directory)
+        }
+    }
+
+    func markPreparedExportCompleted(
+        _ preparedDirectory: URL,
+        completedAt: Date
+    ) throws {
+        let markerURL = completedPreparedExportMarkerURL(preparedDirectory)
+        let data = Data("\(completedAt.timeIntervalSince1970)".utf8)
+        try data.write(to: markerURL, options: .atomic)
+    }
+
+    func completedPreparedExportMarkerURL(_ preparedDirectory: URL) -> URL {
+        preparedDirectory.appendingPathComponent(Self.completedPreparedExportMarkerFileName)
+    }
+
+    func shouldRetainPreparedExportDirectory(_ directory: URL, now: Date) throws -> Bool {
+        let markerURL = completedPreparedExportMarkerURL(directory)
+        guard FileManager.default.fileExists(atPath: markerURL.path) else { return false }
+        let markerData = try Data(contentsOf: markerURL)
+        guard let rawTimestamp = String(data: markerData, encoding: .utf8),
+            let completedTimestamp = TimeInterval(rawTimestamp)
+        else {
+            throw BackupPackageError.invalidPreparedExportCompletionMarker(markerURL.path)
+        }
+        let completedAt = Date(timeIntervalSince1970: completedTimestamp)
+        return now.timeIntervalSince(completedAt) < Self.completedPreparedExportRetentionInterval
     }
 
     func relativePath(for url: URL, rootDirectory: URL) throws -> String {

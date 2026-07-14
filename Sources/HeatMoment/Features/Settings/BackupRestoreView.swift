@@ -214,7 +214,7 @@ struct BackupRestoreView: View {
     ) {
         guard case let .failedAfterExportRecorded(details) = cleanupStatus else { return }
         errorPresenter.report(
-            message: "备份已导出，但临时文件清理失败。下次进入页面会重试清理。",
+            message: "备份已导出，但临时文件收尾失败。下次进入页面会重试处理。",
             underlying: BackupPackagePreparedExportCleanupError.failed(details)
         )
     }

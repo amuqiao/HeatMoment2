@@ -69,7 +69,10 @@ extension CanonicalBackupPackageService {
 
         exportHistoryStore.recordExported(at: completedAt)
         do {
-            try removePreparedExportDirectoryIfExists(preparedExport.preparedDirectory)
+            try markPreparedExportCompleted(
+                preparedExport.preparedDirectory,
+                completedAt: completedAt
+            )
             return BackupPackageExportCompletion(
                 packageID: preparedExport.packageID,
                 exportedAt: completedAt,

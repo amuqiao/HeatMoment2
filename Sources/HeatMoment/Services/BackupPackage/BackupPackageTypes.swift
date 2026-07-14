@@ -101,6 +101,7 @@ enum BackupPackageError: Error, Equatable {
     case currentSummaryUnavailable
     case missingPreparedExportPackage(String)
     case cleanupFailed(originalError: String, cleanupError: String)
+    case invalidPreparedExportCompletionMarker(String)
 }
 
 struct BackupPackageManifest: Codable, Sendable, Equatable {
