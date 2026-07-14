@@ -4,13 +4,9 @@
 
 ## Closed Scope
 
-- 设置页“备份与恢复”已改为用户可见的 `.heatmomentbackup` 完整备份包入口。
-- 原 Markdown/PDF 导出已在设置页命名为“阅读副本导出”，页面只保留导出动作和失败状态。
-- 本机 recovery point 已重定位为内部安全点：用于稳定变更、高风险写入、迁移和完整备份导入前 restore-safety，不再作为主备份模型展示给用户。
-- 完整备份包导出每次生成新的完整包，不做增量，不替换或删除用户外部旧备份，不记录用户最终保存路径；只有系统分享/保存完成回调后才记录上次备份，取消或重新进入页面会清理准备态临时包。
-- 完整备份包导入先复制到 staging，校验 magic、manifest、payload 相对路径、byte count、SHA-256、尾部数据、SQLite catalog 和 asset manifest；用户确认后才创建恢复前安全点、stage pending restore、arm 下次冷启动替换。
-- 恢复执行复用 canonical pending restore / cold boot gate，设置页不直接替换 SQLite。
-- `.heatmomentbackup` UTI 和 `.heatmomentbackup` 扩展名已在 XcodeGen 生成的 app Info.plist 中注册。
+- 完整备份包、导入还原、本机安全点重定位和 Markdown/PDF 导出命名的重构计划已关闭。
+- 本文件不继续维护 as-built 命名、页面行为或格式合同；当前事实以 `docs/current/` 为准。
+- 下方只保留关闭时的验证证据和未完成 follow-up 指向。
 
 ## Current Sources
 

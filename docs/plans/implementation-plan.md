@@ -13,7 +13,7 @@ HeatMoment 是单机优先、小而美的个人日记 App。数据架构必须�
   -> 用户可手动导出完整 `.heatmomentbackup` 备份包
   -> 用户可从完整备份包整库恢复
   -> App 内部自动保留本机安全点，供导入前、危险操作前和迁移前回滚
-  -> 用户可导出 Markdown / PDF 阅读副本
+  -> 用户可导出 Markdown / PDF 文件
   -> 后续可使用系统 iCloud 在自己的设备间同步
 ```
 
@@ -22,7 +22,7 @@ HeatMoment 是单机优先、小而美的个人日记 App。数据架构必须�
 - iCloud 同步依赖系统 Apple ID，只是后续跨设备收敛通道，不是 App 登录，也不叫云端备份。
 - 完整备份包是用户可见的数据安全主模型；关闭证据见 [`backup-package-recovery-plan.md`](backup-package-recovery-plan.md)，as-built 真相见 [`../current/local-data-architecture.md`](../current/local-data-architecture.md)。
 - 自动恢复点重定位为 App 内本机安全点，最多保留 3 个，系统自动维护，默认不作为主备份模型展示。
-- Markdown / PDF 导出是只读副本，不用于恢复，不参与 iCloud 同步。
+- Markdown / PDF 导出是只读文件，不用于还原，不参与 iCloud 同步。
 
 ### 开发者心智模型
 
@@ -47,13 +47,13 @@ SwiftUI / ViewModel
 - 不做 App 账号、登录态、服务端用户模型或自建后端。
 - 不做多人协作、实时协同编辑或共享资料库。
 - v1 不做用户手动删除本机安全点，也不做复杂 merge restore。
-- 完整 `.heatmomentbackup` 备份包、导入恢复和本机安全点重定位已关闭；本文不重复维护备份包格式合同。
+- 完整 `.heatmomentbackup` 备份包、导入还原和本机安全点重定位已关闭；本文不重复维护备份包格式合同。
 
 ## Current Baseline
 
-- 本地读写权威、UI 主流程、完整备份包、本机安全点、Markdown/PDF 阅读副本导出和 UI 测试种子使用 canonical 架构，详见 [`../current/implementation-truth.md`](../current/implementation-truth.md)。
+- 本地读写权威、UI 主流程、完整备份包、本机安全点、Markdown/PDF 导出和 UI 测试种子使用 canonical 架构，详见 [`../current/implementation-truth.md`](../current/implementation-truth.md)。
 - 后续本地数据生命周期计划只基于 canonical store 演进。
-- 设置页当前已区分“备份与恢复”和“阅读副本导出”；“备份与恢复”指完整 `.heatmomentbackup` 备份包，本机 recovery point 只作为内部安全点。
+- 设置页当前已区分“备份/还原”和“导出（Markdown, PDF）”；“备份/还原”指完整 `.heatmomentbackup` 备份包，本机 recovery point 只作为内部安全点。
 - 当前导出闭环支持日期范围、Markdown/PDF、照片开关、失败重试和临时文件清理；它不写 canonical store、不创建恢复点、不参与 iCloud 同步，详见 [`../current/implementation-truth.md`](../current/implementation-truth.md)。
 - M-architecture-final 已把本地数据闭环的可复用心智模型整理到 [`../current/local-data-architecture.md`](../current/local-data-architecture.md)，并将导出、恢复点 snapshot 和 restore 类型合同按职责拆分为更小文件。
 - 当前 iCloud 仍只有能力/网络/最近本地写入时间的启发式状态展示；尚未实现真实 CloudKit 同步状态机、多设备收敛、冲突记录或重试队列。
@@ -101,7 +101,7 @@ SwiftUI / ViewModel
 
 ## Verification Matrix
 
-阶段内验证采用风险分层：实现小步优先运行相关单元测试、窄 UI 测试、`build`、`lint` 和 `diff-check`；阶段收口、跨 UI 主流程、发布前或修改共享基础设施时再跑全量 `verify.sh`。完整备份包、阅读副本命名和本机安全点重定位已关闭；本文只保留 iCloud 与 asset GC 的数据生命周期 follow-up 验收。
+阶段内验证采用风险分层：实现小步优先运行相关单元测试、窄 UI 测试、`build`、`lint` 和 `diff-check`；阶段收口、跨 UI 主流程、发布前或修改共享基础设施时再跑全量 `verify.sh`。完整备份包、导出命名和本机安全点重定位已关闭；本文只保留 iCloud 与 asset GC 的数据生命周期 follow-up 验收。
 
 | 范围 | 必测内容 |
 | --- | --- |
@@ -111,7 +111,7 @@ SwiftUI / ViewModel
 | Restore / sync boundary | 任意恢复完成后生成新 `syncEpoch`，旧 checkpoint/outbox/token 作废；远端收敛策略有确定测试。 |
 | Asset pin lifecycle | recovery point、restore staging、backup package、export job、sync job 的 content-hash pin owner 创建、释放和失败清理。 |
 | Asset GC execution | dry-run、blocking issue、finalize unlinked records、orphan blob cleanup、跨启动残留 staging 对账。 |
-| Regression boundary | 已落地完整备份包导出/导入恢复和阅读副本路径不被 iCloud/GC follow-up 改坏。 |
+| Regression boundary | 已落地完整备份包导出/导入还原和 Markdown/PDF 导出路径不被 iCloud/GC follow-up 改坏。 |
 
 阶段内最小验证由对应实现阶段细化；至少需要覆盖：
 
@@ -134,6 +134,6 @@ iCloud 真机阶段必须补充 CloudKit 单设备/双设备矩阵；阶段收�
 本地数据闭环已经进入 current。整份数据生命周期计划最终关闭还需要：
 
 - iCloud 独立计划落地并通过真机矩阵验收。
-- 已落地完整备份包、阅读副本和本机安全点的 as-built 真相持续保留在 current；本文不重新拥有该关闭计划。
+- 已落地完整备份包、Markdown/PDF 导出和本机安全点的 as-built 真相持续保留在 current；本文不重新拥有该关闭计划。
 - 完整 asset GC 执行入口落地，并证明不会误删 recovery/export/sync 仍需保护的 blob。
 - current 文档持续保持 as-built 真相，不把已关闭阶段重新写成主动计划。

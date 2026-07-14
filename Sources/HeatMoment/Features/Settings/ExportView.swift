@@ -147,7 +147,7 @@ struct ExportView: View {
 
     private var formatSection: some View {
         TaskSurfaceSection(title: "格式", accessibilityIdentifier: "exportFormatSection") {
-            Picker("副本格式", selection: $selectedFormat) {
+            Picker("导出格式", selection: $selectedFormat) {
                 ForEach(ExportFormat.allCases, id: \.self) { format in
                     Text(format.displayName).tag(format)
                 }

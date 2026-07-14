@@ -17,7 +17,7 @@ App Composition
 - `App Composition` 负责启动、全局环境、根场景、根级 sheet、隐私锁遮罩、pending restore 遮罩和能力注入。
 - `Business Features` 负责具体产品语义，例如 Moment、Mood、Tag、Timeline、Heatmap、Stats。
 - `Foundation UI` 提供 sheet、任务容器、按钮、typography、主题 token 和设置页导航样式。
-- `Capability Contracts` 提供业务页面可消费的稳定能力边界，例如完整备份包、本机安全点、阅读副本导出、订阅、同步状态、隐私锁偏好。
+- `Capability Contracts` 提供业务页面可消费的稳定能力边界，例如完整备份包、本机安全点、Markdown/PDF 导出、订阅、同步状态、隐私锁偏好。
 - `Capability Internals` 负责 GRDB、SQLite、FileAssetStore、StoreKit、LocalAuthentication、FileManager 等具体实现。
 
 依赖方向只向下。业务页面可以使用 foundation UI 和 capability contract；foundation UI 不读取 HeatMoment 业务模型；Settings 不定义跨 feature service protocol；concrete service 由 App composition 注入。
@@ -87,9 +87,9 @@ Capability Contract
 
 当前示例：
 
-- 完整备份包：`BackupPackageServicing` 由“备份与恢复”详情页消费，`CanonicalBackupPackageService` 由 App composition 注入。
+- 完整备份包：`BackupPackageServicing` 由“备份/还原”详情页消费，`CanonicalBackupPackageService` 由 App composition 注入。
 - 本机安全点：`BackupRestoreServicing` / `CanonicalBackupRestoreService` 仍保留为内部 recovery point capability，不作为设置页主备份模型。
-- 阅读副本导出：`ExportServicing` 由“阅读副本导出”详情页消费，`CanonicalExportService` 负责接入 canonical snapshot adapter，并以 share transaction 表达生成、分享和清理边界。
+- Markdown/PDF 导出：`ExportServicing` 由“导出”详情页消费，`CanonicalExportService` 负责接入 canonical snapshot adapter，并以 share transaction 表达生成、分享和清理边界。
 - 同步状态：`SyncStatusService` 当前只表达系统 iCloud 能力和本地写入后的启发式状态。
 
 基础能力不应反向依赖业务 feature。若能力需要业务数据，使用业务 adapter 把业务模型转成 capability snapshot。
@@ -109,7 +109,7 @@ Capability Contract
 当前分组：
 
 - 个人化：外观主题、语言。
-- 数据与安全：数据与 iCloud、备份与恢复、阅读副本导出、面容解锁。
+- 数据与安全：数据与 iCloud、备份/还原、导出（Markdown, PDF）、面容解锁。
 - 管理：标签管理、垃圾箱、心情统计。
 - 权益与关于：关于心绪日记。
 

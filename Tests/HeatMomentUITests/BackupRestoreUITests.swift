@@ -13,14 +13,14 @@ final class BackupRestoreUITests: XCTestCase {
         let operationPicker = app.segmentedControls["backupPackageOperationPicker"]
         XCTAssertTrue(operationPicker.waitForExistence(timeout: 5))
         XCTAssertTrue(operationPicker.buttons["导出备份"].exists)
-        XCTAssertTrue(operationPicker.buttons["导入恢复"].exists)
+        XCTAssertTrue(operationPicker.buttons["导入还原"].exists)
 
         let primaryButton = app.buttons["backupPackagePrimaryButton"]
         XCTAssertTrue(primaryButton.exists)
         XCTAssertEqual(primaryButton.label, "导出备份")
         XCTAssertFalse(app.buttons["导入备份"].exists)
 
-        operationPicker.buttons["导入恢复"].tap()
+        operationPicker.buttons["导入还原"].tap()
         XCTAssertTrue(waitForLabel(primaryButton, "导入备份", timeout: 5))
         XCTAssertFalse(app.staticTexts["backupPackageExplanationText"].exists)
         XCTAssertFalse(app.otherElements["backupSafetySection"].exists)
@@ -59,7 +59,7 @@ final class BackupRestoreUITests: XCTestCase {
         XCTAssertTrue(backupRestoreRow.waitForExistence(timeout: 5))
         backupRestoreRow.tap()
 
-        XCTAssertTrue(app.navigationBars["备份与恢复"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["备份/还原"].waitForExistence(timeout: 5))
     }
 
     @MainActor

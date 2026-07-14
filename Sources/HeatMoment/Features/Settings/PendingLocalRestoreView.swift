@@ -10,7 +10,7 @@ struct PendingLocalRestoreView: View {
             theme.sheetBackground.ignoresSafeArea()
             VStack(alignment: .leading, spacing: 18) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("恢复已准备好")
+                    Text("还原已准备好")
                         .font(AppTypography.pageTitle)
                         .foregroundStyle(theme.primaryText)
                     Text(message)
@@ -24,7 +24,7 @@ struct PendingLocalRestoreView: View {
                         Text("请完全退出并重新打开 App。")
                             .font(AppTypography.body.weight(.semibold))
                             .foregroundStyle(theme.primaryText)
-                        Text("App 会在下次启动时完成恢复。为避免新内容被覆盖，当前会话已暂停继续使用。")
+                        Text("App 会在下次启动时完成还原。为避免新内容被覆盖，当前会话已暂停继续使用。")
                             .font(AppTypography.caption)
                             .foregroundStyle(theme.secondaryText)
                     }
@@ -40,11 +40,11 @@ struct PendingLocalRestoreView: View {
 
     private var message: String {
         guard let context else {
-            return "本机内容将在下次启动时被所选恢复目标替换。"
+            return "本机内容将在下次启动时被所选还原目标替换。"
         }
-        var text = "本机内容将在下次启动时恢复到 \(Self.dateFormatter.string(from: context.selectedCreatedAt))。"
+        var text = "本机内容将在下次启动时还原到 \(Self.dateFormatter.string(from: context.selectedCreatedAt))。"
         if let safetyCreatedAt = context.restoreSafetyCreatedAt {
-            text += " 已保存 \(Self.dateFormatter.string(from: safetyCreatedAt)) 的恢复前安全点。"
+            text += " 已保存 \(Self.dateFormatter.string(from: safetyCreatedAt)) 的还原前安全点。"
         }
         return text
     }

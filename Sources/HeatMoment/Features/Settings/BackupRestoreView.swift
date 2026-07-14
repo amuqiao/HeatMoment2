@@ -31,7 +31,7 @@ struct BackupRestoreView: View {
             }
             primaryActionButton
         }
-        .appSheetDetailNavigationChrome("备份与恢复")
+        .appSheetDetailNavigationChrome("备份/还原")
         .themedTaskContainer(theme)
         .fileImporter(
             isPresented: $isFileImporterPresented,
@@ -334,7 +334,7 @@ private enum BackupPackageOperation: CaseIterable, Hashable {
         case .export:
             return "导出备份"
         case .import:
-            return "导入恢复"
+            return "导入还原"
         }
     }
 }

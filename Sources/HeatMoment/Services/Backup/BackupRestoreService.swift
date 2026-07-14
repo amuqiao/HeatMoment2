@@ -61,7 +61,7 @@ struct BackupBootRestoreFailure: Error, Equatable, CustomStringConvertible {
     }
 
     var description: String {
-        "资料库恢复失败：\(underlyingDescription)"
+        "资料库还原失败：\(underlyingDescription)"
     }
 }
 

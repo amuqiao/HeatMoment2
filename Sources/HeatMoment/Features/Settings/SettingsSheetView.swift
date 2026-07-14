@@ -109,8 +109,9 @@ struct SettingsSheetView: View {
     private var dataSecurityEntries: [SettingsNavigationEntry] {
         [
             SettingsNavigationEntry(
-                route: .backupRestore, title: "备份与恢复", identifier: "settingsBackupRestoreRow"),
-            SettingsNavigationEntry(route: .export, title: "阅读副本导出", identifier: "settingsExportRow"),
+                route: .backupRestore, title: "备份/还原", identifier: "settingsBackupRestoreRow"),
+            SettingsNavigationEntry(
+                route: .export, title: "导出（Markdown, PDF）", identifier: "settingsExportRow"),
         ]
     }
 

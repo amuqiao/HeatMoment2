@@ -47,7 +47,7 @@ struct RootView: View {
             rootTaskSheet(sheet)
         }
         .environment(timelineModel)
-        .alert("资料库恢复完成", isPresented: $showsLaunchRestoreSuccess) {
+        .alert("资料库还原完成", isPresented: $showsLaunchRestoreSuccess) {
             Button("好的", role: .cancel) {}
         } message: {
             Text(launchRestoreSuccessMessage)
@@ -152,7 +152,7 @@ struct RootView: View {
             showsLaunchRestoreSuccess = true
         case let .failed(failure):
             errorPresenter.report(
-                message: "资料库恢复失败，当前数据未被替换。",
+                message: "资料库还原失败，当前数据未被替换。",
                 underlying: failure
             )
         }
@@ -176,9 +176,9 @@ struct RootView: View {
     private static func launchRestoreSuccessMessage(
         context: BackupPendingRestoreContext
     ) -> String {
-        var message = "已恢复到 \(dateFormatter.string(from: context.selectedCreatedAt)) 的本机内容。"
+        var message = "已还原到 \(dateFormatter.string(from: context.selectedCreatedAt)) 的本机内容。"
         if let safetyCreatedAt = context.restoreSafetyCreatedAt {
-            message += " 已保存 \(dateFormatter.string(from: safetyCreatedAt)) 的恢复前安全点。"
+            message += " 已保存 \(dateFormatter.string(from: safetyCreatedAt)) 的还原前安全点。"
         }
         return message
     }

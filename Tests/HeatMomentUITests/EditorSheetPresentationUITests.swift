@@ -121,11 +121,19 @@ final class EditorSheetPresentationUITests: XCTestCase {
         let app = XCUIApplication.heatMoment()
         openSettings(app)
 
-        assertSettingsDetailTitle(app, rowID: "settingsBackupRestoreRow", title: "备份与恢复")
+        assertSettingsDetailTitle(app, rowID: "settingsBackupRestoreRow", title: "备份/还原")
         assertSettingsDetailTitle(app, rowID: "settingsExportRow", title: "导出")
         assertSettingsDetailTitle(app, rowID: "settingsLanguageRow", title: "语言")
         assertSettingsDetailTitle(app, rowID: "settingsAppearanceRow", title: "外观主题")
         assertSettingsDetailTitle(app, rowID: "settingsAboutRow", title: "关于心绪日记")
+    }
+
+    func testSettingsDataSecurityRowsUseUserFacingNames() {
+        let app = XCUIApplication.heatMoment()
+        openSettings(app)
+
+        assertSettingsRowLabel(app, rowID: "settingsBackupRestoreRow", label: "备份/还原")
+        assertSettingsRowLabel(app, rowID: "settingsExportRow", label: "导出（Markdown, PDF）")
     }
 
     func testEditorTaskSurfacesShareHorizontalBounds() {
@@ -180,5 +188,11 @@ final class EditorSheetPresentationUITests: XCTestCase {
         XCTAssertTrue(backButton.waitForExistence(timeout: 5), "\(title) 应保留系统返回按钮")
         backButton.tap()
         XCTAssertTrue(app.navigationBars["设置"].waitForExistence(timeout: 5), "返回后应回到设置根页")
+    }
+
+    private func assertSettingsRowLabel(_ app: XCUIApplication, rowID: String, label: String) {
+        let row = app.buttons[rowID]
+        XCTAssertTrue(row.waitForExistence(timeout: 5), "\(rowID) 应存在")
+        XCTAssertTrue(row.label.contains(label), "\(rowID) 应显示 \(label)，实际为 \(row.label)")
     }
 }
