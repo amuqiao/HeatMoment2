@@ -48,10 +48,11 @@ Debug / Dev 构建默认会启用本地开发者 Pro 解锁（见 `implementatio
 
 | 启动参数 | 当前语义 |
 | --- | --- |
-| `-uiTestReset` | 使用内存 canonical runtime，空数据起步 |
-| `-uiTestSeedMoments` | 使用内存 canonical runtime 并预置可滚动时间轴 |
-| `-uiTestSeedMomentQuota` | 使用内存 canonical runtime 并预置免费 Moment 额度已满 |
-| `-uiTestSkipDefaultTags` | 使用内存 canonical runtime 并跳过默认标签，验证标签新增正常路径 |
+| `-uiTestReset` | 使用内存 canonical runtime，与磁盘隔离；未跳过时仍执行首启默认资料库预置 |
+| `-uiTestSeedMoments` | 使用内存 canonical runtime，先执行真实默认资料库，再补足可滚动时间轴 |
+| `-uiTestSeedMomentQuota` | 使用内存 canonical runtime，跳过默认资料库并预置免费 Moment 额度已满 |
+| `-uiTestSkipDefaultLibrarySeed` | 使用内存 canonical runtime 并跳过首启默认资料库预置，验证真正空库路径 |
+| `-uiTestSeedImageMoment` | 使用内存 canonical runtime，跳过默认资料库并预置 1 条带 3 张合成图片的 Moment |
 | `-uiTestPhotoInjection` | 展示照片调试注入入口，绕开系统 `PhotosPicker` |
 | `-uiTestBackgroundImageInjection` | 展示自定义背景图调试注入入口，绕开系统 `PhotosPicker` |
 | `-uiTestLocalBackupRestore` | 使用磁盘隔离 Application Support 目录、完整备份包服务和真实本机安全点 coordinator |
@@ -61,7 +62,7 @@ Debug / Dev 构建默认会启用本地开发者 Pro 解锁（见 `implementatio
 | `-uiTestBiometricAlwaysSucceed` / `-uiTestBiometricAlwaysFail` | 伪造生物识别结果 |
 | `-uiTestFailAppearanceSave` | 注入外观保存失败 |
 
-任意 `-uiTest*` 场景会重置语言偏好，并让外观偏好使用隔离 suite；自定义背景图文件也写入临时隔离目录。多数 UI 测试会重置默认标签首启标记，但 `-uiTestLocalBackupRestore` 例外：它使用真实磁盘目录和 canonical runtime，不能在同一 run id 的后续启动前重置默认标签 seed flag 后改写刚准备好的资料库。只有 `-uiTestReset`、`-uiTestSeedMoments`、`-uiTestSeedMomentQuota`、`-uiTestSkipDefaultTags` 会切到内存 canonical runtime；`-uiTestLocalBackupRestore` 会使用 `HEATMOMENT_UI_TEST_LOCAL_BACKUP_RUN_ID` 指定的临时磁盘目录。`RootView` 在 DEBUG seed 与默认标签初始化完成前不会展示主页，UI 测试看到首屏入口时即可认为种子数据已就绪。
+任意 `-uiTest*` 场景会重置语言偏好，并让外观偏好使用隔离 suite；自定义背景图文件也写入临时隔离目录。只有 `-uiTestReset`、`-uiTestSeedMoments`、`-uiTestSeedImageMoment`、`-uiTestSeedMomentQuota`、`-uiTestSkipDefaultLibrarySeed` 会切到内存 canonical runtime；`-uiTestLocalBackupRestore` 会使用 `HEATMOMENT_UI_TEST_LOCAL_BACKUP_RUN_ID` 指定的临时磁盘目录并跳过默认资料库。`RootView` 在首启默认资料库 seed 与 DEBUG seed 完成前不会展示主页，UI 测试看到首屏入口时即可认为种子数据已就绪。
 
 ## UI 测试当前写法
 

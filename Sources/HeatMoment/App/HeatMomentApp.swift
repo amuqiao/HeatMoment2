@@ -45,7 +45,6 @@ struct HeatMomentApp: App {
             // 里的语言偏好（如 `LanguageSwitchUITests` 切换到 English 后未复位），保证每次 UI 测试
             // 冷启动都从确定性的默认 `.zhHans` 起步，不受同一模拟器上先前测试运行历史影响。
             UITestSupport.resetLanguagePreferenceIfUITestRun()
-            UITestSupport.resetDefaultTagSeedFlagIfUITestRun()
             UITestSupport.resetBackupPackageExportHistoryIfUITestRun()
             UITestSupport.resetLocalBackupDirectoryIfRequested()
         #endif

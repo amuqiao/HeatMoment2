@@ -19,6 +19,6 @@ import Foundation
 /// `Mood` 的持久化契约。
 extension Mood {
     var displayName: String {
-        LanguagePreference.localizedString(String.LocalizationValue(localizedNameKey))
+        LanguagePreference.localizedString(localizedNameKey)
     }
 }

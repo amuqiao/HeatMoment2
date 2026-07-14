@@ -67,7 +67,7 @@
 - `Tests/HeatMomentTests/PDFExportServiceTests.swift`
 - `Tests/HeatMomentTests/MarkdownExportRendererTests.swift`
 - `Tests/HeatMomentTests/PDFExportRendererTests.swift`
-- `Tests/HeatMomentTests/DefaultTagSeederTests.swift`
+- `Tests/HeatMomentTests/DefaultLibrarySeederTests.swift`
 - `Tests/HeatMomentTests/LocateVsFilterTests.swift`
 - `Tests/HeatMomentTests/HeatmapMoodColorTests.swift`
 - `Tests/HeatMomentTests/MomentOccurredAtOrderingTests.swift`
@@ -85,7 +85,7 @@
 ./scripts/test.sh --unit
 ```
 
-结果：通过。`./scripts/test.sh --unit` 执行 266 条单元测试，4 条 skipped，0 失败；覆盖 canonical repository、删除生命周期额度、发生时间排序、恢复位置、默认标签、筛选聚合、热力图、UI 写入边界和恢复点服务映射。
+结果：通过。`./scripts/test.sh --unit` 执行 266 条单元测试，4 条 skipped，0 失败；覆盖 canonical repository、删除生命周期额度、发生时间排序、恢复位置、默认资料库 seed、筛选聚合、热力图、UI 写入边界和恢复点服务映射。
 
 2026-07-14 完整备份包与恢复定向验证：
 

@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// 首页时间轴（见 docs/current/implementation-truth.md §4.1）：唯一一级页面，聊天气泡式时间轴 + 顶部三入口 +
-/// 底部悬浮新建按钮；空数据态展示 3 条预置引导 Moment（见 `GuidedMoment`）。
+/// 底部悬浮新建按钮；首启默认内容由 canonical seed 创建为真实 Moment。
 ///
 /// **阶段5重构**：时间轴 viewport（含标题两态折叠、定位滚动、筛选谓词）已下沉到
 /// `TimelineViewportView`（见该类型头部说明「定位 ≠ 筛选」的结构化落实）；本视图只保留

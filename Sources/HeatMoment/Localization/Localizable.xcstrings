@@ -1,6 +1,159 @@
 {
   "sourceLanguage" : "zh-Hans",
   "strings" : {
+    "什么是时刻?" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What is a Moment?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "什么是时刻?"
+          }
+        }
+      }
+    },
+    "健康" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Health"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "健康"
+          }
+        }
+      }
+    },
+    "工作" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Work"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "工作"
+          }
+        }
+      }
+    },
+    "欢迎来到心绪日记~" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Welcome to HeatMoment"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "欢迎来到心绪日记~"
+          }
+        }
+      }
+    },
+    "生活" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Life"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "生活"
+          }
+        }
+      }
+    },
+    "马上创建" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Create Now"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "马上创建"
+          }
+        }
+      }
+    },
+    "时刻是一条带情绪身份的生活记忆，挂在可回看、可筛选、可整理的个人时间轴上。" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A Moment is a life memory with an emotional identity, kept on a personal timeline you can revisit, filter, and organize."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "时刻是一条带情绪身份的生活记忆，挂在可回看、可筛选、可整理的个人时间轴上。"
+          }
+        }
+      }
+    },
+    "点击右下角的 + 按钮，记录你的第一个时刻吧。" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap the + button in the lower-right corner to record your first Moment."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点击右下角的 + 按钮，记录你的第一个时刻吧。"
+          }
+        }
+      }
+    },
+    "这里是你的个人时间轴，每一条记录都带着当时的心情、标签与照片。" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This is your personal timeline. Every entry carries the mood, tags, and photos from that moment."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这里是你的个人时间轴，每一条记录都带着当时的心情、标签与照片。"
+          }
+        }
+      }
+    },
     "（无标题）" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -184,108 +337,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "English"
-          }
-        }
-      }
-    },
-    "guided.createNow.body" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tap the + button in the bottom right to record your first moment."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "点击右下角的 + 按钮，记录你的第一个时刻吧。"
-          }
-        }
-      }
-    },
-    "guided.createNow.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Create Now"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "马上创建"
-          }
-        }
-      }
-    },
-    "guided.welcome.body" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This is your personal timeline — every entry carries the mood, tags, and photos from that moment."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "这里是你的个人时间轴，每一条记录都带着当时的心情、标签与照片。"
-          }
-        }
-      }
-    },
-    "guided.welcome.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Welcome to HeatMoment~"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "欢迎来到心绪日记~"
-          }
-        }
-      }
-    },
-    "guided.whatIsMoment.body" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "A Moment is a life memory with an emotional identity, placed on your personal timeline where you can look back, filter, and organize it."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "时刻是一条带情绪身份的生活记忆，挂在可回看、可筛选、可整理的个人时间轴上。"
-          }
-        }
-      }
-    },
-    "guided.whatIsMoment.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "What is a Moment?"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "什么是时刻?"
           }
         }
       }
@@ -738,23 +789,6 @@
         }
       }
     },
-    "初始化默认标签失败，请重启应用重试。" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Failed to initialize default tags. Please restart the app to try again."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "初始化默认标签失败，请重启应用重试。"
-          }
-        }
-      }
-    },
     "删除" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -925,7 +959,7 @@
         }
       }
     },
-    "发布无限的心情日记，普通用户最多只能发布 10 篇日记" : {
+    "发布无限的心情日记，普通用户最多只能发布 15 篇日记" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -937,7 +971,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "发布无限的心情日记，普通用户最多只能发布 10 篇日记"
+            "value" : "发布无限的心情日记，普通用户最多只能发布 15 篇日记"
           }
         }
       }

@@ -49,31 +49,16 @@ final class TimelineRowDateDisplayModeTests: XCTestCase {
         XCTAssertEqual(modes, [.fullDate, .timeOnly, .fullDate, .timeOnly])
     }
 
-    func testGuidedEntriesAlwaysUseFullDate() {
-        let guidedEntries = GuidedMoment.all.map(TimelineEntry.guided)
-
-        let modes = guidedEntries.enumerated().map { index, entry in
-            TimelineRowDateDisplayMode.resolve(
-                entry: entry,
-                previousEntry: index > 0 ? guidedEntries[index - 1] : nil
-            )
-        }
-
-        XCTAssertEqual(modes, Array(repeating: .fullDate, count: guidedEntries.count))
-    }
-
     private static func entry(occurredAt: Date) -> TimelineEntry {
         let id = UUID()
         return TimelineEntry(
             id: id,
             momentID: id,
-            kind: .real,
             title: "测试",
             bodyText: "",
             mood: .happy,
             occurredAt: occurredAt,
             tagNames: [],
-            placeholderImageHexColors: [],
             imageIDs: []
         )
     }

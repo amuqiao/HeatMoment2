@@ -2,7 +2,8 @@ import Foundation
 import GRDB
 
 final class CanonicalStore: @unchecked Sendable {
-    static let currentSchemaVersion = 5
+    static let currentSchemaVersion = 6
+    static let currentDefaultSeedVersion = 1
 
     private let dbQueue: DatabaseQueue
 
@@ -298,6 +299,28 @@ final class CanonicalStore: @unchecked Sendable {
             try db.execute(
                 sql: "UPDATE library_metadata SET schema_version = ? WHERE id = 1",
                 arguments: [CanonicalStore.currentSchemaVersion]
+            )
+        }
+        migrator.registerMigration("v6_default_library_seed") { db in
+            let previousSchemaVersion =
+                try Int.fetchOne(db, sql: "SELECT schema_version FROM library_metadata WHERE id = 1")
+                ?? 0
+            try db.alter(table: "library_metadata") { table in
+                table.add(column: "default_seed_version", .integer).notNull().defaults(to: 0)
+            }
+            let existingMomentCount = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM moment_record") ?? 0
+            let existingTagCount = try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM tag_record") ?? 0
+            let isExistingLibrary = previousSchemaVersion < CanonicalStore.currentSchemaVersion
+            let defaultSeedVersion = isExistingLibrary || existingMomentCount > 0 || existingTagCount > 0
+                ? CanonicalStore.currentDefaultSeedVersion
+                : 0
+            try db.execute(
+                sql: """
+                    UPDATE library_metadata
+                    SET schema_version = ?, default_seed_version = ?
+                    WHERE id = 1
+                    """,
+                arguments: [CanonicalStore.currentSchemaVersion, defaultSeedVersion]
             )
         }
         return migrator

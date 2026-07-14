@@ -23,7 +23,6 @@ enum TimelineLocator {
         return
             entries
             .filter { entry in
-                guard entry.momentID != nil else { return false }
                 guard entry.occurredAt <= date else { return false }
                 switch granularity {
                 case .day:

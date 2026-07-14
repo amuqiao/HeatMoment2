@@ -19,7 +19,6 @@ struct RootView: View {
     @Environment(ErrorPresenter.self) private var errorPresenter
     @Environment(CanonicalLibraryService.self) private var canonicalService
     @Environment(SubscriptionService.self) private var subscriptionService
-    @Environment(SyncStatusService.self) private var syncStatusService
     @State private var timelineModel = TimelineModel()
     @State private var didHandleLaunchRestoreResult = false
     @State private var isReadyForInteraction = false
@@ -113,6 +112,7 @@ struct RootView: View {
 
         do {
             try await canonicalService.prepareIfNeeded()
+            try await seedDefaultLibraryIfNeeded()
             #if DEBUG
                 await UITestSupport.seedIfRequested(canonicalService)
                 await UITestSupport.seedImageMomentIfRequested(canonicalService)
@@ -127,13 +127,6 @@ struct RootView: View {
                 message: "初始化本地资料库失败，请重启应用重试。",
                 underlying: error
             )
-            return
-        }
-
-        do {
-            try await seedDefaultTagsIfNeeded()
-        } catch {
-            errorPresenter.report(message: "初始化默认标签失败，请重启应用重试。", underlying: error)
             return
         }
 
@@ -158,18 +151,14 @@ struct RootView: View {
         }
     }
 
-    private func seedDefaultTagsIfNeeded() async throws {
-        // 首启默认标签预置：无条件调用（生产与 UI 测试均需要），是否真正执行预置由
-        // `DefaultTagSeeder` 内部的持久化「首启已完成」标记判定，而非标签表是否为空。
+    private func seedDefaultLibraryIfNeeded() async throws {
         #if DEBUG
-            let shouldSeedDefaultTags = !UITestSupport.wantsSkipDefaultTags
+            let shouldSeedDefaultLibrary = !UITestSupport.wantsSkipDefaultLibrarySeed
         #else
-            let shouldSeedDefaultTags = true
+            let shouldSeedDefaultLibrary = true
         #endif
-        if shouldSeedDefaultTags {
-            try await canonicalService.seedDefaultTagsIfNeeded(
-                cloudKitEnabled: syncStatusService.cloudKitEnabled
-            )
+        if shouldSeedDefaultLibrary {
+            try await canonicalService.seedDefaultLibraryIfNeeded()
         }
     }
 

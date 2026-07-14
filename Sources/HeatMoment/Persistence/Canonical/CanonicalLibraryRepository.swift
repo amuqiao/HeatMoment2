@@ -2,7 +2,7 @@ import Foundation
 import GRDB
 
 actor CanonicalLibraryRepository {
-    private let store: CanonicalStore
+    let store: CanonicalStore
     private let assetStore: FileAssetStore?
     private let operationGate: CanonicalAssetOperationGate?
 
@@ -633,7 +633,7 @@ extension CanonicalLibraryRepository {
     }
 }
 
-private extension CanonicalLibraryRepository {
+extension CanonicalLibraryRepository {
     func performAssetMutation<Value>(
         imageDatas: [Data],
         operation: ([PreparedAsset]) throws -> Value
@@ -797,7 +797,7 @@ private extension CanonicalLibraryRepository {
         )
     }
 
-    private func fetchTag(id: UUID, db: Database) throws -> CanonicalTagRecord {
+    func fetchTag(id: UUID, db: Database) throws -> CanonicalTagRecord {
         guard
             let row = try Row.fetchOne(
                 db, sql: "SELECT * FROM tag_record WHERE id = ?", arguments: [id.uuidString])
@@ -807,7 +807,7 @@ private extension CanonicalLibraryRepository {
         return try makeTagRecord(row: row)
     }
 
-    private func fetchTag(named name: String, db: Database) throws -> CanonicalTagRecord? {
+    func fetchTag(named name: String, db: Database) throws -> CanonicalTagRecord? {
         try Row.fetchOne(db, sql: "SELECT * FROM tag_record WHERE name = ?", arguments: [name])
             .map(makeTagRecord(row:))
     }
@@ -839,7 +839,7 @@ private extension CanonicalLibraryRepository {
         }
     }
 
-    private func replaceTagLinks(momentID: UUID, tagIDs: [UUID], now: Date, db: Database) throws {
+    func replaceTagLinks(momentID: UUID, tagIDs: [UUID], now: Date, db: Database) throws {
         try db.execute(
             sql: "DELETE FROM moment_tag_link WHERE moment_id = ?", arguments: [momentID.uuidString]
         )
@@ -991,10 +991,6 @@ private extension CanonicalLibraryRepository {
             result[id] = try fetchTag(id: id, db: db).name
         }
         return result
-    }
-
-    private func totalTagCount(db: Database) throws -> Int {
-        try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM tag_record") ?? 0
     }
 
 }

@@ -1,46 +1,19 @@
 import Foundation
 
-/// 时间轴一行的 value projection，统一「真实 Moment」与「预置引导 Moment」两种来源
-/// （见 docs/product-mental-model.md 空态引导、docs/current/implementation-truth.md §4.1）。
+/// 时间轴一行的 canonical Moment value projection。
 ///
 /// `TimelineRowView` 只消费这个投影对象，不直接持有 GRDB row。这样时间轴 viewport、
 /// 滚动定位、左滑删除动画和行样式只依赖稳定值；写入副作用和预览路由通过 `momentID`
 /// 回到 canonical 数据层，避免 live storage 引用渗入阅读单元。
 struct TimelineEntry: Identifiable, Equatable {
-    enum Kind: Equatable {
-        case real
-        case guided
-    }
-
     let id: UUID
     let momentID: UUID?
-    let kind: Kind
     let title: String
     let bodyText: String
     let mood: Mood
     let occurredAt: Date
     let tagNames: [String]
-    let placeholderImageHexColors: [UInt32]
     let imageIDs: [UUID]
-
-    /// 预置引导 Moment 投影：不可点、不可删，仅用于空数据态的阅读引导。
-    static func guided(_ guided: GuidedMoment) -> TimelineEntry {
-        TimelineEntry(
-            id: guided.id,
-            momentID: nil,
-            kind: .guided,
-            title: guided.title,
-            bodyText: guided.bodyText,
-            mood: guided.mood,
-            occurredAt: guided.occurredAt,
-            tagNames: [],
-            placeholderImageHexColors: guided.placeholderImageHexColors,
-            imageIDs: []
-        )
-    }
-
-    /// 预置引导 Moment 不可删/不可编辑/不可点开预览（见 docs/product-mental-model.md）。
-    var isGuided: Bool { kind == .guided }
 
     /// 无障碍朗读文案（见 docs/current/implementation-truth.md §4.1：「5月17日 17:06，心情开心，标题《XXX》」）。
     var accessibilityLabel: String {

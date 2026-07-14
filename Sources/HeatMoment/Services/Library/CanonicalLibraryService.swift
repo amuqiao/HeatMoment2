@@ -43,15 +43,8 @@ final class CanonicalLibraryService {
         noteCanonicalChange()
     }
 
-    func seedDefaultTagsIfNeeded(
-        cloudKitEnabled: Bool = false,
-        userDefaultsSuiteName: String? = nil
-    ) async throws {
-        let didWrite = try await DefaultTagSeeder.seedIfNeeded(
-            using: repository,
-            cloudKitEnabled: cloudKitEnabled,
-            userDefaultsSuiteName: userDefaultsSuiteName
-        )
+    func seedDefaultLibraryIfNeeded() async throws {
+        let didWrite = try await DefaultLibrarySeeder.seedIfNeeded(using: repository)
         if didWrite {
             noteCanonicalChange()
         }
@@ -167,13 +160,11 @@ extension TimelineEntry {
         TimelineEntry(
             id: record.id,
             momentID: record.id,
-            kind: .real,
             title: record.title,
             bodyText: record.bodyText,
             mood: record.mood,
             occurredAt: record.occurredAt,
             tagNames: record.tagIDs.compactMap { tagNamesByID[$0] },
-            placeholderImageHexColors: [],
             imageIDs: record.imageIDs
         )
     }

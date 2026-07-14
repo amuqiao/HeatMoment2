@@ -5,14 +5,14 @@ private struct MockEntitlementProvider: EntitlementProviding {
     let isPro: Bool
 }
 
-/// `QuotaService` 边界测试：见 `docs/product-mental-model.md` §2（10 篇 / 3 图 / 3 标签）。
+/// `QuotaService` 边界测试：见 `docs/product-mental-model.md` §2（15 篇 / 3 图 / 3 标签）。
 final class QuotaServiceTests: XCTestCase {
-    func testTenthMomentAllowedEleventhBlocked() {
+    func testFifteenthMomentAllowedSixteenthBlocked() {
         let service = QuotaService(entitlementProvider: MockEntitlementProvider(isPro: false))
-        // 已有 9 篇，新增第 10 篇：允许。
-        XCTAssertEqual(service.checkCanCreateMoment(currentMomentCount: 9), .allowed)
-        // 已有 10 篇，新增第 11 篇：拒绝。
-        XCTAssertEqual(service.checkCanCreateMoment(currentMomentCount: 10), .exceeded(.moments))
+        // 已有 14 篇，新增第 15 篇：允许。
+        XCTAssertEqual(service.checkCanCreateMoment(currentMomentCount: 14), .allowed)
+        // 已有 15 篇，新增第 16 篇：拒绝。
+        XCTAssertEqual(service.checkCanCreateMoment(currentMomentCount: 15), .exceeded(.moments))
     }
 
     func testFourthPhotoBlocked() {

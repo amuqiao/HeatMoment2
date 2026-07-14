@@ -5,8 +5,8 @@
     /// UI 测试支持（仅 DEBUG 编译）：通过 launch arguments 让 App 使用隔离的内存 canonical runtime、
     /// 并按需预置一批记录，供依赖「可滚动/有数据」的 UI 测试使用。生产构建不含此代码。
     ///
-    /// - `-uiTestReset`：使用内存 canonical runtime（空态、与磁盘隔离）。
-    /// - `-uiTestSeedMoments`：使用内存 canonical runtime 并预置 15 条 Moment（使时间轴可滚动，用于标题折叠等验收）。
+    /// - `-uiTestReset`：使用内存 canonical runtime（与磁盘隔离，仍执行首启默认资料库预置）。
+    /// - `-uiTestSeedMoments`：使用内存 canonical runtime，先执行真实默认资料库，再补足到 15 条 Moment。
     /// - `-uiTestSeedImageMoment`：使用内存 canonical runtime 并预置 1 条带 3 张合成图片的 Moment，
     ///   供图片区手势与行级删除边界验收。
     /// - `-uiTestExportForcePDFFailure`：导出页使用 DEBUG-only 坏图片 snapshot，
@@ -19,10 +19,10 @@
     /// - `-uiTestBackupPackageShareAutoComplete`：完整备份包准备完成后自动执行分享完成回调，
     ///   避免 UI 测试依赖系统分享面板的无障碍结构。
     /// - `-uiTestImageDisplayCarousel`：UI 测试隔离外观偏好中把图片展示方式预置为轮播。
-    /// - `-uiTestSeedMomentQuota`：使用内存 canonical runtime 并预置 10 条 Moment（占满免费额度），
-    ///   供 `QuotaBlockUITests.testEleventhMomentBlocked` 验证第 11 篇创建被前置闸门拦截。
-    /// - `-uiTestSkipDefaultTags`：使用内存 canonical runtime 但跳过首启默认标签预置，供标签管理正常新建路径
-    ///   在免费额度未占满时验收。
+    /// - `-uiTestSeedMomentQuota`：使用内存 canonical runtime 并预置 15 条 Moment（占满免费额度），
+    ///   供 `QuotaBlockUITests.testSixteenthMomentBlocked` 验证第 16 篇创建被前置闸门拦截。
+    /// - `-uiTestSkipDefaultLibrarySeed`：使用内存 canonical runtime 但跳过首启默认资料库预置，
+    ///   供需要真正空库的测试场景使用。
     /// - `-uiTestPhotoInjection`：编辑器照片区额外展示一个调试注入按钮，直接把合成 JPEG
     ///   写入草稿（见阶段 3 计划决策1：系统 `PhotosPicker` 不在 App 无障碍树内、无法可靠自动化）。
     /// - `-uiTestBackgroundImageInjection`：外观页额外展示自定义背景图调试注入按钮，绕过系统相册 UI。
@@ -37,7 +37,7 @@
                 || args.contains("-uiTestSeedMoments")
                 || args.contains("-uiTestSeedImageMoment")
                 || args.contains("-uiTestSeedMomentQuota")
-                || args.contains("-uiTestSkipDefaultTags")
+                || args.contains("-uiTestSkipDefaultLibrarySeed")
         }
 
         /// 是否展示编辑器照片区的调试注入入口（见类型头部说明）。
@@ -64,10 +64,14 @@
             isAnyUITestRun
         }
 
-        /// 标签管理 UI 测试专用：在隔离内存 canonical runtime 中跳过默认 3 标签预置，便于覆盖免费额度未满时的
-        /// 正常新建路径。生产路径和未携带该参数的 UI 测试仍保持首启默认标签语义。
-        static var wantsSkipDefaultTags: Bool {
-            ProcessInfo.processInfo.arguments.contains("-uiTestSkipDefaultTags")
+        /// UI 测试专用：在隔离 canonical runtime 中跳过默认 3 个真实 Moment 和 3 个默认标签。
+        /// 显式空库、图片手势、满额和本地备份包磁盘夹具需要独占资料库；生产路径和普通 UI 测试仍保持首启默认资料库语义。
+        static var wantsSkipDefaultLibrarySeed: Bool {
+            let args = ProcessInfo.processInfo.arguments
+            return args.contains("-uiTestSkipDefaultLibrarySeed")
+                || args.contains("-uiTestSeedImageMoment")
+                || args.contains("-uiTestSeedMomentQuota")
+                || args.contains("-uiTestLocalBackupRestore")
         }
 
         /// 是否强制启用隐私锁（覆盖 `BiometricLockPreference` 默认关闭态，见该类型），供
@@ -142,19 +146,6 @@
         static func resetLanguagePreferenceIfUITestRun() {
             guard isAnyUITestRun else { return }
             UserDefaults.standard.removeObject(forKey: LanguagePreference.storageKey)
-        }
-
-        /// UI 测试隔离：清掉上一次测试运行可能残留在 `UserDefaults.standard` 里的
-        /// `DefaultTagSeeder` 「首启已完成预置」标记（见该类型头部说明）——UI 测试用的内存容器
-        /// 每次冷启动 `Tag` 表都是全新的空表，但该 flag 存在真实的 `UserDefaults.standard` 域、
-        /// 会跨测试运行持久化；若不重置，第二次及之后的 UI 测试运行会因 flag 已置位而跳过预置，
-        /// 导致依赖「默认预置已占满额度」口径的用例（如 `QuotaBlockUITests`/`TagManageUITests`）
-        /// 失败。任意 `-uiTest*` 场景下都重置，与 `resetLanguagePreferenceIfUITestRun()` 同一模式，
-        /// 保证每次冷启动都从确定性的「真正首启」状态起步。
-        static func resetDefaultTagSeedFlagIfUITestRun() {
-            guard isAnyUITestRun else { return }
-            guard localBackupApplicationSupportDirectory == nil else { return }
-            UserDefaults.standard.removeObject(forKey: DefaultTagSeeder.hasCompletedFirstSeedKey)
         }
 
         static func resetBackupPackageExportHistoryIfUITestRun() {
@@ -236,14 +227,15 @@
             return data
         }
 
-        /// 若带 `-uiTestSeedMoments` 且当前为空，则预置 15 条 Moment。
+        /// 若带 `-uiTestSeedMoments`，则在真实默认资料库之后补足到 `Quota.freeMomentLimit` 条 Moment。
         @MainActor
         static func seedIfRequested(_ service: CanonicalLibraryService) async {
             guard ProcessInfo.processInfo.arguments.contains("-uiTestSeedMoments") else { return }
             do {
                 let existing = try await service.repository.totalMomentCount()
-                guard existing == 0 else { return }
-                for index in 0..<15 {
+                let remaining = max(0, Quota.freeMomentLimit - existing)
+                guard remaining > 0 else { return }
+                for index in 0..<remaining {
                     _ = try await service.repository.createMoment(
                         title: "测试时刻 \(index + 1)",
                         bodyText: "用于 UI 测试的可滚动内容占位。",
@@ -284,7 +276,7 @@
         }
 
         /// 若带 `-uiTestSeedMomentQuota` 且当前为空，则预置 `Quota.freeMomentLimit` 条 Moment
-        /// （占满免费额度），供第 11 篇创建被前置闸门拦截的验收使用（见类型头部说明）。
+        /// （占满免费额度），供第 16 篇创建被前置闸门拦截的验收使用（见类型头部说明）。
         @MainActor
         static func seedMomentQuotaIfRequested(_ service: CanonicalLibraryService) async {
             guard ProcessInfo.processInfo.arguments.contains("-uiTestSeedMomentQuota") else {

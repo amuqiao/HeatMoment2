@@ -1,11 +1,11 @@
 import XCTest
 
 /// 免费额度拦截验收（见 `docs/product-mental-model.md` §3.1、
-/// `docs/plans/implementation-plan.md` 阶段 3 验收：第 11 篇 / 第 4 标签 / 第 4 张照片）。
+/// `docs/plans/implementation-plan.md` 阶段 3 验收：第 16 篇 / 第 4 标签 / 第 4 张照片）。
 final class QuotaBlockUITests: XCTestCase {
-    /// 篇数额度：预置 10 篇（占满免费额度）后点新建，应直接弹出 Paywall、编辑器不打开
+    /// 篇数额度：预置 15 篇（占满免费额度）后点新建，应直接弹出 Paywall、编辑器不打开
     /// （见 `TimelineHomeView` 的前置闸门：canonical count + `QuotaService`）。
-    func testEleventhMomentBlocked() {
+    func testSixteenthMomentBlocked() {
         let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestSeedMomentQuota"]
         app.launch()
@@ -23,7 +23,7 @@ final class QuotaBlockUITests: XCTestCase {
         XCTAssertTrue(app.buttons["新建时刻"].waitForExistence(timeout: 5), "关闭 Paywall 后应回到时间轴")
     }
 
-    /// 标签额度：首启已默认预置 3 个标签（工作/生活/健康，占满免费额度，见 `DefaultTagSeeder`
+    /// 标签额度：首启已默认预置 3 个标签（工作/生活/健康，占满免费额度，见 `DefaultLibrarySeeder`
     /// 与阶段 3 计划决策4）。标签新增只归设置页标签管理；点右上「+」应直接触发 Paywall，
     /// 而非打开新建标签卡片。
     func testFourthTagBlocked() {

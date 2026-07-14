@@ -18,7 +18,7 @@ HeatMomentApp
           -> TimelineFilterSheetPresenter(FilterPanelView)
           -> FAB
       -> rootSheet: preview / editor / settings / paywall
-      -> app readiness: launch restore result / canonical prepare / default tag seed
+      -> app readiness: launch restore result / canonical prepare / default library seed
 ```
 
 `RootView` 当前是 App shell：只治理 root scene、根级任务 sheet 呈现策略和进入交互前的 app readiness；HeatMoment 首页由 `TimelineHomeView` 提供。隐私锁和 pending local restore 属于 `HeatMomentApp` 的 App composition full-screen policy；图片查看器不走全局 Router，而由 `MomentPreviewView` 局部 `.fullScreenCover(item:)` 就近呈现，避免保留无写入方的第二条全局路径。
@@ -45,11 +45,11 @@ TimelineDateColumn
 
 `TimelineViewportView` 使用 `ScrollViewReader + List` 承载成熟滚动、定位和行级 swipe action。`List` 自身设置 `defaultMinListRowHeight = 0` 和 `listRowSpacing(0)`，让标题槽和首条 Moment 前 lead-in 由 `TimelineViewportLayout` / `TimelineGeometry` 控制，不被 SwiftUI 默认 44pt 行高覆盖；尾部 spacer 使用 `TimelineViewportLayout.bottomTailClearance(protecting:)`，由轨道视觉 overshoot 与 `TimelineHomeLayout.bottomActionClearance` 共同决定。连续轨道由 `TimelineRailSceneLayer` 作为 viewport 场景层绘制，不属于任何 `List` row、阅读单元或气泡；日期列、心情节点和气泡是行前景阅读单元。`TimelineRailVisibility` 决定是否渲染场景轨道：只有存在可见阅读单元时才画轨道；筛选后 0 条命中时只显示空态文案，不渲染轨道或 lead-in / bottom tail，避免出现没有日期、节点、气泡归属的孤立竖线。轨道场景层不参与 `List` 行级 `.swipeActions`，因此左滑删除时系统移动日期、节点和气泡这个阅读单元，轨道不会被 row swipe 容器移动、裁剪或切断。滚动监听在 iOS 18+ 使用 SwiftUI `onScrollGeometryChange`，iOS 17 使用挂在 `List` 自身的零尺寸 `TimelineScrollOffsetReader` 读取承载 `UIScrollView`；这条读取链路输出 viewport 滚动相位，用于标题折叠和轨道 y 相位，不反推轨道 x 坐标或节点位置。
 
-`TimelineRowView` 只承载日期列、心情节点和气泡组成的阅读单元。真实记录的日期列由当前可见列表中的相邻真实记录决定展示模式：列表首条或跨天首条显示完整日期块（第一行日 + 月，第二行时间），同一天后续记录只显示发生时间并用 `TimelineGeometry.nodeCenteredLabelMinHeight` 将单独时间的视觉重心对齐到节点中心，让一天内多条 Moment 在左侧时间信息上连续而不重复日期；空态引导记录始终显示完整日期块，保持引导卡片自解释。左滑删除由 SwiftUI `List` 行的 `.swipeActions(edge: .trailing, allowsFullSwipe: true)` 提供，所以轻扫露出删除按钮、继续左滑按钮拉长并触发删除都交给系统成熟组件；连续时间轴轨道不参与横向位移。节点中心、气泡尾巴中心和尾巴尺寸/偏移由 `TimelineGeometry` 约束，再传入 `BubbleCardView`；当前代码结构已经把轨道、日期列、节点列和气泡列放到同一坐标系统中，并提供尾巴指向时间线的实现路径。
+`TimelineRowView` 只承载日期列、心情节点和气泡组成的阅读单元。记录的日期列由当前可见列表中的相邻记录决定展示模式：列表首条或跨天首条显示完整日期块（第一行日 + 月，第二行时间），同一天后续记录只显示发生时间并用 `TimelineGeometry.nodeCenteredLabelMinHeight` 将单独时间的视觉重心对齐到节点中心，让一天内多条 Moment 在左侧时间信息上连续而不重复日期。左滑删除由 SwiftUI `List` 行的 `.swipeActions(edge: .trailing, allowsFullSwipe: true)` 提供，所以轻扫露出删除按钮、继续左滑按钮拉长并触发删除都交给系统成熟组件；连续时间轴轨道不参与横向位移。节点中心、气泡尾巴中心和尾巴尺寸/偏移由 `TimelineGeometry` 约束，再传入 `BubbleCardView`；当前代码结构已经把轨道、日期列、节点列和气泡列放到同一坐标系统中，并提供尾巴指向时间线的实现路径。
 
-`BubbleCardView` 是首页 Moment 气泡的展示合同：标题、正文和图片按 `MomentCardContentKind` 覆盖标题-only、正文-only、标题+正文、文字+图片、纯图片等状态；气泡宽度跟随时间轴内容列，不由标题长度、图片数量或原图比例反向撑开。气泡圆角、内边距、内容间距、尾巴、图片区和 tag chip 由 `TimelineBubbleStyle` 注入，后续皮肤替换气泡形状或图片区节奏不需要改行级坐标。图片区尺寸由 `MomentCardLayout` 转发 `TimelineImageGalleryStyle.standard` 固定：滚动模式使用固定缩略图高度，轮播模式使用固定轮播高度；真实图片走 `ThumbnailStripView` 按需加载缩略图，占位引导图片走同一尺寸合同。图片裁切使用 `scaledToFill + clipShape`，所以不同原图比例只影响缩略图裁切内容，不改变时间轴坐标。首页气泡图片区保持 hit testing，图片上的横向手势优先用于缩略图滚动或轮播切换；非图片区仍由 `List` 行级 `.swipeActions` 承担删除。
+`BubbleCardView` 是首页 Moment 气泡的展示合同：标题、正文和图片按 `MomentCardContentKind` 覆盖标题-only、正文-only、标题+正文、文字+图片、纯图片等状态；气泡宽度跟随时间轴内容列，不由标题长度、图片数量或原图比例反向撑开。气泡圆角、内边距、内容间距、尾巴、图片区和 tag chip 由 `TimelineBubbleStyle` 注入，后续皮肤替换气泡形状或图片区节奏不需要改行级坐标。图片区尺寸由 `MomentCardLayout` 转发 `TimelineImageGalleryStyle.standard` 固定：滚动模式使用固定缩略图高度，轮播模式使用固定轮播高度；图片走 `ThumbnailStripView` 按需加载缩略图。图片裁切使用 `scaledToFill + clipShape`，所以不同原图比例只影响缩略图裁切内容，不改变时间轴坐标。首页气泡图片区保持 hit testing，图片上的横向手势优先用于缩略图滚动或轮播切换；非图片区仍由 `List` 行级 `.swipeActions` 承担删除。
 
-真实记录点击气泡后写 `router.rootSheet = .preview(moment.id)`，VoiceOver 默认动作同样打开预览阅读卡片。左滑阅读单元使用系统 `.swipeActions` 软删除到垃圾箱；轻扫会露出“删除”按钮，继续滑动可触发系统 full swipe 删除；VoiceOver 删除替代路径挂在行级可访问元素上。引导记录不可点击、不可删除。
+记录点击气泡后写 `router.rootSheet = .preview(moment.id)`，VoiceOver 默认动作同样打开预览阅读卡片。左滑阅读单元使用系统 `.swipeActions` 软删除到垃圾箱；轻扫会露出“删除”按钮，继续滑动可触发系统 full swipe 删除；VoiceOver 删除替代路径挂在行级可访问元素上。
 
 根级 sheet 或筛选 sheet 展开时，`TimelineHomeView` 保留主页时间轴层级，不卸载 `TimelineViewportView`，以维持主场景返回态和滚动连续性；同时通过 `suppressAccessibility` 把后台时间轴行从可访问树中压低，避免临时任务上下文中误操作背景内容。垃圾箱相关 UI 测试只命中 `trashRow-*`，不把后台同名 Moment 行当作垃圾箱行。
 
@@ -63,11 +63,11 @@ TimelineDateColumn
 - 打开年度网格后，网格自身横向滚动会优先把已选 anchor 所在月份带入视野；没有已选 anchor 且正在查看当前年时，把当前月份带入视野。这只改变热力图内部滚动位置，不写入时间轴定位状态。该网格组件同时服务首页热力图和心情统计页；统计页仍是纯展示，不写时间轴定位状态。
 - 点日期写入日粒度 anchor；点有记录的月份标签写入月粒度 anchor。两者都只更新 `timelineModel.heatmapFocusDate` 和 `timelineModel.heatmapAnchorGranularity`；当前热力图口径下没有记录的月份只显示同尺寸文本，不提供月份定位按钮。
 - `HeatmapGridView` 在月粒度选中时用当前主色低透明蒙层覆盖对应月份列区，蒙层位于日期格上方且不拦截点击；日粒度选中时仍用日期格描边。
-- `TimelineViewportView` 监听包含 anchor 日期、粒度和目标行的派生滚动请求后，在当前可见 `entries` 中计算滚动目标；日 anchor 只命中同一天真实记录，月 anchor 只命中同一月真实记录，不会退到更早日期或更早月份。
+- `TimelineViewportView` 监听包含 anchor 日期、粒度和目标行的派生滚动请求后，在当前可见 `entries` 中计算滚动目标；日 anchor 只命中同一天记录，月 anchor 只命中同一月记录，不会退到更早日期或更早月份。
 - 换年会清空 `heatmapFocusDate`。
 - 再点同一天或同一月会取消定位高亮，不主动改回滚动位置。
 
-这条路径保持“定位不等于筛选”：热力图选择不会改写 `activeFilter`，筛选变化也不会被当作时间锚点。筛选变化后，如果当前可见集内没有该日或该月真实记录，定位标记仍可保留，但滚动目标为 `nil`，不会偷偷放宽筛选；空态引导卡片不参与日/月 anchor 目标计算。
+这条路径保持“定位不等于筛选”：热力图选择不会改写 `activeFilter`，筛选变化也不会被当作时间锚点。筛选变化后，如果当前可见集内没有该日或该月记录，定位标记仍可保留，但滚动目标为 `nil`，不会偷偷放宽筛选。
 
 ## 筛选与上下文标记
 
@@ -105,7 +105,7 @@ canonical recovery catalog/snapshot/coordinator/restore service/migration safety
 
 当前 Markdown / PDF 导出已切到 canonical source：设置页“导出（Markdown, PDF）”入口进入标题为“导出”的详情页，页面沿用 settings detail navigation chrome、`TaskPageScrollView` 和 `TaskSurfaceSection`；只保留日期、照片开关、格式选择、导出按钮和失败状态，不展示备份恢复相关内部机制说明，也不展示页面内导出结果区或二次分享链接。`ExportView` 只消费 `ExportServicing`，生产由 App composition 注入 `CanonicalExportService`；`CanonicalExportService` 才负责从 canonical repository 组装 `CanonicalExportSnapshotStore` 和 `ExportService`。同一份 `ExportRequest` 表达日期范围、格式和是否包含照片，同一份 `ExportSnapshot` 供 Markdown/PDF 渲染。日期范围按用户选择日期的整日边界查询，开始日期晚于结束日期会被拦截，所选范围没有 active Moment 时导出失败而不是生成空文档；照片开关关闭时两种格式都不读取或写出图片。snapshot 只读取 canonical active Moment，按 `occurredAt` 倒序生成导出输入，标签按 Moment 的 canonical link 顺序输出，图片按 `moment_asset_link.sort_index` 从 `FileAssetStore` 读取原图 bytes。导出路径按职责拆成 `ExportServicing` 能力合同、`ExportService` 编排、`CanonicalExportSnapshotStore` 快照读取、`ExportFileWriter` 临时目录/文件写入、`MarkdownExportRenderer` 文本和相对附件路径渲染、`PDFExportRenderer` 本地分页和图片嵌入；`ExportViewState` 只承载设置页导出轻量状态。`ExportServicing.prepareShareTransaction` 只返回 `ExportShareTransaction`，表达本次待分享的临时文件；分享完成或取消后由 `finishShareTransaction` 结束事务并清理临时副本，不再暴露旧“生成结果”模型。渲染和文件写入在 detached task 内执行，不占用设置页 UI actor；导出中禁用重复点击；坏图片在 PDF 导出中显式失败，不静默跳过，并在导出详情页展示失败状态和重试入口。Markdown 成功后立即用系统分享整个导出目录，避免只分享 `.md` 时丢失相对附件；PDF 成功后立即用系统分享单个 `.pdf` 文件。系统分享完成或取消后，App 清理本次临时副本；系统分享返回错误时保留本次临时副本并展示重试入口；如果 App 在生成后、分享中或清理前被杀死，下次进入导出页会先清理遗留临时副本。当前不支持当前主页筛选、后台导出进度或持久导出任务；Markdown/PDF 导出不写 canonical store，不创建恢复点，不触发同步状态变更。
 
-当前本地文件分层如下：Moment 原图归 content-addressed `FileAssetStore`，SQLite 只保存 asset metadata 和 link 顺序；UI 测试种子直接写 canonical repository。缩略图在 `Caches/thumbnails`，可从 canonical 原图重建，不参与同步；外观自定义背景图在 Application Support 的外观目录，不进入 canonical 资料库或 CloudKit；语言、隐私锁、订阅缓存、默认标签首启标记、外观偏好和“上次导出完整备份时间”使用 `UserDefaults`。完整备份包 import staging 位于 canonical Application Support 根目录下的 `BackupPackageImports`，仅承载未确认导入预览，取消确认、进入页面或开始新导入时主动清理；导出准备态临时包位于 `BackupPackageExports/Prepared/`，完成系统分享/保存后或取消/重新进入页面时清理，最终 `.heatmomentbackup` 由系统分享/保存交给用户管理；Markdown / PDF 导出文件分别写在系统临时目录的 `HeatMomentExports/Markdown/` 和 `HeatMomentExports/PDF/` 下，进入导出页和每次新导出都会清理临时目录内旧的 `HeatMoment-*` 导出包，属于用户显式生成的只读分享文件，不参与恢复点或 iCloud 同步。
+当前本地文件分层如下：Moment 原图归 content-addressed `FileAssetStore`，SQLite 只保存 asset metadata 和 link 顺序；UI 测试种子直接写 canonical repository；首启默认资料库的 seed 版本记录在 canonical `library_metadata.default_seed_version`。缩略图在 `Caches/thumbnails`，可从 canonical 原图重建，不参与同步；外观自定义背景图在 Application Support 的外观目录，不进入 canonical 资料库或 CloudKit；语言、隐私锁、订阅缓存、外观偏好和“上次导出完整备份时间”使用 `UserDefaults`。完整备份包 import staging 位于 canonical Application Support 根目录下的 `BackupPackageImports`，仅承载未确认导入预览，取消确认、进入页面或开始新导入时主动清理；导出准备态临时包位于 `BackupPackageExports/Prepared/`，完成系统分享/保存后或取消/重新进入页面时清理，最终 `.heatmomentbackup` 由系统分享/保存交给用户管理；Markdown / PDF 导出文件分别写在系统临时目录的 `HeatMomentExports/Markdown/` 和 `HeatMomentExports/PDF/` 下，进入导出页和每次新导出都会清理临时目录内旧的 `HeatMoment-*` 导出包，属于用户显式生成的只读分享文件，不参与恢复点或 iCloud 同步。
 
 ## 编辑页局部选择
 
@@ -239,12 +239,12 @@ TaskSurfaceMetrics
 ./scripts/test.sh --only HeatMomentUITests/DeleteRestorePurgeUITests/testSwipingOnTimelineCarouselImageDoesNotTriggerDelete
 ./scripts/test.sh --only HeatMomentUITests/DeleteRestorePurgeUITests/testPreviewIsCardNotPush
 ./scripts/test.sh --only HeatMomentUITests/LocateFilterUITests/testFilterAbsentMoodShowsEmptyStateThenMarkerRemovalRestoresRecords
-./scripts/test.sh --only HeatMomentUITests/TimelineEmptyStateUITests/testEmptyStateShowsThreeGuidedMoments
+./scripts/test.sh --only HeatMomentUITests/TimelineEmptyStateUITests/testFirstLaunchShowsThreeEditableDefaultMoments
 ./scripts/build.sh
 ./scripts/lint.sh
 ```
 
-结果：`MomentCardLayoutTests` 执行 4 个测试、0 失败；`TimelineGeometryTests` 执行 13 个测试、0 失败；`TimelineRailVisibilityTests` 执行 4 个测试、0 失败，覆盖筛选空态不渲染孤立轨道、真实记录和未筛选引导记录仍渲染轨道；四条 `DeleteRestorePurgeUITests` 定向 UI 用例均通过，覆盖首页左滑软删除进垃圾箱、横向缩略图和轮播图片区横向手势不触发行级删除、非图片区仍可露出系统删除按钮，以及预览卡片不是 push 页面；筛选空态 UI 和未筛选引导空态 UI 均通过。`build` 通过；`lint` 通过并保留既有 warning。
+结果：`MomentCardLayoutTests` 执行 4 个测试、0 失败；`TimelineGeometryTests` 执行 13 个测试、0 失败；`TimelineRailVisibilityTests` 执行 4 个测试、0 失败，覆盖筛选空态不渲染孤立轨道和记录存在时渲染轨道；四条 `DeleteRestorePurgeUITests` 定向 UI 用例均通过，覆盖首页左滑软删除进垃圾箱、横向缩略图和轮播图片区横向手势不触发行级删除、非图片区仍可露出系统删除按钮，以及预览卡片不是 push 页面；筛选空态 UI 和首启默认资料库 UI 均通过。`build` 通过；`lint` 通过并保留既有 warning。
 
 2026-07-08 追加运行一次 P0 视觉取证 UI 流程，截图写入 `/private/tmp/heatmoment-p0-visual/`：
 

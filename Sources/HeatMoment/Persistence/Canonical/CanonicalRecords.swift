@@ -70,6 +70,14 @@ struct CanonicalMomentImageData: Sendable, Identifiable, Equatable {
     let data: Data
 }
 
+struct CanonicalDefaultLibrarySeedMoment: Sendable, Equatable {
+    let title: String
+    let bodyText: String
+    let occurredAt: Date
+    let mood: Mood
+    let tagName: String
+}
+
 struct CanonicalTagRecord: Sendable, Identifiable, Equatable {
     let id: UUID
     let name: String

@@ -3,9 +3,9 @@ import XCTest
 /// 删除生命周期 + 预览呈现机制验收（见 `docs/product-mental-model.md` 公理3「删除是生命周期」、
 /// `docs/current/implementation-truth.md` §4.1/§4.14/ADR-007）。
 ///
-/// 用 `-uiTestSeedMoments` 预置 15 条真实可删记录（见 `UITestSupport`），定位其中标题固定为
+/// 用 `-uiTestSeedMoments` 预置真实默认资料库并补足可滚动记录（见 `UITestSupport`），定位其中标题固定为
 /// 「测试时刻 1」的一条——用 `《测试时刻 1》` 精确匹配无障碍朗读文案中的标题片段，避免
-/// `CONTAINS` 谓词误命中「测试时刻 10」~「测试时刻 15」（均以「测试时刻 1」为前缀）。
+/// `CONTAINS` 谓词误命中「测试时刻 10」~「测试时刻 12」（均以「测试时刻 1」为前缀）。
 final class DeleteRestorePurgeUITests: XCTestCase {
     private let targetLabelFragment = "《测试时刻 1》"
 

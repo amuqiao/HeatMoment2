@@ -13,7 +13,7 @@ final class TimelineBottomReachUITests: XCTestCase {
         XCTAssertTrue(firstRow.waitForExistence(timeout: 10))
 
         let lastRow = app.buttons
-            .matching(NSPredicate(format: "label CONTAINS %@", "测试时刻 15"))
+            .matching(NSPredicate(format: "label CONTAINS %@", "测试时刻 12"))
             .firstMatch
         for _ in 0..<10 where !lastRow.isHittable {
             app.swipeUp()

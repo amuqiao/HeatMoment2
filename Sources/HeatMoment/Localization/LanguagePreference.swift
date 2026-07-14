@@ -24,7 +24,7 @@ enum LanguagePreference: String, CaseIterable, Identifiable, Sendable {
 
     /// 供非 View 上下文（如 `Mood.displayName`、`SyncStatus.displayText` 等无法读取
     /// `\.locale` 环境的纯函数/值类型计算属性）按当前语言偏好同步解析一次性文案，见
-    /// `Localizable.xcstrings`。`key` 建议直接用中文源文案（可含插值）作为 catalog key
+    /// `Localizable.xcstrings`。`key` 建议直接用中文源文案或稳定 i18n key 作为 catalog key
     /// （Apple 推荐的优雅降级写法：目录缺失该 key 时原样回退显示 key 本身，即中文原文，
     /// 不会出现裸标识符泄漏给用户）。
     ///
@@ -32,8 +32,26 @@ enum LanguagePreference: String, CaseIterable, Identifiable, Sendable {
     /// 树形传播，而是每次调用时同步读取一次 `LanguagePreference.current`——适用于结果需要
     /// 以纯 `String`（而非 `Text`）形式跨上下文使用的场景（如作为另一段插值文本的参数、或
     /// 供非 View 类型消费）。
+    static func localizedString(_ key: String) -> String {
+        let bundle = localizationBundle
+        let languageDirectory = current.effectiveLocale.identifier.hasPrefix("en")
+            ? "en"
+            : "zh-Hans"
+        guard
+            let path = bundle.path(forResource: languageDirectory, ofType: "lproj"),
+            let localizedBundle = Bundle(path: path)
+        else {
+            return bundle.localizedString(forKey: key, value: key, table: nil)
+        }
+        return localizedBundle.localizedString(forKey: key, value: key, table: nil)
+    }
+
     static func localizedString(_ key: String.LocalizationValue) -> String {
-        String(localized: key, locale: current.effectiveLocale)
+        String(localized: key, bundle: localizationBundle, locale: current.effectiveLocale)
+    }
+
+    private static var localizationBundle: Bundle {
+        Bundle(identifier: "com.heatmoment.app") ?? .main
     }
 
     /// 当前生效的语言偏好：同步读取 `UserDefaults.standard`（与 `LanguageSettingsView`/

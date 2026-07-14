@@ -25,7 +25,7 @@ final class MomentQuotaReleaseTests: XCTestCase {
             ids.append(id)
         }
 
-        // 满额：第 11 篇应被拒绝。
+        // 满额：第 16 篇应被拒绝。
         let fullCount = try await runtime.repository.totalMomentCount()
         XCTAssertEqual(fullCount, Quota.freeMomentLimit)
         XCTAssertEqual(

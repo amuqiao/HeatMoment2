@@ -10,7 +10,7 @@ import XCTest
 final class TitleCollapseFilterUITests: XCTestCase {
     func testExpandedTitleTapDoesNotOpenFilter() {
         let app = XCUIApplication.heatMoment()
-        app.launchArguments = ["-uiTestReset"]  // 隔离内存 canonical runtime，空态展开态可复现
+        app.launchArguments = ["-uiTestReset"]  // 隔离内存 canonical runtime，展开态可复现
         app.launch()
 
         let expandedTitle = app.staticTexts["timelineExpandedTitle"]
@@ -65,9 +65,12 @@ final class TitleCollapseFilterUITests: XCTestCase {
             "选择已有标签应立即写入筛选条件（出现 #工作 上下文标记）"
         )
         XCTAssertTrue(
-            app.staticTexts["timelineFilteredEmptyState"].waitForExistence(timeout: 5),
-            "种子记录均未挂标签，筛选工作标签应命中 0 条、进入筛选空态"
+            app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "马上创建"))
+                .firstMatch
+                .waitForExistence(timeout: 5),
+            "工作标签来自真实默认资料库，筛选后应命中对应默认 Moment"
         )
+        XCTAssertFalse(app.staticTexts["timelineFilteredEmptyState"].exists)
     }
 
     /// “清除全部”属于统一 sheet chrome 动作，必须一次性清空已选条件并保留 sheet 手动完成语义。

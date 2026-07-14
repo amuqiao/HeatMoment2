@@ -5,10 +5,8 @@ enum TimelineRowDateDisplayMode: Equatable {
     case timeOnly
 
     static func resolve(entry: TimelineEntry, previousEntry: TimelineEntry?) -> Self {
-        guard !entry.isGuided,
-              let previousEntry,
-              !previousEntry.isGuided,
-              Calendar.current.isDate(entry.occurredAt, inSameDayAs: previousEntry.occurredAt)
+        guard let previousEntry,
+            Calendar.current.isDate(entry.occurredAt, inSameDayAs: previousEntry.occurredAt)
         else {
             return .fullDate
         }
@@ -17,8 +15,8 @@ enum TimelineRowDateDisplayMode: Equatable {
 }
 
 /// 时间轴一行：日期列 + 心情节点（按该条情绪的心情色着色）+ 气泡卡片（见 docs/current/implementation-truth.md §5.5）。
-/// 预置引导 Moment 不可点、不可删（`isGuided`），真实 Moment 点击弹出预览阅读卡片
-/// （见 docs/current/implementation-truth.md §4.1/§4.14）、左滑露出删除动作（软删除进垃圾箱）。
+/// 点击弹出预览阅读卡片（见 docs/current/implementation-truth.md §4.1/§4.14）、
+/// 左滑露出删除动作（软删除进垃圾箱）。
 ///
 /// **架构边界**：连续时间轴轨道是稳定骨架；日期、心情节点和气泡是同一条 Moment 的阅读单元。
 /// 左滑删除使用 SwiftUI `List` 行的成熟 `.swipeActions` 语义；独立轨道层不进入可滑动内容。
@@ -31,10 +29,6 @@ struct TimelineRowView: View {
     let style: TimelineSceneStyle
     let onTap: () -> Void
     var onDelete: (() -> Void)?
-
-    private var deleteAction: (() -> Void)? {
-        entry.isGuided ? nil : onDelete
-    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -52,14 +46,14 @@ struct TimelineRowView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(entry.accessibilityLabel))
-        .accessibilityAddTraits(entry.isGuided ? [] : .isButton)
+        .accessibilityAddTraits(.isButton)
         .modifier(
             TimelineRowActivateAccessibilityModifier(
-                isEnabled: !entry.isGuided,
+                isEnabled: true,
                 onActivate: onTap
             )
         )
-        .modifier(TimelineDeleteSwipeActionModifier(onDelete: deleteAction))
+        .modifier(TimelineDeleteSwipeActionModifier(onDelete: onDelete))
     }
 }
 
@@ -83,7 +77,6 @@ private struct TimelineReadingUnitView: View {
                 title: entry.title,
                 bodyText: entry.bodyText,
                 tagNames: entry.tagNames,
-                placeholderImageHexColors: entry.placeholderImageHexColors,
                 imageIDs: entry.imageIDs,
                 tailCenterY: geometry.bubbleTailCenterY,
                 tailGeometry: geometry.bubbleTailGeometry,
@@ -93,7 +86,6 @@ private struct TimelineReadingUnitView: View {
             .layoutPriority(1)
             .contentShape(Rectangle())
             .onTapGesture {
-                guard !entry.isGuided else { return }
                 onTap()
             }
         }
@@ -210,7 +202,7 @@ private struct TimelineRowActivateAccessibilityModifier: ViewModifier {
 }
 
 /// 左滑删除动作 + 无障碍替代路径（见 docs/current/implementation-truth.md §4.1：首页删除无需二次确认，
-/// 有垃圾箱兜底，见公理3）。`onDelete == nil` 时不挂行操作（引导 Moment 不可删）。
+/// 有垃圾箱兜底，见公理3）。`onDelete == nil` 时不挂行操作。
 private struct TimelineDeleteSwipeActionModifier: ViewModifier {
     let onDelete: (() -> Void)?
 

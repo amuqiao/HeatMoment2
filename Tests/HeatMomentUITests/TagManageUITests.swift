@@ -4,15 +4,13 @@ import XCTest
 /// 公理7「标签是归类不是所有权」，`docs/plans/implementation-plan.md` 阶段6）：
 /// 删除标签清理筛选态陈旧 id、重命名、删标签不删时刻。
 ///
-/// 默认标签「工作/生活/健康」由 `DefaultTagSeeder` 在每次 UI 测试冷启动预置一次（首启标记经
-/// `UITestSupport.resetDefaultTagSeedFlagIfUITestRun()` 在 `init()` 复位，等价于每次都是「真正
-/// 首启」，见 `docs/current/local-data-architecture.md` §4、`App/RootView.swift`），本文件全程依赖
-/// 该预置、不需要额外的 `UITestSupport` 标签种子钩子。
+/// 默认标签「工作/生活/健康」由 `DefaultLibrarySeeder` 作为首启默认资料库的一部分预置，
+/// 本文件除显式空库用例外均依赖该预置。
 final class TagManageUITests: XCTestCase {
     /// 标签新增归属设置页标签管理：免费额度未满时，右上「+」打开新建标签卡片，保存后回到列表。
     func testCreateTagFromTagManageAddsRow() {
         let app = XCUIApplication.heatMoment()
-        app.launchArguments = ["-uiTestSkipDefaultTags"]
+        app.launchArguments = ["-uiTestSkipDefaultLibrarySeed"]
         app.launch()
 
         XCTAssertTrue(app.buttons["新建时刻"].waitForExistence(timeout: 10))
@@ -60,9 +58,8 @@ final class TagManageUITests: XCTestCase {
     }
 
     /// 筛选态下删除正在被筛选的标签 → 上下文标记消失、筛选态清空、记录重新可见
-    /// （阶段6计划决策5：`TimelineModel.discardFilterTag`）。种子记录（`-uiTestSeedMoments`）
-    /// 均未挂任何标签，筛选「工作」必命中 0 条（不依赖脆弱的具体计数假设，与
-    /// `LocateFilterUITests` 同一手法）。
+    /// （阶段6计划决策5：`TimelineModel.discardFilterTag`）。`-uiTestSeedMoments` 先走真实默认资料库，
+    /// 再补滚动记录，因此「工作」筛选会命中默认 Moment。
     func testDeleteTagClearsActiveFilterAndRestoresResults() {
         let app = XCUIApplication.heatMoment()
         app.launchArguments = ["-uiTestSeedMoments"]
@@ -84,10 +81,7 @@ final class TagManageUITests: XCTestCase {
         // 才能断言 sheet 之下的时间轴筛选态；这里的标签选择是筛选面板（sheet），非编辑器标签浮窗。
         dismissFilterSheet(app)
 
-        XCTAssertTrue(
-            app.staticTexts["timelineFilteredEmptyState"].waitForExistence(timeout: 5),
-            "种子记录均未挂标签，筛选「工作」应命中 0 条"
-        )
+        XCTAssertFalse(app.staticTexts["timelineFilteredEmptyState"].waitForExistence(timeout: 2))
         let tagMarker = app.descendants(matching: .any)
             .matching(NSPredicate(format: "identifier BEGINSWITH %@", "contextMarkerTag-"))
             .firstMatch
@@ -241,7 +235,7 @@ final class TagManageUITests: XCTestCase {
         XCTAssertTrue(nameField.waitForExistence(timeout: 5))
         XCTAssertEqual(nameField.value as? String, "生活", "重命名态应预填原名")
 
-        // 「工作」是 `DefaultTagSeeder` 预置的既有标签名，撞名。
+        // 「工作」是 `DefaultLibrarySeeder` 预置的既有标签名，撞名。
         replaceText(in: nameField, with: "工作")
         app.buttons["tagCreateSaveButton"].tap()
 

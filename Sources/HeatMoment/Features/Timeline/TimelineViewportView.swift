@@ -50,19 +50,14 @@ struct TimelineViewportView: View {
         _isTitleCollapsed = isTitleCollapsed
     }
 
-    /// 空态展示预置引导 Moment，仅当**未筛选且真的一条真实记录都没有**时触发
-    /// （与阶段2语义完全一致：`filter == nil` 时 `realEntries` 就是「未删除全量」，
-    /// 为空即代表用户从未记录过，见 docs/product-mental-model.md）。
     private var entries: [TimelineEntry] {
-        if filter == nil, isLoaded, realEntries.isEmpty {
-            return GuidedMoment.all.map(TimelineEntry.guided)
-        }
-        return realEntries
+        realEntries
     }
 
-    /// 筛选后 0 条命中（区别于「从未记录过」的引导空态），见 docs/current/implementation-truth.md §4.1 状态、
+    /// 筛选后 0 条命中（区别于真正空库），见 docs/current/implementation-truth.md §4.1 状态、
     /// docs/product-mental-model.md §3.3「筛选后 0 条命中时...展示对应空态文案」。
     private var isFilteredEmpty: Bool { filter != nil && isLoaded && realEntries.isEmpty }
+    private var isUnfilteredEmpty: Bool { filter == nil && isLoaded && realEntries.isEmpty }
 
     /// 当前定位命中的行 id（供逐行高亮），纯粹由 `heatmapFocusDate` + 当前 `entries` 派生，
     /// 不引入独立存储、不影响 `entries` 本身内容。
@@ -130,7 +125,7 @@ struct TimelineViewportView: View {
                             )
                         }
 
-                        if isFilteredEmpty {
+                        if isFilteredEmpty || isUnfilteredEmpty {
                             filteredEmptyState
                                 .listRowSeparator(.hidden)
                                 .listRowBackground(Color.clear)
@@ -151,11 +146,9 @@ struct TimelineViewportView: View {
                                     geometry: scene.layout.geometry,
                                     style: scene.style,
                                     onTap: {
-                                        if let momentID = entry.momentID {
-                                            router.rootSheet = .preview(momentID)
-                                        }
+                                        router.rootSheet = .preview(entry.id)
                                     },
-                                    onDelete: entry.momentID == nil ? nil : { handleDelete(entry) }
+                                    onDelete: { handleDelete(entry) }
                                 )
                                 .id(entry.id)
                                 .listRowSeparator(.hidden)
@@ -262,7 +255,7 @@ struct TimelineViewportView: View {
     }
 
     private var filteredEmptyState: some View {
-        Text("没有符合条件的记录")
+        Text(isFilteredEmpty ? "没有符合条件的记录" : "还没有记录")
             .font(AppTypography.body)
             .foregroundStyle(theme.bubbleBodyText)
             .frame(maxWidth: .infinity)
@@ -273,10 +266,9 @@ struct TimelineViewportView: View {
     /// 首页左滑删除 = 软删除进垃圾箱，无需二次确认（垃圾箱兜底，见公理3「删除是生命周期」）；
     /// 不释放篇数额度（见 docs/current/local-data-architecture.md §3）；缩略图缓存不动（原图仍在，仅移出主时间轴）。
     private func handleDelete(_ entry: TimelineEntry) {
-        guard let momentID = entry.momentID else { return }
         Task {
             do {
-                try await mutationService.softDeleteMoment(id: momentID)
+                try await mutationService.softDeleteMoment(id: entry.id)
             } catch {
                 // canonical 是真相源：删除失败时可见集不会刷新为已删除，不需要额外回滚
                 // 本地状态（见阶段6计划决策3：可恢复写失败改走统一错误通道）。

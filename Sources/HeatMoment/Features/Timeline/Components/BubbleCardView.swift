@@ -7,10 +7,7 @@ struct BubbleCardView: View {
     let title: String
     let bodyText: String
     let tagNames: [String]
-    /// 占位图片色块（仅供预置引导 Moment 模拟「图片」区，见 docs/current/implementation-truth.md §5.7）。
-    let placeholderImageHexColors: [UInt32]
-    /// 真实 Moment 的图片 id（经 `ThumbnailStripView` 按需加载缩略图，见阶段 4 计划）；
-    /// 与 `placeholderImageHexColors` 互斥——真实 Moment 用此项，预置引导 Moment 用占位色块。
+    /// 真实 Moment 的图片 id（经 `ThumbnailStripView` 按需加载缩略图，见阶段 4 计划）。
     var imageIDs: [UUID] = []
     /// 气泡尾巴中心相对卡片顶部的 y 坐标；由时间轴行传入，用来和心情节点中心建立几何绑定。
     var tailCenterY: CGFloat = 30
@@ -25,13 +22,7 @@ struct BubbleCardView: View {
         VStack(alignment: .leading, spacing: style.contentSpacing) {
             textBlock(for: contentKind)
 
-            if !placeholderImageHexColors.isEmpty {
-                PlaceholderImageGalleryView(
-                    hexColors: placeholderImageHexColors,
-                    displayMode: theme.imageDisplayMode,
-                    style: style.imageGallery
-                )
-            } else if !imageIDs.isEmpty {
+            if !imageIDs.isEmpty {
                 // 图片区是媒体交互区：横向滚动/轮播优先，不把图片上的左滑解释成删除。
                 // 非图片区仍由 `List.swipeActions` 承担系统行级删除。
                 ThumbnailStripView(
@@ -71,7 +62,7 @@ struct BubbleCardView: View {
     }
 
     private var hasImages: Bool {
-        !placeholderImageHexColors.isEmpty || !imageIDs.isEmpty
+        !imageIDs.isEmpty
     }
 
     private var contentKind: MomentCardContentKind {
@@ -186,53 +177,6 @@ private struct BubbleTailShape: Shape {
     }
 }
 
-private struct PlaceholderImageGalleryView: View {
-    let hexColors: [UInt32]
-    let displayMode: ImageDisplayMode
-    let style: TimelineImageGalleryStyle
-
-    var body: some View {
-        imageGallery
-            .allowsHitTesting(style.allowsHitTesting)
-    }
-
-    @ViewBuilder
-    private var imageGallery: some View {
-        switch displayMode {
-        case .scroll:
-            ScrollView(.horizontal) {
-                LazyHStack(spacing: style.thumbnailSpacing) {
-                    ForEach(Array(hexColors.enumerated()), id: \.offset) { _, hex in
-                        placeholder(hex)
-                            .frame(
-                                width: style.thumbnailSize.width,
-                                height: style.thumbnailSize.height
-                            )
-                    }
-                }
-            }
-            .scrollIndicators(.hidden)
-            .frame(height: style.imageSectionHeight(for: .scroll))
-            .frame(maxWidth: .infinity, alignment: .leading)
-        case .carousel:
-            TabView {
-                ForEach(Array(hexColors.enumerated()), id: \.offset) { _, hex in
-                    placeholder(hex)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: style.carouselHeight)
-                }
-            }
-            .tabViewStyle(.page(indexDisplayMode: hexColors.count > 1 ? .automatic : .never))
-            .frame(height: style.imageSectionHeight(for: .carousel))
-        }
-    }
-
-    private func placeholder(_ hex: UInt32) -> some View {
-        RoundedRectangle(cornerRadius: style.thumbnailCornerRadius, style: .continuous)
-            .fill(Color(hex: hex))
-    }
-}
-
 /// 标签 chip（见 docs/current/implementation-truth.md §5.6）：前缀「#」使用当前主色着色，其余文字为中性次级色。
 struct TagChipView: View {
     let name: String
@@ -256,8 +200,7 @@ struct TagChipView: View {
     BubbleCardView(
         title: "欢迎来到心绪日记~",
         bodyText: "这里是你的个人时间轴，每一条记录都带着当时的心情。",
-        tagNames: ["工作", "生活"],
-        placeholderImageHexColors: [0xB678F5, 0x8E7B6B]
+        tagNames: ["工作", "生活"]
     )
     .environment(ThemeManager())
     .padding()

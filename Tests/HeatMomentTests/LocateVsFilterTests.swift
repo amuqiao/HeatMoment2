@@ -77,23 +77,6 @@ final class LocateVsFilterTests: XCTestCase {
         )
     }
 
-    func testScrollTargetIDIgnoresGuidedEntries() throws {
-        let guidedEntries = GuidedMoment.all.map(TimelineEntry.guided)
-
-        XCTAssertNil(
-            TimelineLocator.scrollTargetID(for: Date.now, in: guidedEntries),
-            "日 anchor 不应命中空态引导卡片"
-        )
-        XCTAssertNil(
-            TimelineLocator.scrollTargetID(
-                for: Date.now,
-                granularity: .month,
-                in: guidedEntries
-            ),
-            "月 anchor 不应命中空态引导卡片"
-        )
-    }
-
     @MainActor
     func testHeatmapFocusDateAndActiveFilterAreIndependentStorage() {
         let model = TimelineModel()
@@ -133,13 +116,11 @@ final class LocateVsFilterTests: XCTestCase {
         return TimelineEntry(
             id: id,
             momentID: id,
-            kind: .real,
             title: title,
             bodyText: "",
             mood: mood,
             occurredAt: occurredAt,
             tagNames: [],
-            placeholderImageHexColors: [],
             imageIDs: []
         )
     }

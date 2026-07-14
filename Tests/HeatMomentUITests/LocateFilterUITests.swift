@@ -5,9 +5,8 @@ import XCTest
 /// 阶段5落地的筛选就近浮窗 + 上下文标记 + 热力图定位是本阶段头牌功能，此前只有单元测试
 /// （`LocateVsFilterTests`）覆盖谓词/纯函数层面，缺 XCUITest 端到端验收，此文件补齐。
 ///
-/// 复用 `-uiTestSeedMoments`（见 `UITestSupport`）：15 条记录心情均为默认 `.normal`
-/// （rawValue 0），足以稳定支撑本文件两条断言（筛选「种子里不存在的心情」、定位到有色日期格），
-/// 不需要额外新增变体种子。
+/// 复用 `-uiTestSeedMoments`（见 `UITestSupport`）：真实默认资料库后补足可滚动记录，
+/// 足以稳定支撑本文件两条断言（筛选「种子里不存在的心情」、定位到有色日期格）。
 final class LocateFilterUITests: XCTestCase {
     /// 筛选到种子里不存在的心情 → 展示筛选空态 + 出现心情上下文筛选标记；
     /// 移除该标记 → 退出空态、记录回归（回归验证「移除筛选标记」这一真实交互路径，
@@ -29,11 +28,11 @@ final class LocateFilterUITests: XCTestCase {
         XCTAssertTrue(collapsedTitle.waitForExistence(timeout: 5))
         collapsedTitle.tap()
 
-        // 种子记录心情均为默认 `.normal`（rawValue 0），选「开心」（rawValue 1）保证种子里
-        // 必然没有命中，筛选结果必为空态——不依赖任何脆弱的具体计数假设。
-        let happyOption = app.buttons["filterMoodOption-1"]
-        XCTAssertTrue(happyOption.waitForExistence(timeout: 5))
-        happyOption.tap()
+        // 默认资料库使用 normal / happy / motivated，追加滚动记录使用 normal；选「难过」
+        // （rawValue 2）保证种子里没有命中。
+        let sadOption = app.buttons["filterMoodOption-2"]
+        XCTAssertTrue(sadOption.waitForExistence(timeout: 5))
+        sadOption.tap()
         // 交互模型 v2：筛选已从就近浮窗改为半屏 sheet（`.presentationDetents([.medium, .large])`），
         // sheet 不因点选自动收起（就地即时生效、点选即写 `activeFilter`），点「完成」收起 sheet
         // 后再验证 sheet 之下（此前被模态遮挡）的时间轴筛选态。

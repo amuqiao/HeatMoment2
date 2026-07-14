@@ -121,7 +121,7 @@ struct ProPaywallView: View {
     /// 权益条目完整朗读对比文案（见 `docs/current/testing-architecture.md` §12.4）。
     private var benefits: some View {
         VStack(alignment: .leading, spacing: 12) {
-            benefitRow(text: "发布无限的心情日记，普通用户最多只能发布 10 篇日记")
+            benefitRow(text: "发布无限的心情日记，普通用户最多只能发布 15 篇日记")
             benefitRow(text: "每篇日记添加无限张照片，普通用户每篇最多 3 张")
             benefitRow(text: "创建无限个标签，普通用户最多 3 个标签")
         }

@@ -20,15 +20,6 @@ final class TimelineRailVisibilityTests: XCTestCase {
         XCTAssertTrue(visibility.showsRail)
     }
 
-    func testUnfilteredGuidedReadingUnitsRenderSceneRail() {
-        let visibility = TimelineRailVisibility.resolve(
-            visibleReadingUnitCount: GuidedMoment.all.count,
-            isFilteredEmpty: false
-        )
-
-        XCTAssertTrue(visibility.showsRail)
-    }
-
     func testEmptyNonFilteredViewportDoesNotLeaveOrphanRail() {
         let visibility = TimelineRailVisibility.resolve(
             visibleReadingUnitCount: 0,
