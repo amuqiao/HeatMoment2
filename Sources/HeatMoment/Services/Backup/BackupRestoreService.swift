@@ -20,7 +20,7 @@ struct BackupRecoveryPoint: Identifiable, Sendable, Equatable {
     let counts: BackupRecoveryCounts
 }
 
-struct BackupRecoveryCounts: Sendable, Equatable {
+struct BackupRecoveryCounts: Codable, Sendable, Equatable {
     let recordCount: Int
     let usedTagCount: Int
     let assetCount: Int

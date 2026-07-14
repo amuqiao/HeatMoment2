@@ -30,15 +30,17 @@ final class BackupPackageServiceTests: XCTestCase {
         XCTAssertEqual(preview.manifest.payloads.filter { $0.role == .assetBlob }.count, 1)
     }
 
-    func testPrepareExportPackageDoesNotRecordLastExportedAt() async throws {
+    func testPrepareExportPackageDoesNotRecordLastExportSnapshot() async throws {
         let fixture = try makeFixture()
         try await seedMoment(in: fixture.runtime, imageData: Data([0x01, 0x02]))
         let historyStore = BackupPackageExportHistoryStore(
             key: "BackupPackageServiceTests-\(UUID().uuidString)"
         )
+        let readAt = Date(timeIntervalSince1970: 1_700_000_150)
         let service = CanonicalBackupPackageService(
             runtime: fixture.runtime,
             appVersion: "1.0-test",
+            currentDate: { readAt },
             exportHistoryStore: historyStore
         )
 
@@ -47,7 +49,9 @@ final class BackupPackageServiceTests: XCTestCase {
         )
         let summary = try await service.currentSummary()
 
-        XCTAssertNil(summary.lastExportedAt)
+        XCTAssertEqual(summary.currentSnapshot.readAt, readAt)
+        XCTAssertEqual(summary.currentSnapshot.counts, preparedSummaryCounts(recordCount: 1))
+        XCTAssertNil(summary.lastExportSnapshot)
     }
 
     func testCompletePreparedExportRecordsHistoryAndRetainsPackageForFileProviderHandoff()
@@ -76,7 +80,10 @@ final class BackupPackageServiceTests: XCTestCase {
         XCTAssertEqual(completion.packageID, prepared.packageID)
         XCTAssertEqual(completion.exportedAt, completedAt)
         XCTAssertEqual(completion.cleanupStatus, .completed)
-        XCTAssertEqual(summary.lastExportedAt, completedAt)
+        XCTAssertEqual(
+            summary.lastExportSnapshot,
+            BackupPackageExportSnapshot(counts: prepared.counts, exportedAt: completedAt)
+        )
         XCTAssertTrue(FileManager.default.fileExists(atPath: prepared.preparedDirectory.path))
         XCTAssertTrue(
             FileManager.default.fileExists(
@@ -87,6 +94,73 @@ final class BackupPackageServiceTests: XCTestCase {
                     .path
             )
         )
+    }
+
+    func testCurrentSummarySeparatesCurrentSnapshotFromLastExportSnapshot() async throws {
+        let fixture = try makeFixture()
+        try await seedMoment(
+            in: fixture.runtime,
+            tagName: "导出标签",
+            imageData: Data([0x03, 0x04])
+        )
+        let historyStore = BackupPackageExportHistoryStore(
+            key: "BackupPackageServiceTests-\(UUID().uuidString)"
+        )
+        let completedAt = Date(timeIntervalSince1970: 1_700_000_260)
+        let readAt = Date(timeIntervalSince1970: 1_700_000_270)
+        let service = CanonicalBackupPackageService(
+            runtime: fixture.runtime,
+            appVersion: "1.0-test",
+            currentDate: { readAt },
+            exportHistoryStore: historyStore
+        )
+        let prepared = try await service.prepareExportPackage(
+            createdAt: Date(timeIntervalSince1970: 1_700_000_250)
+        )
+        try await seedMoment(
+            in: fixture.runtime,
+            tagName: "新增标签",
+            imageData: Data([0x05, 0x06])
+        )
+        _ = try await service.completePreparedExport(prepared, completedAt: completedAt)
+        let summary = try await service.currentSummary()
+
+        XCTAssertEqual(
+            summary.currentSnapshot,
+            BackupPackageContentSnapshot(
+                counts: BackupRecoveryCounts(recordCount: 2, usedTagCount: 2, assetCount: 2),
+                readAt: readAt
+            )
+        )
+        XCTAssertEqual(
+            summary.lastExportSnapshot,
+            BackupPackageExportSnapshot(
+                counts: BackupRecoveryCounts(recordCount: 1, usedTagCount: 1, assetCount: 1),
+                exportedAt: completedAt
+            )
+        )
+    }
+
+    func testCurrentSummaryRejectsCorruptLastExportSnapshotHistory() async throws {
+        let fixture = try makeFixture()
+        try await seedMoment(in: fixture.runtime, imageData: Data([0x07, 0x08]))
+        let historyKey = "BackupPackageServiceTests-\(UUID().uuidString)"
+        UserDefaults.standard.set(Data([0x7B]), forKey: historyKey)
+        addTeardownBlock {
+            UserDefaults.standard.removeObject(forKey: historyKey)
+        }
+        let service = CanonicalBackupPackageService(
+            runtime: fixture.runtime,
+            appVersion: "1.0-test",
+            exportHistoryStore: BackupPackageExportHistoryStore(key: historyKey)
+        )
+
+        do {
+            _ = try await service.currentSummary()
+            XCTFail("损坏的上次导出摘要不应被解释为从未导出")
+        } catch {
+            XCTAssertFalse(String(describing: error).isEmpty)
+        }
     }
 
     func testCompletePreparedExportReportsMarkerFailureAfterRecordingHistory() async throws {
@@ -118,7 +192,10 @@ final class BackupPackageServiceTests: XCTestCase {
         )
         let summary = try await service.currentSummary()
 
-        XCTAssertEqual(summary.lastExportedAt, completedAt)
+        XCTAssertEqual(
+            summary.lastExportSnapshot,
+            BackupPackageExportSnapshot(counts: prepared.counts, exportedAt: completedAt)
+        )
         guard case let .failedAfterExportRecorded(details) = completion.cleanupStatus else {
             return XCTFail("marker 写入失败后应返回 failedAfterExportRecorded")
         }
@@ -126,7 +203,7 @@ final class BackupPackageServiceTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: prepared.preparedDirectory.path))
     }
 
-    func testDiscardPreparedExportDoesNotRecordHistoryAndCleansTemporaryPackage() async throws {
+    func testDiscardPreparedExportDoesNotRecordSnapshotAndCleansTemporaryPackage() async throws {
         let fixture = try makeFixture()
         try await seedMoment(in: fixture.runtime, imageData: Data([0x05, 0x06]))
         let historyStore = BackupPackageExportHistoryStore(
@@ -144,7 +221,7 @@ final class BackupPackageServiceTests: XCTestCase {
         try await service.discardPreparedExport(prepared)
         let summary = try await service.currentSummary()
 
-        XCTAssertNil(summary.lastExportedAt)
+        XCTAssertNil(summary.lastExportSnapshot)
         XCTAssertFalse(FileManager.default.fileExists(atPath: prepared.preparedDirectory.path))
     }
 
@@ -165,7 +242,7 @@ final class BackupPackageServiceTests: XCTestCase {
 
         let summary = try await service.currentSummary()
 
-        XCTAssertNil(summary.lastExportedAt)
+        XCTAssertNil(summary.lastExportSnapshot)
         XCTAssertTrue(FileManager.default.fileExists(atPath: prepared.preparedDirectory.path))
     }
 
@@ -187,7 +264,7 @@ final class BackupPackageServiceTests: XCTestCase {
         try await service.discardAbandonedPreparedExports()
         let summary = try await service.currentSummary()
 
-        XCTAssertNil(summary.lastExportedAt)
+        XCTAssertNil(summary.lastExportSnapshot)
         XCTAssertFalse(FileManager.default.fileExists(atPath: prepared.preparedDirectory.path))
     }
 
@@ -407,7 +484,7 @@ final class BackupPackageServiceTests: XCTestCase {
         XCTAssertTrue(try importRootIsEmpty(descriptor: target.descriptor))
     }
 
-    func testPrepareImportKeepsLastExportedAtHistory() async throws {
+    func testPrepareImportKeepsLastExportSnapshotHistory() async throws {
         let source = try makeFixture()
         let target = try makeFixture()
         try await seedMoment(in: source.runtime, imageData: Data([0x1C, 0x1D]))
@@ -423,7 +500,11 @@ final class BackupPackageServiceTests: XCTestCase {
             key: "BackupPackageServiceTests-\(UUID().uuidString)"
         )
         let previousExportedAt = Date(timeIntervalSince1970: 2_900)
-        targetHistoryStore.recordExported(at: previousExportedAt)
+        let previousExportSnapshot = BackupPackageExportSnapshot(
+            counts: BackupRecoveryCounts(recordCount: 9, usedTagCount: 3, assetCount: 4),
+            exportedAt: previousExportedAt
+        )
+        try targetHistoryStore.recordExportSnapshot(previousExportSnapshot)
         let targetService = CanonicalBackupPackageService(
             runtime: target.runtime,
             appVersion: "1.0-test",
@@ -440,7 +521,7 @@ final class BackupPackageServiceTests: XCTestCase {
         )
         let summary = try await targetService.currentSummary()
 
-        XCTAssertEqual(summary.lastExportedAt, previousExportedAt)
+        XCTAssertEqual(summary.lastExportSnapshot, previousExportSnapshot)
     }
 
     func testDiscardAllImportStagingDoesNotClearArmedPendingRestore() async throws {
@@ -701,16 +782,29 @@ private extension BackupPackageServiceTests {
     func seedMoment(
         in runtime: CanonicalLibraryRuntime,
         title: String = "备份测试",
+        tagName: String? = nil,
         imageData: Data
     ) async throws {
+        let tagIDs: [UUID]
+        if let tagName {
+            let tag = try await runtime.repository.createOrReuseTag(name: tagName)
+            tagIDs = [tag.id]
+        } else {
+            tagIDs = []
+        }
         try await runtime.repository.createMoment(
             title: title,
             bodyText: "完整备份包测试内容",
             occurredAt: Date(timeIntervalSince1970: 1_000),
             mood: .happy,
+            tagIDs: tagIDs,
             imageDatas: [imageData],
             now: Date(timeIntervalSince1970: 1_100)
         )
+    }
+
+    func preparedSummaryCounts(recordCount: Int) -> BackupRecoveryCounts {
+        BackupRecoveryCounts(recordCount: recordCount, usedTagCount: 0, assetCount: recordCount)
     }
 
     func corruptLastByte(in url: URL) throws {

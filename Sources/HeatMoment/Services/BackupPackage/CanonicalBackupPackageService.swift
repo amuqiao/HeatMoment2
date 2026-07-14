@@ -3,6 +3,7 @@ import Foundation
 actor CanonicalBackupPackageService: BackupPackageServicing {
     let runtime: CanonicalLibraryRuntime
     let appVersion: String
+    let currentDate: @Sendable () -> Date
     let exportHistoryStore: BackupPackageExportHistoryStore
     let removePreparedExportDirectory: @Sendable (URL) throws -> Void
     let removeImportStagingDirectory: @Sendable (URL) throws -> Void
@@ -11,6 +12,7 @@ actor CanonicalBackupPackageService: BackupPackageServicing {
     init(
         runtime: CanonicalLibraryRuntime,
         appVersion: String,
+        currentDate: @escaping @Sendable () -> Date = { .now },
         exportHistoryStore: BackupPackageExportHistoryStore = BackupPackageExportHistoryStore(),
         removePreparedExportDirectory:
             @escaping @Sendable (URL) throws -> Void = { directory in
@@ -33,6 +35,7 @@ actor CanonicalBackupPackageService: BackupPackageServicing {
     ) {
         self.runtime = runtime
         self.appVersion = appVersion
+        self.currentDate = currentDate
         self.exportHistoryStore = exportHistoryStore
         self.removePreparedExportDirectory = removePreparedExportDirectory
         self.removeImportStagingDirectory = removeImportStagingDirectory
@@ -47,8 +50,11 @@ actor CanonicalBackupPackageService: BackupPackageServicing {
             try Self.counts(in: db)
         }
         return BackupPackageLibrarySummary(
-            counts: BackupRecoveryCounts(counts: counts),
-            lastExportedAt: exportHistoryStore.lastExportedAt()
+            currentSnapshot: BackupPackageContentSnapshot(
+                counts: BackupRecoveryCounts(counts: counts),
+                readAt: currentDate()
+            ),
+            lastExportSnapshot: try exportHistoryStore.lastExportSnapshot()
         )
     }
 

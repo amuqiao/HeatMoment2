@@ -150,7 +150,7 @@
 
         static func resetBackupPackageExportHistoryIfUITestRun() {
             guard isAnyUITestRun else { return }
-            BackupPackageExportHistoryStore().removeExportedAt()
+            BackupPackageExportHistoryStore().removeExportSnapshot()
         }
 
         /// 供 `HeatMomentApp` 构造 `ThemeManager` 时选择的外观存储：任意 UI 测试场景下用隔离套件

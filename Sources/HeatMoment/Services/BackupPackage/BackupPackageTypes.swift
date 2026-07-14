@@ -35,8 +35,18 @@ extension BackupPackageServicing {
 }
 
 struct BackupPackageLibrarySummary: Sendable, Equatable {
+    let currentSnapshot: BackupPackageContentSnapshot
+    let lastExportSnapshot: BackupPackageExportSnapshot?
+}
+
+struct BackupPackageContentSnapshot: Sendable, Equatable {
     let counts: BackupRecoveryCounts
-    let lastExportedAt: Date?
+    let readAt: Date
+}
+
+struct BackupPackageExportSnapshot: Codable, Sendable, Equatable {
+    let counts: BackupRecoveryCounts
+    let exportedAt: Date
 }
 
 struct BackupPackagePreparedExport: Sendable, Equatable {

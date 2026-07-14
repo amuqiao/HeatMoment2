@@ -1,7 +1,8 @@
 import Foundation
 
 struct BackupPackageExportHistoryStore: Sendable {
-    static let defaultKey = "HeatMoment.BackupPackage.LastExportedAt"
+    static let defaultKey = "HeatMoment.BackupPackage.LastExportSnapshot"
+    private static let legacyExportedAtKey = "HeatMoment.BackupPackage.LastExportedAt"
 
     private let key: String
 
@@ -9,18 +10,21 @@ struct BackupPackageExportHistoryStore: Sendable {
         self.key = key
     }
 
-    func lastExportedAt() -> Date? {
-        guard UserDefaults.standard.object(forKey: key) != nil else {
+    func lastExportSnapshot() throws -> BackupPackageExportSnapshot? {
+        guard let data = UserDefaults.standard.data(forKey: key) else {
             return nil
         }
-        return Date(timeIntervalSince1970: UserDefaults.standard.double(forKey: key))
+        return try JSONDecoder().decode(BackupPackageExportSnapshot.self, from: data)
     }
 
-    func recordExported(at date: Date) {
-        UserDefaults.standard.set(date.timeIntervalSince1970, forKey: key)
+    func recordExportSnapshot(_ snapshot: BackupPackageExportSnapshot) throws {
+        let data = try JSONEncoder().encode(snapshot)
+        UserDefaults.standard.set(data, forKey: key)
+        UserDefaults.standard.removeObject(forKey: Self.legacyExportedAtKey)
     }
 
-    func removeExportedAt() {
+    func removeExportSnapshot() {
         UserDefaults.standard.removeObject(forKey: key)
+        UserDefaults.standard.removeObject(forKey: Self.legacyExportedAtKey)
     }
 }

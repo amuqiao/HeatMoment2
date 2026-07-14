@@ -13,6 +13,7 @@ struct BackupRestoreView: View {
     @State private var preparedExport: BackupPackagePreparedExport?
     @State private var importPreview: BackupPackagePreview?
     @State private var isLoadingSummary = false
+    @State private var hasSummaryLoadFailed = false
     @State private var isExporting = false
     @State private var isShareSheetPresented = false
     @State private var isResolvingExportShare = false
@@ -73,17 +74,41 @@ struct BackupRestoreView: View {
     }
 
     private var summarySection: some View {
-        TaskSurfaceSection(title: "当前内容", accessibilityIdentifier: "backupSummarySection") {
-            VStack(spacing: 0) {
-                summaryRow(
-                    title: "内容",
-                    value: summary?.counts.displayText ?? (isLoadingSummary ? "正在读取..." : "不可用")
-                )
-                TaskSurfaceSeparator()
-                summaryRow(
-                    title: "上次导出",
-                    value: summary?.lastExportedAt.map(Self.dateFormatter.string(from:)) ?? "从未备份"
-                )
+        TaskSurfaceSection(accessibilityIdentifier: "backupSummarySection") {
+            VStack(alignment: .leading, spacing: 16) {
+                if let currentSnapshot = summary?.currentSnapshot {
+                    summarySnapshotBlock(
+                        title: "当前内容",
+                        counts: currentSnapshot.counts,
+                        timestampLabel: "读取于",
+                        timestamp: currentSnapshot.readAt,
+                        accessibilityPrefix: "backupCurrentSummary"
+                    )
+                } else {
+                    summaryPlaceholderBlock(
+                        title: "当前内容",
+                        message: summaryPlaceholderMessage,
+                        accessibilityPrefix: "backupCurrentSummary"
+                    )
+                }
+
+                summarySeparator
+
+                if let lastExportSnapshot = summary?.lastExportSnapshot {
+                    summarySnapshotBlock(
+                        title: "上次导出",
+                        counts: lastExportSnapshot.counts,
+                        timestampLabel: "导出于",
+                        timestamp: lastExportSnapshot.exportedAt,
+                        accessibilityPrefix: "backupLastExportSummary"
+                    )
+                } else {
+                    summaryPlaceholderBlock(
+                        title: "上次导出",
+                        message: summary == nil ? summaryPlaceholderMessage : "从未导出",
+                        accessibilityPrefix: "backupLastExportSummary"
+                    )
+                }
             }
         }
     }
@@ -103,16 +128,87 @@ struct BackupRestoreView: View {
         }
     }
 
-    private func summaryRow(title: String, value: String) -> some View {
-        TaskSurfaceRow {
+    private func summarySnapshotBlock(
+        title: String,
+        counts: BackupRecoveryCounts,
+        timestampLabel: String,
+        timestamp: Date,
+        accessibilityPrefix: String
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
             Text(title)
-                .foregroundStyle(theme.secondaryText)
-        } trailing: {
-            Text(value)
-                .font(AppTypography.caption)
+                .font(AppTypography.body.weight(.semibold))
                 .foregroundStyle(theme.primaryText)
-                .multilineTextAlignment(.trailing)
+
+            HStack(spacing: 8) {
+                summaryMetric(
+                    title: "记录",
+                    value: counts.recordCount,
+                    accessibilityIdentifier: "\(accessibilityPrefix)RecordMetric"
+                )
+                summaryMetric(
+                    title: "使用标签",
+                    value: counts.usedTagCount,
+                    accessibilityIdentifier: "\(accessibilityPrefix)UsedTagMetric"
+                )
+                summaryMetric(
+                    title: "照片",
+                    value: counts.assetCount,
+                    accessibilityIdentifier: "\(accessibilityPrefix)PhotoMetric"
+                )
+            }
+
+            Text("\(timestampLabel) \(Self.dateFormatter.string(from: timestamp))")
+                .font(AppTypography.caption)
+                .foregroundStyle(theme.secondaryText)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityIdentifier("\(accessibilityPrefix)Timestamp")
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func summaryMetric(
+        title: String,
+        value: Int,
+        accessibilityIdentifier: String
+    ) -> some View {
+        Text("\(title) \(value)")
+            .font(AppTypography.caption.weight(.semibold))
+            .foregroundStyle(theme.primaryText)
+            .lineLimit(1)
+            .minimumScaleFactor(0.82)
+            .accessibilityIdentifier(accessibilityIdentifier)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func summaryPlaceholderBlock(
+        title: String,
+        message: String,
+        accessibilityPrefix: String
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(AppTypography.body.weight(.semibold))
+                .foregroundStyle(theme.primaryText)
+            Text(message)
+                .font(AppTypography.caption)
+                .foregroundStyle(theme.secondaryText)
+                .accessibilityIdentifier("\(accessibilityPrefix)Placeholder")
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var summarySeparator: some View {
+        Rectangle()
+            .fill(theme.separator)
+            .frame(height: 1 / UIScreen.main.scale)
+            .frame(maxWidth: .infinity)
+    }
+
+    private var summaryPlaceholderMessage: String {
+        if isLoadingSummary { return "正在读取..." }
+        if hasSummaryLoadFailed { return "不可用" }
+        return "不可用"
     }
 
     private func cleanupAbandonedBackupWorkspaces() async {
@@ -131,7 +227,10 @@ struct BackupRestoreView: View {
         defer { isLoadingSummary = false }
         do {
             summary = try await backupPackageService.currentSummary()
+            hasSummaryLoadFailed = false
         } catch {
+            summary = nil
+            hasSummaryLoadFailed = true
             errorPresenter.report(message: "备份摘要读取失败，请稍后重试。", underlying: error)
         }
     }
@@ -170,10 +269,7 @@ struct BackupRestoreView: View {
                 if completed {
                     let completion =
                         try await backupPackageService.completePreparedExport(preparedExport)
-                    summary = BackupPackageLibrarySummary(
-                        counts: preparedExport.counts,
-                        lastExportedAt: completion.exportedAt
-                    )
+                    summary = try await backupPackageService.currentSummary()
                     reportPreparedExportCleanupIfNeeded(completion.cleanupStatus)
                 } else {
                     try await backupPackageService.discardPreparedExport(preparedExport)

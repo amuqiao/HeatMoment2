@@ -9,6 +9,13 @@ final class BackupRestoreUITests: XCTestCase {
         XCTAssertTrue(app.otherElements["backupSummarySection"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.otherElements["backupPackageSection"].exists)
         XCTAssertTrue(app.staticTexts["当前内容"].exists)
+        XCTAssertTrue(app.staticTexts["backupCurrentSummaryRecordMetric"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.staticTexts["backupCurrentSummaryRecordMetric"].label, "记录 2")
+        XCTAssertEqual(app.staticTexts["backupCurrentSummaryUsedTagMetric"].label, "使用标签 0")
+        XCTAssertEqual(app.staticTexts["backupCurrentSummaryPhotoMetric"].label, "照片 0")
+        XCTAssertTrue(app.staticTexts["backupCurrentSummaryTimestamp"].label.hasPrefix("读取于 "))
+        XCTAssertTrue(app.staticTexts["上次导出"].exists)
+        XCTAssertEqual(app.staticTexts["backupLastExportSummaryPlaceholder"].label, "从未导出")
         XCTAssertTrue(app.staticTexts["完整备份"].exists)
         let operationPicker = app.segmentedControls["backupPackageOperationPicker"]
         XCTAssertTrue(operationPicker.waitForExistence(timeout: 5))
@@ -42,19 +49,25 @@ final class BackupRestoreUITests: XCTestCase {
         openBackupRestore(app)
 
         XCTAssertTrue(app.staticTexts["上次导出"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["从未备份"].exists)
+        XCTAssertTrue(app.staticTexts["backupLastExportSummaryPlaceholder"].exists)
 
         app.buttons["backupPackagePrimaryButton"].tap()
 
-        XCTAssertTrue(waitForNonExistence(app.staticTexts["从未备份"], timeout: 8))
-        let exportedAtLabel = app.staticTexts.matching(
-            NSPredicate(
-                format: "label MATCHES %@",
-                #"\d{4}年\d{1,2}月\d{1,2}日 \d{2}:\d{2}"#
-            )
+        XCTAssertTrue(
+            waitForNonExistence(app.staticTexts["backupLastExportSummaryPlaceholder"], timeout: 8)
         )
-        .firstMatch
+        XCTAssertTrue(app.staticTexts["backupLastExportSummaryRecordMetric"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.staticTexts["backupLastExportSummaryRecordMetric"].label, "记录 2")
+        XCTAssertEqual(app.staticTexts["backupLastExportSummaryUsedTagMetric"].label, "使用标签 0")
+        XCTAssertEqual(app.staticTexts["backupLastExportSummaryPhotoMetric"].label, "照片 0")
+        let exportedAtLabel = app.staticTexts["backupLastExportSummaryTimestamp"]
         XCTAssertTrue(exportedAtLabel.waitForExistence(timeout: 5))
+        XCTAssertTrue(
+            exportedAtLabel.label.range(
+                of: #"^导出于 \d{4}年\d{1,2}月\d{1,2}日 \d{2}:\d{2}$"#,
+                options: .regularExpression
+            ) != nil
+        )
     }
 
     @MainActor

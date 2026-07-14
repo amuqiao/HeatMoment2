@@ -67,7 +67,12 @@ extension CanonicalBackupPackageService {
             )
         }
 
-        exportHistoryStore.recordExported(at: completedAt)
+        try exportHistoryStore.recordExportSnapshot(
+            BackupPackageExportSnapshot(
+                counts: preparedExport.counts,
+                exportedAt: completedAt
+            )
+        )
         do {
             try markPreparedExportCompleted(
                 preparedExport.preparedDirectory,
